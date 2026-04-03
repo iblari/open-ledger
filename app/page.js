@@ -1,6 +1,12 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
+
+function useIsMobile() {
+  const [w, setW] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
+  useEffect(() => { const h = () => setW(window.innerWidth); window.addEventListener('resize', h); return () => window.removeEventListener('resize', h); }, []);
+  return w < 768;
+}
 
 /* ─────────────────────────────────────────────
    DESIGN SYSTEM
@@ -151,6 +157,7 @@ function Tip({active,payload,label,unit}){
 const TABS=[["dashboard","Data"],["scorecard","Scorecard"],["headtohead","Compare"],["global","Global"]];
 
 export default function App(){
+  const mob = useIsMobile();
   const [tab,setTab]=useState("dashboard");
   const [am,setAm]=useState("gdp");
   const [sel,setSel]=useState(["clinton","bush","obama","trump1","biden"]);
@@ -187,11 +194,35 @@ export default function App(){
   return (
     <div style={sty.page}>
       <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,300;8..60,400;8..60,600;8..60,700;8..60,900&family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
-      <style>{`* { box-sizing: border-box; } button { cursor: pointer; } @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }`}</style>
+      <style>{`
+        * { box-sizing: border-box; }
+        button { cursor: pointer; }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        @media (max-width: 768px) {
+          .ol-header h1 { font-size: 24px !important; }
+          .ol-header p { font-size: 12px !important; }
+          .ol-wrap { padding: 16px 14px 48px !important; }
+          .ol-header-wrap { padding: 20px 14px 16px !important; }
+          .ol-nav-wrap { padding: 0 14px !important; }
+          .ol-nav-btn { padding: 10px 12px !important; font-size: 12px !important; }
+          .ol-grid-summary { grid-template-columns: repeat(2, 1fr) !important; }
+          .ol-grid-metrics { grid-template-columns: 1fr !important; }
+          .ol-bench-grid { grid-template-columns: 1fr !important; }
+          .ol-score-card { flex-direction: column !important; align-items: flex-start !important; gap: 10px !important; }
+          .ol-score-medal { font-size: 20px !important; width: auto !important; }
+          .ol-score-pts { text-align: left !important; display: flex; gap: 4px; align-items: baseline; }
+          .ol-score-pts > div:first-child { font-size: 22px !important; }
+          .ol-inherited { flex-direction: column !important; align-items: flex-start !important; gap: 4px !important; }
+          .ol-chart-wrap { padding: 12px 6px 4px !important; }
+          .ol-president-toggle { font-size: 11px !important; padding: 5px 8px !important; }
+          .ol-president-toggle span.ol-years { display: none !important; }
+          .ol-controls { flex-direction: column !important; gap: 8px !important; }
+        }
+      `}</style>
 
       {/* ── HEADER ── */}
-      <div style={sty.header}>
-        <div style={{maxWidth:1080,margin:"0 auto"}}>
+      <div style={sty.header} className="ol-header-wrap">
+        <div className="ol-header" style={{maxWidth:1080,margin:"0 auto"}}>
           <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
             <div style={{width:28,height:4,background:T.accent,borderRadius:1}}/>
             <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:700,letterSpacing:3,textTransform:"uppercase",color:T.mute}}>Open Ledger</span>
@@ -207,31 +238,31 @@ export default function App(){
 
       {/* ── NAV ── */}
       <div style={sty.nav}>
-        <div style={{maxWidth:1080,margin:"0 auto",padding:"0 24px",display:"flex",gap:0}}>
-          {TABS.map(([k,l])=><button key={k} onClick={()=>setTab(k)} style={{
-            padding:"13px 20px",border:"none",fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:600,
+        <div className="ol-nav-wrap" style={{maxWidth:1080,margin:"0 auto",padding:"0 24px",display:"flex",gap:0,overflowX:"auto"}}>
+          {TABS.map(([k,l])=><button key={k} className="ol-nav-btn" onClick={()=>setTab(k)} style={{
+            padding:"13px 20px",border:"none",fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:600,whiteSpace:"nowrap",
             background:"transparent",color:tab===k?T.ink:T.mute,
             borderBottom:tab===k?`2px solid ${T.accent}`:"2px solid transparent",transition:"all 0.2s"
           }}>{l}</button>)}
         </div>
       </div>
 
-      <div style={{maxWidth:1080,margin:"0 auto",padding:"28px 24px 64px"}}>
+      <div className="ol-wrap" style={{maxWidth:1080,margin:"0 auto",padding:"28px 24px 64px"}}>
 
         {/* ═══ DASHBOARD ═══ */}
         {tab==="dashboard"&&(<div style={{animation:"fadeUp 0.4s ease"}}>
           {/* Presidents */}
-          <div style={{display:"flex",flexWrap:"wrap",gap:12,marginBottom:20,justifyContent:"space-between",alignItems:"flex-end"}}>
+          <div className="ol-controls" style={{display:"flex",flexWrap:"wrap",gap:12,marginBottom:20,justifyContent:"space-between",alignItems:"flex-end"}}>
             <div>
               <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:1.5,color:T.mute,marginBottom:6}}>Administrations</div>
               <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
                 {AID.map(id=>{const a=ADMINS[id];return(
-                  <button key={id} onClick={()=>tog(id)} style={{
+                  <button key={id} className="ol-president-toggle" onClick={()=>tog(id)} style={{
                     display:"flex",alignItems:"center",gap:5,padding:"6px 12px",borderRadius:3,
                     background:sel.includes(id)?a.color+"12":"transparent",
                     border:`1.5px solid ${sel.includes(id)?a.color:T.rule}`,
                     color:sel.includes(id)?a.color:T.mute,fontSize:12,fontWeight:600,fontFamily:"'DM Sans',sans-serif"
-                  }}><span style={{width:8,height:8,borderRadius:2,background:sel.includes(id)?a.color:T.rule}}/>{a.name}<span style={{fontSize:10,opacity:0.5}}>{a.years}</span></button>
+                  }}><span style={{width:8,height:8,borderRadius:2,background:sel.includes(id)?a.color:T.rule}}/>{a.name}<span className="ol-years" style={{fontSize:10,opacity:0.5}}>{a.years}</span></button>
                 );})}
               </div>
             </div>
@@ -262,7 +293,7 @@ export default function App(){
           </div>
 
           {/* Benchmark */}
-          {m.bench&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:16}}>
+          {m.bench&&<div className="ol-bench-grid" style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:16}}>
             <div style={{background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:3,padding:"8px 12px"}}>
               <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:1,color:"#16a34a",marginBottom:2}}>Good</div>
               <div style={{fontFamily:"'DM Mono',monospace",fontSize:14,fontWeight:700,color:"#15803d"}}>{m.bench.good}</div>
@@ -279,7 +310,7 @@ export default function App(){
           {m.bench&&<div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:T.sub,lineHeight:1.6,marginBottom:16,padding:"0 2px"}}><strong style={{color:T.ink}}>Why this matters: </strong>{m.bench.why}</div>}
 
           {/* Summary cards */}
-          <div style={{display:"grid",gridTemplateColumns:`repeat(${Math.min(sel.length,5)},1fr)`,gap:8,marginBottom:16}}>
+          <div className="ol-grid-summary" style={{display:"grid",gridTemplateColumns:`repeat(${Math.min(sel.length,5)},1fr)`,gap:8,marginBottom:16}}>
             {sel.map(id=>{const s=sums[id];if(!s)return null;const a=ADMINS[id];const good=m.inv?s.chg<=0:s.chg>=0;
               return <div key={id} style={{...sty.card,padding:"12px 14px",borderTop:`3px solid ${a.color}`}}>
                 <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:0.5,color:T.mute,marginBottom:2}}>{a.name}</div>
@@ -290,7 +321,7 @@ export default function App(){
           </div>
 
           {/* Chart */}
-          <div style={{...sty.card,padding:"20px 16px 10px",marginBottom:12}}>
+          <div className="ol-chart-wrap" style={{...sty.card,padding:"20px 16px 10px",marginBottom:12}}>
             <ResponsiveContainer width="100%" height={340}>
               {ct==="bar"?(<BarChart data={fd}><CartesianGrid strokeDasharray="3 3" stroke={T.rule}/><XAxis dataKey="y" stroke={T.mute} fontSize={11} fontFamily="'DM Mono',monospace" tick={{fill:T.sub}}/><YAxis stroke={T.rule} fontSize={10} fontFamily="'DM Mono',monospace" tick={{fill:T.sub}} tickFormatter={v=>fmt(v,m.u)}/><Tooltip content={<Tip unit={m.u}/>}/><Bar dataKey="v" radius={[2,2,0,0]} maxBarSize={22}>{fd.map((e,i)=><Cell key={i} fill={ADMINS[e.a]?.color} fillOpacity={0.85}/>)}</Bar></BarChart>
               ):(<LineChart data={fd}><CartesianGrid strokeDasharray="3 3" stroke={T.rule}/><XAxis dataKey="y" stroke={T.mute} fontSize={11} fontFamily="'DM Mono',monospace" tick={{fill:T.sub}}/><YAxis stroke={T.rule} fontSize={10} fontFamily="'DM Mono',monospace" tick={{fill:T.sub}} tickFormatter={v=>fmt(v,m.u)}/><Tooltip content={<Tip unit={m.u}/>}/><Line type="monotone" dataKey="v" stroke={T.sub} strokeWidth={1.5} dot={p=><circle cx={p.cx} cy={p.cy} r={4} fill={ADMINS[p.payload?.a]?.color||T.sub} stroke={T.card} strokeWidth={2}/>}/></LineChart>)}
@@ -325,8 +356,8 @@ export default function App(){
           <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:32}}>
             {ss.map((id,i)=>{const a=ADMINS[id];const s=sc[id];const medals=["1st","2nd","3rd","4th","5th"];
               const pct=(s.p/maxP)*100;
-              return <div key={id} style={{...sty.card,padding:"16px 20px",borderLeft:`4px solid ${a.color}`,display:"flex",alignItems:"center",gap:16}}>
-                <div style={{fontFamily:"'DM Mono',monospace",fontSize:28,fontWeight:700,color:i===0?T.accent:i<3?T.gold:T.mute,width:44,textAlign:"center"}}>{medals[i]}</div>
+              return <div key={id} className="ol-score-card" style={{...sty.card,padding:"16px 20px",borderLeft:`4px solid ${a.color}`,display:"flex",alignItems:"center",gap:16}}>
+                <div className="ol-score-medal" style={{fontFamily:"'DM Mono',monospace",fontSize:28,fontWeight:700,color:i===0?T.accent:i<3?T.gold:T.mute,width:44,textAlign:"center"}}>{medals[i]}</div>
                 <div style={{flex:1}}>
                   <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
                     <span style={{fontSize:18,fontWeight:700,color:a.color}}>{a.name}</span>
@@ -342,14 +373,14 @@ export default function App(){
                     })}
                   </div>
                 </div>
-                <div style={{textAlign:"right"}}><div style={{fontSize:30,fontWeight:900,fontFamily:"'DM Mono',monospace",color:a.color}}>{s.p}</div><div style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,color:T.mute}}>of {maxP}</div></div>
+                <div className="ol-score-pts" style={{textAlign:"right"}}><div style={{fontSize:30,fontWeight:900,fontFamily:"'DM Mono',monospace",color:a.color}}>{s.p}</div><div style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,color:T.mute}}>of {maxP}</div></div>
               </div>;
             })}
           </div>
 
           {/* Metric grid */}
           <h3 style={{fontSize:18,fontWeight:700,margin:"0 0 12px",borderBottom:`1px solid ${T.rule}`,paddingBottom:8}}>By Metric</h3>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:8,marginBottom:28}}>
+          <div className="ol-grid-metrics" style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:8,marginBottom:28}}>
             {MK.map(mk=>{const mx=M[mk];
               const sorted=AID.slice().sort((a,b)=>{const aA=mx.d.filter(d=>d.a===a);const bA=mx.d.filter(d=>d.a===b);
                 return mx.inv?(aA.reduce((s,p)=>s+p.v,0)/aA.length)-(bA.reduce((s,p)=>s+p.v,0)/bA.length):(bA.reduce((s,p)=>s+p.v,0)/bA.length)-(aA.reduce((s,p)=>s+p.v,0)/aA.length);});
