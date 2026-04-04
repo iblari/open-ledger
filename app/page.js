@@ -202,7 +202,7 @@ function Tip({active,payload,label,unit}){
   return <div style={{background:T.card,border:`1px solid ${T.rule}`,borderRadius:6,padding:"8px 12px",fontSize:12,boxShadow:"0 4px 12px rgba(0,0,0,0.08)",color:T.ink}}>
     <div style={{fontWeight:700}}>{label||d?.y}</div>
     {admin&&ADMINS[admin]&&<div style={{color:ADMINS[admin].color,fontSize:11,fontWeight:600}}>{ADMINS[admin].name}</div>}
-    {payload.map((p,i)=><div key={i} style={{fontWeight:600,color:p.color||T.ink,fontFamily:"'Tabular Nums','DM Mono',monospace",marginTop:2}}>{p.name}: {typeof p.value==='number'?(unit?fmt(p.value,unit):p.value.toLocaleString()):p.value}</div>)}
+    {payload.map((p,i)=><div key={i} style={{fontWeight:600,color:p.color||T.ink,fontFamily:"'Tabular Nums','DM Sans',sans-serif",marginTop:2}}>{p.name}: {typeof p.value==='number'?(unit?fmt(p.value,unit):p.value.toLocaleString()):p.value}</div>)}
   </div>;
 }
 function Pill({active,onClick,children}){
@@ -263,7 +263,7 @@ export default function App(){
 
   return (
     <div style={sty.page}>
-      <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,300;8..60,400;8..60,600;8..60,700;8..60,900&family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+      <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,300;8..60,400;8..60,600;8..60,700;8..60,900&family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
       <style>{`
         * { box-sizing: border-box; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
         button { cursor: pointer; }
@@ -435,7 +435,7 @@ export default function App(){
 
           {/* Formula */}
           {m.def&&<div style={{background:T.paper,border:`1px solid ${T.rule}`,borderRadius:3,padding:"8px 12px",marginBottom:14,display:"flex",gap:8,alignItems:"flex-start"}}>
-            <span style={{fontFamily:"'DM Mono',monospace",fontSize:11,fontWeight:500,color:T.accent,flexShrink:0}}>f(x)</span>
+            <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:600,color:T.accent,flexShrink:0}}>f(x)</span>
             <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,lineHeight:1.5,color:T.sub}}>{m.def}</span>
           </div>}
 
@@ -443,7 +443,7 @@ export default function App(){
           {m.bench&&<div className="ol-bench-grid" style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:16}}>
             <div style={{background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:3,padding:"8px 12px"}}>
               <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:1,color:"#16a34a",marginBottom:2}}>Good</div>
-              <div style={{fontFamily:"'DM Mono',monospace",fontSize:14,fontWeight:500,color:"#15803d"}}>{m.bench.good}</div>
+              <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:14,fontWeight:600,color:"#15803d"}}>{m.bench.good}</div>
             </div>
             <div style={{background:T.highlight,border:"1px solid #f5deb3",borderRadius:3,padding:"8px 12px"}}>
               <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:1,color:T.gold,marginBottom:2}}>Target</div>
@@ -467,9 +467,9 @@ export default function App(){
               return <div key={id} style={{...sty.card,padding:"12px 14px",borderTop:`3px solid ${a.color}`}}>
                 <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:0.5,color:T.mute,marginBottom:4}}>{a.name}</div>
                 <div style={{display:"flex",alignItems:"baseline",gap:5,marginBottom:2}}>
-                  <span style={{fontFamily:"'DM Mono',monospace",fontSize:13,color:T.sub}}>{fmt(start,m.u)}</span>
+                  <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:T.sub}}>{fmt(start,m.u)}</span>
                   <span style={{fontSize:10,color:T.mute}}>→</span>
-                  <span style={{fontFamily:"'DM Mono',monospace",fontSize:16,fontWeight:500,color:T.ink}}>{fmt(end,m.u)}</span>
+                  <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:16,fontWeight:600,color:T.ink}}>{fmt(end,m.u)}</span>
                 </div>
                 <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:20,fontWeight:800,color:col,marginBottom:2}}>{mnt?"—":imp?"▲":"▼"}{Math.abs(pct).toFixed(0)}%</div>
                 <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,color:T.mute}}>avg {fmt(s.avg,m.u)}</div>
@@ -480,8 +480,8 @@ export default function App(){
           {/* Chart */}
           <div className="ol-chart-wrap" style={{...sty.card,padding:"20px 16px 10px",marginBottom:12}}>
             <ResponsiveContainer width="100%" height={340}>
-              {ct==="bar"?(<BarChart data={fd}><CartesianGrid strokeDasharray="3 3" stroke={T.rule}/><XAxis dataKey="y" stroke={T.mute} fontSize={11} fontFamily="'DM Mono',monospace" tick={{fill:T.sub}}/><YAxis stroke={T.rule} fontSize={10} fontFamily="'DM Mono',monospace" tick={{fill:T.sub}} tickFormatter={v=>fmt(v,m.u)}/><Tooltip content={<Tip unit={m.u}/>}/><Bar dataKey="v" radius={[2,2,0,0]} maxBarSize={22}>{fd.map((e,i)=><Cell key={i} fill={ADMINS[e.a]?.color} fillOpacity={0.85}/>)}</Bar></BarChart>
-              ):(<LineChart data={fd}><CartesianGrid strokeDasharray="3 3" stroke={T.rule}/><XAxis dataKey="y" stroke={T.mute} fontSize={11} fontFamily="'DM Mono',monospace" tick={{fill:T.sub}}/><YAxis stroke={T.rule} fontSize={10} fontFamily="'DM Mono',monospace" tick={{fill:T.sub}} tickFormatter={v=>fmt(v,m.u)}/><Tooltip content={<Tip unit={m.u}/>}/><Line type="monotone" dataKey="v" stroke={T.sub} strokeWidth={1.5} dot={p=><circle cx={p.cx} cy={p.cy} r={4} fill={ADMINS[p.payload?.a]?.color||T.sub} stroke={T.card} strokeWidth={2}/>}/></LineChart>)}
+              {ct==="bar"?(<BarChart data={fd}><CartesianGrid strokeDasharray="3 3" stroke={T.rule}/><XAxis dataKey="y" stroke={T.mute} fontSize={11} fontFamily="'DM Sans',sans-serif" tick={{fill:T.sub}}/><YAxis stroke={T.rule} fontSize={10} fontFamily="'DM Sans',sans-serif" tick={{fill:T.sub}} tickFormatter={v=>fmt(v,m.u)}/><Tooltip content={<Tip unit={m.u}/>}/><Bar dataKey="v" radius={[2,2,0,0]} maxBarSize={22}>{fd.map((e,i)=><Cell key={i} fill={ADMINS[e.a]?.color} fillOpacity={0.85}/>)}</Bar></BarChart>
+              ):(<LineChart data={fd}><CartesianGrid strokeDasharray="3 3" stroke={T.rule}/><XAxis dataKey="y" stroke={T.mute} fontSize={11} fontFamily="'DM Sans',sans-serif" tick={{fill:T.sub}}/><YAxis stroke={T.rule} fontSize={10} fontFamily="'DM Sans',sans-serif" tick={{fill:T.sub}} tickFormatter={v=>fmt(v,m.u)}/><Tooltip content={<Tip unit={m.u}/>}/><Line type="monotone" dataKey="v" stroke={T.sub} strokeWidth={1.5} dot={p=><circle cx={p.cx} cy={p.cy} r={4} fill={ADMINS[p.payload?.a]?.color||T.sub} stroke={T.card} strokeWidth={2}/>}/></LineChart>)}
             </ResponsiveContainer>
           </div>
 
@@ -516,11 +516,11 @@ export default function App(){
                       <span style={{width:8,height:8,borderRadius:2,background:a.color,flexShrink:0}}/>
                       <span style={{fontWeight:700,color:a.color}}>{a.name}</span>
                     </td>
-                    <td style={{textAlign:"center",padding:"8px 10px",fontFamily:"'DM Mono',monospace",fontSize:11,color:T.sub}}>{fmt(start,m.u)}</td>
+                    <td style={{textAlign:"center",padding:"8px 10px",fontFamily:"'DM Sans',sans-serif",fontSize:11,color:T.sub}}>{fmt(start,m.u)}</td>
                     <td style={{textAlign:"center",padding:"8px 2px",color:T.rule,fontSize:10}}>→</td>
-                    <td style={{textAlign:"center",padding:"8px 10px",fontFamily:"'DM Mono',monospace",fontSize:11,fontWeight:600,color:T.ink}}>{fmt(end,m.u)}</td>
+                    <td style={{textAlign:"center",padding:"8px 10px",fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:600,color:T.ink}}>{fmt(end,m.u)}</td>
                     <td style={{textAlign:"right",padding:"8px 14px"}}>
-                      <span style={{fontFamily:"'DM Mono',monospace",fontSize:12,fontWeight:500,color:verdictColor}}>
+                      <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:600,color:verdictColor}}>
                         {maintained?"—":improved?"▲":"▼"}{Math.abs(pctChg).toFixed(1)}%
                       </span>
                       <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,color:verdictColor,marginLeft:5,fontWeight:600}}>{verdict}</span>
@@ -566,7 +566,7 @@ export default function App(){
               const maintained=Object.values(s.details).filter(d=>d.maintained).length;
               const declined=Object.keys(s.details).length-improved-maintained;
               return <div key={id} className="ol-score-card" style={{...sty.card,padding:"16px 20px",borderLeft:`4px solid ${a.color}`,display:"flex",alignItems:"center",gap:16}}>
-                <div className="ol-score-medal" style={{fontFamily:"'DM Mono',monospace",fontSize:28,fontWeight:500,color:i===0?T.accent:i<3?T.gold:T.mute,width:44,textAlign:"center"}}>{medals[i]}</div>
+                <div className="ol-score-medal" style={{fontFamily:"'DM Sans',sans-serif",fontSize:28,fontWeight:600,color:i===0?T.accent:i<3?T.gold:T.mute,width:44,textAlign:"center"}}>{medals[i]}</div>
                 <div style={{flex:1}}>
                   <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
                     <span style={{fontSize:18,fontWeight:700,color:a.color}}>{a.name}</span>
@@ -582,7 +582,7 @@ export default function App(){
                     <span style={{color:"#dc2626",fontWeight:600}}>▼ {declined} declined</span>
                   </div>
                 </div>
-                <div className="ol-score-pts" style={{textAlign:"right"}}><div style={{fontSize:30,fontWeight:900,fontFamily:"'DM Mono',monospace",color:a.color}}>{s.p}</div><div style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,color:T.mute}}>of {maxP}</div></div>
+                <div className="ol-score-pts" style={{textAlign:"right"}}><div style={{fontSize:30,fontWeight:900,fontFamily:"'DM Sans',sans-serif",color:a.color}}>{s.p}</div><div style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,color:T.mute}}>of {maxP}</div></div>
               </div>;
             })}
           </div>
@@ -599,14 +599,14 @@ export default function App(){
                   const arrow=d.improved?"▲":d.maintained?"—":"▼";
                   const arrowColor=d.improved?"#16a34a":d.maintained?T.gold:"#dc2626";
                   return <div key={id} style={{display:"flex",alignItems:"center",gap:6,marginBottom:5,padding:"3px 0",borderBottom:i<ranked.length-1?`1px solid ${T.rule}22`:"none"}}>
-                    <span style={{fontFamily:"'DM Mono',monospace",fontSize:10,width:18,color:i===0?"#16a34a":i===1?T.gold:T.mute,fontWeight:i<=1?700:400}}>#{i+1}</span>
+                    <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,width:18,color:i===0?"#16a34a":i===1?T.gold:T.mute,fontWeight:i<=1?700:400}}>#{i+1}</span>
                     <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:a.color,fontWeight:600,width:52}}>{a.name}</span>
-                    <div style={{flex:1,display:"flex",alignItems:"center",gap:4,fontFamily:"'DM Mono',monospace",fontSize:10}}>
+                    <div style={{flex:1,display:"flex",alignItems:"center",gap:4,fontFamily:"'DM Sans',sans-serif",fontSize:10}}>
                       <span style={{color:T.mute}}>{fmt(d.start,mx.u)}</span>
                       <span style={{color:T.mute,fontSize:8}}>→</span>
                       <span style={{color:T.ink,fontWeight:600}}>{fmt(d.end,mx.u)}</span>
                     </div>
-                    <span style={{fontFamily:"'DM Mono',monospace",fontSize:11,fontWeight:500,color:arrowColor,width:56,textAlign:"right"}}>
+                    <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:600,color:arrowColor,width:56,textAlign:"right"}}>
                       {arrow}{Math.abs(d.pct).toFixed(0)}%
                     </span>
                   </div>;
@@ -644,8 +644,8 @@ export default function App(){
           <div style={{...sty.card,padding:"20px 16px 10px",marginBottom:12}}>
             <ResponsiveContainer width="100%" height={380}>
               <LineChart data={h2hD}><CartesianGrid strokeDasharray="3 3" stroke={T.rule}/>
-                <XAxis dataKey="year" stroke={T.mute} fontSize={12} fontFamily="'DM Mono',monospace" tick={{fill:T.sub}}/>
-                <YAxis stroke={T.rule} fontSize={10} fontFamily="'DM Mono',monospace" tick={{fill:T.sub}} tickFormatter={v=>fmt(v,M[h2h].u)}/>
+                <XAxis dataKey="year" stroke={T.mute} fontSize={12} fontFamily="'DM Sans',sans-serif" tick={{fill:T.sub}}/>
+                <YAxis stroke={T.rule} fontSize={10} fontFamily="'DM Sans',sans-serif" tick={{fill:T.sub}} tickFormatter={v=>fmt(v,M[h2h].u)}/>
                 <Tooltip content={<Tip unit={M[h2h].u}/>}/>
                 {AID.map(id=><Line key={id} type="monotone" dataKey={id} stroke={ADMINS[id].color} strokeWidth={2.5} dot={{r:4,fill:ADMINS[id].color,stroke:T.card,strokeWidth:2}} name={ADMINS[id].name} connectNulls/>)}
               </LineChart>
@@ -676,8 +676,8 @@ export default function App(){
           <div style={{...sty.card,padding:"20px 16px 10px",marginBottom:12}}>
             <ResponsiveContainer width="100%" height={380}>
               <LineChart data={gmd.d}><CartesianGrid strokeDasharray="3 3" stroke={T.rule}/>
-                <XAxis dataKey="y" stroke={T.mute} fontSize={11} fontFamily="'DM Mono',monospace" tick={{fill:T.sub}}/>
-                <YAxis stroke={T.rule} fontSize={10} fontFamily="'DM Mono',monospace" tick={{fill:T.sub}} tickFormatter={v=>`${v}${gmd.u}`}/>
+                <XAxis dataKey="y" stroke={T.mute} fontSize={11} fontFamily="'DM Sans',sans-serif" tick={{fill:T.sub}}/>
+                <YAxis stroke={T.rule} fontSize={10} fontFamily="'DM Sans',sans-serif" tick={{fill:T.sub}} tickFormatter={v=>`${v}${gmd.u}`}/>
                 <Tooltip content={<Tip unit={gmd.u}/>}/>
                 {gc.map(id=><Line key={id} type="monotone" dataKey={id} stroke={COUNTRIES[id].color} strokeWidth={2.5} dot={{r:4,fill:COUNTRIES[id].color,stroke:T.card,strokeWidth:2}} name={COUNTRIES[id].name} connectNulls/>)}
               </LineChart>
