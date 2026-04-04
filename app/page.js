@@ -435,7 +435,7 @@ export default function App(){
 
           {/* Formula */}
           {m.def&&<div style={{background:T.paper,border:`1px solid ${T.rule}`,borderRadius:3,padding:"8px 12px",marginBottom:14,display:"flex",gap:8,alignItems:"flex-start"}}>
-            <span style={{fontFamily:"'DM Mono',monospace",fontSize:11,fontWeight:700,color:T.accent,flexShrink:0}}>f(x)</span>
+            <span style={{fontFamily:"'DM Mono',monospace",fontSize:11,fontWeight:500,color:T.accent,flexShrink:0}}>f(x)</span>
             <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,lineHeight:1.5,color:T.sub}}>{m.def}</span>
           </div>}
 
@@ -443,7 +443,7 @@ export default function App(){
           {m.bench&&<div className="ol-bench-grid" style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:16}}>
             <div style={{background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:3,padding:"8px 12px"}}>
               <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:1,color:"#16a34a",marginBottom:2}}>Good</div>
-              <div style={{fontFamily:"'DM Mono',monospace",fontSize:14,fontWeight:700,color:"#15803d"}}>{m.bench.good}</div>
+              <div style={{fontFamily:"'DM Mono',monospace",fontSize:14,fontWeight:500,color:"#15803d"}}>{m.bench.good}</div>
             </div>
             <div style={{background:T.highlight,border:"1px solid #f5deb3",borderRadius:3,padding:"8px 12px"}}>
               <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:1,color:T.gold,marginBottom:2}}>Target</div>
@@ -469,7 +469,7 @@ export default function App(){
                 <div style={{display:"flex",alignItems:"baseline",gap:5,marginBottom:2}}>
                   <span style={{fontFamily:"'DM Mono',monospace",fontSize:13,color:T.sub}}>{fmt(start,m.u)}</span>
                   <span style={{fontSize:10,color:T.mute}}>→</span>
-                  <span style={{fontFamily:"'DM Mono',monospace",fontSize:16,fontWeight:700,color:T.ink}}>{fmt(end,m.u)}</span>
+                  <span style={{fontFamily:"'DM Mono',monospace",fontSize:16,fontWeight:500,color:T.ink}}>{fmt(end,m.u)}</span>
                 </div>
                 <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:20,fontWeight:800,color:col,marginBottom:2}}>{mnt?"—":imp?"▲":"▼"}{Math.abs(pct).toFixed(0)}%</div>
                 <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,color:T.mute}}>avg {fmt(s.avg,m.u)}</div>
@@ -520,7 +520,7 @@ export default function App(){
                     <td style={{textAlign:"center",padding:"8px 2px",color:T.rule,fontSize:10}}>→</td>
                     <td style={{textAlign:"center",padding:"8px 10px",fontFamily:"'DM Mono',monospace",fontSize:11,fontWeight:600,color:T.ink}}>{fmt(end,m.u)}</td>
                     <td style={{textAlign:"right",padding:"8px 14px"}}>
-                      <span style={{fontFamily:"'DM Mono',monospace",fontSize:12,fontWeight:700,color:verdictColor}}>
+                      <span style={{fontFamily:"'DM Mono',monospace",fontSize:12,fontWeight:500,color:verdictColor}}>
                         {maintained?"—":improved?"▲":"▼"}{Math.abs(pctChg).toFixed(1)}%
                       </span>
                       <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,color:verdictColor,marginLeft:5,fontWeight:600}}>{verdict}</span>
@@ -566,7 +566,7 @@ export default function App(){
               const maintained=Object.values(s.details).filter(d=>d.maintained).length;
               const declined=Object.keys(s.details).length-improved-maintained;
               return <div key={id} className="ol-score-card" style={{...sty.card,padding:"16px 20px",borderLeft:`4px solid ${a.color}`,display:"flex",alignItems:"center",gap:16}}>
-                <div className="ol-score-medal" style={{fontFamily:"'DM Mono',monospace",fontSize:28,fontWeight:700,color:i===0?T.accent:i<3?T.gold:T.mute,width:44,textAlign:"center"}}>{medals[i]}</div>
+                <div className="ol-score-medal" style={{fontFamily:"'DM Mono',monospace",fontSize:28,fontWeight:500,color:i===0?T.accent:i<3?T.gold:T.mute,width:44,textAlign:"center"}}>{medals[i]}</div>
                 <div style={{flex:1}}>
                   <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
                     <span style={{fontSize:18,fontWeight:700,color:a.color}}>{a.name}</span>
@@ -606,7 +606,7 @@ export default function App(){
                       <span style={{color:T.mute,fontSize:8}}>→</span>
                       <span style={{color:T.ink,fontWeight:600}}>{fmt(d.end,mx.u)}</span>
                     </div>
-                    <span style={{fontFamily:"'DM Mono',monospace",fontSize:11,fontWeight:700,color:arrowColor,width:56,textAlign:"right"}}>
+                    <span style={{fontFamily:"'DM Mono',monospace",fontSize:11,fontWeight:500,color:arrowColor,width:56,textAlign:"right"}}>
                       {arrow}{Math.abs(d.pct).toFixed(0)}%
                     </span>
                   </div>;
