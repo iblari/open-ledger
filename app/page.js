@@ -326,62 +326,103 @@ export default function App(){
           {!detail&&(<div>
             <div style={{marginBottom:20}}>
               <h2 style={{fontSize:24,fontWeight:900,margin:"0 0 4px"}}>All Metrics at a Glance</h2>
-              <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:T.sub,margin:0}}>Click any card to explore the full data. Green = improved under most presidents. Red = declined.</p>
+              <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:T.sub,margin:"0 0 12px"}}>19 metrics × 5 presidents. Each cell shows % change from start to end of term. Click any row to explore.</p>
+              <div style={{display:"flex",gap:12,fontFamily:"'DM Sans',sans-serif",fontSize:11,flexWrap:"wrap"}}>
+                <span><span style={{display:"inline-block",width:12,height:12,borderRadius:2,background:"#15803d",verticalAlign:"middle",marginRight:4}}/>Strong improvement</span>
+                <span><span style={{display:"inline-block",width:12,height:12,borderRadius:2,background:"#86efac",verticalAlign:"middle",marginRight:4}}/>Modest improvement</span>
+                <span><span style={{display:"inline-block",width:12,height:12,borderRadius:2,background:T.paper,verticalAlign:"middle",marginRight:4,border:`1px solid ${T.rule}`}}/>Maintained</span>
+                <span><span style={{display:"inline-block",width:12,height:12,borderRadius:2,background:"#fca5a5",verticalAlign:"middle",marginRight:4}}/>Modest decline</span>
+                <span><span style={{display:"inline-block",width:12,height:12,borderRadius:2,background:"#dc2626",verticalAlign:"middle",marginRight:4}}/>Strong decline</span>
+              </div>
             </div>
 
-            {Object.entries(CATS).map(([catKey,catLabel])=>{
-              const catMetrics=MK.filter(k=>M[k].cat===catKey);
-              if(!catMetrics.length)return null;
-              return <div key={catKey} style={{marginBottom:24}}>
-                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:2,color:T.mute,marginBottom:8,paddingBottom:6,borderBottom:`1px solid ${T.rule}`}}>{catLabel}</div>
-                <div className="ol-grid-metrics" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
-                  {catMetrics.map(k=>{const mx=M[k];const pts=mx.d;
-                    const latest=pts[pts.length-1];const first=pts[0];
-                    const pct=first.v!==0?((latest.v-first.v)/Math.abs(first.v))*100:0;
-                    // Per-president mini summary
-                    const perPres=AID.map(id=>{
-                      const pp=pts.filter(d=>d.a===id);if(pp.length<2)return null;
-                      const s=pp[0].v,e=pp[pp.length-1].v;
-                      const pc=s!==0?((e-s)/Math.abs(s))*100:0;
-                      const imp=mx.inv?pc<0:pc>0;
-                      return{id,s,e,pc,imp};
-                    }).filter(Boolean);
-                    const impCount=perPres.filter(p=>p.imp).length;
-                    const decCount=perPres.length-impCount;
+            <div style={{...sty.card,overflow:"auto",marginBottom:16}}>
+              <table style={{width:"100%",borderCollapse:"collapse",fontFamily:"'DM Sans',sans-serif",fontSize:12}}>
+                <thead>
+                  <tr style={{borderBottom:`2px solid ${T.rule}`}}>
+                    <th style={{textAlign:"left",padding:"10px 14px",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:1,color:T.mute,position:"sticky",left:0,background:T.card,zIndex:1,minWidth:130}}>Metric</th>
+                    {AID.map(id=>{const a=ADMINS[id];return(
+                      <th key={id} style={{textAlign:"center",padding:"10px 8px",minWidth:80}}>
+                        <div style={{fontWeight:700,color:a.color,fontSize:12}}>{a.name}</div>
+                        <div style={{fontSize:9,color:T.mute,fontWeight:400}}>{a.years}</div>
+                      </th>
+                    );})}
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.entries(CATS).map(([catKey,catLabel])=>{
+                    const catMetrics=MK.filter(k=>M[k].cat===catKey);
+                    if(!catMetrics.length)return null;
+                    return [
+                      <tr key={"cat-"+catKey}><td colSpan={6} style={{padding:"10px 14px 4px",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:2,color:T.mute,background:T.bg,borderBottom:`1px solid ${T.rule}`}}>{catLabel}</td></tr>,
+                      ...catMetrics.map(k=>{
+                        const mx=M[k];
+                        const perPres=AID.map(id=>{
+                          const pts=mx.d.filter(d=>d.a===id);if(pts.length<2)return null;
+                          const s=pts[0].v,e=pts[pts.length-1].v;
+                          const pc=s!==0?((e-s)/Math.abs(s))*100:0;
+                          const imp=mx.inv?pc<0:pc>0;const mnt=Math.abs(pc)<5;
+                          return{id,s,e,pc,imp,mnt};
+                        }).filter(Boolean);
 
-                    return <button key={k} onClick={()=>{setAm(k);setDetail(k);setOpenFacts(false);}} style={{
-                      ...sty.card,padding:"14px 16px",textAlign:"left",border:`1px solid ${T.rule}`,cursor:"pointer",
-                      transition:"all 0.15s",position:"relative",overflow:"hidden"
-                    }}
-                    onMouseEnter={e=>e.currentTarget.style.borderColor=T.accent+"55"}
-                    onMouseLeave={e=>e.currentTarget.style.borderColor=T.rule}>
-                      <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:700,color:T.ink,marginBottom:6}}>{mx.l}</div>
-                      <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:20,fontWeight:800,color:T.ink,marginBottom:2}}>
-                        {fmt(latest.v,mx.u)}
-                      </div>
-                      <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,color:T.mute,marginBottom:8}}>{first.y} → {latest.y}</div>
-                      {/* Mini president dots */}
-                      <div style={{display:"flex",gap:3,marginBottom:4}}>
-                        {perPres.map(p=>{const a=ADMINS[p.id];
-                          return <div key={p.id} style={{
-                            width:16,height:16,borderRadius:3,
-                            background:p.imp?"#16a34a22":"#dc262622",
-                            border:`1.5px solid ${p.imp?"#16a34a":"#dc2626"}`,
-                            display:"flex",alignItems:"center",justifyContent:"center",
-                            fontSize:7,fontWeight:700,color:p.imp?"#16a34a":"#dc2626"
-                          }}>{p.imp?"▲":"▼"}</div>;
-                        })}
-                      </div>
-                      <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,color:T.mute}}>
-                        <span style={{color:"#16a34a",fontWeight:600}}>{impCount} improved</span>
-                        {" · "}
-                        <span style={{color:"#dc2626",fontWeight:600}}>{decCount} declined</span>
-                      </div>
-                    </button>;
+                        return <tr key={k} onClick={()=>{setAm(k);setDetail(k);setOpenFacts(false);}}
+                          style={{borderBottom:`1px solid ${T.rule}22`,cursor:"pointer",transition:"background 0.15s"}}
+                          onMouseEnter={e=>e.currentTarget.style.background=T.paper}
+                          onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                          <td style={{padding:"10px 14px",fontWeight:600,color:T.ink,position:"sticky",left:0,background:T.card,zIndex:1}}>
+                            <div>{mx.l}</div>
+                            <div style={{fontSize:9,color:T.mute,fontWeight:400}}>{mx.s}</div>
+                          </td>
+                          {perPres.map(p=>{
+                            const absPc=Math.abs(p.pc);
+                            let bg,fg;
+                            if(p.mnt){bg=T.paper;fg=T.gold;}
+                            else if(p.imp){
+                              bg=absPc>30?"#15803d":absPc>10?"#22c55e":"#86efac";
+                              fg=absPc>10?"#fff":"#15803d";
+                            }else{
+                              bg=absPc>30?"#dc2626":absPc>10?"#ef4444":"#fca5a5";
+                              fg=absPc>10?"#fff":"#991b1b";
+                            }
+                            return <td key={p.id} style={{textAlign:"center",padding:"6px 4px"}}>
+                              <div style={{background:bg,borderRadius:4,padding:"6px 4px",color:fg,fontWeight:700,fontSize:12,lineHeight:1.2}}>
+                                {p.mnt?"—":p.imp?"▲":"▼"}{absPc.toFixed(0)}%
+                              </div>
+                              <div style={{fontSize:9,color:T.mute,marginTop:2}}>{fmt(p.s,mx.u)}→{fmt(p.e,mx.u)}</div>
+                            </td>;
+                          })}
+                        </tr>;
+                      })
+                    ];
                   })}
-                </div>
-              </div>;
-            })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Totals row */}
+            <div style={{...sty.card,padding:"14px 16px",marginBottom:16}}>
+              <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:1.5,color:T.mute,marginBottom:10}}>Summary — Metrics Improved vs Declined</div>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                {AID.map(id=>{
+                  const a=ADMINS[id];
+                  let imp=0,dec=0;
+                  MK.forEach(k=>{
+                    const mx=M[k];const pts=mx.d.filter(d=>d.a===id);if(pts.length<2)return;
+                    const s=pts[0].v,e=pts[pts.length-1].v;
+                    const pc=s!==0?((e-s)/Math.abs(s))*100:0;
+                    const improved=mx.inv?pc<0:pc>0;const mnt=Math.abs(pc)<5;
+                    if(mnt)return;if(improved)imp++;else dec++;
+                  });
+                  return <div key={id} style={{flex:1,minWidth:100,borderLeft:`3px solid ${a.color}`,padding:"8px 12px",background:T.paper,borderRadius:3}}>
+                    <div style={{fontWeight:700,color:a.color,fontSize:13,marginBottom:4}}>{a.name}</div>
+                    <div style={{display:"flex",gap:8,fontFamily:"'DM Sans',sans-serif",fontSize:12}}>
+                      <span style={{color:"#16a34a",fontWeight:700}}>▲{imp}</span>
+                      <span style={{color:"#dc2626",fontWeight:700}}>▼{dec}</span>
+                    </div>
+                  </div>;
+                })}
+              </div>
+            </div>
           </div>)}
 
           {/* ── DETAIL MODE ── */}
