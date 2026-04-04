@@ -265,7 +265,7 @@ export default function App(){
     <div style={sty.page}>
       <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,300;8..60,400;8..60,600;8..60,700;8..60,900&family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
       <style>{`
-        * { box-sizing: border-box; }
+        * { box-sizing: border-box; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
         button { cursor: pointer; }
         @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         @media (max-width: 768px) {
@@ -356,7 +356,7 @@ export default function App(){
                     onMouseEnter={e=>e.currentTarget.style.borderColor=T.accent+"55"}
                     onMouseLeave={e=>e.currentTarget.style.borderColor=T.rule}>
                       <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:700,color:T.ink,marginBottom:6}}>{mx.l}</div>
-                      <div style={{fontFamily:"'DM Mono',monospace",fontSize:20,fontWeight:800,color:T.ink,marginBottom:2}}>
+                      <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:20,fontWeight:800,color:T.ink,marginBottom:2}}>
                         {fmt(latest.v,mx.u)}
                       </div>
                       <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,color:T.mute,marginBottom:8}}>{first.y} → {latest.y}</div>
@@ -471,7 +471,7 @@ export default function App(){
                   <span style={{fontSize:10,color:T.mute}}>→</span>
                   <span style={{fontFamily:"'DM Mono',monospace",fontSize:16,fontWeight:700,color:T.ink}}>{fmt(end,m.u)}</span>
                 </div>
-                <div style={{fontFamily:"'DM Mono',monospace",fontSize:18,fontWeight:800,color:col,marginBottom:2}}>{mnt?"—":imp?"▲":"▼"}{Math.abs(pct).toFixed(0)}%</div>
+                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:20,fontWeight:800,color:col,marginBottom:2}}>{mnt?"—":imp?"▲":"▼"}{Math.abs(pct).toFixed(0)}%</div>
                 <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,color:T.mute}}>avg {fmt(s.avg,m.u)}</div>
               </div>;
             })}
