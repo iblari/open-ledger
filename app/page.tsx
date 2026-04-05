@@ -1,6 +1,6 @@
 "use client";
-import { useState, useMemo, useEffect } from "react";
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import { useState, useMemo, useEffect, useRef } from "react";
+import { BarChart, Bar, LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 
 function useIsMobile() {
   const [w, setW] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
@@ -9,24 +9,62 @@ function useIsMobile() {
 }
 
 /* ─────────────────────────────────────────────
-   DESIGN SYSTEM
-   Editorial / data-journalism aesthetic
-   Think: FT × The Pudding × The Economist
+   DESIGN SYSTEM v2.0
+   Refined editorial aesthetic with sophisticated 
+   color palette - FT × Bloomberg × The Economist
 ───────────────────────────────────────────── */
 const T = {
-  bg: "#faf6f1",        // warm cream
+  bg: "#f8f5f0",        // warm cream (slightly warmer)
   card: "#ffffff",
-  ink: "#1d1d1f",       // near-black
-  sub: "#6b6561",       // warm gray
-  mute: "#b5aea6",      // lighter warm gray
-  rule: "#e0dbd4",      // divider lines
-  accent: "#c1272d",    // editorial red
-  gold: "#b8860b",      // gold
-  blue: "#2563eb",      // dem
-  red: "#dc2626",       // rep
-  highlight: "#fef3c7", // callout bg
-  paper: "#f5f0ea",     // secondary bg
+  ink: "#1a1a1a",       // rich black
+  sub: "#5c5856",       // warm gray
+  mute: "#9a9490",      // lighter warm gray
+  rule: "#e2ded6",      // divider lines
+  accent: "#b8372d",    // refined editorial red
+  gold: "#a67c00",      // darker gold for better contrast
+  blue: "#1d4ed8",      // deeper blue
+  red: "#be123c",       // rose red
+  highlight: "#fef9e7", // softer callout bg
+  paper: "#f3ede5",     // secondary bg
+  // New sophisticated heatmap colors (teal-coral diverging)
+  improve: {
+    strong: "#0d7377",  // deep teal
+    medium: "#14a3a8",  // teal
+    light: "#8ee3e6",   // light teal
+  },
+  decline: {
+    strong: "#c2410c",  // burnt orange
+    medium: "#ea580c",  // orange
+    light: "#fed7aa",   // light peach
+  },
+  neutral: "#d4cfc5",
 };
+
+// Mini sparkline component for heatmap cells
+function Sparkline({ data, color, width = 60, height = 20 }: { data: number[], color: string, width?: number, height?: number }) {
+  if (!data || data.length < 2) return null;
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const range = max - min || 1;
+  const points = data.map((v, i) => {
+    const x = (i / (data.length - 1)) * width;
+    const y = height - ((v - min) / range) * height;
+    return `${x},${y}`;
+  }).join(' ');
+  return (
+    <svg width={width} height={height} style={{ display: 'block', margin: '4px auto 0' }}>
+      <polyline
+        fill="none"
+        stroke={color}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        points={points}
+        style={{ opacity: 0.7 }}
+      />
+    </svg>
+  );
+}
 
 const ADMINS = {
   clinton: { name:"Clinton", party:"D", years:"'93–'01", color:"#1e6b9e", full:"1993–2001" },
@@ -198,12 +236,41 @@ function scores(){
 }
 
 function Tip({active,payload,label,unit}){
-  if(!active||!payload?.length)return null;const d=payload[0]?.payload;const admin=d?.a;
-  return <div style={{background:T.card,border:`1px solid ${T.rule}`,borderRadius:6,padding:"8px 12px",fontSize:12,boxShadow:"0 4px 12px rgba(0,0,0,0.08)",color:T.ink}}>
-    <div style={{fontWeight:700}}>{label||d?.y}</div>
-    {admin&&ADMINS[admin]&&<div style={{color:ADMINS[admin].color,fontSize:11,fontWeight:600}}>{ADMINS[admin].name}</div>}
-    {payload.map((p,i)=><div key={i} style={{fontWeight:600,color:p.color||T.ink,fontFamily:"'Tabular Nums','DM Sans',sans-serif",marginTop:2}}>{p.name}: {typeof p.value==='number'?(unit?fmt(p.value,unit):p.value.toLocaleString()):p.value}</div>)}
-  </div>;
+  if(!active||!payload?.length)return null;
+  const d=payload[0]?.payload;
+  const admin=d?.a;
+  const adminData=admin?ADMINS[admin]:null;
+  
+  return (
+    <div style={{
+      background:"rgba(255,255,255,0.97)",
+      backdropFilter:"blur(8px)",
+      border:`1px solid ${T.rule}`,
+      borderRadius:10,
+      padding:"14px 16px",
+      fontSize:12,
+      boxShadow:"0 8px 24px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06)",
+      color:T.ink,
+      minWidth:140,
+      animation:"scaleIn 0.15s ease"
+    }}>
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,paddingBottom:8,borderBottom:`1px solid ${T.rule}`}}>
+        {adminData && <span style={{width:10,height:10,borderRadius:3,background:adminData.color,flexShrink:0}}/>}
+        <div>
+          <div style={{fontWeight:800,fontSize:13,letterSpacing:-0.3}}>{label||d?.y}</div>
+          {adminData && <div style={{color:adminData.color,fontSize:11,fontWeight:600}}>{adminData.name} ({adminData.years})</div>}
+        </div>
+      </div>
+      {payload.map((p,i)=>(
+        <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,marginTop:i>0?4:0}}>
+          <span style={{color:T.sub,fontSize:11}}>{p.name || "Value"}</span>
+          <span style={{fontWeight:700,color:p.color||T.ink,fontFamily:"'DM Sans',sans-serif",fontSize:14,fontVariantNumeric:"tabular-nums"}}>
+            {typeof p.value==='number'?(unit?fmt(p.value,unit):p.value.toLocaleString()):p.value}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
 }
 function Pill({active,onClick,children}){
   return <button onClick={onClick} style={{padding:"5px 10px",borderRadius:6,border:"none",cursor:"pointer",background:active?"rgba(255,255,255,0.1)":"rgba(255,255,255,0.02)",color:active?"#fff":"rgba(255,255,255,0.3)",fontSize:11,fontWeight:active?600:400,fontFamily:"'IBM Plex Sans',sans-serif",borderBottom:active?"2px solid rgba(255,255,255,0.2)":"2px solid transparent"}}>{children}</button>;
@@ -237,6 +304,8 @@ export default function App(){
   const [gc,setGc]=useState(["us","china","india","uk"]);
   const [cf,setCf]=useState("all");
   const [openFacts,setOpenFacts]=useState(false);
+  const [mobileView,setMobileView]=useState<"table"|"cards">("cards");
+  const [selectedPres,setSelectedPres]=useState("clinton");
 
   const tog=id=>setSel(p=>p.includes(id)?p.filter(a=>a!==id):[...p,id]);
   const togC=id=>setGc(p=>p.includes(id)?p.filter(c=>c!==id):[...p,id]);
@@ -266,8 +335,89 @@ export default function App(){
       <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,300;8..60,400;8..60,600;8..60,700;8..60,900&family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
       <style>{`
         * { box-sizing: border-box; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
-        button { cursor: pointer; }
-        @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        button { cursor: pointer; transition: all 0.15s ease; }
+        button:active { transform: scale(0.98); }
+        
+        /* Staggered entry animation */
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes scaleIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+        
+        .stagger-1 { animation: fadeUp 0.5s ease forwards; animation-delay: 0.03s; opacity: 0; }
+        .stagger-2 { animation: fadeUp 0.5s ease forwards; animation-delay: 0.06s; opacity: 0; }
+        .stagger-3 { animation: fadeUp 0.5s ease forwards; animation-delay: 0.09s; opacity: 0; }
+        .stagger-4 { animation: fadeUp 0.5s ease forwards; animation-delay: 0.12s; opacity: 0; }
+        .stagger-5 { animation: fadeUp 0.5s ease forwards; animation-delay: 0.15s; opacity: 0; }
+        .stagger-6 { animation: fadeUp 0.5s ease forwards; animation-delay: 0.18s; opacity: 0; }
+        .stagger-7 { animation: fadeUp 0.5s ease forwards; animation-delay: 0.21s; opacity: 0; }
+        .stagger-8 { animation: fadeUp 0.5s ease forwards; animation-delay: 0.24s; opacity: 0; }
+        .stagger-9 { animation: fadeUp 0.5s ease forwards; animation-delay: 0.27s; opacity: 0; }
+        .stagger-10 { animation: fadeUp 0.5s ease forwards; animation-delay: 0.30s; opacity: 0; }
+        .stagger-11 { animation: fadeUp 0.5s ease forwards; animation-delay: 0.33s; opacity: 0; }
+        .stagger-12 { animation: fadeUp 0.5s ease forwards; animation-delay: 0.36s; opacity: 0; }
+        .stagger-13 { animation: fadeUp 0.5s ease forwards; animation-delay: 0.39s; opacity: 0; }
+        .stagger-14 { animation: fadeUp 0.5s ease forwards; animation-delay: 0.42s; opacity: 0; }
+        .stagger-15 { animation: fadeUp 0.5s ease forwards; animation-delay: 0.45s; opacity: 0; }
+        .stagger-16 { animation: fadeUp 0.5s ease forwards; animation-delay: 0.48s; opacity: 0; }
+        .stagger-17 { animation: fadeUp 0.5s ease forwards; animation-delay: 0.51s; opacity: 0; }
+        .stagger-18 { animation: fadeUp 0.5s ease forwards; animation-delay: 0.54s; opacity: 0; }
+        .stagger-19 { animation: fadeUp 0.5s ease forwards; animation-delay: 0.57s; opacity: 0; }
+        .stagger-20 { animation: fadeUp 0.5s ease forwards; animation-delay: 0.60s; opacity: 0; }
+        
+        /* Heatmap cell hover animations */
+        .heatmap-cell {
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+          cursor: pointer;
+        }
+        .heatmap-cell:hover {
+          transform: scale(1.05) translateY(-2px);
+          box-shadow: 0 8px 20px rgba(0,0,0,0.18);
+          z-index: 10;
+          position: relative;
+        }
+        .heatmap-row {
+          transition: background 0.2s ease;
+        }
+        .heatmap-row:hover {
+          background: ${T.paper} !important;
+        }
+        .heatmap-row:hover .heatmap-metric-cell {
+          background: ${T.paper} !important;
+        }
+        .heatmap-row:hover .heatmap-cell {
+          opacity: 0.7;
+        }
+        .heatmap-row:hover .heatmap-cell:hover {
+          opacity: 1;
+        }
+        
+        /* Card hover effects */
+        .hover-lift {
+          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .hover-lift:hover {
+          transform: translateY(-3px);
+          box-shadow: 0 12px 24px rgba(0,0,0,0.08);
+        }
+        
+        /* Insight callout pulse */
+        .insight-pulse {
+          animation: pulse 2s ease-in-out infinite;
+        }
+        @keyframes pulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(184, 55, 45, 0.2); }
+          50% { box-shadow: 0 0 0 8px rgba(184, 55, 45, 0); }
+        }
+        
+        /* Enhanced tooltips */
+        .tooltip-enhanced {
+          backdrop-filter: blur(8px);
+          background: rgba(255,255,255,0.95) !important;
+        }
+        
+        /* Mobile heatmap improvements */
         @media (max-width: 768px) {
           .ol-header h1 { font-size: 24px !important; }
           .ol-header p { font-size: 12px !important; }
@@ -287,21 +437,43 @@ export default function App(){
           .ol-president-toggle { font-size: 11px !important; padding: 5px 8px !important; }
           .ol-president-toggle span.ol-years { display: none !important; }
           .ol-controls { flex-direction: column !important; gap: 8px !important; }
+          
+          /* Mobile heatmap - larger touch targets */
+          .ol-heatmap-table th { padding: 12px 8px !important; min-width: 72px !important; }
+          .ol-heatmap-table th > div:first-child { font-size: 12px !important; }
+          .ol-heatmap-table td { padding: 8px 5px !important; }
+          .heatmap-cell { padding: 12px 8px !important; min-height: 56px !important; font-size: 14px !important; border-radius: 8px !important; }
+          .ol-heatmap-table .heatmap-metric-cell { min-width: 120px !important; padding: 12px 12px !important; }
+          .heatmap-metric-cell > div:first-child { font-size: 13px !important; }
+          .heatmap-cell-value { font-size: 9px !important; margin-top: 3px !important; }
+          .ol-heatmap-legend { gap: 10px !important; }
+          .ol-heatmap-legend > span { font-size: 11px !important; gap: 4px !important; }
+          .ol-heatmap-legend > span > span:first-child { width: 14px !important; height: 14px !important; }
+        }
+        
+        /* Large screens - even bigger cells */
+        @media (min-width: 1024px) {
+          .heatmap-cell { padding: 12px 8px !important; min-height: 56px !important; }
+          .ol-heatmap-table th { min-width: 110px !important; }
         }
       `}</style>
 
       {/* ── HEADER ── */}
       <div style={sty.header} className="ol-header-wrap">
         <div className="ol-header" style={{maxWidth:1080,margin:"0 auto"}}>
-          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
-            <div style={{width:28,height:4,background:T.accent,borderRadius:1}}/>
-            <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:700,letterSpacing:3,textTransform:"uppercase",color:T.mute}}>Open Ledger</span>
+          <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}>
+            <div style={{display:"flex",gap:3}}>
+              <div style={{width:4,height:20,background:T.accent,borderRadius:1}}/>
+              <div style={{width:4,height:20,background:T.accent,borderRadius:1,opacity:0.6}}/>
+              <div style={{width:4,height:20,background:T.accent,borderRadius:1,opacity:0.3}}/>
+            </div>
+            <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:800,letterSpacing:4,textTransform:"uppercase",color:T.mute}}>Open Ledger</span>
           </div>
-          <h1 style={{fontSize:38,fontWeight:900,margin:0,lineHeight:1.1,letterSpacing:-1,maxWidth:600}}>
-            The economy under<br/>every president, in data.
+          <h1 style={{fontSize:mob?32:48,fontWeight:900,margin:0,lineHeight:1.05,letterSpacing:-2,maxWidth:700,color:T.ink}}>
+            The economy under<br/>every president, <span style={{color:T.accent}}>in data.</span>
           </h1>
-          <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:14,color:T.sub,margin:"10px 0 0",maxWidth:480,lineHeight:1.5}}>
-            19 indicators across 5 administrations. No editorial. No spin. Context where it matters. You interpret.
+          <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:15,color:T.sub,margin:"14px 0 0",maxWidth:520,lineHeight:1.6}}>
+            19 indicators across 5 administrations. No editorial. No spin. Context where it matters. <strong style={{color:T.ink}}>You interpret.</strong>
           </p>
         </div>
       </div>
@@ -324,27 +496,127 @@ export default function App(){
 
           {/* ── OVERVIEW MODE ── */}
           {!detail&&(<div>
-            <div style={{marginBottom:20}}>
-              <h2 style={{fontSize:24,fontWeight:900,margin:"0 0 4px"}}>All Metrics at a Glance</h2>
-              <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:T.sub,margin:"0 0 12px"}}>19 metrics × 5 presidents. Each cell shows % change from start to end of term. Click any row to explore.</p>
-              <div style={{display:"flex",gap:12,fontFamily:"'DM Sans',sans-serif",fontSize:11,flexWrap:"wrap"}}>
-                <span><span style={{display:"inline-block",width:12,height:12,borderRadius:2,background:"#15803d",verticalAlign:"middle",marginRight:4}}/>Strong improvement</span>
-                <span><span style={{display:"inline-block",width:12,height:12,borderRadius:2,background:"#86efac",verticalAlign:"middle",marginRight:4}}/>Modest improvement</span>
-                <span><span style={{display:"inline-block",width:12,height:12,borderRadius:2,background:T.paper,verticalAlign:"middle",marginRight:4,border:`1px solid ${T.rule}`}}/>Maintained</span>
-                <span><span style={{display:"inline-block",width:12,height:12,borderRadius:2,background:"#fca5a5",verticalAlign:"middle",marginRight:4}}/>Modest decline</span>
-                <span><span style={{display:"inline-block",width:12,height:12,borderRadius:2,background:"#dc2626",verticalAlign:"middle",marginRight:4}}/>Strong decline</span>
+            {/* Key Insights Callout */}
+            <div className="insight-pulse" style={{...sty.card,padding:"18px 20px",marginBottom:24,borderLeft:`4px solid ${T.accent}`,background:`linear-gradient(135deg, ${T.highlight} 0%, #fff 100%)`}}>
+              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+                <span style={{fontSize:18}}>&#9733;</span>
+                <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:800,letterSpacing:2,textTransform:"uppercase",color:T.accent}}>Key Insights</span>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 1fr 1fr",gap:16}}>
+                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,lineHeight:1.5}}>
+                  <strong style={{color:T.ink}}>Clinton achieved budget surpluses</strong>
+                  <span style={{color:T.sub}}> — the only president in this dataset to do so, with 4 consecutive surplus years.</span>
+                </div>
+                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,lineHeight:1.5}}>
+                  <strong style={{color:T.ink}}>Inequality rose under every president</strong>
+                  <span style={{color:T.sub}}> — from 40.5% to 47.2% over 32 years, regardless of party.</span>
+                </div>
+                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,lineHeight:1.5}}>
+                  <strong style={{color:T.ink}}>Obama inherited the worst economy</strong>
+                  <span style={{color:T.sub}}> — 9.3% unemployment, yet improved it by 47% during his tenure.</span>
+                </div>
+              </div>
+            </div>
+            
+            <div style={{marginBottom:24}}>
+              <h2 style={{fontSize:28,fontWeight:900,margin:"0 0 6px",letterSpacing:-0.5}}>All Metrics at a Glance</h2>
+              <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:T.sub,margin:"0 0 16px",lineHeight:1.5}}>19 metrics across 5 presidents. Each cell shows % change from start to end of term. <strong style={{color:T.ink}}>Hover to see trend.</strong> Click any row to explore.</p>
+              <div className="ol-heatmap-legend" style={{display:"flex",gap:20,fontFamily:"'DM Sans',sans-serif",fontSize:12,flexWrap:"wrap",alignItems:"center"}}>
+                <span style={{display:"flex",alignItems:"center",gap:8}}><span style={{display:"inline-block",width:18,height:18,borderRadius:4,background:T.improve.strong}}/>Strong improvement</span>
+                <span style={{display:"flex",alignItems:"center",gap:8}}><span style={{display:"inline-block",width:18,height:18,borderRadius:4,background:T.improve.light}}/>Modest improvement</span>
+                <span style={{display:"flex",alignItems:"center",gap:8}}><span style={{display:"inline-block",width:18,height:18,borderRadius:4,background:T.neutral,border:`1px solid ${T.rule}`}}/>Maintained</span>
+                <span style={{display:"flex",alignItems:"center",gap:8}}><span style={{display:"inline-block",width:18,height:18,borderRadius:4,background:T.decline.light}}/>Modest decline</span>
+                <span style={{display:"flex",alignItems:"center",gap:8}}><span style={{display:"inline-block",width:18,height:18,borderRadius:4,background:T.decline.strong}}/>Strong decline</span>
               </div>
             </div>
 
-            <div style={{...sty.card,overflow:"auto",marginBottom:16}}>
-              <table style={{width:"100%",borderCollapse:"collapse",fontFamily:"'DM Sans',sans-serif",fontSize:12}}>
+            {/* Mobile view toggle */}
+            {mob && (
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+                <div style={{display:"flex",border:`1px solid ${T.rule}`,borderRadius:6,overflow:"hidden"}}>
+                  {[["cards","Cards"],["table","Table"]].map(([v,l])=>(
+                    <button key={v} onClick={()=>setMobileView(v as "table"|"cards")} style={{
+                      padding:"8px 14px",border:"none",background:mobileView===v?T.accent:T.card,
+                      color:mobileView===v?"#fff":T.sub,fontSize:12,fontWeight:600,fontFamily:"'DM Sans',sans-serif"
+                    }}>{l}</button>
+                  ))}
+                </div>
+                {mobileView==="cards" && (
+                  <select 
+                    value={selectedPres} 
+                    onChange={e=>setSelectedPres(e.target.value)}
+                    style={{padding:"8px 12px",border:`1px solid ${T.rule}`,borderRadius:6,background:T.card,fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:600,color:ADMINS[selectedPres]?.color||T.ink}}
+                  >
+                    {AID.map(id=><option key={id} value={id}>{ADMINS[id].name} ({ADMINS[id].years})</option>)}
+                  </select>
+                )}
+              </div>
+            )}
+
+            {/* Mobile Card View */}
+            {mob && mobileView==="cards" && (
+              <div style={{display:"flex",flexDirection:"column",gap:12,marginBottom:20}}>
+                {Object.entries(CATS).map(([catKey,catLabel])=>{
+                  const catMetrics=MK.filter(k=>M[k].cat===catKey);
+                  if(!catMetrics.length)return null;
+                  return (
+                    <div key={catKey}>
+                      <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:2,color:T.mute,marginBottom:8,paddingLeft:4}}>{catLabel}</div>
+                      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                        {catMetrics.map((k,idx)=>{
+                          const mx=M[k];
+                          const pts=mx.d.filter(d=>d.a===selectedPres);
+                          if(pts.length<2)return null;
+                          const s=pts[0].v,e=pts[pts.length-1].v;
+                          const pc=s!==0?((e-s)/Math.abs(s))*100:0;
+                          const absPc=Math.abs(pc);
+                          const imp=mx.inv?pc<0:pc>0;
+                          const mnt=absPc<5;
+                          const sparkData=pts.map(p=>p.v);
+                          
+                          let bg,fg;
+                          if(mnt){bg=T.neutral;fg=T.gold;}
+                          else if(imp){bg=absPc>30?T.improve.strong:absPc>10?T.improve.medium:T.improve.light;fg=absPc>10?"#fff":T.improve.strong;}
+                          else{bg=absPc>30?T.decline.strong:absPc>10?T.decline.medium:T.decline.light;fg=absPc>10?"#fff":T.decline.strong;}
+                          
+                          return (
+                            <div 
+                              key={k} 
+                              className={`hover-lift stagger-${Math.min(idx+1,20)}`}
+                              onClick={()=>{setAm(k);setDetail(k);setOpenFacts(false);}}
+                              style={{...sty.card,padding:"14px 16px",display:"flex",alignItems:"center",gap:14,cursor:"pointer",borderLeft:`4px solid ${ADMINS[selectedPres]?.color||T.accent}`}}
+                            >
+                              <div style={{flex:1}}>
+                                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:14,fontWeight:700,color:T.ink,marginBottom:2}}>{mx.l}</div>
+                                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:T.mute}}>{fmt(s,mx.u)} → {fmt(e,mx.u)}</div>
+                              </div>
+                              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                                <Sparkline data={sparkData} color={ADMINS[selectedPres]?.color||T.sub} width={60} height={24} />
+                                <div style={{background:bg,borderRadius:6,padding:"8px 12px",color:fg,fontWeight:700,fontSize:14,minWidth:60,textAlign:"center",fontVariantNumeric:"tabular-nums"}}>
+                                  {mnt?"—":imp?"▲":"▼"}{absPc.toFixed(0)}%
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Desktop Table View (or mobile table view when toggled) */}
+            {(!mob || mobileView==="table") && (
+            <div style={{...sty.card,overflow:"auto",marginBottom:16,WebkitOverflowScrolling:"touch"}}>
+              <table className="ol-heatmap-table" style={{width:"100%",borderCollapse:"collapse",fontFamily:"'DM Sans',sans-serif",fontSize:13}}>
                 <thead>
                   <tr style={{borderBottom:`2px solid ${T.rule}`}}>
-                    <th style={{textAlign:"left",padding:"10px 14px",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:1,color:T.mute,position:"sticky",left:0,background:T.card,zIndex:1,minWidth:130}}>Metric</th>
+                    <th style={{textAlign:"left",padding:"14px 16px",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:1,color:T.mute,position:"sticky",left:0,background:T.card,zIndex:2,minWidth:150}}>Metric</th>
                     {AID.map(id=>{const a=ADMINS[id];return(
-                      <th key={id} style={{textAlign:"center",padding:"10px 8px",minWidth:80}}>
-                        <div style={{fontWeight:700,color:a.color,fontSize:12}}>{a.name}</div>
-                        <div style={{fontSize:9,color:T.mute,fontWeight:400}}>{a.years}</div>
+                      <th key={id} style={{textAlign:"center",padding:"14px 10px",minWidth:100}}>
+                        <div style={{fontWeight:700,color:a.color,fontSize:13}}>{a.name}</div>
+                        <div style={{fontSize:10,color:T.mute,fontWeight:400}}>{a.years}</div>
                       </th>
                     );})}
                   </tr>
@@ -354,41 +626,44 @@ export default function App(){
                     const catMetrics=MK.filter(k=>M[k].cat===catKey);
                     if(!catMetrics.length)return null;
                     return [
-                      <tr key={"cat-"+catKey}><td colSpan={6} style={{padding:"10px 14px 4px",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:2,color:T.mute,background:T.bg,borderBottom:`1px solid ${T.rule}`}}>{catLabel}</td></tr>,
-                      ...catMetrics.map(k=>{
+                      <tr key={"cat-"+catKey}><td colSpan={6} style={{padding:"12px 16px 6px",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:2,color:T.mute,background:T.bg,borderBottom:`1px solid ${T.rule}`}}>{catLabel}</td></tr>,
+                      ...catMetrics.map((k,rowIdx)=>{
                         const mx=M[k];
                         const perPres=AID.map(id=>{
                           const pts=mx.d.filter(d=>d.a===id);if(pts.length<2)return null;
                           const s=pts[0].v,e=pts[pts.length-1].v;
                           const pc=s!==0?((e-s)/Math.abs(s))*100:0;
                           const imp=mx.inv?pc<0:pc>0;const mnt=Math.abs(pc)<5;
-                          return{id,s,e,pc,imp,mnt};
+                          const sparkData=pts.map(p=>p.v);
+                          return{id,s,e,pc,imp,mnt,sparkData};
                         }).filter(Boolean);
 
-                        return <tr key={k} onClick={()=>{setAm(k);setDetail(k);setOpenFacts(false);}}
-                          style={{borderBottom:`1px solid ${T.rule}22`,cursor:"pointer",transition:"background 0.15s"}}
-                          onMouseEnter={e=>e.currentTarget.style.background=T.paper}
-                          onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                          <td style={{padding:"10px 14px",fontWeight:600,color:T.ink,position:"sticky",left:0,background:T.card,zIndex:1}}>
-                            <div>{mx.l}</div>
-                            <div style={{fontSize:9,color:T.mute,fontWeight:400}}>{mx.s}</div>
+                        return <tr key={k} className={`heatmap-row stagger-${Math.min(rowIdx+1,20)}`} onClick={()=>{setAm(k);setDetail(k);setOpenFacts(false);}}
+                          style={{borderBottom:`1px solid ${T.rule}22`,cursor:"pointer"}}>
+                          <td className="heatmap-metric-cell" style={{padding:"16px 18px",fontWeight:600,color:T.ink,position:"sticky",left:0,background:T.card,zIndex:1,transition:"background 0.2s"}}>
+                            <div style={{fontSize:15,fontWeight:700}}>{mx.l}</div>
+                            <div style={{fontSize:10,color:T.mute,fontWeight:500,marginTop:3,letterSpacing:0.3}}>{mx.s}</div>
                           </td>
                           {perPres.map(p=>{
                             const absPc=Math.abs(p.pc);
-                            let bg,fg;
-                            if(p.mnt){bg=T.paper;fg=T.gold;}
-                            else if(p.imp){
-                              bg=absPc>30?"#15803d":absPc>10?"#22c55e":"#86efac";
-                              fg=absPc>10?"#fff":"#15803d";
+                            let bg,fg,sparkColor;
+                            if(p.mnt){
+                              bg=T.neutral;fg=T.gold;sparkColor=T.gold;
+                            } else if(p.imp){
+                              bg=absPc>30?T.improve.strong:absPc>10?T.improve.medium:T.improve.light;
+                              fg=absPc>10?"#fff":T.improve.strong;
+                              sparkColor=T.improve.strong;
                             }else{
-                              bg=absPc>30?"#dc2626":absPc>10?"#ef4444":"#fca5a5";
-                              fg=absPc>10?"#fff":"#991b1b";
+                              bg=absPc>30?T.decline.strong:absPc>10?T.decline.medium:T.decline.light;
+                              fg=absPc>10?"#fff":T.decline.strong;
+                              sparkColor=T.decline.strong;
                             }
-                            return <td key={p.id} style={{textAlign:"center",padding:"6px 4px"}}>
-                              <div style={{background:bg,borderRadius:4,padding:"6px 4px",color:fg,fontWeight:700,fontSize:12,lineHeight:1.2}}>
-                                {p.mnt?"—":p.imp?"▲":"▼"}{absPc.toFixed(0)}%
+                            return <td key={p.id} style={{textAlign:"center",padding:"10px 8px",verticalAlign:"middle"}}>
+                              <div className="heatmap-cell hover-lift" style={{background:bg,borderRadius:8,padding:"12px 10px 8px",color:fg,fontWeight:700,fontSize:15,lineHeight:1.2,minHeight:mob?60:72,display:"flex",flexDirection:"column",justifyContent:"center",alignItems:"center"}}>
+                                <span style={{fontVariantNumeric:"tabular-nums"}}>{p.mnt?"—":p.imp?"▲":"▼"}{absPc.toFixed(0)}%</span>
+                                {!mob && <Sparkline data={p.sparkData} color={fg} width={50} height={16} />}
                               </div>
-                              <div style={{fontSize:9,color:T.mute,marginTop:2}}>{fmt(p.s,mx.u)}→{fmt(p.e,mx.u)}</div>
+                              <div className="heatmap-cell-value" style={{fontSize:10,color:T.mute,marginTop:5,fontVariantNumeric:"tabular-nums"}}>{fmt(p.s,mx.u)} → {fmt(p.e,mx.u)}</div>
                             </td>;
                           })}
                         </tr>;
@@ -398,6 +673,7 @@ export default function App(){
                 </tbody>
               </table>
             </div>
+            )}
 
             {/* Totals row */}
             <div style={{...sty.card,padding:"14px 16px",marginBottom:16}}>
@@ -498,31 +774,64 @@ export default function App(){
           {m.bench&&<div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:T.sub,lineHeight:1.6,marginBottom:16,padding:"0 2px"}}><strong style={{color:T.ink}}>Why this matters: </strong>{m.bench.why}</div>}
 
           {/* Summary cards */}
-          <div className="ol-grid-summary" style={{display:"grid",gridTemplateColumns:`repeat(${Math.min(sel.length,5)},1fr)`,gap:8,marginBottom:16}}>
-            {sel.map(id=>{const s=sums[id];if(!s)return null;const a=ADMINS[id];
+          <div className="ol-grid-summary" style={{display:"grid",gridTemplateColumns:`repeat(${Math.min(sel.length,5)},1fr)`,gap:10,marginBottom:20}}>
+            {sel.map((id,idx)=>{const s=sums[id];if(!s)return null;const a=ADMINS[id];
               const pts=m.d.filter(d=>d.a===id);if(pts.length<2)return null;
               const start=pts[0].v,end=pts[pts.length-1].v;
               const pct=start!==0?((end-start)/Math.abs(start))*100:0;
               const imp=m.inv?pct<0:pct>0;const mnt=Math.abs(pct)<5;
-              const col=mnt?T.gold:imp?"#16a34a":"#dc2626";
-              return <div key={id} style={{...sty.card,padding:"12px 14px",borderTop:`3px solid ${a.color}`}}>
-                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:0.5,color:T.mute,marginBottom:4}}>{a.name}</div>
-                <div style={{display:"flex",alignItems:"baseline",gap:5,marginBottom:2}}>
-                  <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:T.sub}}>{fmt(start,m.u)}</span>
+              const col=mnt?T.gold:imp?T.improve.strong:T.decline.strong;
+              const sparkData=pts.map(p=>p.v);
+              return <div key={id} className={`hover-lift stagger-${idx+1}`} style={{...sty.card,padding:"16px 18px",borderTop:`4px solid ${a.color}`,position:"relative",overflow:"hidden"}}>
+                <div style={{position:"absolute",top:0,right:0,width:80,height:80,background:`linear-gradient(135deg, ${a.color}08 0%, transparent 70%)`,borderRadius:"0 0 0 80px"}}/>
+                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:1,color:a.color,marginBottom:6}}>{a.name}</div>
+                <div style={{display:"flex",alignItems:"baseline",gap:6,marginBottom:4}}>
+                  <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:T.mute,fontVariantNumeric:"tabular-nums"}}>{fmt(start,m.u)}</span>
                   <span style={{fontSize:10,color:T.mute}}>→</span>
-                  <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:16,fontWeight:600,color:T.ink}}>{fmt(end,m.u)}</span>
+                  <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:18,fontWeight:700,color:T.ink,fontVariantNumeric:"tabular-nums"}}>{fmt(end,m.u)}</span>
                 </div>
-                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:20,fontWeight:800,color:col,marginBottom:2}}>{mnt?"—":imp?"▲":"▼"}{Math.abs(pct).toFixed(0)}%</div>
-                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,color:T.mute}}>avg {fmt(s.avg,m.u)}</div>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:24,fontWeight:900,color:col,fontVariantNumeric:"tabular-nums"}}>{mnt?"—":imp?"▲":"▼"}{Math.abs(pct).toFixed(0)}%</div>
+                  <Sparkline data={sparkData} color={a.color} width={50} height={20} />
+                </div>
+                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,color:T.mute,display:"flex",justifyContent:"space-between"}}>
+                  <span>avg {fmt(s.avg,m.u)}</span>
+                  <span style={{color:a.color,fontWeight:600}}>{a.years}</span>
+                </div>
               </div>;
             })}
           </div>
 
           {/* Chart */}
-          <div className="ol-chart-wrap" style={{...sty.card,padding:"20px 16px 10px",marginBottom:12}}>
-            <ResponsiveContainer width="100%" height={340}>
-              {ct==="bar"?(<BarChart data={fd}><CartesianGrid strokeDasharray="3 3" stroke={T.rule}/><XAxis dataKey="y" stroke={T.mute} fontSize={11} fontFamily="'DM Sans',sans-serif" tick={{fill:T.sub}}/><YAxis stroke={T.rule} fontSize={10} fontFamily="'DM Sans',sans-serif" tick={{fill:T.sub}} tickFormatter={v=>fmt(v,m.u)}/><Tooltip content={<Tip unit={m.u}/>}/><Bar dataKey="v" radius={[2,2,0,0]} maxBarSize={22}>{fd.map((e,i)=><Cell key={i} fill={ADMINS[e.a]?.color} fillOpacity={0.85}/>)}</Bar></BarChart>
-              ):(<LineChart data={fd}><CartesianGrid strokeDasharray="3 3" stroke={T.rule}/><XAxis dataKey="y" stroke={T.mute} fontSize={11} fontFamily="'DM Sans',sans-serif" tick={{fill:T.sub}}/><YAxis stroke={T.rule} fontSize={10} fontFamily="'DM Sans',sans-serif" tick={{fill:T.sub}} tickFormatter={v=>fmt(v,m.u)}/><Tooltip content={<Tip unit={m.u}/>}/><Line type="monotone" dataKey="v" stroke={T.sub} strokeWidth={1.5} dot={p=><circle cx={p.cx} cy={p.cy} r={4} fill={ADMINS[p.payload?.a]?.color||T.sub} stroke={T.card} strokeWidth={2}/>}/></LineChart>)}
+          <div className="ol-chart-wrap hover-lift" style={{...sty.card,padding:"24px 20px 14px",marginBottom:16,borderRadius:8}}>
+            <ResponsiveContainer width="100%" height={360}>
+              {ct==="bar"?(
+                <BarChart data={fd} margin={{top:10,right:10,left:0,bottom:10}}>
+                  <defs>
+                    {AID.map(id=>(
+                      <linearGradient key={id} id={`bar-gradient-${id}`} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={ADMINS[id]?.color} stopOpacity={0.9}/>
+                        <stop offset="100%" stopColor={ADMINS[id]?.color} stopOpacity={0.6}/>
+                      </linearGradient>
+                    ))}
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke={T.rule} strokeOpacity={0.5}/>
+                  <XAxis dataKey="y" stroke={T.mute} fontSize={11} fontFamily="'DM Sans',sans-serif" tick={{fill:T.sub}} axisLine={{stroke:T.rule}}/>
+                  <YAxis stroke={T.rule} fontSize={10} fontFamily="'DM Sans',sans-serif" tick={{fill:T.sub}} tickFormatter={v=>fmt(v,m.u)} axisLine={{stroke:T.rule}}/>
+                  <Tooltip content={<Tip unit={m.u}/>} cursor={{fill:T.paper,opacity:0.5}}/>
+                  <Bar dataKey="v" radius={[4,4,0,0]} maxBarSize={28} animationDuration={600} animationEasing="ease-out">
+                    {fd.map((e,i)=><Cell key={i} fill={`url(#bar-gradient-${e.a})`}/>)}
+                  </Bar>
+                </BarChart>
+              ):(
+                <LineChart data={fd} margin={{top:10,right:10,left:0,bottom:10}}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={T.rule} strokeOpacity={0.5}/>
+                  <XAxis dataKey="y" stroke={T.mute} fontSize={11} fontFamily="'DM Sans',sans-serif" tick={{fill:T.sub}} axisLine={{stroke:T.rule}}/>
+                  <YAxis stroke={T.rule} fontSize={10} fontFamily="'DM Sans',sans-serif" tick={{fill:T.sub}} tickFormatter={v=>fmt(v,m.u)} axisLine={{stroke:T.rule}}/>
+                  <Tooltip content={<Tip unit={m.u}/>}/>
+                  <Line type="monotone" dataKey="v" stroke={T.sub} strokeWidth={1.5} animationDuration={600} dot={p=><circle key={p.index} cx={p.cx} cy={p.cy} r={4} fill={ADMINS[p.payload?.a]?.color||T.sub} stroke={T.card} strokeWidth={2}/>}/>
+                </LineChart>
+              )}
             </ResponsiveContainer>
           </div>
 
@@ -734,9 +1043,33 @@ export default function App(){
         </div>)}
 
         {/* ── FOOTER ── */}
-        <div style={{borderTop:`1px solid ${T.rule}`,paddingTop:20,marginTop:40,fontFamily:"'DM Sans',sans-serif"}}>
-          <div style={{fontSize:10,color:T.mute,lineHeight:1.6}}>
-            <strong style={{color:T.sub}}>Open Ledger v6.1</strong> · Data from BEA, BLS, Treasury, CBO, EIA, Census Bureau, Conference Board, S&P Global, World Bank, IMF, ILO, World Inequality Database. Built for transparency, not persuasion. All data is public and independently verifiable.
+        <div style={{borderTop:`2px solid ${T.rule}`,paddingTop:32,marginTop:56,fontFamily:"'DM Sans',sans-serif"}}>
+          <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 1fr",gap:24,marginBottom:24}}>
+            <div>
+              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
+                <div style={{display:"flex",gap:2}}>
+                  <div style={{width:3,height:14,background:T.accent,borderRadius:1}}/>
+                  <div style={{width:3,height:14,background:T.accent,borderRadius:1,opacity:0.5}}/>
+                </div>
+                <span style={{fontSize:12,fontWeight:800,letterSpacing:2,textTransform:"uppercase",color:T.sub}}>Open Ledger</span>
+              </div>
+              <p style={{fontSize:12,color:T.sub,lineHeight:1.7,margin:0}}>
+                Built for transparency, not persuasion. Every data point is sourced from official government agencies and can be independently verified.
+              </p>
+            </div>
+            <div>
+              <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:1.5,color:T.mute,marginBottom:8}}>Data Sources</div>
+              <div style={{fontSize:11,color:T.sub,lineHeight:1.8}}>
+                BEA (Bureau of Economic Analysis) · BLS (Bureau of Labor Statistics) · U.S. Treasury · CBO (Congressional Budget Office) · EIA (Energy Information Administration) · Census Bureau · Conference Board · S&P Global · World Bank · IMF · World Inequality Database
+              </div>
+            </div>
+          </div>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingTop:16,borderTop:`1px solid ${T.rule}`,flexWrap:"wrap",gap:12}}>
+            <span style={{fontSize:10,color:T.mute}}>v7.0 — Last updated April 2026</span>
+            <div style={{display:"flex",gap:16}}>
+              <button style={{fontSize:10,color:T.accent,background:"none",border:"none",fontWeight:600,padding:0}}>Methodology</button>
+              <button style={{fontSize:10,color:T.accent,background:"none",border:"none",fontWeight:600,padding:0}}>Download Data</button>
+            </div>
           </div>
         </div>
       </div>
