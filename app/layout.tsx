@@ -7,8 +7,8 @@ const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'v0 App',
-  description: 'Created with v0',
+  title: 'Vote Unbiased — The Economy Under Every President, In Data',
+  description: '19 economic metrics across 5 presidents. No spin. No editorial. You interpret.',
   generator: 'v0.app',
   icons: {
     icon: [
