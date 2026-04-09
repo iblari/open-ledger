@@ -10,6 +10,9 @@ export const metadata: Metadata = {
   title: 'Vote Unbiased — The Economy Under Every President, In Data',
   description: '19 economic metrics across 5 presidents. No spin. No editorial. You interpret.',
   generator: 'v0.app',
+  verification: {
+    google: 'o9EM5aUToekdkqIelamubG94gJfUyFp9si6LfrhZd2M',
+  },
   icons: {
     icon: [
       {
