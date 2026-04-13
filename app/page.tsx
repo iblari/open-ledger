@@ -290,7 +290,7 @@ function FactsPanel({facts,label}){
   </div>;
 }
 
-const TABS=[["dashboard","Data"],["scorecard","Scorecard"],["headtohead","Compare"],["global","Global"]];
+const TABS=[["dashboard","Data"],["scorecard","Scorecard"],["global","Global"]];
 
 export default function App(){
   const mob = useIsMobile();
@@ -299,7 +299,6 @@ export default function App(){
   const [detail,setDetail]=useState(null);
   const [sel,setSel]=useState(["clinton","bush","obama","trump1","biden"]);
   const [ct,setCt]=useState("bar");
-  const [h2h,setH2h]=useState("gdp");
   const [gm,setGm]=useState("gdp_g");
   const [gc,setGc]=useState(["us","china","india","uk"]);
   const [cf,setCf]=useState("all");
@@ -315,8 +314,6 @@ export default function App(){
   const sums=useMemo(()=>{const o={};for(const id of sel){const p=m.d.filter(d=>d.a===id);if(!p.length)continue;
     o[id]={avg:p.reduce((s,x)=>s+x.v,0)/p.length,chg:p[p.length-1].v-p[0].v};}return o;},[am,sel]);
 
-  const h2hD=useMemo(()=>{const mx=M[h2h];const o=[];for(let yr=1;yr<=8;yr++){const r={year:`Yr ${yr}`};
-    for(const id of AID){const p=mx.d.filter(d=>d.a===id);if(p[yr-1])r[id]=p[yr-1].v;}if(Object.keys(r).length>1)o.push(r);}return o;},[h2h]);
 
   const sc=useMemo(()=>scores(),[]);
   const ss=useMemo(()=>AID.slice().sort((a,b)=>sc[b].p-sc[a].p),[sc]);
@@ -990,32 +987,6 @@ export default function App(){
         </div>)}
 
         {/* ═══ HEAD TO HEAD ═══ */}
-        {tab==="headtohead"&&(<div style={{animation:"fadeUp 0.4s ease"}}>
-          <h2 style={{fontSize:28,fontWeight:900,margin:"0 0 4px"}}>Head to Head</h2>
-          <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:T.sub,margin:"0 0 16px"}}>Same metric, normalized to term start. Year 1 vs Year 1.</p>
-          <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:16}}>
-            {MK.map(k=><button key={k} onClick={()=>setH2h(k)} style={{padding:"5px 10px",borderRadius:3,border:`1px solid ${h2h===k?T.accent+"55":T.rule}`,background:h2h===k?T.accent+"0A":"transparent",color:h2h===k?T.accent:T.sub,fontSize:11,fontWeight:h2h===k?700:500,fontFamily:"'DM Sans',sans-serif"}}>{M[k].l}</button>)}
-          </div>
-          <div style={{...sty.card,padding:"20px 16px 10px",marginBottom:12}}>
-            <ResponsiveContainer width="100%" height={380}>
-              <LineChart data={h2hD}><CartesianGrid strokeDasharray="3 3" stroke={T.rule}/>
-                <XAxis dataKey="year" stroke={T.mute} fontSize={12} fontFamily="'DM Sans',sans-serif" tick={{fill:T.sub}}/>
-                <YAxis stroke={T.rule} fontSize={10} fontFamily="'DM Sans',sans-serif" tick={{fill:T.sub}} tickFormatter={v=>fmt(v,M[h2h].u)}/>
-                <Tooltip content={<Tip unit={M[h2h].u}/>}/>
-                {AID.map(id=><Line key={id} type="monotone" dataKey={id} stroke={ADMINS[id].color} strokeWidth={2.5} dot={{r:4,fill:ADMINS[id].color,stroke:T.card,strokeWidth:2}} name={ADMINS[id].name} connectNulls/>)}
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-          <div style={{display:"flex",gap:14,flexWrap:"wrap",marginBottom:8}}>
-            {AID.map(id=><div key={id} style={{display:"flex",alignItems:"center",gap:5,fontFamily:"'DM Sans',sans-serif",fontSize:12}}>
-              <span style={{width:12,height:3,borderRadius:1,background:ADMINS[id].color}}/><span style={{color:ADMINS[id].color,fontWeight:700}}>{ADMINS[id].name}</span>
-            </div>)}
-          </div>
-          <div style={{background:T.highlight,border:"1px solid #f5deb3",borderRadius:3,padding:"10px 14px"}}>
-            <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,lineHeight:1.6,color:"#78716c"}}><strong style={{color:T.ink}}>↳ </strong>{M[h2h].ctx} Clinton/Obama served 8 years vs 4 for others.</div>
-          </div>
-        </div>)}
-
         {/* ═══ GLOBAL ═══ */}
         {tab==="global"&&(<div style={{animation:"fadeUp 0.4s ease"}}>
           <h2 style={{fontSize:28,fontWeight:900,margin:"0 0 4px"}}>Global Comparison</h2>
