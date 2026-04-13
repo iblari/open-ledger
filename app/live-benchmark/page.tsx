@@ -23,6 +23,115 @@ const C = {
 };
 
 /* ─────────────────────────────────────────────
+   METRIC METADATA — labels, benchmarks, formulas, context, facts
+   Matches the main Open Ledger dashboard exactly
+───────────────────────────────────────────── */
+const META: Record<string, {
+  label: string; sub: string; def: string; ctx: string;
+  bench: { good: string; target: string; warn: string; why: string };
+  facts: { t: string; x: string }[];
+}> = {
+  gdp_growth: {
+    label: "GDP Growth", sub: "Quarterly Annualized %",
+    def: "(GDP this quarter − GDP last quarter) / GDP last quarter × 100, annualized. Measures how fast the economy expanded or contracted.",
+    bench: { good: "2–3%", target: "Sustained 2-3% is healthy for a mature economy", warn: "Below 0% = contraction. Above 5% often = rebound, not trend", why: "The U.S. economy averaged 3.2% from 1947-2000 and 2.1% from 2000-2024. Lower trend reflects a larger, more mature economy." },
+    ctx: "Post-recession years show rebound effects, not necessarily good policy.",
+    facts: [{ t: "Presidents influence ~10-30%", x: "Fed rates, global conditions, and business cycles often matter more." }],
+  },
+  real_gdp: {
+    label: "Real GDP", sub: "$T (2017 dollars)",
+    def: "Nominal GDP / GDP Deflator × 100. Strips out price changes to measure actual output growth in constant 2017 dollars.",
+    bench: { good: "Steady upward trend", target: "~2-3% annual growth in real terms", warn: "Flat or declining = recession", why: "Real GDP should always grow over time in a healthy economy. The question is how fast — and whether growth is broadly shared." },
+    ctx: "Total output adjusted for inflation. Shows absolute size, not speed.",
+    facts: [{ t: "Why 'real'?", x: "Adjusted for inflation — comparing actual output, not price increases." }, { t: "Bigger base = slower rate", x: "$20T at 2% adds $400B. $5T at 8% adds $400B. Same absolute gain." }],
+  },
+  unemployment: {
+    label: "Unemployment", sub: "Rate %",
+    def: "(People actively looking for work / Total labor force) × 100. Does NOT count people who stopped looking or are underemployed (that's U-6).",
+    bench: { good: "3.5–4.5%", target: "Below 4% = tight labor market (good for workers)", warn: "Above 6% = significant slack. Above 8% = crisis-level", why: "'Full employment' is ~3.5-4.5%. Below 3.5% risks inflation as employers compete for scarce workers. The 'natural rate' shifts over time." },
+    ctx: "Obama inherited 9%+. Trump's 2020 spike = COVID lockdowns.",
+    facts: [{ t: "U-3 misses discouraged workers", x: "U-6 adds underemployed + discouraged — typically 3-5 points higher." }],
+  },
+  lfpr: {
+    label: "Labor Force Participation", sub: "Rate %",
+    def: "(Employed + Unemployed seeking work) / Civilian population age 16+ × 100. Measures what share of working-age adults are in the labor force.",
+    bench: { good: "62–67%", target: "Higher = more people working or seeking work", warn: "Below 62% signals structural disengagement from workforce", why: "Peaked at 67.3% in 2000. Structural decline from aging boomers is ~0.2%/yr — this trend is demographic, not policy failure." },
+    ctx: "Long-term decline from aging boomers retiring. Peaked at 67.3% in 2000.",
+    facts: [{ t: "Catches what unemployment misses", x: "If someone stops looking, they leave the labor force entirely — LFPR captures this." }],
+  },
+  jobs: {
+    label: "Nonfarm Payrolls", sub: "Monthly Change (thousands)",
+    def: "Nonfarm payrolls change month-over-month from BLS Current Employment Statistics. Net new jobs created (or lost) each month. Counts jobs, not people.",
+    bench: { good: "+150K to +250K/month", target: "Consistent monthly gains of 150K-250K = healthy expansion", warn: "Negative = net job losses, signaling recession", why: "The economy needs ~100-150K new jobs/month just to keep up with population growth. Anything above 200K is strong." },
+    ctx: "Reopenings ≠ creation. Policy lags 12-18 months.",
+    facts: [{ t: "Biden's 2021 surge", x: "Largely positions COVID eliminated being refilled, not new structural jobs." }],
+  },
+  mfg: {
+    label: "Manufacturing Jobs", sub: "Millions",
+    def: "Total employees in manufacturing sector from BLS Current Employment Statistics survey. Counts all manufacturing payroll jobs nationwide.",
+    bench: { good: "Stabilization at 12-13M", target: "Halting decline is realistic; returning to 17M+ is not", warn: "Sharp drops signal recession or trade disruption", why: "Manufacturing output keeps rising while jobs decline — automation replaces workers. This trend is global and irreversible." },
+    ctx: "Peaked at 19.6M in 1979. ~85% of losses from automation, not offshoring.",
+    facts: [{ t: "Output still rising", x: "U.S. manufactures more by value than ever — with fewer workers." }],
+  },
+  inflation: {
+    label: "Inflation (CPI YoY)", sub: "Year-over-Year %",
+    def: "(CPI this month − CPI same month last year) / CPI last year × 100. Tracks price changes across ~80,000 goods and services (CPI-U).",
+    bench: { good: "1.5–2.5%", target: "The Fed targets exactly 2% — the 'Goldilocks' rate", warn: "Above 4% = eroding paychecks. Below 0% = deflation spiral risk", why: "2% encourages spending without destroying savings. At 8% (2022), a $50K salary loses $4,000 in purchasing power in one year." },
+    ctx: "Fed targets 2%. 2022's 8% = post-COVID supply + stimulus.",
+    facts: [{ t: "The Fed controls inflation", x: "Interest rates are the primary tool. Presidents contribute via spending but can't set prices." }],
+  },
+  gas: {
+    label: "Gas Prices", sub: "$/gallon",
+    def: "National average retail price for regular unleaded gasoline, all formulations. EIA weekly survey of ~900 retail outlets.",
+    bench: { good: "$2.50–$3.50", target: "Stable prices matter more than low prices", warn: "Above $4 = consumer pain. Below $2 often = demand collapse (bad sign)", why: "Americans spend ~3-5% of income on gas. At $4/gal, a 30-gallon-per-week family pays $6,240/yr vs $3,900 at $2.50." },
+    ctx: "~60% = global crude. OPEC > White House.",
+    facts: [{ t: "COVID made gas cheap", x: "2020's $2.17 was demand collapse, not a policy win." }],
+  },
+  wages: {
+    label: "Real Wages", sub: "Year-over-Year %",
+    def: "Median real weekly earnings year-over-year % change. If your raise was 4% but inflation was 5%, real wages fell 1%. Measures actual purchasing power change.",
+    bench: { good: "+0.5 to +2.0%", target: "Positive real wage growth = workers gaining purchasing power", warn: "Negative = paychecks shrinking in real terms despite nominal raises", why: "If real wages are negative, your raise didn't keep up with prices. Americans experienced 25 consecutive months of negative real wages from mid-2021 to mid-2023." },
+    ctx: "Nominal raise minus inflation. 2020 spike = composition effect.",
+    facts: [{ t: "Nominal vs Real", x: "A 4% raise with 5% inflation = -1% real decline." }],
+  },
+  purchasing: {
+    label: "Purchasing Power", sub: "Value of $1 (1969 base)",
+    def: "CPI at base year / CPI current. Shows how much a dollar buys relative to baseline. Lower = your money buys less. Every president's line shows how much value the dollar lost on their watch.",
+    bench: { good: "Losing under 2¢/yr", target: "Some decline is normal with 2% inflation target", warn: "Losing over 4¢/yr = rapid erosion of savings", why: "This is the cumulative cost of inflation that people feel but rarely see quantified. Steady erosion is expected, but sharp drops hurt." },
+    ctx: "Steady erosion is expected with 2% inflation target. The 2021-2023 spike was the sharpest decline in decades.",
+    facts: [{ t: "Inflation is a hidden tax", x: "You don't see it deducted from your paycheck, but $100 of groceries in 2020 costs $122 in 2024." }, { t: "Savers are punished", x: "If your savings account pays 1% but inflation is 3%, you lose 2% of purchasing power every year." }],
+  },
+  fed_rate: {
+    label: "Interest Rate", sub: "Federal Funds %",
+    def: "Federal Funds Rate — the overnight rate banks charge each other, set by the FOMC. Every other rate in the economy (mortgages, car loans, credit cards) keys off this.",
+    bench: { good: "2–3% (neutral)", target: "Low enough to encourage borrowing, high enough to prevent bubbles", warn: "Near 0% = emergency mode. Above 5% = restrictive, slows economy", why: "The Fed is independent — presidents appoint the chair but can't set rates. The appointment power is enormous indirect influence." },
+    ctx: "Near-zero for 9 of the last 16 years. Biden's era saw the fastest hike cycle in 40 years.",
+    facts: [{ t: "Presidents appoint, Fed decides", x: "Once seated, the chair acts independently." }, { t: "Rate affects everything", x: "A 1% rate increase on a $400K mortgage = ~$240/month more." }],
+  },
+  debt_gdp: {
+    label: "Debt-to-GDP", sub: "Ratio %",
+    def: "(Total federal public debt outstanding / Annual GDP) × 100. Measures debt burden relative to the economy's ability to service it. More meaningful than raw dollar debt.",
+    bench: { good: "Below 60%", target: "60% was the pre-2008 norm. 90%+ is elevated", warn: "Above 120% = uncharted territory for the U.S.", why: "The real risk isn't a magic threshold — it's when interest payments crowd out other spending. The U.S. now spends more on interest ($882B in 2024) than on defense." },
+    ctx: "The proper debt measure. Japan is ~260%, UK ~100%.",
+    facts: [{ t: "Crossed 100% in 2013", x: "Economists debate whether this threshold matters. Several healthy economies exceed it." }],
+  },
+  trade: {
+    label: "Trade Balance", sub: "$Billions",
+    def: "Exports − Imports (goods and services). Negative = trade deficit (U.S. buys more than it sells). This is the TRADE deficit — completely separate from the budget deficit.",
+    bench: { good: "Shrinking deficit trend", target: "A small deficit is normal for a wealthy consumer economy", warn: "Rapid growth in deficit may signal competitiveness problems", why: "The U.S. has run a trade deficit since 1975. It often reflects strong consumer demand — Americans buying goods. Tariffs have historically NOT reduced it." },
+    ctx: "U.S. has run a trade deficit since 1975. Tariffs raised under Trump but deficit grew anyway.",
+    facts: [{ t: "Tariffs did not shrink the deficit", x: "Trade deficit grew from $552B to $679B during Trump I despite tariff increases." }, { t: "Not the same as budget deficit", x: "Trade deficit = buying more imports than we export. Budget deficit = government spending more than it collects." }],
+  },
+  consumer_conf: {
+    label: "Consumer Confidence", sub: "Index (1985=100)",
+    def: "Survey of 5,000 households rating current business conditions and 6-month expectations. Indexed to 1985 baseline = 100. Above 100 = more optimistic than 1985.",
+    bench: { good: "Above 100", target: "100 = baseline optimism. 120+ = strong confidence", warn: "Below 60 = recession-level pessimism", why: "High confidence drives spending (70% of GDP). But since 2016, partisan identity has become the biggest predictor — not actual conditions." },
+    ctx: "How people FEEL — not how the economy performs. Partisan since 2016.",
+    facts: [{ t: "Vibes ≠ reality", x: "Confidence dropped in 2022 despite strong jobs. People feel inflation more than employment." }],
+  },
+};
+
+/* ─────────────────────────────────────────────
    TYPES
 ───────────────────────────────────────────── */
 interface DataPoint { month: number; value: number }
@@ -191,6 +300,36 @@ function generateShareCard(
   ctx.fillStyle = "#E24B4A"; ctx.fillRect(0, H - 4, W, 4);
 
   return canvas;
+}
+
+/* ─────────────────────────────────────────────
+   FACTS PANEL — expandable "How to interpret"
+───────────────────────────────────────────── */
+function FactsPanel({ facts, label }: { facts: { t: string; x: string }[]; label: string }) {
+  const [open, setOpen] = useState(false);
+  if (!facts?.length) return null;
+  return (
+    <div style={{ borderLeft: `2px solid ${C.accent}`, paddingLeft: 16 }}>
+      <button onClick={() => setOpen(!open)} style={{
+        border: "none", background: "transparent", fontFamily: "'DM Sans',sans-serif",
+        fontSize: 12, fontWeight: 700, color: C.accent, padding: 0,
+        display: "flex", alignItems: "center", gap: 4, cursor: "pointer",
+      }}>
+        {open ? "Hide" : "Read"}: How to interpret this data
+        <span style={{ transform: open ? "rotate(90deg)" : "rotate(0)", transition: "transform 0.2s" }}>→</span>
+      </button>
+      {open && (
+        <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 10 }}>
+          {facts.map((f, i) => (
+            <div key={i}>
+              <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 12, fontWeight: 700, color: C.ink, marginBottom: 2 }}>{f.t}</div>
+              <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 12, lineHeight: 1.6, color: C.sub }}>{f.x}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 /* ─────────────────────────────────────────────
@@ -516,6 +655,50 @@ export default function LiveBenchmark() {
                 </div>
               </div>
             )}
+
+            {/* ── Metric Detail: Formula, Benchmarks, Context, Facts ── */}
+            {md && META[metric] && (() => {
+              const mm = META[metric];
+              return (
+                <div style={{ marginBottom: 20 }}>
+                  {/* Formula */}
+                  <div style={{ background: C.paper, border: `1px solid ${C.rule}`, borderRadius: 4, padding: "10px 14px", marginBottom: 14, display: "flex", gap: 8, alignItems: "flex-start" }}>
+                    <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, fontWeight: 600, color: C.accent, flexShrink: 0 }}>f(x)</span>
+                    <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, lineHeight: 1.6, color: C.sub }}>{mm.def}</span>
+                  </div>
+
+                  {/* Good / Target / Warning */}
+                  <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "1fr 1fr 1fr", gap: 8, marginBottom: 14 }}>
+                    <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 4, padding: "10px 14px" }}>
+                      <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 9, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: 1, color: "#16a34a", marginBottom: 3 }}>Good</div>
+                      <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 14, fontWeight: 600, color: "#15803d" }}>{mm.bench.good}</div>
+                    </div>
+                    <div style={{ background: C.highlight, border: "1px solid #f5deb3", borderRadius: 4, padding: "10px 14px" }}>
+                      <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 9, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: 1, color: "#a67c00", marginBottom: 3 }}>Target</div>
+                      <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 12, fontWeight: 600, color: "#92400e", lineHeight: 1.4 }}>{mm.bench.target}</div>
+                    </div>
+                    <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 4, padding: "10px 14px" }}>
+                      <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 9, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: 1, color: "#dc2626", marginBottom: 3 }}>Warning</div>
+                      <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 12, fontWeight: 600, color: "#991b1b", lineHeight: 1.4 }}>{mm.bench.warn}</div>
+                    </div>
+                  </div>
+
+                  {/* Why this matters */}
+                  <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 12, color: C.sub, lineHeight: 1.7, marginBottom: 14, padding: "0 2px" }}>
+                    <strong style={{ color: C.ink }}>Why this matters: </strong>{mm.bench.why}
+                  </div>
+
+                  {/* Context */}
+                  <div style={{ background: C.highlight, border: "1px solid #f5deb3", borderRadius: 4, padding: "10px 14px", display: "flex", gap: 8, marginBottom: 14 }}>
+                    <span style={{ fontSize: 14, lineHeight: 1 }}>↳</span>
+                    <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 12, lineHeight: 1.6, color: "#78716c" }}><strong style={{ color: C.ink }}>Context: </strong>{mm.ctx}</div>
+                  </div>
+
+                  {/* How to interpret — expandable */}
+                  {mm.facts.length > 0 && <FactsPanel facts={mm.facts} label={mm.label} />}
+                </div>
+              );
+            })()}
 
             {/* ── Share Card Export ── */}
             {stats && md && (
