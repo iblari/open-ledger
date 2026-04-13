@@ -486,6 +486,11 @@ export default function App(){
             background:"transparent",color:tab===k?T.ink:T.mute,
             borderBottom:tab===k?`2px solid ${T.accent}`:"2px solid transparent",transition:"all 0.2s"
           }}>{l}</button>)}
+          <a href="/live-benchmark" className="ol-nav-btn" style={{
+            padding:"13px 20px",fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:600,whiteSpace:"nowrap",
+            background:"transparent",color:T.accent,textDecoration:"none",display:"flex",alignItems:"center",gap:6,
+            borderBottom:"2px solid transparent",transition:"all 0.2s"
+          }}><span style={{width:6,height:6,borderRadius:"50%",background:T.accent,animation:"pulse 2s infinite"}}/>Live Benchmark</a>
         </div>
       </div>
 
