@@ -9,13 +9,17 @@ const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: 'Vote Unbiased — The Economy Under Every President, In Data',
-  description: '19 economic metrics across 5 presidents. No spin. No editorial. You interpret.',
-  generator: 'v0.app',
+  description: '19 economic metrics across 10 administrations. No spin. No editorial. You interpret.',
+  metadataBase: new URL('https://voteunbiased.org'),
   verification: {
     google: 'o9EM5aUToekdkqIelamubG94gJfUyFp9si6LfrhZd2M',
   },
   icons: {
     icon: [
+      {
+        url: '/favicon.ico',
+        sizes: '16x16 32x32',
+      },
       {
         url: '/icon-light-32x32.png',
         media: '(prefers-color-scheme: light)',
@@ -30,6 +34,28 @@ export const metadata: Metadata = {
       },
     ],
     apple: '/apple-icon.png',
+  },
+  openGraph: {
+    title: 'Vote Unbiased — The Economy Under Every President, In Data',
+    description: '19 economic metrics across 10 administrations. No spin. No editorial. You interpret.',
+    url: 'https://voteunbiased.org',
+    siteName: 'Vote Unbiased',
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'Vote Unbiased — Economic data across every presidential administration',
+      },
+    ],
+    locale: 'en_US',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Vote Unbiased — The Economy Under Every President, In Data',
+    description: '19 economic metrics across 10 administrations. No spin. No editorial. You interpret.',
+    images: ['/og-image.png'],
   },
 }
 
