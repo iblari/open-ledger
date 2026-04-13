@@ -638,14 +638,6 @@ export default function LiveBenchmark() {
                     <strong style={{ color: C.ink }}>Why this matters: </strong>{mm.bench.why}
                   </div>
 
-                  {/* Context */}
-                  <div style={{ background: C.highlight, border: "1px solid #f5deb3", borderRadius: 4, padding: "10px 14px", display: "flex", gap: 8, marginBottom: 14 }}>
-                    <span style={{ fontSize: 14, lineHeight: 1 }}>↳</span>
-                    <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 12, lineHeight: 1.6, color: "#78716c" }}><strong style={{ color: C.ink }}>Context: </strong>{mm.ctx}</div>
-                  </div>
-
-                  {/* How to interpret — expandable */}
-                  {mm.facts.length > 0 && <FactsPanel facts={mm.facts} label={mm.label} />}
                 </div>
               );
             })()}
@@ -697,6 +689,13 @@ export default function LiveBenchmark() {
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* ── How to interpret — below chart ── */}
+            {md && META[metric] && META[metric].facts.length > 0 && (
+              <div style={{ marginBottom: 20 }}>
+                <FactsPanel facts={META[metric].facts} label={META[metric].label} />
               </div>
             )}
 
