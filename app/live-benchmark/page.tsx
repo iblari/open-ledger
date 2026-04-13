@@ -342,7 +342,7 @@ export default function LiveBenchmark() {
   const [data, setData] = useState<APIResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [shareStatus, setShareStatus] = useState<string | null>(null);
-  const [highlighted, setHighlighted] = useState<string | null>(null);
+  const [highlighted, setHighlighted] = useState<Set<string>>(new Set());
 
   // Distinct colors for highlighted presidents
   const ADMIN_COLORS: Record<string, string> = {
@@ -680,50 +680,66 @@ export default function LiveBenchmark() {
                     <Tooltip content={<BenchTooltip metric={md} adminMap={adminMap} />} />
                     <ReferenceLine x={currentMonth} stroke={C.accent} strokeDasharray="4 4" strokeWidth={1.5} />
 
-                    {/* All admin lines — styling based on highlight state */}
+                    {/* All admin lines — Trump II always bold, others highlight on click */}
                     {md.series.map(s => {
-                      const isHL = highlighted === s.id;
-                      const anyHL = highlighted !== null;
                       const isCurrent = s.current;
-                      const color = isHL ? (ADMIN_COLORS[s.id] || C.accent)
-                        : isCurrent && !anyHL ? C.accent
-                        : C.mute;
-                      const width = isHL ? 3.5 : isCurrent && !anyHL ? 3 : 1.2;
-                      const opacity = anyHL && !isHL ? 0.15 : isCurrent && !anyHL ? 1 : 0.45;
-                      const dash = isHL || (isCurrent && !anyHL) ? undefined : "4 3";
+                      const isHL = highlighted.has(s.id);
+                      const anyHL = highlighted.size > 0;
+                      // Trump II always keeps its bold accent style
+                      if (isCurrent) {
+                        return (
+                          <Line key={s.id} type="monotone" dataKey={s.id}
+                            stroke={C.accent} strokeWidth={3} dot={false} connectNulls name={s.name}
+                            activeDot={{ r: 5, fill: C.accent, stroke: "#fff", strokeWidth: 2 }}
+                          />
+                        );
+                      }
+                      const color = isHL ? (ADMIN_COLORS[s.id] || C.sub) : C.mute;
+                      const width = isHL ? 3 : 1.2;
+                      const opacity = anyHL && !isHL ? 0.12 : 0.45;
+                      const dash = isHL ? undefined : "4 3";
                       return (
                         <Line key={s.id} type="monotone" dataKey={s.id}
                           stroke={color} strokeWidth={width} strokeDasharray={dash}
                           dot={false} connectNulls name={s.name} strokeOpacity={opacity}
-                          activeDot={isHL || (isCurrent && !anyHL) ? { r: 5, fill: color, stroke: "#fff", strokeWidth: 2 } : false}
+                          activeDot={isHL ? { r: 5, fill: color, stroke: "#fff", strokeWidth: 2 } : false}
                         />
                       );
                     })}
                   </LineChart>
                 </ResponsiveContainer>
 
-                {/* Legend — clickable */}
+                {/* Legend — click to highlight (multi-select), Trump II always on */}
                 <div style={{ display: "flex", flexWrap: "wrap", gap: mob ? 6 : 10, padding: mob ? "10px 8px 0" : "12px 0 0", borderTop: `1px solid ${C.rule}`, marginTop: 8 }}>
                   {md.series.map(s => {
-                    const isHL = highlighted === s.id;
-                    const anyHL = highlighted !== null;
-                    const color = isHL ? (ADMIN_COLORS[s.id] || C.accent) : s.current && !anyHL ? C.accent : C.mute;
-                    const dimmed = anyHL && !isHL;
+                    const isCurrent = s.current;
+                    const isHL = highlighted.has(s.id);
+                    const anyHL = highlighted.size > 0;
+                    const color = isCurrent ? C.accent : isHL ? (ADMIN_COLORS[s.id] || C.sub) : C.mute;
+                    const dimmed = anyHL && !isHL && !isCurrent;
                     return (
-                      <button key={s.id} onClick={() => setHighlighted(isHL ? null : s.id)} style={{
+                      <button key={s.id} onClick={() => {
+                        if (isCurrent) return; // Trump II not toggleable
+                        setHighlighted(prev => {
+                          const next = new Set(prev);
+                          if (next.has(s.id)) next.delete(s.id); else next.add(s.id);
+                          return next;
+                        });
+                      }} style={{
                         display: "flex", alignItems: "center", gap: 5,
                         fontFamily: "'DM Sans',sans-serif", fontSize: 11,
                         padding: "4px 10px", borderRadius: 4, border: "none",
                         background: isHL ? color + "14" : "transparent",
                         opacity: dimmed ? 0.4 : 1,
-                        cursor: "pointer", transition: "all 0.2s ease",
+                        cursor: isCurrent ? "default" : "pointer",
+                        transition: "all 0.2s ease",
                       }}>
                         <span style={{
-                          width: 16, height: isHL || (s.current && !anyHL) ? 3 : 0, borderRadius: 1,
-                          background: isHL || (s.current && !anyHL) ? color : "transparent",
-                          borderTop: isHL || (s.current && !anyHL) ? "none" : `2px dashed ${color}`,
+                          width: 16, height: isCurrent || isHL ? 3 : 0, borderRadius: 1,
+                          background: isCurrent || isHL ? color : "transparent",
+                          borderTop: isCurrent || isHL ? "none" : `2px dashed ${color}`,
                         }} />
-                        <span style={{ color: isHL ? color : s.current && !anyHL ? C.accent : C.sub, fontWeight: isHL || (s.current && !anyHL) ? 700 : 400 }}>{s.name}</span>
+                        <span style={{ color: isCurrent ? C.accent : isHL ? color : C.sub, fontWeight: isCurrent || isHL ? 700 : 400 }}>{s.name}</span>
                       </button>
                     );
                   })}
