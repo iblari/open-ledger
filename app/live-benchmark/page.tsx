@@ -606,6 +606,50 @@ export default function LiveBenchmark() {
               </div>
             )}
 
+            {/* ── Metric Detail: Formula, Benchmarks, Context, Facts ── */}
+            {md && META[metric] && (() => {
+              const mm = META[metric];
+              return (
+                <div style={{ marginBottom: 20 }}>
+                  {/* Formula */}
+                  <div style={{ background: C.paper, border: `1px solid ${C.rule}`, borderRadius: 4, padding: "10px 14px", marginBottom: 14, display: "flex", gap: 8, alignItems: "flex-start" }}>
+                    <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, fontWeight: 600, color: C.accent, flexShrink: 0 }}>f(x)</span>
+                    <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, lineHeight: 1.6, color: C.sub }}>{mm.def}</span>
+                  </div>
+
+                  {/* Good / Target / Warning */}
+                  <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "1fr 1fr 1fr", gap: 8, marginBottom: 14 }}>
+                    <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 4, padding: "10px 14px" }}>
+                      <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 9, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: 1, color: "#16a34a", marginBottom: 3 }}>Good</div>
+                      <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 14, fontWeight: 600, color: "#15803d" }}>{mm.bench.good}</div>
+                    </div>
+                    <div style={{ background: C.highlight, border: "1px solid #f5deb3", borderRadius: 4, padding: "10px 14px" }}>
+                      <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 9, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: 1, color: "#a67c00", marginBottom: 3 }}>Target</div>
+                      <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 12, fontWeight: 600, color: "#92400e", lineHeight: 1.4 }}>{mm.bench.target}</div>
+                    </div>
+                    <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 4, padding: "10px 14px" }}>
+                      <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 9, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: 1, color: "#dc2626", marginBottom: 3 }}>Warning</div>
+                      <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 12, fontWeight: 600, color: "#991b1b", lineHeight: 1.4 }}>{mm.bench.warn}</div>
+                    </div>
+                  </div>
+
+                  {/* Why this matters */}
+                  <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 12, color: C.sub, lineHeight: 1.7, marginBottom: 14, padding: "0 2px" }}>
+                    <strong style={{ color: C.ink }}>Why this matters: </strong>{mm.bench.why}
+                  </div>
+
+                  {/* Context */}
+                  <div style={{ background: C.highlight, border: "1px solid #f5deb3", borderRadius: 4, padding: "10px 14px", display: "flex", gap: 8, marginBottom: 14 }}>
+                    <span style={{ fontSize: 14, lineHeight: 1 }}>↳</span>
+                    <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 12, lineHeight: 1.6, color: "#78716c" }}><strong style={{ color: C.ink }}>Context: </strong>{mm.ctx}</div>
+                  </div>
+
+                  {/* How to interpret — expandable */}
+                  {mm.facts.length > 0 && <FactsPanel facts={mm.facts} label={mm.label} />}
+                </div>
+              );
+            })()}
+
             {/* ── Spaghetti Chart ── */}
             {md && (
               <div style={{ ...sty.card, padding: mob ? "16px 8px 10px" : "24px 20px 14px", marginBottom: 20 }}>
@@ -655,50 +699,6 @@ export default function LiveBenchmark() {
                 </div>
               </div>
             )}
-
-            {/* ── Metric Detail: Formula, Benchmarks, Context, Facts ── */}
-            {md && META[metric] && (() => {
-              const mm = META[metric];
-              return (
-                <div style={{ marginBottom: 20 }}>
-                  {/* Formula */}
-                  <div style={{ background: C.paper, border: `1px solid ${C.rule}`, borderRadius: 4, padding: "10px 14px", marginBottom: 14, display: "flex", gap: 8, alignItems: "flex-start" }}>
-                    <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, fontWeight: 600, color: C.accent, flexShrink: 0 }}>f(x)</span>
-                    <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, lineHeight: 1.6, color: C.sub }}>{mm.def}</span>
-                  </div>
-
-                  {/* Good / Target / Warning */}
-                  <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "1fr 1fr 1fr", gap: 8, marginBottom: 14 }}>
-                    <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 4, padding: "10px 14px" }}>
-                      <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 9, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: 1, color: "#16a34a", marginBottom: 3 }}>Good</div>
-                      <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 14, fontWeight: 600, color: "#15803d" }}>{mm.bench.good}</div>
-                    </div>
-                    <div style={{ background: C.highlight, border: "1px solid #f5deb3", borderRadius: 4, padding: "10px 14px" }}>
-                      <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 9, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: 1, color: "#a67c00", marginBottom: 3 }}>Target</div>
-                      <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 12, fontWeight: 600, color: "#92400e", lineHeight: 1.4 }}>{mm.bench.target}</div>
-                    </div>
-                    <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 4, padding: "10px 14px" }}>
-                      <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 9, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: 1, color: "#dc2626", marginBottom: 3 }}>Warning</div>
-                      <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 12, fontWeight: 600, color: "#991b1b", lineHeight: 1.4 }}>{mm.bench.warn}</div>
-                    </div>
-                  </div>
-
-                  {/* Why this matters */}
-                  <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 12, color: C.sub, lineHeight: 1.7, marginBottom: 14, padding: "0 2px" }}>
-                    <strong style={{ color: C.ink }}>Why this matters: </strong>{mm.bench.why}
-                  </div>
-
-                  {/* Context */}
-                  <div style={{ background: C.highlight, border: "1px solid #f5deb3", borderRadius: 4, padding: "10px 14px", display: "flex", gap: 8, marginBottom: 14 }}>
-                    <span style={{ fontSize: 14, lineHeight: 1 }}>↳</span>
-                    <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 12, lineHeight: 1.6, color: "#78716c" }}><strong style={{ color: C.ink }}>Context: </strong>{mm.ctx}</div>
-                  </div>
-
-                  {/* How to interpret — expandable */}
-                  {mm.facts.length > 0 && <FactsPanel facts={mm.facts} label={mm.label} />}
-                </div>
-              );
-            })()}
 
             {/* ── Share Card Export ── */}
             {stats && md && (
