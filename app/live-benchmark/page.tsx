@@ -342,6 +342,21 @@ export default function LiveBenchmark() {
   const [data, setData] = useState<APIResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [shareStatus, setShareStatus] = useState<string | null>(null);
+  const [highlighted, setHighlighted] = useState<string | null>(null);
+
+  // Distinct colors for highlighted presidents
+  const ADMIN_COLORS: Record<string, string> = {
+    nixon: "#6366f1",    // indigo
+    carter: "#0ea5e9",   // sky blue
+    reagan: "#f59e0b",   // amber
+    bush41: "#14b8a6",   // teal
+    clinton: "#8b5cf6",  // violet
+    bush43: "#f97316",   // orange
+    obama: "#3b82f6",    // blue
+    trump1: "#ef4444",   // red
+    biden: "#22c55e",    // green
+    trump2: "#E24B4A",   // brand accent
+  };
 
   // Fetch data
   useEffect(() => {
@@ -665,29 +680,53 @@ export default function LiveBenchmark() {
                     <Tooltip content={<BenchTooltip metric={md} adminMap={adminMap} />} />
                     <ReferenceLine x={currentMonth} stroke={C.accent} strokeDasharray="4 4" strokeWidth={1.5} />
 
-                    {/* Prior admins — muted dashed */}
-                    {md.series.filter(s => !s.current).map(s => (
-                      <Line key={s.id} type="monotone" dataKey={s.id} stroke={C.mute} strokeWidth={1.2} strokeDasharray="4 3" dot={false} connectNulls name={s.name} strokeOpacity={0.45} />
-                    ))}
-                    {/* Current admin — highlighted */}
-                    {md.series.filter(s => s.current).map(s => (
-                      <Line key={s.id} type="monotone" dataKey={s.id} stroke={C.accent} strokeWidth={3} dot={false} connectNulls name={s.name} activeDot={{ r: 5, fill: C.accent, stroke: "#fff", strokeWidth: 2 }} />
-                    ))}
+                    {/* All admin lines — styling based on highlight state */}
+                    {md.series.map(s => {
+                      const isHL = highlighted === s.id;
+                      const anyHL = highlighted !== null;
+                      const isCurrent = s.current;
+                      const color = isHL ? (ADMIN_COLORS[s.id] || C.accent)
+                        : isCurrent && !anyHL ? C.accent
+                        : C.mute;
+                      const width = isHL ? 3.5 : isCurrent && !anyHL ? 3 : 1.2;
+                      const opacity = anyHL && !isHL ? 0.15 : isCurrent && !anyHL ? 1 : 0.45;
+                      const dash = isHL || (isCurrent && !anyHL) ? undefined : "4 3";
+                      return (
+                        <Line key={s.id} type="monotone" dataKey={s.id}
+                          stroke={color} strokeWidth={width} strokeDasharray={dash}
+                          dot={false} connectNulls name={s.name} strokeOpacity={opacity}
+                          activeDot={isHL || (isCurrent && !anyHL) ? { r: 5, fill: color, stroke: "#fff", strokeWidth: 2 } : false}
+                        />
+                      );
+                    })}
                   </LineChart>
                 </ResponsiveContainer>
 
-                {/* Legend */}
-                <div style={{ display: "flex", flexWrap: "wrap", gap: mob ? 8 : 14, padding: mob ? "10px 8px 0" : "12px 0 0", borderTop: `1px solid ${C.rule}`, marginTop: 8 }}>
-                  {md.series.map(s => (
-                    <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 5, fontFamily: "'DM Sans',sans-serif", fontSize: 11 }}>
-                      <span style={{
-                        width: 16, height: s.current ? 3 : 0, borderRadius: 1,
-                        background: s.current ? C.accent : "transparent",
-                        borderTop: s.current ? "none" : `2px dashed ${C.mute}`,
-                      }} />
-                      <span style={{ color: s.current ? C.accent : C.sub, fontWeight: s.current ? 700 : 400 }}>{s.name}</span>
-                    </div>
-                  ))}
+                {/* Legend — clickable */}
+                <div style={{ display: "flex", flexWrap: "wrap", gap: mob ? 6 : 10, padding: mob ? "10px 8px 0" : "12px 0 0", borderTop: `1px solid ${C.rule}`, marginTop: 8 }}>
+                  {md.series.map(s => {
+                    const isHL = highlighted === s.id;
+                    const anyHL = highlighted !== null;
+                    const color = isHL ? (ADMIN_COLORS[s.id] || C.accent) : s.current && !anyHL ? C.accent : C.mute;
+                    const dimmed = anyHL && !isHL;
+                    return (
+                      <button key={s.id} onClick={() => setHighlighted(isHL ? null : s.id)} style={{
+                        display: "flex", alignItems: "center", gap: 5,
+                        fontFamily: "'DM Sans',sans-serif", fontSize: 11,
+                        padding: "4px 10px", borderRadius: 4, border: "none",
+                        background: isHL ? color + "14" : "transparent",
+                        opacity: dimmed ? 0.4 : 1,
+                        cursor: "pointer", transition: "all 0.2s ease",
+                      }}>
+                        <span style={{
+                          width: 16, height: isHL || (s.current && !anyHL) ? 3 : 0, borderRadius: 1,
+                          background: isHL || (s.current && !anyHL) ? color : "transparent",
+                          borderTop: isHL || (s.current && !anyHL) ? "none" : `2px dashed ${color}`,
+                        }} />
+                        <span style={{ color: isHL ? color : s.current && !anyHL ? C.accent : C.sub, fontWeight: isHL || (s.current && !anyHL) ? 700 : 400 }}>{s.name}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
