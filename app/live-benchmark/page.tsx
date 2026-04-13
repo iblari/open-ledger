@@ -174,15 +174,23 @@ function fmtVal(v: number, unit: string): string {
 /* ─────────────────────────────────────────────
    CUSTOM TOOLTIP
 ───────────────────────────────────────────── */
-function BenchTooltip({ active, payload, label, metric, adminMap }: any) {
+function BenchTooltip({ active, payload, label, metric, adminMap, highlighted, adminColors }: any) {
   if (!active || !payload?.length) return null;
+  const hlSet: Set<string> = highlighted || new Set();
+  const colors: Record<string, string> = adminColors || {};
   const sorted = [...payload].filter(p => p.value != null).sort((a, b) => {
     const aCur = adminMap[a.dataKey]?.current;
     const bCur = adminMap[b.dataKey]?.current;
     if (aCur && !bCur) return -1;
     if (!aCur && bCur) return 1;
+    // Highlighted items sort above non-highlighted
+    const aHL = hlSet.has(a.dataKey);
+    const bHL = hlSet.has(b.dataKey);
+    if (aHL && !bHL) return -1;
+    if (!aHL && bHL) return 1;
     return (adminMap[a.dataKey]?.name || "").localeCompare(adminMap[b.dataKey]?.name || "");
   });
+  const anyHL = hlSet.size > 0;
   return (
     <div style={{
       background: "rgba(255,255,255,0.97)", backdropFilter: "blur(8px)",
@@ -195,15 +203,20 @@ function BenchTooltip({ active, payload, label, metric, adminMap }: any) {
       {sorted.map((p: any, i: number) => {
         const adm = adminMap[p.dataKey];
         const isCurrent = adm?.current;
+        const isHL = hlSet.has(p.dataKey);
+        const dimmed = anyHL && !isHL && !isCurrent;
+        const dotColor = isCurrent ? C.accent : isHL ? (colors[p.dataKey] || C.sub) : C.mute;
+        const nameColor = isCurrent ? C.ink : isHL ? (colors[p.dataKey] || C.ink) : C.sub;
+        const valColor = isCurrent ? C.accent : isHL ? (colors[p.dataKey] || C.ink) : C.ink;
         return (
-          <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, marginTop: i > 0 ? 3 : 0 }}>
+          <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, marginTop: i > 0 ? 3 : 0, opacity: dimmed ? 0.35 : 1 }}>
             <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
-              <span style={{ width: 8, height: 2, borderRadius: 1, background: isCurrent ? C.accent : C.mute, flexShrink: 0 }} />
-              <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: isCurrent ? C.ink : C.sub, fontWeight: isCurrent ? 700 : 400 }}>
+              <span style={{ width: 8, height: isCurrent || isHL ? 3 : 2, borderRadius: 1, background: dotColor, flexShrink: 0 }} />
+              <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: nameColor, fontWeight: isCurrent || isHL ? 700 : 400 }}>
                 {adm?.name || p.dataKey}
               </span>
             </span>
-            <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 12, fontWeight: 700, color: isCurrent ? C.accent : C.ink, fontVariantNumeric: "tabular-nums" }}>
+            <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 12, fontWeight: 700, color: valColor, fontVariantNumeric: "tabular-nums" }}>
               {typeof p.value === "number" ? fmtVal(p.value, metric?.unit || "") : "—"}
             </span>
           </div>
@@ -677,7 +690,7 @@ export default function LiveBenchmark() {
                       tick={{ fill: C.sub }} axisLine={{ stroke: C.rule }}
                       tickFormatter={(v: number) => fmtVal(v, md.unit)}
                     />
-                    <Tooltip content={<BenchTooltip metric={md} adminMap={adminMap} />} />
+                    <Tooltip content={<BenchTooltip metric={md} adminMap={adminMap} highlighted={highlighted} adminColors={ADMIN_COLORS} />} />
                     <ReferenceLine x={currentMonth} stroke={C.accent} strokeDasharray="4 4" strokeWidth={1.5} />
 
                     {/* All admin lines — Trump II always bold, others highlight on click */}
