@@ -554,18 +554,18 @@ export default function LiveBenchmark() {
             </div>
 
             {/* ── Metric Pills ── */}
-            <div className="bench-pills" style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 24 }}>
+            <div className="bench-pills" style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 18 }}>
               {metricKeys.map(k => {
                 const m = data.metrics[k];
                 return (
-                  <button key={k} onClick={() => setMetric(k)} style={{
+                  <button key={k} onClick={() => { setMetric(k); setHighlighted(new Set()); }} style={{
                     padding: "5px 12px", borderRadius: 3,
                     border: `1px solid ${metric === k ? C.accent + "55" : C.rule}`,
                     background: metric === k ? C.accent + "0A" : "transparent",
                     color: metric === k ? C.accent : C.sub,
                     fontSize: 12, fontWeight: metric === k ? 700 : 500,
                     fontFamily: "'DM Sans',sans-serif",
-                  }}>{m.short || m.label}</button>
+                  }}>{m.label}</button>
                 );
               })}
             </div>
