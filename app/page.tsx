@@ -1,7 +1,6 @@
 "use client";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { BarChart, Bar, LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
-import { useLiveData } from '../hooks/useLiveData';
 
 function useIsMobile() {
   const [w, setW] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
@@ -71,11 +70,10 @@ const ADMINS = {
   clinton: { name:"Clinton", party:"D", years:"'93–'01", color:"#1e6b9e", full:"1993–2001" },
   bush:    { name:"Bush W.", party:"R", years:"'01–'09", color:"#8b4c70", full:"2001–2009" },
   obama:   { name:"Obama",   party:"D", years:"'09–'17", color:"#2d6a4f", full:"2009–2017" },
-  trump1:  { name:"Trump I", party:"R", years:"'17–'21", color:"#c1272d", full:"2017–2021" },
+  trump1:  { name:"Trump",   party:"R", years:"'17–'21", color:"#c1272d", full:"2017–2021" },
   biden:   { name:"Biden",   party:"D", years:"'21–'25", color:"#4361a6", full:"2021–2025" },
-  trump2:  { name:"Trump II",party:"R", years:"'25–",    color:"#e85d04", full:"2025–present" },
 };
-const AID=["clinton","bush","obama","trump1","biden","trump2"];
+const AID=["clinton","bush","obama","trump1","biden"];
 
 const COUNTRIES={
   us:{name:"United States",color:"#2563eb",flag:"🇺🇸"},china:{name:"China",color:"#dc2626",flag:"🇨🇳"},
@@ -200,7 +198,6 @@ const INH={
   obama:{c:"Worst crisis since 1930s, 10% unemployment, banking collapse.",g:"Severe crisis"},
   trump1:{c:"Mature expansion, 4.7% unemployment. COVID hit Year 4.",g:"Strong → crisis"},
   biden:{c:"COVID recovery, 6.7% unemployment, supply chains broken.",g:"Recovery + inflation"},
-  trump2:{c:"Cooling inflation, 4.2% unemployment, elevated debt/GDP, tariff agenda.",g:"Stable + uncertainty"},
 };
 
 function fmt(v,u){
@@ -209,9 +206,9 @@ function fmt(v,u){
   if(u==="inc")return`$${(v/1000).toFixed(1)}K`;if(u==="cc")return v.toFixed(0);if(u==="mfg")return`${v.toFixed(1)}M`;if(u==="pp")return`$${v.toFixed(2)}`;return v.toLocaleString();
 }
 
-function scores(metricsObj: typeof M){
+function scores(){
   const sc={};for(const id of AID)sc[id]={r:{},p:0,details:{}};
-  for(const mk of MK){const m=metricsObj[mk];
+  for(const mk of MK){const m=M[mk];
     const changes={};
     for(const id of AID){
       const pts=m.d.filter(d=>d.a===id);
@@ -297,11 +294,10 @@ const TABS=[["dashboard","Data"],["scorecard","Scorecard"],["headtohead","Compar
 
 export default function App(){
   const mob = useIsMobile();
-  const { data: liveM, lastUpdated, isLive, loading } = useLiveData(M);
   const [tab,setTab]=useState("dashboard");
   const [am,setAm]=useState("gdp");
   const [detail,setDetail]=useState(null);
-  const [sel,setSel]=useState(["clinton","bush","obama","trump1","biden","trump2"]);
+  const [sel,setSel]=useState(["clinton","bush","obama","trump1","biden"]);
   const [ct,setCt]=useState("bar");
   const [h2h,setH2h]=useState("gdp");
   const [gm,setGm]=useState("gdp_g");
@@ -313,16 +309,16 @@ export default function App(){
 
   const tog=id=>setSel(p=>p.includes(id)?p.filter(a=>a!==id):[...p,id]);
   const togC=id=>setGc(p=>p.includes(id)?p.filter(c=>c!==id):[...p,id]);
-  const m=liveM[am];const fd=m.d.filter(d=>sel.includes(d.a));
-  const vis=cf==="all"?MK:MK.filter(k=>liveM[k].cat===cf);
+  const m=M[am];const fd=m.d.filter(d=>sel.includes(d.a));
+  const vis=cf==="all"?MK:MK.filter(k=>M[k].cat===cf);
 
   const sums=useMemo(()=>{const o={};for(const id of sel){const p=m.d.filter(d=>d.a===id);if(!p.length)continue;
     o[id]={avg:p.reduce((s,x)=>s+x.v,0)/p.length,chg:p[p.length-1].v-p[0].v};}return o;},[am,sel]);
 
-  const h2hD=useMemo(()=>{const mx=liveM[h2h];const o=[];for(let yr=1;yr<=8;yr++){const r={year:`Yr ${yr}`};
-    for(const id of AID){const p=mx.d.filter(d=>d.a===id);if(p[yr-1])r[id]=p[yr-1].v;}if(Object.keys(r).length>1)o.push(r);}return o;},[h2h,liveM]);
+  const h2hD=useMemo(()=>{const mx=M[h2h];const o=[];for(let yr=1;yr<=8;yr++){const r={year:`Yr ${yr}`};
+    for(const id of AID){const p=mx.d.filter(d=>d.a===id);if(p[yr-1])r[id]=p[yr-1].v;}if(Object.keys(r).length>1)o.push(r);}return o;},[h2h]);
 
-  const sc=useMemo(()=>scores(liveM),[liveM]);
+  const sc=useMemo(()=>scores(),[]);
   const ss=useMemo(()=>AID.slice().sort((a,b)=>sc[b].p-sc[a].p),[sc]);
   const maxP=MK.length*AID.length;
   const gmd=GLOBAL_METRICS[gm];
@@ -477,7 +473,7 @@ export default function App(){
             The economy under<br/>every president, <span style={{color:T.accent}}>in data.</span>
           </h1>
           <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:15,color:T.sub,margin:"14px 0 0",maxWidth:520,lineHeight:1.6}}>
-            19 indicators across 6 administrations. No editorial. No spin. Context where it matters. <strong style={{color:T.ink}}>You interpret.</strong>
+            19 indicators across 5 administrations. No editorial. No spin. Context where it matters. <strong style={{color:T.ink}}>You interpret.</strong>
           </p>
         </div>
       </div>
@@ -524,7 +520,7 @@ export default function App(){
             
             <div style={{marginBottom:24}}>
               <h2 style={{fontSize:28,fontWeight:900,margin:"0 0 6px",letterSpacing:-0.5}}>All Metrics at a Glance</h2>
-              <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:T.sub,margin:"0 0 16px",lineHeight:1.5}}>19 metrics across 6 presidents. Each cell shows % change from start to end of term. <strong style={{color:T.ink}}>Hover to see trend.</strong> Click any row to explore.</p>
+              <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:T.sub,margin:"0 0 16px",lineHeight:1.5}}>19 metrics across 5 presidents. Each cell shows % change from start to end of term. <strong style={{color:T.ink}}>Hover to see trend.</strong> Click any row to explore.</p>
               <div className="ol-heatmap-legend" style={{display:"flex",gap:20,fontFamily:"'DM Sans',sans-serif",fontSize:12,flexWrap:"wrap",alignItems:"center"}}>
                 <span style={{display:"flex",alignItems:"center",gap:8}}><span style={{display:"inline-block",width:18,height:18,borderRadius:4,background:T.improve.strong}}/>Strong improvement</span>
                 <span style={{display:"flex",alignItems:"center",gap:8}}><span style={{display:"inline-block",width:18,height:18,borderRadius:4,background:T.improve.light}}/>Modest improvement</span>
@@ -561,14 +557,14 @@ export default function App(){
             {mob && mobileView==="cards" && (
               <div style={{display:"flex",flexDirection:"column",gap:12,marginBottom:20}}>
                 {Object.entries(CATS).map(([catKey,catLabel])=>{
-                  const catMetrics=MK.filter(k=>liveM[k].cat===catKey);
+                  const catMetrics=MK.filter(k=>M[k].cat===catKey);
                   if(!catMetrics.length)return null;
                   return (
                     <div key={catKey}>
                       <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:2,color:T.mute,marginBottom:8,paddingLeft:4}}>{catLabel}</div>
                       <div style={{display:"flex",flexDirection:"column",gap:8}}>
                         {catMetrics.map((k,idx)=>{
-                          const mx=liveM[k];
+                          const mx=M[k];
                           const pts=mx.d.filter(d=>d.a===selectedPres);
                           if(pts.length<2)return null;
                           const s=pts[0].v,e=pts[pts.length-1].v;
@@ -627,12 +623,12 @@ export default function App(){
                 </thead>
                 <tbody>
                   {Object.entries(CATS).map(([catKey,catLabel])=>{
-                    const catMetrics=MK.filter(k=>liveM[k].cat===catKey);
+                    const catMetrics=MK.filter(k=>M[k].cat===catKey);
                     if(!catMetrics.length)return null;
                     return [
-                      <tr key={"cat-"+catKey}><td colSpan={7} style={{padding:"12px 16px 6px",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:2,color:T.mute,background:T.bg,borderBottom:`1px solid ${T.rule}`}}>{catLabel}</td></tr>,
+                      <tr key={"cat-"+catKey}><td colSpan={6} style={{padding:"12px 16px 6px",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:2,color:T.mute,background:T.bg,borderBottom:`1px solid ${T.rule}`}}>{catLabel}</td></tr>,
                       ...catMetrics.map((k,rowIdx)=>{
-                        const mx=liveM[k];
+                        const mx=M[k];
                         const perPres=AID.map(id=>{
                           const pts=mx.d.filter(d=>d.a===id);if(pts.length<2)return null;
                           const s=pts[0].v,e=pts[pts.length-1].v;
@@ -687,7 +683,7 @@ export default function App(){
                   const a=ADMINS[id];
                   let imp=0,dec=0;
                   MK.forEach(k=>{
-                    const mx=liveM[k];const pts=mx.d.filter(d=>d.a===id);if(pts.length<2)return;
+                    const mx=M[k];const pts=mx.d.filter(d=>d.a===id);if(pts.length<2)return;
                     const s=pts[0].v,e=pts[pts.length-1].v;
                     const pc=s!==0?((e-s)/Math.abs(s))*100:0;
                     const improved=mx.inv?pc<0:pc>0;const mnt=Math.abs(pc)<5;
@@ -743,7 +739,7 @@ export default function App(){
 
           {/* Metric pills */}
           <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:18}}>
-            {vis.map(k=><button key={k} onClick={()=>setAm(k)} style={{padding:"5px 12px",borderRadius:3,border:`1px solid ${am===k?T.accent+"55":T.rule}`,background:am===k?T.accent+"0A":"transparent",color:am===k?T.accent:T.sub,fontSize:12,fontWeight:am===k?700:500,fontFamily:"'DM Sans',sans-serif"}}>{liveM[k].l}</button>)}
+            {vis.map(k=><button key={k} onClick={()=>setAm(k)} style={{padding:"5px 12px",borderRadius:3,border:`1px solid ${am===k?T.accent+"55":T.rule}`,background:am===k?T.accent+"0A":"transparent",color:am===k?T.accent:T.sub,fontSize:12,fontWeight:am===k?700:500,fontFamily:"'DM Sans',sans-serif"}}>{M[k].l}</button>)}
           </div>
 
           {/* Title bar */}
@@ -913,7 +909,7 @@ export default function App(){
 
           {/* Composite Rankings */}
           <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:32}}>
-            {ss.map((id,i)=>{const a=ADMINS[id];const s=sc[id];const medals=["1st","2nd","3rd","4th","5th","6th"];
+            {ss.map((id,i)=>{const a=ADMINS[id];const s=sc[id];const medals=["1st","2nd","3rd","4th","5th"];
               const pct=(s.p/maxP)*100;
               // Count improvements, declines, maintained
               const improved=Object.values(s.details).filter(d=>d.improved).length;
@@ -944,7 +940,7 @@ export default function App(){
           {/* Metric-by-metric: Inherited → Exit → % Change */}
           <h3 style={{fontSize:18,fontWeight:700,margin:"0 0 12px",borderBottom:`1px solid ${T.rule}`,paddingBottom:8}}>Metric by Metric: What They Inherited vs What They Left</h3>
           <div className="ol-grid-metrics" style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:8,marginBottom:28}}>
-            {MK.map(mk=>{const mx=liveM[mk];
+            {MK.map(mk=>{const mx=M[mk];
               const ranked=AID.filter(id=>sc[id].r[mk]).sort((a,b)=>(sc[a].r[mk]?.rank||99)-(sc[b].r[mk]?.rank||99));
               return <div key={mk} style={{...sty.card,padding:"12px 14px"}}>
                 <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:700,marginBottom:2,color:T.ink}}>{mx.l}</div>
@@ -993,14 +989,14 @@ export default function App(){
           <h2 style={{fontSize:28,fontWeight:900,margin:"0 0 4px"}}>Head to Head</h2>
           <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:T.sub,margin:"0 0 16px"}}>Same metric, normalized to term start. Year 1 vs Year 1.</p>
           <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:16}}>
-            {MK.map(k=><button key={k} onClick={()=>setH2h(k)} style={{padding:"5px 10px",borderRadius:3,border:`1px solid ${h2h===k?T.accent+"55":T.rule}`,background:h2h===k?T.accent+"0A":"transparent",color:h2h===k?T.accent:T.sub,fontSize:11,fontWeight:h2h===k?700:500,fontFamily:"'DM Sans',sans-serif"}}>{liveM[k].l}</button>)}
+            {MK.map(k=><button key={k} onClick={()=>setH2h(k)} style={{padding:"5px 10px",borderRadius:3,border:`1px solid ${h2h===k?T.accent+"55":T.rule}`,background:h2h===k?T.accent+"0A":"transparent",color:h2h===k?T.accent:T.sub,fontSize:11,fontWeight:h2h===k?700:500,fontFamily:"'DM Sans',sans-serif"}}>{M[k].l}</button>)}
           </div>
           <div style={{...sty.card,padding:"20px 16px 10px",marginBottom:12}}>
             <ResponsiveContainer width="100%" height={380}>
               <LineChart data={h2hD}><CartesianGrid strokeDasharray="3 3" stroke={T.rule}/>
                 <XAxis dataKey="year" stroke={T.mute} fontSize={12} fontFamily="'DM Sans',sans-serif" tick={{fill:T.sub}}/>
-                <YAxis stroke={T.rule} fontSize={10} fontFamily="'DM Sans',sans-serif" tick={{fill:T.sub}} tickFormatter={v=>fmt(v,liveM[h2h].u)}/>
-                <Tooltip content={<Tip unit={liveM[h2h].u}/>}/>
+                <YAxis stroke={T.rule} fontSize={10} fontFamily="'DM Sans',sans-serif" tick={{fill:T.sub}} tickFormatter={v=>fmt(v,M[h2h].u)}/>
+                <Tooltip content={<Tip unit={M[h2h].u}/>}/>
                 {AID.map(id=><Line key={id} type="monotone" dataKey={id} stroke={ADMINS[id].color} strokeWidth={2.5} dot={{r:4,fill:ADMINS[id].color,stroke:T.card,strokeWidth:2}} name={ADMINS[id].name} connectNulls/>)}
               </LineChart>
             </ResponsiveContainer>
@@ -1011,7 +1007,7 @@ export default function App(){
             </div>)}
           </div>
           <div style={{background:T.highlight,border:"1px solid #f5deb3",borderRadius:3,padding:"10px 14px"}}>
-            <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,lineHeight:1.6,color:"#78716c"}}><strong style={{color:T.ink}}>↳ </strong>{liveM[h2h].ctx} Clinton/Obama served 8 years vs 4 for others. Trump II is ongoing — data will expand as FRED publishes.</div>
+            <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,lineHeight:1.6,color:"#78716c"}}><strong style={{color:T.ink}}>↳ </strong>{M[h2h].ctx} Clinton/Obama served 8 years vs 4 for others.</div>
           </div>
         </div>)}
 
@@ -1069,15 +1065,7 @@ export default function App(){
             </div>
           </div>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingTop:16,borderTop:`1px solid ${T.rule}`,flexWrap:"wrap",gap:12}}>
-            <span style={{fontSize:10,color:T.mute,display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
-              v7.0 — Last updated April 2026
-              {isLive && (
-                <span style={{display:"flex",alignItems:"center",gap:4}}>
-                  <span style={{width:6,height:6,borderRadius:"50%",background:"#16a34a",animation:"pulse 2s infinite"}}/>
-                  <span style={{color:"#16a34a",fontWeight:600}}>Live data from FRED · Updated {new Date(lastUpdated!).toLocaleDateString()}</span>
-                </span>
-              )}
-            </span>
+            <span style={{fontSize:10,color:T.mute}}>v7.0 — Last updated April 2026</span>
             <div style={{display:"flex",gap:16}}>
               <button style={{fontSize:10,color:T.accent,background:"none",border:"none",fontWeight:600,padding:0}}>Methodology</button>
               <button style={{fontSize:10,color:T.accent,background:"none",border:"none",fontWeight:600,padding:0}}>Download Data</button>
