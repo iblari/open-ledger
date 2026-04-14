@@ -27,29 +27,91 @@ export default function EmailCapturePopup() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  // Only show once per visitor — check localStorage safely
+  // Re-prompt logic:
+  // - If user engaged (submitted feedback or email) → never show again
+  // - If user just dismissed → show again after 3+ visits OR 5+ days
+  // - Stop permanently after 3 total dismissals (they're not interested)
   useEffect(() => {
     setMounted(true);
+    if (typeof window === "undefined") return;
+
+    type PopupState = {
+      engaged: boolean;          // submitted feedback or email
+      dismissCount: number;      // total dismissals
+      lastDismissedAt: number;   // ms timestamp
+      visitsSinceDismiss: number;
+    };
+    const DEFAULT: PopupState = { engaged: false, dismissCount: 0, lastDismissedAt: 0, visitsSinceDismiss: 0 };
+    const KEY = "vu_popup_state";
+    const MIN_VISITS = 3;
+    const MIN_DAYS = 5;
+    const MAX_DISMISSALS = 3;
+
+    let state: PopupState = DEFAULT;
     try {
-      if (typeof window !== "undefined" && window.localStorage.getItem("vu_popup_seen") === "1") {
-        setDismissed(true);
-        return;
+      const raw = window.localStorage.getItem(KEY);
+      if (raw) state = { ...DEFAULT, ...JSON.parse(raw) };
+      // Legacy migration: old "vu_popup_seen" = "1" → treat as one dismissal
+      const legacy = window.localStorage.getItem("vu_popup_seen");
+      if (legacy === "1" && state === DEFAULT) {
+        state = { ...DEFAULT, dismissCount: 1, lastDismissedAt: Date.now(), visitsSinceDismiss: 0 };
+        window.localStorage.removeItem("vu_popup_seen");
       }
     } catch {}
-    const t = setTimeout(() => setShow(true), 60000);
-    return () => clearTimeout(t);
+
+    // Always done — don't show
+    if (state.engaged || state.dismissCount >= MAX_DISMISSALS) {
+      setDismissed(true);
+      return;
+    }
+
+    // First-time visitor — show after 60s
+    if (state.dismissCount === 0) {
+      const t = setTimeout(() => setShow(true), 60000);
+      return () => clearTimeout(t);
+    }
+
+    // Previously dismissed — increment visit count and check re-prompt conditions
+    state = { ...state, visitsSinceDismiss: state.visitsSinceDismiss + 1 };
+    const daysSince = (Date.now() - state.lastDismissedAt) / (1000 * 60 * 60 * 24);
+    const shouldReprompt = state.visitsSinceDismiss >= MIN_VISITS || daysSince >= MIN_DAYS;
+
+    try { window.localStorage.setItem(KEY, JSON.stringify(state)); } catch {}
+
+    if (shouldReprompt) {
+      const t = setTimeout(() => setShow(true), 60000);
+      return () => clearTimeout(t);
+    }
+    setDismissed(true);
   }, []);
 
-  const markSeen = () => {
+  const persist = (patch: Partial<{ engaged: boolean; dismissCount: number; lastDismissedAt: number; visitsSinceDismiss: number }>) => {
+    if (typeof window === "undefined") return;
     try {
-      if (typeof window !== "undefined") window.localStorage.setItem("vu_popup_seen", "1");
+      const raw = window.localStorage.getItem("vu_popup_state");
+      const cur = raw ? JSON.parse(raw) : { engaged: false, dismissCount: 0, lastDismissedAt: 0, visitsSinceDismiss: 0 };
+      window.localStorage.setItem("vu_popup_state", JSON.stringify({ ...cur, ...patch }));
     } catch {}
   };
+
+  const markEngaged = () => persist({ engaged: true });
 
   const close = () => {
     setDismissed(true);
     setShow(false);
-    markSeen();
+    // If they engaged (saved feedback or submitted email) → permanent dismiss
+    // Otherwise → increment dismiss counter, reset visit tracker
+    if (feedbackSaved || submitted) {
+      markEngaged();
+    } else {
+      if (typeof window === "undefined") return;
+      try {
+        const raw = window.localStorage.getItem("vu_popup_state");
+        const cur = raw ? JSON.parse(raw) : { engaged: false, dismissCount: 0, lastDismissedAt: 0, visitsSinceDismiss: 0 };
+        const next = { ...cur, dismissCount: (cur.dismissCount || 0) + 1, lastDismissedAt: Date.now(), visitsSinceDismiss: 0 };
+        window.localStorage.setItem("vu_popup_state", JSON.stringify(next));
+      } catch {}
+    }
   };
 
   // Auto-save feedback when user taps a button — no email required
@@ -62,6 +124,7 @@ export default function EmailCapturePopup() {
         body: JSON.stringify({ email: "", feedback: val, source: "popup-feedback" }),
       });
       setFeedbackSaved(true);
+      markEngaged();
     } catch {
       // Silently fail — feedback is optional and we don't want to block UX
     }
@@ -98,7 +161,7 @@ export default function EmailCapturePopup() {
       }
       setSubmitted(true);
       setLoading(false);
-      markSeen();
+      markEngaged();
     } catch {
       setErr("Network error. Please try again.");
       setLoading(false);
