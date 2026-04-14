@@ -1,6 +1,7 @@
 "use client";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { BarChart, Bar, LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import EmailCapturePopup from "./EmailCapturePopup";
 
 function useIsMobile() {
   const [w, setW] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
@@ -1049,6 +1050,7 @@ export default function App(){
           </div>
         </div>
       </div>
+      <EmailCapturePopup />
     </div>
   );
 }
