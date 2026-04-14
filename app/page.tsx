@@ -420,11 +420,12 @@ export default function App(){
           0%, 100% { transform: translateX(0); color: #9a9490; }
           50% { transform: translateX(4px); color: #b8372d; }
         }
+        /* Combine fadeUp (so it actually appears) with the nudge */
         .tap-nudge {
-          animation: tapNudge 1.6s ease-in-out 1.5s 3;
+          animation: fadeUp 0.5s ease 0.03s forwards, tapNudge 1.6s ease-in-out 1.8s 3 !important;
         }
         .tap-nudge .tap-chevron {
-          animation: chevronSlide 1.6s ease-in-out 1.5s 3;
+          animation: chevronSlide 1.6s ease-in-out 1.8s 3;
         }
         
         /* Enhanced tooltips */
