@@ -65,9 +65,9 @@ export default function EmailCapturePopup() {
       return;
     }
 
-    // First-time visitor — show after 60s
+    // First-time visitor — show after 30s
     if (state.dismissCount === 0) {
-      const t = setTimeout(() => setShow(true), 60000);
+      const t = setTimeout(() => setShow(true), 30000);
       return () => clearTimeout(t);
     }
 
@@ -79,7 +79,7 @@ export default function EmailCapturePopup() {
     try { window.localStorage.setItem(KEY, JSON.stringify(state)); } catch {}
 
     if (shouldReprompt) {
-      const t = setTimeout(() => setShow(true), 60000);
+      const t = setTimeout(() => setShow(true), 30000);
       return () => clearTimeout(t);
     }
     setDismissed(true);
