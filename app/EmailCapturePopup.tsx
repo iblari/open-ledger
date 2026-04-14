@@ -36,7 +36,7 @@ export default function EmailCapturePopup() {
         return;
       }
     } catch {}
-    const t = setTimeout(() => setShow(true), 20000);
+    const t = setTimeout(() => setShow(true), 60000);
     return () => clearTimeout(t);
   }, []);
 
