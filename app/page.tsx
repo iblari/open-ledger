@@ -463,9 +463,9 @@ export default function App(){
           animation: chevronSlide 1.6s ease-in-out 1.8s 3;
         }
         /* Scroll-triggered nudge — added by IntersectionObserver as cards enter view.
-           opacity:1 !important is required because this rule's `animation` shorthand
-           replaces the stagger fadeUp's `forwards` fill, which would otherwise let
-           opacity snap back to the stagger's initial 0. */
+           opacity:1 !important is required because the animation shorthand below
+           replaces the stagger fadeUp forwards fill, which would otherwise let
+           opacity snap back to the stagger initial 0. */
         .scroll-nudge {
           opacity: 1 !important;
           animation: tapNudge 1.4s ease-in-out 0s 2 !important;
