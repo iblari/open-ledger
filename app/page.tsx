@@ -408,6 +408,24 @@ export default function App(){
           0%, 100% { box-shadow: 0 0 0 0 rgba(184, 55, 45, 0.2); }
           50% { box-shadow: 0 0 0 8px rgba(184, 55, 45, 0); }
         }
+
+        /* Tap nudge — first card pulses briefly to signal tappability on mobile */
+        @keyframes tapNudge {
+          0%, 100% { box-shadow: 0 1px 2px rgba(0,0,0,0.04); transform: translateX(0); }
+          25% { box-shadow: 0 4px 14px rgba(184, 55, 45, 0.18); transform: translateX(0); }
+          50% { box-shadow: 0 4px 14px rgba(184, 55, 45, 0.18); transform: translateX(3px); }
+          75% { box-shadow: 0 4px 14px rgba(184, 55, 45, 0.18); transform: translateX(0); }
+        }
+        @keyframes chevronSlide {
+          0%, 100% { transform: translateX(0); color: #9a9490; }
+          50% { transform: translateX(4px); color: #b8372d; }
+        }
+        .tap-nudge {
+          animation: tapNudge 1.6s ease-in-out 1.5s 3;
+        }
+        .tap-nudge .tap-chevron {
+          animation: chevronSlide 1.6s ease-in-out 1.5s 3;
+        }
         
         /* Enhanced tooltips */
         .tooltip-enhanced {
@@ -584,22 +602,24 @@ export default function App(){
                           else if(imp){bg=absPc>30?T.improve.strong:absPc>10?T.improve.medium:T.improve.light;fg=absPc>10?"#fff":T.improve.strong;}
                           else{bg=absPc>30?T.decline.strong:absPc>10?T.decline.medium:T.decline.light;fg=absPc>10?"#fff":T.decline.strong;}
                           
+                          const isFirst = catKey===Object.keys(CATS)[0] && idx===0;
                           return (
-                            <div 
-                              key={k} 
-                              className={`hover-lift stagger-${Math.min(idx+1,20)}`}
+                            <div
+                              key={k}
+                              className={`hover-lift stagger-${Math.min(idx+1,20)}${isFirst?" tap-nudge":""}`}
                               onClick={()=>{setAm(k);setDetail(k);setOpenFacts(false);}}
-                              style={{...sty.card,padding:"14px 16px",display:"flex",alignItems:"center",gap:14,cursor:"pointer",borderLeft:`4px solid ${ADMINS[selectedPres]?.color||T.accent}`}}
+                              style={{...sty.card,padding:"14px 16px",display:"flex",alignItems:"center",gap:10,cursor:"pointer",borderLeft:`4px solid ${ADMINS[selectedPres]?.color||T.accent}`,position:"relative"}}
                             >
-                              <div style={{flex:1}}>
+                              <div style={{flex:1,minWidth:0}}>
                                 <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:14,fontWeight:700,color:T.ink,marginBottom:2}}>{mx.l}</div>
                                 <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:T.mute}}>{fmt(s,mx.u)} → {fmt(e,mx.u)}</div>
                               </div>
-                              <div style={{display:"flex",alignItems:"center",gap:10}}>
-                                <Sparkline data={sparkData} color={ADMINS[selectedPres]?.color||T.sub} width={60} height={24} />
-                                <div style={{background:bg,borderRadius:6,padding:"8px 12px",color:fg,fontWeight:700,fontSize:14,minWidth:60,textAlign:"center",fontVariantNumeric:"tabular-nums"}}>
+                              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                                <Sparkline data={sparkData} color={ADMINS[selectedPres]?.color||T.sub} width={50} height={22} />
+                                <div style={{background:bg,borderRadius:6,padding:"8px 10px",color:fg,fontWeight:700,fontSize:14,minWidth:54,textAlign:"center",fontVariantNumeric:"tabular-nums"}}>
                                   {mnt?"—":imp?"▲":"▼"}{absPc.toFixed(0)}%
                                 </div>
+                                <span className="tap-chevron" style={{fontSize:18,color:T.mute,fontWeight:300,marginLeft:2,lineHeight:1}}>›</span>
                               </div>
                             </div>
                           );
