@@ -499,13 +499,14 @@ export default function App(){
 
           {/* ── OVERVIEW MODE ── */}
           {!detail&&(<div>
-            {/* Key Insights Callout */}
+            {/* Key Insights Callout — desktop only */}
+            {!mob && (
             <div className="insight-pulse" style={{...sty.card,padding:"18px 20px",marginBottom:24,borderLeft:`4px solid ${T.accent}`,background:`linear-gradient(135deg, ${T.highlight} 0%, #fff 100%)`}}>
               <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
                 <span style={{fontSize:18}}>&#9733;</span>
                 <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:800,letterSpacing:2,textTransform:"uppercase",color:T.accent}}>Key Insights</span>
               </div>
-              <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 1fr 1fr",gap:16}}>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:16}}>
                 <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,lineHeight:1.5}}>
                   <strong style={{color:T.ink}}>Clinton achieved budget surpluses</strong>
                   <span style={{color:T.sub}}> — the only president in this dataset to do so, with 4 consecutive surplus years.</span>
@@ -520,6 +521,7 @@ export default function App(){
                 </div>
               </div>
             </div>
+            )}
             
             <div style={{marginBottom:24}}>
               <h2 style={{fontSize:28,fontWeight:900,margin:"0 0 6px",letterSpacing:-0.5}}>All Metrics at a Glance</h2>
