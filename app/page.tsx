@@ -307,6 +307,41 @@ export default function App(){
   const [mobileView,setMobileView]=useState<"table"|"cards">("cards");
   const [selectedPres,setSelectedPres]=useState("clinton");
 
+  // Nudge mobile cards as they scroll into view (each card nudges once per session)
+  useEffect(() => {
+    if (!mob || mobileView !== "cards") return;
+    if (typeof window === "undefined" || typeof IntersectionObserver === "undefined") return;
+    let visibleBatch: HTMLElement[] = [];
+    let flushTimer: ReturnType<typeof setTimeout> | null = null;
+    const flush = () => {
+      visibleBatch.forEach((el, i) => {
+        setTimeout(() => {
+          el.classList.add("scroll-nudge");
+          // Remove the class after the animation finishes so it doesn't keep firing on re-render
+          setTimeout(() => el.classList.remove("scroll-nudge"), 3200);
+        }, i * 220);
+      });
+      visibleBatch = [];
+      flushTimer = null;
+    };
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((e) => {
+        if (!e.isIntersecting) return;
+        const el = e.target as HTMLElement;
+        if (el.dataset.nudged === "1") return;
+        el.dataset.nudged = "1";
+        visibleBatch.push(el);
+        io.unobserve(el);
+      });
+      if (visibleBatch.length && !flushTimer) flushTimer = setTimeout(flush, 60);
+    }, { threshold: 0.5, rootMargin: "0px 0px -10% 0px" });
+    // Wait a tick so cards have rendered
+    const t = setTimeout(() => {
+      document.querySelectorAll<HTMLElement>('[data-nudge="1"]').forEach((el) => io.observe(el));
+    }, 50);
+    return () => { clearTimeout(t); if (flushTimer) clearTimeout(flushTimer); io.disconnect(); };
+  }, [mob, mobileView, selectedPres]);
+
   const tog=id=>setSel(p=>p.includes(id)?p.filter(a=>a!==id):[...p,id]);
   const togC=id=>setGc(p=>p.includes(id)?p.filter(c=>c!==id):[...p,id]);
   const m=M[am];const fd=m.d.filter(d=>sel.includes(d.a));
@@ -426,6 +461,13 @@ export default function App(){
         }
         .tap-nudge .tap-chevron {
           animation: chevronSlide 1.6s ease-in-out 1.8s 3;
+        }
+        /* Scroll-triggered nudge — added by IntersectionObserver as cards enter view */
+        .scroll-nudge {
+          animation: tapNudge 1.4s ease-in-out 0s 2;
+        }
+        .scroll-nudge .tap-chevron {
+          animation: chevronSlide 1.4s ease-in-out 0s 2;
         }
         
         /* Enhanced tooltips */
@@ -603,11 +645,11 @@ export default function App(){
                           else if(imp){bg=absPc>30?T.improve.strong:absPc>10?T.improve.medium:T.improve.light;fg=absPc>10?"#fff":T.improve.strong;}
                           else{bg=absPc>30?T.decline.strong:absPc>10?T.decline.medium:T.decline.light;fg=absPc>10?"#fff":T.decline.strong;}
                           
-                          const isFirst = catKey===Object.keys(CATS)[0] && idx===0;
                           return (
                             <div
                               key={k}
-                              className={`hover-lift stagger-${Math.min(idx+1,20)}${isFirst?" tap-nudge":""}`}
+                              data-nudge="1"
+                              className={`hover-lift stagger-${Math.min(idx+1,20)}`}
                               onClick={()=>{setAm(k);setDetail(k);setOpenFacts(false);}}
                               style={{...sty.card,padding:"14px 16px",display:"flex",alignItems:"center",gap:10,cursor:"pointer",borderLeft:`4px solid ${ADMINS[selectedPres]?.color||T.accent}`,position:"relative"}}
                             >
