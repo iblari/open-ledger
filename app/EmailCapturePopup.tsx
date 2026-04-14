@@ -22,6 +22,7 @@ export default function EmailCapturePopup() {
 
   const [email, setEmail] = useState("");
   const [feedback, setFeedback] = useState<Feedback>(null);
+  const [feedbackSaved, setFeedbackSaved] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -51,15 +52,29 @@ export default function EmailCapturePopup() {
     markSeen();
   };
 
+  // Auto-save feedback when user taps a button — no email required
+  const saveFeedback = async (val: Feedback) => {
+    if (!val) return;
+    try {
+      await fetch("/api/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: "", feedback: val, source: "popup-feedback" }),
+      });
+      setFeedbackSaved(true);
+    } catch {
+      // Silently fail — feedback is optional and we don't want to block UX
+    }
+  };
+
   const submit = async () => {
     setErr(null);
-    // If both email and feedback are empty, don't submit
-    if (!email.trim() && !feedback) {
-      setErr("Enter an email or pick a feedback option.");
+    // Email is required for the subscribe action (feedback has its own save path)
+    if (!email.trim()) {
+      setErr("Please enter your email.");
       return;
     }
-    // If email provided, validate
-    if (email.trim() && (!email.includes("@") || !email.includes("."))) {
+    if (!email.includes("@") || !email.includes(".")) {
       setErr("Please enter a valid email address.");
       return;
     }
@@ -70,7 +85,8 @@ export default function EmailCapturePopup() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: email.trim(),
-          feedback,
+          // Include feedback only if it wasn't already auto-saved
+          feedback: feedbackSaved ? null : feedback,
           source: "popup",
         }),
       });
@@ -228,16 +244,23 @@ export default function EmailCapturePopup() {
                   <div className="vu-popup-fb-grid" style={{
                     display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8,
                   }}>
-                    {([
+                    {(([
                       ["yes", "👍", "Yes!"],
                       ["somewhat", "🤔", "Somewhat"],
                       ["no", "👎", "Not really"],
-                    ] as const).map(([val, emoji, label]) => {
+                    ] as const)).map(([val, emoji, label]) => {
                       const selected = feedback === val;
                       return (
                         <button
                           key={val}
-                          onClick={() => setFeedback(selected ? null : val)}
+                          onClick={() => {
+                            if (selected) {
+                              setFeedback(null);
+                            } else {
+                              setFeedback(val);
+                              saveFeedback(val);
+                            }
+                          }}
                           style={{
                             background: selected ? `${T.accent}0D` : T.paper,
                             border: `1.5px solid ${selected ? T.accent : T.rule}`,
@@ -257,6 +280,13 @@ export default function EmailCapturePopup() {
                       );
                     })}
                   </div>
+                  {feedbackSaved && (
+                    <div style={{
+                      fontFamily: "'DM Sans',sans-serif", fontSize: 11,
+                      color: "#1D9E75", marginTop: 10, textAlign: "center",
+                      fontWeight: 600,
+                    }}>✓ Thanks — feedback saved</div>
+                  )}
                 </div>
 
                 {/* Divider */}
