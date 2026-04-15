@@ -1,7 +1,7 @@
 "use client";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { BarChart, Bar, LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
-import EmailCapturePopup from "./EmailCapturePopup";
+import FeedbackBanner from "./FeedbackBanner";
 
 function useIsMobile() {
   const [w, setW] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
@@ -1113,13 +1113,13 @@ export default function App(){
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingTop:16,borderTop:`1px solid ${T.rule}`,flexWrap:"wrap",gap:12}}>
             <span style={{fontSize:10,color:T.mute}}>v7.0 — Last updated April 2026</span>
             <div style={{display:"flex",gap:16}}>
-              <button style={{fontSize:10,color:T.accent,background:"none",border:"none",fontWeight:600,padding:0}}>Methodology</button>
-              <button style={{fontSize:10,color:T.accent,background:"none",border:"none",fontWeight:600,padding:0}}>Download Data</button>
+              <button disabled title="Coming soon" style={{fontSize:10,color:T.accent,background:"none",border:"none",fontWeight:600,padding:0,cursor:"default",opacity:0.5}}>Methodology</button>
+              <button disabled title="Coming soon" style={{fontSize:10,color:T.accent,background:"none",border:"none",fontWeight:600,padding:0,cursor:"default",opacity:0.5}}>Download Data</button>
             </div>
           </div>
         </div>
       </div>
-      <EmailCapturePopup />
+      <FeedbackBanner />
     </div>
   );
 }
