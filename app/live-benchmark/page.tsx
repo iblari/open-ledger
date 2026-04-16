@@ -5,6 +5,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, ReferenceLine,
 } from "recharts";
+import CompactPicker from "@/components/CompactPicker";
 
 /* ─────────────────────────────────────────────
    DESIGN TOKENS — matches Open Ledger editorial
@@ -398,6 +399,17 @@ export default function LiveBenchmark() {
     );
   }, [data, catFilter]);
 
+  // Picker options — all metrics grouped by category, preserving insertion order
+  const pickerOptions = useMemo(() => {
+    if (!data) return [];
+    const cats = data.categories || {};
+    return Object.keys(data.metrics).map(k => ({
+      value: k,
+      label: data.metrics[k].label,
+      category: cats[data.metrics[k].cat] || undefined,
+    }));
+  }, [data]);
+
   // Current metric data
   const md = data?.metrics[metric];
   const currentMonth = data?.currentMonth ?? 0;
@@ -560,6 +572,16 @@ export default function LiveBenchmark() {
                   <span style={{ fontSize: 10, color: C.mute, marginLeft: 6, flexShrink: 0 }}>▾</span>
                 </button>
               </div>
+
+              {/* Shared compact picker */}
+              <CompactPicker
+                open={sheetOpen}
+                onClose={() => setSheetOpen(false)}
+                title="Select Metric"
+                options={pickerOptions}
+                value={metric}
+                onSelect={(v) => { setMetric(v); setHighlighted(new Set()); }}
+              />
             </>)}
 
             {/* ── DESKTOP: Category Tabs + Metric Pills ── */}
@@ -886,41 +908,6 @@ export default function LiveBenchmark() {
         )}
       </div>
 
-      {/* Metric sheet — rendered outside bench-fade to avoid transform stacking context breaking position:fixed */}
-      {mob && sheetOpen && data && (
-        <div onClick={() => setSheetOpen(false)} style={{
-          position: "fixed", inset: 0, zIndex: 1000, background: "rgba(26,26,26,0.5)",
-          display: "flex", flexDirection: "column", justifyContent: "flex-end"
-        }}>
-          <div onClick={e => e.stopPropagation()} style={{
-            background: C.bg, borderRadius: "16px 16px 0 0", maxHeight: "75vh",
-            overflowY: "auto", WebkitOverflowScrolling: "touch",
-            animation: "fadeUp 0.3s ease forwards"
-          }}>
-            <div style={{ padding: "16px 18px 12px", borderBottom: `1px solid ${C.rule}`, position: "sticky", top: 0, background: C.bg, zIndex: 1, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontFamily: "'Source Serif 4',Georgia,serif", fontSize: 16, fontWeight: 700, color: C.ink }}>Select Metric</span>
-              <button onClick={() => setSheetOpen(false)} style={{ width: 28, height: 28, borderRadius: "50%", background: C.paper, border: `1px solid ${C.rule}`, color: C.sub, fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
-            </div>
-            <div style={{ padding: "8px 0 20px" }}>
-              {Object.entries(data.categories).map(([catKey, catLabel]) => {
-                const catMetrics = Object.keys(data.metrics).filter(k => data.metrics[k].cat === catKey);
-                if (!catMetrics.length) return null;
-                return <div key={catKey}>
-                  <div style={{ padding: "12px 18px 4px", fontFamily: "'DM Sans',sans-serif", fontSize: 10, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: 2, color: C.mute }}>{catLabel}</div>
-                  {catMetrics.map(k => (
-                    <button key={k} onClick={() => { setMetric(k); setHighlighted(new Set()); setSheetOpen(false); }} style={{
-                      display: "block", width: "100%", textAlign: "left", padding: "12px 18px", border: "none",
-                      background: metric === k ? C.accent + "0A" : "transparent", cursor: "pointer",
-                      fontFamily: "'DM Sans',sans-serif", fontSize: 15, fontWeight: metric === k ? 700 : 500,
-                      color: metric === k ? C.accent : C.ink, borderLeft: metric === k ? `3px solid ${C.accent}` : "3px solid transparent"
-                    }}>{data.metrics[k].label}</button>
-                  ))}
-                </div>;
-              })}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
