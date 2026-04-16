@@ -356,6 +356,9 @@ export default function LiveBenchmark() {
   const [loading, setLoading] = useState(true);
   const [shareStatus, setShareStatus] = useState<string | null>(null);
   const [highlighted, setHighlighted] = useState<Set<string>>(new Set());
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [fxOpen, setFxOpen] = useState(false);
+  const [whyOpen, setWhyOpen] = useState(false);
 
   // Distinct colors for highlighted presidents
   const ADMIN_COLORS: Record<string, string> = {
@@ -544,7 +547,57 @@ export default function LiveBenchmark() {
         {!loading && data && (
           <div className="bench-fade">
 
-            {/* ── Category Tabs ── */}
+            {/* ── MOBILE: compact metric dropdown ── */}
+            {mob && (<>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+                <button onClick={() => setSheetOpen(true)} style={{
+                  flex: 1, display: "flex", alignItems: "center", justifyContent: "space-between",
+                  padding: "8px 12px", borderRadius: 6, border: `1.5px solid ${C.rule}`, background: C.paper,
+                  fontFamily: "'DM Sans',sans-serif", fontSize: 13, fontWeight: 700, color: C.ink, cursor: "pointer",
+                  minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"
+                }}>
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{md?.label || "Select metric"}</span>
+                  <span style={{ fontSize: 10, color: C.mute, marginLeft: 6, flexShrink: 0 }}>▾</span>
+                </button>
+              </div>
+              {sheetOpen && (
+                <div onClick={() => setSheetOpen(false)} style={{
+                  position: "fixed", inset: 0, zIndex: 1000, background: "rgba(26,26,26,0.5)",
+                  display: "flex", flexDirection: "column", justifyContent: "flex-end"
+                }}>
+                  <div onClick={e => e.stopPropagation()} style={{
+                    background: C.bg, borderRadius: "16px 16px 0 0", maxHeight: "75vh",
+                    overflowY: "auto", WebkitOverflowScrolling: "touch",
+                    animation: "bench-fade 0.3s ease"
+                  }}>
+                    <div style={{ padding: "16px 18px 12px", borderBottom: `1px solid ${C.rule}`, position: "sticky", top: 0, background: C.bg, zIndex: 1, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontFamily: "'Source Serif 4',Georgia,serif", fontSize: 16, fontWeight: 700, color: C.ink }}>Select Metric</span>
+                      <button onClick={() => setSheetOpen(false)} style={{ width: 28, height: 28, borderRadius: "50%", background: C.paper, border: `1px solid ${C.rule}`, color: C.sub, fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
+                    </div>
+                    <div style={{ padding: "8px 0 20px" }}>
+                      {Object.entries(data.categories).map(([catKey, catLabel]) => {
+                        const catMetrics = Object.keys(data.metrics).filter(k => data.metrics[k].cat === catKey);
+                        if (!catMetrics.length) return null;
+                        return <div key={catKey}>
+                          <div style={{ padding: "12px 18px 4px", fontFamily: "'DM Sans',sans-serif", fontSize: 10, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: 2, color: C.mute }}>{catLabel}</div>
+                          {catMetrics.map(k => (
+                            <button key={k} onClick={() => { setMetric(k); setHighlighted(new Set()); setSheetOpen(false); }} style={{
+                              display: "block", width: "100%", textAlign: "left", padding: "12px 18px", border: "none",
+                              background: metric === k ? C.accent + "0A" : "transparent", cursor: "pointer",
+                              fontFamily: "'DM Sans',sans-serif", fontSize: 15, fontWeight: metric === k ? 700 : 500,
+                              color: metric === k ? C.accent : C.ink, borderLeft: metric === k ? `3px solid ${C.accent}` : "3px solid transparent"
+                            }}>{data.metrics[k].label}</button>
+                          ))}
+                        </div>;
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>)}
+
+            {/* ── DESKTOP: Category Tabs + Metric Pills ── */}
+            {!mob && (<>
             <div style={{ display: "flex", gap: 0, borderBottom: `1px solid ${C.rule}`, marginBottom: 12, overflowX: "auto" }}>
               <button onClick={() => setCatFilter("all")} style={{
                 padding: "10px 16px", border: "none", background: "transparent",
@@ -565,8 +618,6 @@ export default function LiveBenchmark() {
                 );
               })}
             </div>
-
-            {/* ── Metric Pills ── */}
             <div className="bench-pills" style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 18 }}>
               {metricKeys.map(k => {
                 const m = data.metrics[k];
@@ -582,48 +633,49 @@ export default function LiveBenchmark() {
                 );
               })}
             </div>
+            </>)}
 
             {/* ── Stat Cards ── */}
             {stats && md && (
-              <div className="bench-stat-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 24 }}>
-                <div style={{ ...sty.card, padding: "18px 20px", borderTop: `4px solid ${C.accent}` }}>
-                  <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase" as const, color: C.mute, marginBottom: 6 }}>
-                    Trump II · Month {currentMonth}
+              <div className="bench-stat-grid" style={{ display: "grid", gridTemplateColumns: mob ? "1fr 1fr" : "1fr 1fr 1fr", gap: mob ? 8 : 12, marginBottom: mob ? 14 : 24 }}>
+                <div style={{ ...sty.card, padding: mob ? "12px 14px" : "18px 20px", borderTop: `${mob ? 3 : 4}px solid ${C.accent}` }}>
+                  <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: mob ? 9 : 10, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase" as const, color: C.mute, marginBottom: mob ? 4 : 6 }}>
+                    Trump II · Mo. {currentMonth}
                   </div>
-                  <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 32, fontWeight: 900, color: C.ink, fontVariantNumeric: "tabular-nums" }}>
+                  <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: mob ? 22 : 32, fontWeight: 900, color: C.ink, fontVariantNumeric: "tabular-nums" }}>
                     {fmtVal(stats.currentValue, md.unit)}
                   </div>
-                  <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: C.mute, marginTop: 4 }}>{md.label}</div>
+                  {!mob && <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: C.mute, marginTop: 4 }}>{md.label}</div>}
                 </div>
 
-                <div style={{ ...sty.card, padding: "18px 20px", borderTop: `4px solid ${C.mute}` }}>
-                  <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase" as const, color: C.mute, marginBottom: 6 }}>
-                    Historical Avg · Month {stats.atMonth}
+                <div style={{ ...sty.card, padding: mob ? "12px 14px" : "18px 20px", borderTop: `${mob ? 3 : 4}px solid ${C.mute}` }}>
+                  <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: mob ? 9 : 10, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase" as const, color: C.mute, marginBottom: mob ? 4 : 6 }}>
+                    Hist. Avg · Mo. {stats.atMonth}
                   </div>
-                  <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 32, fontWeight: 900, color: C.sub, fontVariantNumeric: "tabular-nums" }}>
+                  <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: mob ? 22 : 32, fontWeight: 900, color: C.sub, fontVariantNumeric: "tabular-nums" }}>
                     {fmtVal(stats.historicalAvg, md.unit)}
                   </div>
-                  <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: C.mute, marginTop: 4 }}>
+                  {!mob && <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: C.mute, marginTop: 4 }}>
                     Mean of {stats.total - 1} prior administrations
-                  </div>
+                  </div>}
                 </div>
 
-                <div style={{ ...sty.card, padding: "18px 20px", borderTop: `4px solid ${betterThanAvg ? C.green : C.accent}` }}>
-                  <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase" as const, color: C.mute, marginBottom: 6 }}>
+                <div style={{ ...sty.card, padding: mob ? "12px 14px" : "18px 20px", borderTop: `${mob ? 3 : 4}px solid ${betterThanAvg ? C.green : C.accent}`, ...(mob ? { gridColumn: "1 / -1" } : {}) }}>
+                  <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: mob ? 9 : 10, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase" as const, color: C.mute, marginBottom: mob ? 4 : 6 }}>
                     Rank at Month {stats.atMonth}
                   </div>
-                  <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 32, fontWeight: 900, color: betterThanAvg ? C.green : C.accent, fontVariantNumeric: "tabular-nums" }}>
-                    {ordinal(stats.rank)} <span style={{ fontSize: 16, fontWeight: 500, color: C.mute }}>of {stats.total}</span>
+                  <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: mob ? 22 : 32, fontWeight: 900, color: betterThanAvg ? C.green : C.accent, fontVariantNumeric: "tabular-nums" }}>
+                    {ordinal(stats.rank)} <span style={{ fontSize: mob ? 13 : 16, fontWeight: 500, color: C.mute }}>of {stats.total}</span>
                   </div>
-                  <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: C.mute, marginTop: 4 }}>
+                  <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: mob ? 10 : 11, color: C.mute, marginTop: mob ? 2 : 4 }}>
                     {md.lowerBetter ? "Lower is better" : "Higher is better"}
                   </div>
                 </div>
               </div>
             )}
 
-            {/* ── Title ── */}
-            {md && (
+            {/* ── Title — desktop only ── */}
+            {!mob && md && (
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
                 <div>
                   <h2 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>{md.label}</h2>
@@ -634,19 +686,16 @@ export default function LiveBenchmark() {
               </div>
             )}
 
-            {/* ── Metric Detail: Formula, Benchmarks, Context, Facts ── */}
-            {md && META[metric] && (() => {
+            {/* ── DESKTOP: Formula, Benchmarks, Why ── */}
+            {!mob && md && META[metric] && (() => {
               const mm = META[metric];
               return (
                 <div style={{ marginBottom: 20 }}>
-                  {/* Formula */}
                   <div style={{ background: C.paper, border: `1px solid ${C.rule}`, borderRadius: 4, padding: "10px 14px", marginBottom: 14, display: "flex", gap: 8, alignItems: "flex-start" }}>
                     <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, fontWeight: 600, color: C.accent, flexShrink: 0 }}>f(x)</span>
                     <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, lineHeight: 1.6, color: C.sub }}>{mm.def}</span>
                   </div>
-
-                  {/* Good / Target / Warning */}
-                  <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "1fr 1fr 1fr", gap: 8, marginBottom: 14 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 14 }}>
                     <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 4, padding: "10px 14px" }}>
                       <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 9, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: 1, color: "#16a34a", marginBottom: 3 }}>Good</div>
                       <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 14, fontWeight: 600, color: "#15803d" }}>{mm.bench.good}</div>
@@ -660,12 +709,45 @@ export default function LiveBenchmark() {
                       <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 12, fontWeight: 600, color: "#991b1b", lineHeight: 1.4 }}>{mm.bench.warn}</div>
                     </div>
                   </div>
-
-                  {/* Why this matters */}
                   <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 12, color: C.sub, lineHeight: 1.7, marginBottom: 14, padding: "0 2px" }}>
                     <strong style={{ color: C.ink }}>Why this matters: </strong>{mm.bench.why}
                   </div>
+                </div>
+              );
+            })()}
 
+            {/* ── MOBILE: compressed benchmark strip ── */}
+            {mob && md && META[metric] && (() => {
+              const mm = META[metric];
+              return (
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ background: C.card, border: `1px solid ${C.rule}`, borderRadius: fxOpen || whyOpen ? "6px 6px 0 0" : 6, padding: "7px 10px", fontFamily: "'DM Sans',sans-serif", fontSize: 11, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                    <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#16a34a", flexShrink: 0 }} />
+                    <span style={{ color: "#15803d", fontWeight: 600 }}>{mm.bench.good}</span>
+                    <span style={{ color: C.rule }}>|</span>
+                    <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#dc2626", flexShrink: 0 }} />
+                    <span style={{ color: "#991b1b", fontWeight: 600 }}>{mm.bench.warn.length > 20 ? mm.bench.warn.slice(0, 20) + "…" : mm.bench.warn}</span>
+                    <span style={{ flex: 1 }} />
+                    <button onClick={() => { setFxOpen(!fxOpen); if (whyOpen) setWhyOpen(false); }} style={{
+                      border: "none", background: "transparent", fontFamily: "'Source Serif 4',Georgia,serif",
+                      fontSize: 12, fontStyle: "italic", color: fxOpen ? C.accent : C.sub, fontWeight: 600, cursor: "pointer", padding: "2px 4px"
+                    }}>f(x)</button>
+                    <span style={{ color: C.rule, fontSize: 9 }}>·</span>
+                    <button onClick={() => { setWhyOpen(!whyOpen); if (fxOpen) setFxOpen(false); }} style={{
+                      border: "none", background: "transparent", fontSize: 13, color: whyOpen ? C.accent : C.sub, cursor: "pointer", padding: "2px 4px", lineHeight: 1
+                    }}>ⓘ</button>
+                  </div>
+                  {fxOpen && (
+                    <div style={{ background: C.paper, border: `1px solid ${C.rule}`, borderTop: "none", borderRadius: "0 0 6px 6px", padding: "8px 10px", fontFamily: "'DM Sans',sans-serif", fontSize: 11, lineHeight: 1.5, color: C.sub }}>
+                      <span style={{ fontWeight: 600, color: C.accent, marginRight: 6 }}>f(x)</span>{mm.def}
+                    </div>
+                  )}
+                  {whyOpen && (
+                    <div style={{ background: C.paper, border: `1px solid ${C.rule}`, borderTop: "none", borderRadius: "0 0 6px 6px", padding: "8px 10px", fontFamily: "'DM Sans',sans-serif", fontSize: 11, lineHeight: 1.5, color: C.sub }}>
+                      <div style={{ marginBottom: 4 }}><span style={{ fontWeight: 600, color: "#a67c00" }}>Target: </span>{mm.bench.target}</div>
+                      <div><strong style={{ color: C.ink }}>Why: </strong>{mm.bench.why}</div>
+                    </div>
+                  )}
                 </div>
               );
             })()}
