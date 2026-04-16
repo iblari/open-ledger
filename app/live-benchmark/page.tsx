@@ -568,7 +568,7 @@ export default function LiveBenchmark() {
                   <div onClick={e => e.stopPropagation()} style={{
                     background: C.bg, borderRadius: "16px 16px 0 0", maxHeight: "75vh",
                     overflowY: "auto", WebkitOverflowScrolling: "touch",
-                    animation: "bench-fade 0.3s ease"
+                    animation: "fadeUp 0.3s ease"
                   }}>
                     <div style={{ padding: "16px 18px 12px", borderBottom: `1px solid ${C.rule}`, position: "sticky", top: 0, background: C.bg, zIndex: 1, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <span style={{ fontFamily: "'Source Serif 4',Georgia,serif", fontSize: 16, fontWeight: 700, color: C.ink }}>Select Metric</span>
