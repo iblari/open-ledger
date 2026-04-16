@@ -306,6 +306,10 @@ export default function App(){
   const [openFacts,setOpenFacts]=useState(false);
   const [mobileView,setMobileView]=useState<"table"|"cards">("cards");
   const [selectedPres,setSelectedPres]=useState("clinton");
+  const [sheetOpen,setSheetOpen]=useState(false);
+  const [filterOpen,setFilterOpen]=useState(false);
+  const [fxOpen,setFxOpen]=useState(false);
+  const [whyOpen,setWhyOpen]=useState(false);
 
   // Nudge mobile cards as they scroll into view (each card nudges once per session)
   useEffect(() => {
@@ -775,13 +779,105 @@ export default function App(){
 
           {/* ── DETAIL MODE ── */}
           {detail&&(<div>
-          {/* Back button */}
+
+          {/* ─── MOBILE: compact nav row ─── */}
+          {mob && (<>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
+              <button onClick={()=>setDetail(null)} style={{
+                border:"none",background:"transparent",fontFamily:"'DM Sans',sans-serif",
+                fontSize:12,fontWeight:600,color:T.accent,padding:0,cursor:"pointer",whiteSpace:"nowrap"
+              }}>← All</button>
+              <button onClick={()=>setSheetOpen(true)} style={{
+                flex:1,display:"flex",alignItems:"center",justifyContent:"space-between",
+                padding:"8px 12px",borderRadius:6,border:`1.5px solid ${T.rule}`,background:T.paper,
+                fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:700,color:T.ink,cursor:"pointer",
+                minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"
+              }}>
+                <span style={{overflow:"hidden",textOverflow:"ellipsis"}}>{m.l}</span>
+                <span style={{fontSize:10,color:T.mute,marginLeft:6,flexShrink:0}}>▾</span>
+              </button>
+              <button onClick={()=>setFilterOpen(!filterOpen)} style={{
+                width:28,height:28,borderRadius:6,border:`1.5px solid ${T.rule}`,background:T.paper,
+                display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0,
+                position:"relative"
+              }}>
+                <svg width="14" height="10" viewBox="0 0 14 10" fill="none">
+                  <line x1="0" y1="1" x2="14" y2="1" stroke={T.sub} strokeWidth="1.5" strokeLinecap="round"/>
+                  <line x1="2" y1="5" x2="12" y2="5" stroke={T.sub} strokeWidth="1.5" strokeLinecap="round"/>
+                  <line x1="4" y1="9" x2="10" y2="9" stroke={T.sub} strokeWidth="1.5" strokeLinecap="round"/>
+                </svg>
+                {sel.length<AID.length&&<span style={{
+                  position:"absolute",top:-4,right:-4,width:14,height:14,borderRadius:"50%",
+                  background:T.accent,color:"#fff",fontSize:8,fontWeight:700,
+                  display:"flex",alignItems:"center",justifyContent:"center"
+                }}>{sel.length}</span>}
+              </button>
+            </div>
+
+            {/* Admin filter popover */}
+            {filterOpen&&(
+              <div style={{
+                background:T.card,border:`1px solid ${T.rule}`,borderRadius:8,
+                padding:"12px 14px",marginBottom:12,boxShadow:"0 4px 16px rgba(0,0,0,0.08)"
+              }}>
+                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:1.5,color:T.mute,marginBottom:8}}>Filter Presidents</div>
+                <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
+                  {AID.map(id=>{const a=ADMINS[id];return(
+                    <button key={id} onClick={()=>tog(id)} style={{
+                      display:"flex",alignItems:"center",gap:5,padding:"6px 12px",borderRadius:3,
+                      background:sel.includes(id)?a.color+"12":"transparent",
+                      border:`1.5px solid ${sel.includes(id)?a.color:T.rule}`,
+                      color:sel.includes(id)?a.color:T.mute,fontSize:12,fontWeight:600,fontFamily:"'DM Sans',sans-serif"
+                    }}><span style={{width:8,height:8,borderRadius:2,background:sel.includes(id)?a.color:T.rule}}/>{a.name}</button>
+                  );})}
+                </div>
+              </div>
+            )}
+
+            {/* Full-screen metric sheet */}
+            {sheetOpen&&(
+              <div onClick={()=>setSheetOpen(false)} style={{
+                position:"fixed",inset:0,zIndex:1000,background:"rgba(26,26,26,0.5)",
+                display:"flex",flexDirection:"column",justifyContent:"flex-end"
+              }}>
+                <div onClick={e=>e.stopPropagation()} style={{
+                  background:T.bg,borderRadius:"16px 16px 0 0",maxHeight:"75vh",
+                  overflowY:"auto",WebkitOverflowScrolling:"touch",
+                  animation:"fadeUp 0.3s ease"
+                }}>
+                  <div style={{padding:"16px 18px 12px",borderBottom:`1px solid ${T.rule}`,position:"sticky",top:0,background:T.bg,zIndex:1,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <span style={{fontFamily:"'Source Serif 4',Georgia,serif",fontSize:16,fontWeight:700,color:T.ink}}>Select Metric</span>
+                    <button onClick={()=>setSheetOpen(false)} style={{width:28,height:28,borderRadius:"50%",background:T.paper,border:`1px solid ${T.rule}`,color:T.sub,fontSize:12,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
+                  </div>
+                  <div style={{padding:"8px 0 20px"}}>
+                    {Object.entries(CATS).map(([catKey,catLabel])=>{
+                      const catMetrics=MK.filter(k=>M[k].cat===catKey);
+                      if(!catMetrics.length)return null;
+                      return <div key={catKey}>
+                        <div style={{padding:"12px 18px 4px",fontFamily:"'DM Sans',sans-serif",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:2,color:T.mute}}>{catLabel}</div>
+                        {catMetrics.map(k=>(
+                          <button key={k} onClick={()=>{setAm(k);setSheetOpen(false);}} style={{
+                            display:"block",width:"100%",textAlign:"left",padding:"12px 18px",border:"none",
+                            background:am===k?T.accent+"0A":"transparent",cursor:"pointer",
+                            fontFamily:"'DM Sans',sans-serif",fontSize:15,fontWeight:am===k?700:500,
+                            color:am===k?T.accent:T.ink,borderLeft:am===k?`3px solid ${T.accent}`:"3px solid transparent"
+                          }}>{M[k].l}</button>
+                        ))}
+                      </div>;
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+          </>)}
+
+          {/* ─── DESKTOP: original nav rows ─── */}
+          {!mob&&(<>
           <button onClick={()=>setDetail(null)} style={{
             display:"flex",alignItems:"center",gap:6,border:"none",background:"transparent",
             fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:600,color:T.accent,padding:"0 0 16px",cursor:"pointer"
           }}>← All Metrics</button>
 
-          {/* Presidents */}
           <div className="ol-controls" style={{display:"flex",flexWrap:"wrap",gap:12,marginBottom:20,justifyContent:"space-between",alignItems:"flex-end"}}>
             <div>
               <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:1.5,color:T.mute,marginBottom:6}}>Administrations</div>
@@ -803,32 +899,30 @@ export default function App(){
             </div>
           </div>
 
-          {/* Category tabs */}
           <div style={{display:"flex",gap:0,borderBottom:`1px solid ${T.rule}`,marginBottom:14,overflowX:"auto"}}>
             <button onClick={()=>setCf("all")} style={{padding:"8px 14px",border:"none",background:"transparent",fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:600,color:cf==="all"?T.accent:T.mute,borderBottom:cf==="all"?`2px solid ${T.accent}`:"2px solid transparent"}}>All</button>
             {Object.entries(CATS).map(([k,l])=><button key={k} onClick={()=>setCf(k)} style={{padding:"8px 14px",border:"none",background:"transparent",fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:600,color:cf===k?T.accent:T.mute,borderBottom:cf===k?`2px solid ${T.accent}`:"2px solid transparent",whiteSpace:"nowrap"}}>{l}</button>)}
           </div>
 
-          {/* Metric pills */}
           <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:18}}>
             {vis.map(k=><button key={k} onClick={()=>setAm(k)} style={{padding:"5px 12px",borderRadius:3,border:`1px solid ${am===k?T.accent+"55":T.rule}`,background:am===k?T.accent+"0A":"transparent",color:am===k?T.accent:T.sub,fontSize:12,fontWeight:am===k?700:500,fontFamily:"'DM Sans',sans-serif"}}>{M[k].l}</button>)}
           </div>
+          </>)}
 
-          {/* Title bar */}
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:6}}>
+          {/* Title bar — desktop only (mobile uses the dropdown) */}
+          {!mob&&<div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:6}}>
             <div>
               <h2 style={{fontSize:24,fontWeight:700,margin:0}}>{m.l}</h2>
               <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:T.mute}}>{m.s} · {m.src}</span>
             </div>
-          </div>
+          </div>}
 
-          {/* Formula */}
+          {/* ─── DESKTOP: Formula + Benchmark + Why ─── */}
+          {!mob&&(<>
           {m.def&&<div style={{background:T.paper,border:`1px solid ${T.rule}`,borderRadius:3,padding:"8px 12px",marginBottom:14,display:"flex",gap:8,alignItems:"flex-start"}}>
             <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:600,color:T.accent,flexShrink:0}}>f(x)</span>
             <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,lineHeight:1.5,color:T.sub}}>{m.def}</span>
           </div>}
-
-          {/* Benchmark */}
           {m.bench&&<div className="ol-bench-grid" style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:16}}>
             <div style={{background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:3,padding:"8px 12px"}}>
               <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:1,color:"#16a34a",marginBottom:2}}>Good</div>
@@ -844,9 +938,46 @@ export default function App(){
             </div>
           </div>}
           {m.bench&&<div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:T.sub,lineHeight:1.6,marginBottom:16,padding:"0 2px"}}><strong style={{color:T.ink}}>Why this matters: </strong>{m.bench.why}</div>}
+          </>)}
+
+          {/* ─── MOBILE: compressed benchmark strip ─── */}
+          {mob&&m.bench&&(
+            <div style={{marginBottom:12}}>
+              <div style={{background:T.card,border:`1px solid ${T.rule}`,borderRadius:fxOpen||whyOpen?"6px 6px 0 0":6,padding:"7px 10px",fontFamily:"'DM Sans',sans-serif",fontSize:11,display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+                <span style={{width:6,height:6,borderRadius:"50%",background:"#16a34a",flexShrink:0}}/>
+                <span style={{color:"#15803d",fontWeight:600}}>{m.bench.good}</span>
+                <span style={{color:T.rule}}>|</span>
+                <span style={{width:6,height:6,borderRadius:"50%",background:"#dc2626",flexShrink:0}}/>
+                <span style={{color:"#991b1b",fontWeight:600}}>{m.bench.warn.length>20?m.bench.warn.slice(0,20)+"…":m.bench.warn}</span>
+                <span style={{flex:1}}/>
+                <button onClick={()=>{setFxOpen(!fxOpen);if(whyOpen)setWhyOpen(false);}} style={{
+                  border:"none",background:"transparent",fontFamily:"'Source Serif 4',Georgia,serif",
+                  fontSize:12,fontStyle:"italic",color:fxOpen?T.accent:T.sub,fontWeight:600,cursor:"pointer",padding:"2px 4px"
+                }}>f(x)</button>
+                <span style={{color:T.rule,fontSize:9}}>·</span>
+                <button onClick={()=>{setWhyOpen(!whyOpen);if(fxOpen)setFxOpen(false);}} style={{
+                  border:"none",background:"transparent",fontSize:13,color:whyOpen?T.accent:T.sub,cursor:"pointer",padding:"2px 4px",lineHeight:1
+                }}>ⓘ</button>
+              </div>
+              {fxOpen&&m.def&&(
+                <div style={{background:T.paper,border:`1px solid ${T.rule}`,borderTop:"none",borderRadius:"0 0 6px 6px",padding:"8px 10px",fontFamily:"'DM Sans',sans-serif",fontSize:11,lineHeight:1.5,color:T.sub}}>
+                  <span style={{fontWeight:600,color:T.accent,marginRight:6}}>f(x)</span>{m.def}
+                </div>
+              )}
+              {whyOpen&&(
+                <div style={{background:T.paper,border:`1px solid ${T.rule}`,borderTop:"none",borderRadius:"0 0 6px 6px",padding:"8px 10px",fontFamily:"'DM Sans',sans-serif",fontSize:11,lineHeight:1.5,color:T.sub}}>
+                  <div style={{marginBottom:4}}><span style={{fontWeight:600,color:T.gold}}>Target: </span>{m.bench.target}</div>
+                  <div><strong style={{color:T.ink}}>Why: </strong>{m.bench.why}</div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ─── Reorder wrapper: on mobile chart first, then cards ─── */}
+          <div style={{display:"flex",flexDirection:"column"}}>
 
           {/* Summary cards */}
-          <div className="ol-grid-summary" style={{display:"grid",gridTemplateColumns:`repeat(${Math.min(sel.length,5)},1fr)`,gap:10,marginBottom:20}}>
+          <div className="ol-grid-summary" style={{display:"grid",gridTemplateColumns:mob?"repeat(2,1fr)":`repeat(${Math.min(sel.length,5)},1fr)`,gap:mob?8:10,marginBottom:mob?12:20,order:mob?2:1}}>
             {sel.map((id,idx)=>{const s=sums[id];if(!s)return null;const a=ADMINS[id];
               const pts=m.d.filter(d=>d.a===id);if(pts.length<2)return null;
               const start=pts[0].v,end=pts[pts.length-1].v;
@@ -854,29 +985,54 @@ export default function App(){
               const imp=m.inv?pct<0:pct>0;const mnt=Math.abs(pct)<5;
               const col=mnt?T.gold:imp?T.improve.strong:T.decline.strong;
               const sparkData=pts.map(p=>p.v);
-              return <div key={id} className={`hover-lift stagger-${idx+1}`} style={{...sty.card,padding:"16px 18px",borderTop:`4px solid ${a.color}`,position:"relative",overflow:"hidden"}}>
-                <div style={{position:"absolute",top:0,right:0,width:80,height:80,background:`linear-gradient(135deg, ${a.color}08 0%, transparent 70%)`,borderRadius:"0 0 0 80px"}}/>
-                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:1,color:a.color,marginBottom:6}}>{a.name}</div>
-                <div style={{display:"flex",alignItems:"baseline",gap:6,marginBottom:4}}>
-                  <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:T.mute,fontVariantNumeric:"tabular-nums"}}>{fmt(start,m.u)}</span>
-                  <span style={{fontSize:10,color:T.mute}}>→</span>
-                  <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:18,fontWeight:700,color:T.ink,fontVariantNumeric:"tabular-nums"}}>{fmt(end,m.u)}</span>
+              return <div key={id} className={`hover-lift stagger-${idx+1}`} style={{...sty.card,padding:mob?"10px 12px":"16px 18px",borderTop:`${mob?3:4}px solid ${a.color}`,position:"relative",overflow:"hidden"}}>
+                {!mob&&<div style={{position:"absolute",top:0,right:0,width:80,height:80,background:`linear-gradient(135deg, ${a.color}08 0%, transparent 70%)`,borderRadius:"0 0 0 80px"}}/>}
+                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?9:10,fontWeight:800,textTransform:"uppercase",letterSpacing:1,color:a.color,marginBottom:mob?4:6}}>{a.name}</div>
+                <div style={{display:"flex",alignItems:"baseline",gap:mob?4:6,marginBottom:mob?3:4}}>
+                  <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?10:12,color:T.mute,fontVariantNumeric:"tabular-nums"}}>{fmt(start,m.u)}</span>
+                  <span style={{fontSize:mob?8:10,color:T.mute}}>→</span>
+                  <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?10:18,fontWeight:700,color:T.ink,fontVariantNumeric:"tabular-nums"}}>{fmt(end,m.u)}</span>
                 </div>
-                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
-                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:24,fontWeight:900,color:col,fontVariantNumeric:"tabular-nums"}}>{mnt?"—":imp?"▲":"▼"}{Math.abs(pct).toFixed(0)}%</div>
-                  <Sparkline data={sparkData} color={a.color} width={50} height={20} />
+                <div style={{display:"flex",alignItems:"center",gap:mob?4:8,marginBottom:mob?4:6}}>
+                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?17:24,fontWeight:900,color:col,fontVariantNumeric:"tabular-nums"}}>{mnt?"—":imp?"▲":"▼"}{Math.abs(pct).toFixed(0)}%</div>
+                  {!mob&&<Sparkline data={sparkData} color={a.color} width={50} height={20} />}
                 </div>
-                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,color:T.mute,display:"flex",justifyContent:"space-between"}}>
+                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?9:10,color:T.mute,display:"flex",justifyContent:"space-between"}}>
                   <span>avg {fmt(s.avg,m.u)}</span>
                   <span style={{color:a.color,fontWeight:600}}>{a.years}</span>
                 </div>
               </div>;
             })}
+            {mob&&<a href={`/live-benchmark?metric=${am}`} className={`stagger-${sel.length+1}`} style={{
+              background:T.accent,border:`1px solid ${T.accent}`,borderRadius:4,
+              padding:"10px 12px",textDecoration:"none",color:"#fff",cursor:"pointer",
+              display:"flex",flexDirection:"column",justifyContent:"space-between",minHeight:0
+            }}>
+              <div style={{display:"flex",alignItems:"center",gap:5}}>
+                <span style={{width:6,height:6,borderRadius:"50%",background:"#fff",animation:"pulse 2s ease-in-out infinite"}}/>
+                <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:1.2}}>Live · Trump II</span>
+              </div>
+              <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:500,color:"rgba(255,255,255,0.88)",margin:"6px 0"}}>Current term, updated daily</div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,fontWeight:700}}>See live data</span>
+                <span style={{fontSize:12}}>→</span>
+              </div>
+            </a>}
           </div>
 
           {/* Chart */}
-          <div className="ol-chart-wrap hover-lift" style={{...sty.card,padding:"24px 20px 14px",marginBottom:16,borderRadius:8}}>
-            <ResponsiveContainer width="100%" height={360}>
+          <div className="ol-chart-wrap hover-lift" style={{...sty.card,padding:mob?"12px 8px 8px":"24px 20px 14px",marginBottom:mob?12:16,borderRadius:8,order:mob?1:2}}>
+            {mob&&(
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8,padding:"0 4px"}}>
+                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:1,color:T.mute}}>{m.l}</div>
+                <div style={{display:"flex",border:`1px solid ${T.rule}`,borderRadius:3,overflow:"hidden"}}>
+                  {[["bar","Bar"],["line","Line"]].map(([t,l])=>(
+                    <button key={t} onClick={()=>setCt(t)} style={{padding:"4px 10px",border:"none",background:ct===t?T.paper:"transparent",color:ct===t?T.ink:T.mute,fontSize:10,fontWeight:600,fontFamily:"'DM Sans',sans-serif",borderRight:`1px solid ${T.rule}`}}>{l}</button>
+                  ))}
+                </div>
+              </div>
+            )}
+            <ResponsiveContainer width="100%" height={mob?280:360}>
               {ct==="bar"?(
                 <BarChart data={fd} margin={{top:10,right:10,left:0,bottom:10}}>
                   <defs>
@@ -906,6 +1062,8 @@ export default function App(){
               )}
             </ResponsiveContainer>
           </div>
+
+          </div>{/* end reorder wrapper */}
 
           {/* Term Trajectory */}
           <div style={{...sty.card,marginBottom:12,overflow:"hidden"}}>
