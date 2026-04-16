@@ -306,6 +306,9 @@ export default function App(){
   const [openFacts,setOpenFacts]=useState(false);
   const [mobileView,setMobileView]=useState<"table"|"cards">("cards");
   const [selectedPres,setSelectedPres]=useState("clinton");
+  // Scroll to top when entering or leaving detail view
+  useEffect(() => { window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior }); }, [detail]);
+
   const [sheetOpen,setSheetOpen]=useState(false);
   const [filterOpen,setFilterOpen]=useState(false);
   const [fxOpen,setFxOpen]=useState(false);
