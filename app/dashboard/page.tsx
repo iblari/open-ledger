@@ -979,7 +979,7 @@ function App(){
             The economy under<br/>every president, <span style={{color:T.accent}}>in data.</span>
           </h1>
           <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:15,color:T.sub,margin:"14px 0 0",maxWidth:520,lineHeight:1.6}}>
-            19 indicators across 5 administrations. No editorial. No spin. Context where it matters. <strong style={{color:T.ink}}>You interpret.</strong>
+            19 economic indicators. 4 active conflicts. 5 administrations. 32 years. No editorial. No spin. <strong style={{color:T.ink}}>You interpret.</strong>
           </p>
         </div>
       </div>

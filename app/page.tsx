@@ -265,10 +265,10 @@ function Hero({ mob, med }: { mob: boolean; med: boolean }) {
             marginTop: 28, fontSize: mob ? 16 : 19, color: C.sub,
             maxWidth: "50ch", lineHeight: 1.5, fontFamily: SANS,
           }}>
-            Nineteen economic metrics across ten administrations, plus live military
-            spend tracking across four active conflicts. Sourced from BEA, BLS, Treasury,
-            the Fed, CSIS, Brown University, and more. We don&rsquo;t tell you who did better.
-            We show you what the numbers did.
+            Nineteen economic metrics across five administrations, plus live military
+            spend tracking across four active conflicts &mdash; 32 years of data from BEA, BLS,
+            Treasury, the Fed, CSIS, Brown University, and more. We don&rsquo;t tell you who
+            did better. We show you what the numbers did.
           </p>
 
           {/* CTA */}
@@ -295,7 +295,7 @@ function Hero({ mob, med }: { mob: boolean; med: boolean }) {
             display: "grid", gridTemplateColumns: mob ? "1fr 1fr" : "repeat(4, 1fr)",
             marginTop: 48, paddingTop: 28, borderTop: `1px solid ${C.rule}`, gap: mob ? 16 : 24,
           }}>
-            {[{ n: "19", l: "Economic metrics" }, { n: "4", l: "Active conflicts tracked" }, { n: "10", l: "Administrations" }, { n: "31", l: "Years of data", suffix: "yrs" }].map((s, i) => (
+            {[{ n: "19", l: "Economic metrics" }, { n: "4", l: "Active conflicts tracked" }, { n: "5", l: "Administrations" }, { n: "32", l: "Years of data", suffix: "yrs" }].map((s, i) => (
               <div key={i}>
                 <div style={{ fontFamily: SERIF, fontSize: mob ? 28 : 40, lineHeight: 1, letterSpacing: "-0.025em", fontVariantNumeric: "tabular-nums" }}>
                   {s.suffix ? <>{s.n}<span style={{ color: C.mute }}>{s.suffix}</span></> : s.n}
