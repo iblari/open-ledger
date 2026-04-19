@@ -855,7 +855,7 @@ function CTASection({ mob, med }: { mob: boolean; med: boolean }) {
               </div>
               {status === "error" && <div style={{ fontSize: 13, color: C.declineStrong }}>{msg}</div>}
               <div style={{ fontSize: 11, color: C.mute, letterSpacing: "0.04em" }}>
-                No tracking beyond open rate · Unsubscribe anywhere · Archives public
+                Join the community
               </div>
             </>
           )}
