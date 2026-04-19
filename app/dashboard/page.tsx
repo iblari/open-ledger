@@ -1,5 +1,6 @@
 "use client";
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { BarChart, Bar, LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import FeedbackBanner from "./FeedbackBanner";
 import GlobeView from "@/components/GlobeView";
@@ -702,9 +703,14 @@ function SpendTrendChart({ mob }: { mob?: boolean }) {
 
 const TABS=[["dashboard","Data"],["scorecard","Scorecard"],["abroad","Abroad"],["global","Global"]];
 
-export default function App(){
+export default function DashboardPage() {
+  return <Suspense><App /></Suspense>;
+}
+
+function App(){
   const mob = useIsMobile();
   const [tab,setTab]=useState("dashboard");
+  const searchParams = useSearchParams();
   const [am,setAm]=useState("gdp");
   const [detail,setDetail]=useState(null);
   const [sel,setSel]=useState(["clinton","bush","obama","trump1","biden"]);
@@ -715,6 +721,15 @@ export default function App(){
   const [openFacts,setOpenFacts]=useState(false);
   const [mobileView,setMobileView]=useState<"table"|"cards">("cards");
   const [selectedPres,setSelectedPres]=useState("clinton");
+
+  // Read metric from URL query param (e.g. /dashboard?metric=unemployment)
+  useEffect(() => {
+    const m = searchParams.get("metric");
+    if (m && M[m]) { setAm(m); setDetail(m); }
+    const t = searchParams.get("tab");
+    if (t && TABS.some(([k]) => k === t)) setTab(t);
+  }, [searchParams]);
+
   // Scroll to top when entering or leaving detail view
   useEffect(() => { window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior }); }, [detail]);
 

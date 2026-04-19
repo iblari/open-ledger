@@ -391,11 +391,12 @@ function ScorecardSection({ mob, med }: { mob: boolean; med: boolean }) {
                   const st = cellColor(c);
                   const pct = c ? `${c.pctChange >= 0 ? "+" : ""}${c.pctChange.toFixed(1)}%` : "—";
                   return (
-                    <div key={id} style={{
+                    <Link key={id} href={`/dashboard?metric=${mk}`} style={{
                       margin: mob ? 3 : 5, height: mob ? 44 : 52, borderRadius: 3,
                       display: "grid", placeItems: "center", padding: "4px 6px",
                       background: st.bg, color: st.text, cursor: "pointer",
                       transition: "transform 0.15s, box-shadow 0.15s",
+                      textDecoration: "none",
                     }}>
                       <span style={{ fontFamily: SERIF, fontSize: mob ? 13 : 15, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{pct}</span>
                       {!mob && c && (
@@ -403,7 +404,7 @@ function ScorecardSection({ mob, med }: { mob: boolean; med: boolean }) {
                           {fmt(c.start, m.u)} → {fmt(c.end, m.u)}
                         </span>
                       )}
-                    </div>
+                    </Link>
                   );
                 })}
               </div>
