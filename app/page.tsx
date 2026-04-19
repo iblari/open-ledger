@@ -169,12 +169,13 @@ function Nav({ mob }: { mob: boolean }) {
         {/* CTA */}
         <div style={{ marginLeft: "auto", display: "flex", gap: 10, alignItems: "center" }}>
           <Link href="/dashboard" style={{
-            display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 16px",
+            display: "inline-flex", alignItems: "center", gap: 8,
+            padding: mob ? "8px 14px" : "10px 16px",
             borderRadius: 4, fontSize: 13, fontWeight: 500,
             background: C.ink, color: C.bg, border: `1px solid ${C.ink}`,
             textDecoration: "none", transition: "all 0.15s",
           }}>
-            Open the ledger <span>→</span>
+            {mob ? "Data" : "Open the ledger"} <span>→</span>
           </Link>
         </div>
       </div>
@@ -243,12 +244,12 @@ function Hero({ mob, med }: { mob: boolean; med: boolean }) {
         <div>
           {/* Kicker */}
           <div style={{
-            display: "inline-flex", alignItems: "center", gap: 12,
-            padding: "6px 12px", border: `1px solid ${C.rule}`, borderRadius: 999,
-            background: C.card, fontSize: 11, color: C.sub, letterSpacing: "0.08em",
+            display: "inline-flex", alignItems: "center", gap: mob ? 8 : 12,
+            padding: mob ? "6px 10px" : "6px 12px", border: `1px solid ${C.rule}`, borderRadius: 999,
+            background: C.card, fontSize: mob ? 10 : 11, color: C.sub, letterSpacing: "0.08em",
             textTransform: "uppercase", fontWeight: 500, marginBottom: 24,
           }}>
-            <span style={{ width: 6, height: 6, borderRadius: "50%", background: C.accent, boxShadow: `0 0 0 3px rgba(184,55,45,0.2)` }} />
+            <span style={{ width: 6, height: 6, borderRadius: "50%", background: C.accent, boxShadow: `0 0 0 3px rgba(184,55,45,0.2)`, flexShrink: 0 }} />
             No spin · No editorial · You interpret
           </div>
 
@@ -345,7 +346,12 @@ function ScorecardSection({ mob, med }: { mob: boolean; med: boolean }) {
         </div>
 
         {/* Heatmap */}
-        <div style={{ background: C.card, border: `1px solid ${C.rule}`, borderRadius: 4, overflow: "hidden", overflowX: "auto" }}>
+        {mob && (
+          <div style={{ fontSize: 11, color: C.mute, marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+            <span>←</span> Scroll to see all presidents <span>→</span>
+          </div>
+        )}
+        <div style={{ background: C.card, border: `1px solid ${C.rule}`, borderRadius: 4, overflow: "hidden", overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
           {/* Header row */}
           <div style={{
             display: "grid",
@@ -740,18 +746,18 @@ function CTASection({ mob, med }: { mob: boolean; med: boolean }) {
             </div>
           ) : (
             <>
-              <div style={{ display: "flex", gap: 8 }}>
+              <div style={{ display: "flex", gap: 8, flexDirection: mob ? "column" : "row" }}>
                 <input
                   type="email" placeholder="name@domain.com" required value={email}
                   onChange={e => setEmail(e.target.value)}
                   style={{
-                    flex: 1, padding: "14px 18px", font: "inherit", fontSize: 17,
+                    flex: 1, padding: "14px 18px", font: "inherit", fontSize: mob ? 16 : 17,
                     border: `1px solid ${C.rule}`, borderRadius: 4, background: C.card, color: C.ink,
                   }}
                 />
                 <button type="submit" disabled={status === "loading"} style={{
-                  display: "inline-flex", alignItems: "center", gap: 8, padding: "14px 20px",
-                  borderRadius: 4, fontSize: 13, fontWeight: 500,
+                  display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8,
+                  padding: "14px 20px", borderRadius: 4, fontSize: 13, fontWeight: 500,
                   background: C.ink, color: C.bg, border: `1px solid ${C.ink}`,
                   cursor: status === "loading" ? "wait" : "pointer", opacity: status === "loading" ? 0.7 : 1,
                 }}>
@@ -777,7 +783,7 @@ function Footer({ mob, med }: { mob: boolean; med: boolean }) {
       <div style={{ maxWidth: 1280, margin: "0 auto", padding: mob ? "0 20px" : "0 32px" }}>
         <div style={{
           padding: "48px 0 24px",
-          display: "grid", gridTemplateColumns: med ? "1fr 1fr" : "1.5fr 1fr 1fr 1fr",
+          display: "grid", gridTemplateColumns: mob ? "1fr" : (med ? "1fr 1fr" : "1.5fr 1fr 1fr 1fr"),
           gap: mob ? 28 : 48, fontSize: 13,
         }}>
           {/* Brand col */}
