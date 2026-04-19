@@ -117,3 +117,35 @@ export const HEADER_METRICS = [
   { label:"Personnel Germany",  value:"35,068",  sub:"largest overseas",         src:"DMDC Mar 2024" },
   { label:"Personnel Japan",    value:"~55,000", sub:"incl. FDNF",               src:"DoD" },
 ];
+
+// Operational radius (km) — rough reach per platform type
+// Public-domain figures, rounded for visualization
+export const POSTURE_RANGES: Record<AssetType, { km: number; label: string; note: string }> = {
+  carrier: { km: 1100, label: "Air-wing combat radius", note: "F/A-18 + F-35C, no tanker" },
+  arg:     { km: 600,  label: "MEU amphibious reach",   note: "MV-22 + LCAC" },
+  base:    { km: 900,  label: "Air-policing radius",    note: "Tactical fighter combat radius" },
+  bomber:  { km: 2800, label: "Unrefueled combat radius", note: "Loiter + strike, varies by airframe" },
+  drone:   { km: 1800, label: "ISR orbit reach",         note: "MQ-9 / RQ-4 endurance" },
+  sub:     { km: 1500, label: "Tomahawk land-attack",    note: "Block V cruise-missile range" },
+};
+
+// Simulated live feed ticker items — illustrative, not real-time
+export type FeedItem = { t: string; msg: string; cat: Theater | string };
+
+export const POSTURE_FEED: FeedItem[] = [
+  { t: "00:02", msg: "CVW-8 air ops resumed from Ford, east Med.", cat: "ME" },
+  { t: "00:04", msg: "MQ-9 orbit established over northern Iraq.", cat: "ME" },
+  { t: "00:06", msg: "B-1B 4-ship dep Andersen, inbound Japan.", cat: "IP" },
+  { t: "00:09", msg: "Ramstein: 3x C-17 outbound, Ukraine-bound.", cat: "EU" },
+  { t: "00:11", msg: "Truman CSG: strike package launched.", cat: "ME" },
+  { t: "00:14", msg: "Kadena: F-22 4-ship scramble, stood down.", cat: "IP" },
+  { t: "00:17", msg: "USS Rafael Peralta transit, Taiwan Strait.", cat: "IP" },
+  { t: "00:21", msg: "B-52 BUFF-21 crossed into Polish airspace.", cat: "EU" },
+  { t: "00:24", msg: "ARG Bataan: 26 MEU rotary-wing exercise.", cat: "ME" },
+  { t: "00:27", msg: "RC-135 SIGINT orbit resumed over Black Sea.", cat: "EU" },
+  { t: "00:31", msg: "Diego Garcia: B-2 pair returned, landed safe.", cat: "ME" },
+  { t: "00:35", msg: "Osan: A-10 CAS training with ROK forces.", cat: "IP" },
+  { t: "00:38", msg: "P-8 Poseidon: contact near Luzon Strait.", cat: "IP" },
+  { t: "00:41", msg: "SSGN Florida: no updates, last port Bahrain.", cat: "ME" },
+  { t: "00:45", msg: "Powidz: M1A2 convoy exiting APS-2 depot.", cat: "EU" },
+];

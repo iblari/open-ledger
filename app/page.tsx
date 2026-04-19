@@ -3,7 +3,7 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { BarChart, Bar, LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import FeedbackBanner from "./FeedbackBanner";
 import GlobeView from "@/components/GlobeView";
-import { HEADER_METRICS, THEATERS, PERSONNEL_BY_COUNTRY, POSTURE_ASSETS, ASSET_TYPES, ALERT_COLORS, THEATER_COLORS, type PostureAsset, type AssetType } from "@/lib/abroad-data";
+import { HEADER_METRICS, THEATERS, PERSONNEL_BY_COUNTRY, POSTURE_ASSETS, ASSET_TYPES, ALERT_COLORS, THEATER_COLORS, POSTURE_FEED, type PostureAsset, type AssetType, type FeedItem } from "@/lib/abroad-data";
 
 function useIsMobile() {
   const [w, setW] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
@@ -293,6 +293,46 @@ function FactsPanel({facts,label}){
   </div>;
 }
 
+/* ── Live Feed Component ── */
+function LiveFeed({feed,theater}:{feed:FeedItem[];theater:string}){
+  const [idx,setIdx]=useState(0);
+  const filtered=useMemo(()=>theater==="ALL"?feed:feed.filter(f=>f.cat===theater),[feed,theater]);
+  useEffect(()=>{
+    if(!filtered.length)return;
+    const t=setInterval(()=>setIdx(i=>(i+1)%filtered.length),2800);
+    return ()=>clearInterval(t);
+  },[filtered.length]);
+  const windowSize=5;
+  const items:FeedItem[]=[];
+  for(let i=0;i<windowSize;i++){
+    const it=filtered[(idx+i)%Math.max(filtered.length,1)];
+    if(it)items.push(it);
+  }
+  const theaterLabels:Record<string,string>={ME:"Middle East",IP:"Indo-Pacific",EU:"Europe / NATO",AT:"Atlantic"};
+  return(
+    <div style={{background:"#1a1a1a",color:"#f8f5f0",borderRadius:4,padding:"14px 20px",marginBottom:24}}>
+      <div style={{display:"flex",alignItems:"center",gap:10,paddingBottom:10,borderBottom:"1px solid rgba(255,255,255,0.12)",marginBottom:10}}>
+        <span style={{width:8,height:8,borderRadius:"50%",background:"#b8372d",boxShadow:"0 0 0 3px rgba(184,55,45,0.3)",animation:"pulse-dot 1.2s ease-in-out infinite",flexShrink:0}}/>
+        <span style={{fontFamily:"'Source Serif 4', serif",fontSize:15,fontWeight:500}}>Open-source activity feed</span>
+        <span style={{marginLeft:"auto",fontSize:10,letterSpacing:"0.08em",textTransform:"uppercase",color:"rgba(255,255,255,0.5)"}}>Aggregated public reporting · simulated playback</span>
+      </div>
+      <div style={{display:"flex",flexDirection:"column",gap:3,minHeight:120}}>
+        {items.map((it,i)=>{
+          const opacity=[1,0.72,0.52,0.32,0.18][i]||0.18;
+          const theaterColor:Record<string,string>={ME:"#ff4444",IP:"#ffcc33",EU:"#66ccff",AT:"#aaaaaa"};
+          return(
+            <div key={idx*100+i} style={{display:"grid",gridTemplateColumns:"54px 100px 1fr",gap:14,padding:"5px 0",alignItems:"baseline",opacity}}>
+              <span style={{fontVariantNumeric:"tabular-nums",color:"rgba(255,255,255,0.45)",fontSize:11,letterSpacing:"0.08em"}}>{it.t}</span>
+              <span style={{fontSize:10,fontWeight:700,letterSpacing:"0.12em",color:theaterColor[it.cat]||"#aaa"}}>{(theaterLabels[it.cat]||it.cat).toUpperCase()}</span>
+              <span style={{color:"rgba(255,255,255,0.9)",lineHeight:1.5,fontFamily:"'Source Serif 4', serif",fontSize:13}}>{it.msg}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 const TABS=[["dashboard","Data"],["scorecard","Scorecard"],["abroad","Abroad"],["global","Global"]];
 
 export default function App(){
@@ -321,6 +361,7 @@ export default function App(){
   const [abroadAssetTypes,setAbroadAssetTypes]=useState<Record<string,boolean>>({carrier:true,arg:true,base:true,bomber:true,drone:true,sub:true});
   const [abroadSelection,setAbroadSelection]=useState<PostureAsset|null>(null);
   const [abroadAutoRotate,setAbroadAutoRotate]=useState(false);
+  const [showRanges,setShowRanges]=useState(false);
 
   // Reset abroad selection on tab change
   useEffect(()=>{if(tab!=="abroad")setAbroadSelection(null);},[tab]);
@@ -1300,6 +1341,18 @@ export default function App(){
               })}
             </div>
 
+            {/* Layers */}
+            <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,letterSpacing:"0.12em",textTransform:"uppercase",color:T.mute,fontWeight:500}}>Layers</span>
+            <button onClick={()=>setShowRanges(!showRanges)} style={{
+              padding:"4px 10px",borderRadius:4,
+              border:`1px solid ${showRanges?T.ink:T.rule}`,
+              background:showRanges?T.ink:"#fff",
+              color:showRanges?T.bg:T.sub,
+              fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:500,cursor:"pointer",
+              display:"flex",alignItems:"center",gap:5,letterSpacing:"0.02em",
+            }}>
+              <span style={{fontWeight:700,fontSize:11}}>◯</span> Ranges
+            </button>
             {/* Auto-rotate */}
             <button onClick={()=>setAbroadAutoRotate(!abroadAutoRotate)} style={{
               padding:"4px 10px",borderRadius:4,
@@ -1338,6 +1391,7 @@ export default function App(){
                 assetTypes={abroadAssetTypes}
                 selected={abroadSelection}
                 onSelect={setAbroadSelection}
+                showRanges={showRanges}
                 mob={mob}
               />
             </div>
@@ -1424,6 +1478,9 @@ export default function App(){
               })()}
             </div>
           </div>
+
+          {/* Live activity feed */}
+          <LiveFeed feed={POSTURE_FEED} theater={theater} />
 
           {/* Disclaimer */}
           <div style={{...sty.card,padding:"16px 20px",borderLeft:`3px solid ${T.accent}`,marginBottom:24}}>

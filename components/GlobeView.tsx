@@ -1,11 +1,12 @@
 "use client";
 import { useEffect, useRef, useState, useCallback } from "react";
-import { geoOrthographic, geoPath, geoGraticule, geoDistance } from "d3-geo";
+import { geoOrthographic, geoPath, geoGraticule, geoDistance, geoCircle } from "d3-geo";
 import { feature } from "topojson-client";
 import {
   THEATERS,
   ASSET_TYPES,
   ALERT_COLORS,
+  POSTURE_RANGES,
   type PostureAsset,
   type AssetType,
   type AlertLevel,
@@ -33,6 +34,7 @@ export type GlobeViewProps = {
   assetTypes: Record<string, boolean>;
   selected: PostureAsset | null;
   onSelect: (asset: PostureAsset | null) => void;
+  showRanges?: boolean;
   mob?: boolean;
 };
 
@@ -110,7 +112,7 @@ function lerp(a: number, b: number, t: number) {
 }
 
 /* ── Component ── */
-export default function GlobeView({ assets, theater, assetTypes, selected, onSelect, mob }: GlobeViewProps) {
+export default function GlobeView({ assets, theater, assetTypes, selected, onSelect, showRanges = false, mob }: GlobeViewProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [world, setWorld] = useState<any>(null);
   const [rotation, setRotation] = useState<[number, number, number]>([0, -20, 0]);
@@ -361,6 +363,25 @@ export default function GlobeView({ assets, theater, assetTypes, selected, onSel
 
         {/* Graticule */}
         <path d={path(graticule()) || ""} fill="none" stroke={C.graticule} strokeWidth={0.3} opacity={0.25} />
+
+        {/* Range rings (over land, under markers) */}
+        {showRanges && visibleAssets.map((a) => {
+          const range = POSTURE_RANGES[a.type];
+          if (!range) return null;
+          const radiusDeg = (range.km / 6371) * (180 / Math.PI);
+          const circle = geoCircle().center([a.lon, a.lat]).radius(radiusDeg)();
+          const d = path(circle);
+          if (!d) return null;
+          const color = ALERT_COLORS[a.alert];
+          const isSel = selected?.id === a.id;
+          return (
+            <path key={`rng-${a.id}`} d={d}
+              fill={color} fillOpacity={isSel ? 0.08 : 0.05}
+              stroke={color} strokeWidth={isSel ? 1.2 : 0.8}
+              strokeDasharray="2 3" strokeOpacity={isSel ? 0.85 : 0.5}
+              pointerEvents="none" />
+          );
+        })}
 
         {/* Shadow overlay on sphere */}
         <circle cx={dims.w / 2} cy={dims.h / 2} r={globeR} fill={`url(#${shadowId})`} pointerEvents="none" />
