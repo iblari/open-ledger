@@ -1,6 +1,7 @@
 "use client";
 import { useState, useMemo, useEffect, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { BarChart, Bar, LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import FeedbackBanner from "./FeedbackBanner";
 import GlobeView from "@/components/GlobeView";
@@ -966,14 +967,14 @@ function App(){
       {/* ── HEADER ── */}
       <div style={sty.header} className="ol-header-wrap">
         <div className="ol-header" style={{maxWidth:1080,margin:"0 auto"}}>
-          <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}>
+          <Link href="/" style={{display:"flex",alignItems:"center",gap:12,marginBottom:12,textDecoration:"none",cursor:"pointer"}}>
             <div style={{display:"flex",gap:3}}>
               <div style={{width:4,height:20,background:T.accent,borderRadius:1}}/>
               <div style={{width:4,height:20,background:T.accent,borderRadius:1,opacity:0.6}}/>
               <div style={{width:4,height:20,background:T.accent,borderRadius:1,opacity:0.3}}/>
             </div>
             <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:800,letterSpacing:4,textTransform:"uppercase",color:T.mute}}>Open Ledger</span>
-          </div>
+          </Link>
           <h1 style={{fontSize:mob?32:48,fontWeight:900,margin:0,lineHeight:1.05,letterSpacing:-2,maxWidth:700,color:T.ink}}>
             The economy under<br/>every president, <span style={{color:T.accent}}>in data.</span>
           </h1>
