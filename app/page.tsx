@@ -549,6 +549,15 @@ function DeepDiveSection({ mob, med }: { mob: boolean; med: boolean }) {
                   {METRICS[k].l}
                 </button>
               ))}
+              <Link href="/dashboard" style={{
+                padding: "6px 12px", fontSize: 11, letterSpacing: "0.04em", fontWeight: 600,
+                color: C.accent, borderRadius: 3, border: `1px dashed ${C.accent}`,
+                background: "transparent", cursor: "pointer", textDecoration: "none",
+                display: "inline-flex", alignItems: "center", gap: 4,
+                transition: "all 0.15s",
+              }}>
+                +13 more →
+              </Link>
             </div>
 
             {/* Chart */}
@@ -610,8 +619,20 @@ function DeepDiveSection({ mob, med }: { mob: boolean; med: boolean }) {
               })}
             </div>
 
+            <Link href="/dashboard" style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              padding: "14px 16px", background: C.ink, color: C.bg, borderRadius: 4,
+              textDecoration: "none", transition: "opacity 0.15s", fontSize: 13,
+            }}>
+              <div>
+                <div style={{ fontFamily: SERIF, fontWeight: 600, fontSize: 15 }}>See all 19 metrics</div>
+                <div style={{ fontSize: 11, opacity: 0.6, marginTop: 2 }}>Jobs, wages, trade, debt, and more</div>
+              </div>
+              <span style={{ fontSize: 20, opacity: 0.7 }}>→</span>
+            </Link>
+
             <div style={{
-              marginTop: "auto", padding: "14px 16px", background: C.card,
+              padding: "14px 16px", background: C.card,
               borderLeft: `3px solid ${C.accent}`, fontSize: 11, color: C.sub, lineHeight: 1.55,
             }}>
               <strong style={{ color: C.ink, display: "block", marginBottom: 4, fontFamily: SERIF, fontWeight: 600, fontSize: 13 }}>Context matters</strong>
