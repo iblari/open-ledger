@@ -416,10 +416,10 @@ function ScorecardSection({ mob, med }: { mob: boolean; med: boolean }) {
           {/* Header row */}
           <div style={{
             display: "grid",
-            gridTemplateColumns: mob ? "130px repeat(5, 1fr)" : "200px repeat(5, 1fr)",
+            gridTemplateColumns: mob ? "130px repeat(5, 1fr) minmax(80px,1fr)" : "200px repeat(5, 1fr) minmax(100px,1fr)",
             alignItems: "center", background: C.paper, borderBottom: `1px solid ${C.rule}`,
             padding: "10px 0", fontSize: 11, letterSpacing: "0.09em", textTransform: "uppercase",
-            color: C.sub, fontWeight: 500, minWidth: mob ? 700 : undefined,
+            color: C.sub, fontWeight: 500, minWidth: mob ? 800 : undefined,
           }}>
             <div style={{ paddingLeft: 20 }}>Metric</div>
             {AID.map(id => {
@@ -432,6 +432,12 @@ function ScorecardSection({ mob, med }: { mob: boolean; med: boolean }) {
                 </div>
               );
             })}
+            {/* Trump II header */}
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, textAlign: "center", fontSize: 10 }}>
+              <div style={{ width: 28, height: 3, borderRadius: 2, background: "#c1272d" }} />
+              <div style={{ color: C.ink, fontSize: 13, fontWeight: 600, letterSpacing: "-0.01em", textTransform: "none", fontFamily: SERIF }}>Trump II</div>
+              {!mob && <div style={{ color: C.mute, letterSpacing: "0.04em", fontFamily: SANS }}>2025–</div>}
+            </div>
           </div>
 
           {/* Data rows */}
@@ -440,9 +446,9 @@ function ScorecardSection({ mob, med }: { mob: boolean; med: boolean }) {
             return (
               <div key={mk} style={{
                 display: "grid",
-                gridTemplateColumns: mob ? "130px repeat(5, 1fr)" : "200px repeat(5, 1fr)",
+                gridTemplateColumns: mob ? "130px repeat(5, 1fr) minmax(80px,1fr)" : "200px repeat(5, 1fr) minmax(100px,1fr)",
                 alignItems: "center", borderTop: `1px solid ${C.rule}`, fontSize: 13,
-                transition: "background 0.15s", minWidth: mob ? 700 : undefined,
+                transition: "background 0.15s", minWidth: mob ? 800 : undefined,
               }}>
                 <div style={{ padding: mob ? "12px" : "14px 20px", display: "flex", flexDirection: "column", gap: 2 }}>
                   <span style={{ fontSize: 10, color: C.mute, letterSpacing: "0.08em", textTransform: "uppercase" }}>{m.cat}</span>
@@ -451,6 +457,22 @@ function ScorecardSection({ mob, med }: { mob: boolean; med: boolean }) {
                 {AID.map(id => (
                   <HeatCell key={id} id={id} mk={mk} c={heat[mk]?.[id]} mob={mob} metricLabel={m.l} unit={m.u} />
                 ))}
+                {/* Trump II — live CTA cell */}
+                <Link href="/live-benchmark" style={{
+                  margin: mob ? 3 : 5, height: mob ? 44 : 52, borderRadius: 3,
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                  padding: "4px 6px", textDecoration: "none",
+                  background: `repeating-linear-gradient(-45deg, transparent, transparent 4px, rgba(193,39,45,0.04) 4px, rgba(193,39,45,0.04) 8px)`,
+                  border: "1px dashed rgba(193,39,45,0.25)",
+                  cursor: "pointer", transition: "all 0.18s",
+                }}>
+                  <span className="live-pulse" style={{
+                    width: 6, height: 6, borderRadius: "50%", background: "#c1272d", flexShrink: 0,
+                  }} />
+                  <span style={{ fontFamily: SANS, fontSize: mob ? 10 : 11, fontWeight: 600, color: "#c1272d", letterSpacing: "0.04em" }}>
+                    LIVE
+                  </span>
+                </Link>
               </div>
             );
           })}
