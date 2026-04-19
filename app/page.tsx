@@ -763,7 +763,7 @@ function CTASection({ mob, med }: { mob: boolean; med: boolean }) {
   };
 
   return (
-    <section style={{
+    <section id="cta" style={{
       padding: mob ? "48px 0" : "72px 0",
       background: `linear-gradient(180deg, ${C.bg} 0%, ${C.paper} 100%)`,
     }}>
@@ -848,7 +848,7 @@ function Footer({ mob, med }: { mob: boolean; med: boolean }) {
           {[
             { h: "Data", links: [{ l: "Dashboard", href: "/dashboard" }, { l: "Live benchmark", href: "/live-benchmark" }, { l: "Scorecard", href: "/dashboard" }] },
             { h: "About", links: [{ l: "Methodology", href: "#method" }, { l: "Sources", href: "#sources" }] },
-            { h: "Stay in touch", links: [{ l: "Newsletter", href: "#" }, { l: "GitHub", href: "https://github.com/iblari/open-ledger" }] },
+            { h: "Stay in touch", links: [{ l: "Newsletter", href: "#cta" }] },
           ].map(col => (
             <div key={col.h}>
               <h4 style={{ fontSize: 11, color: C.mute, letterSpacing: "0.12em", textTransform: "uppercase", fontWeight: 500, marginBottom: 14 }}>{col.h}</h4>
