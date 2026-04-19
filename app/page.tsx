@@ -540,26 +540,37 @@ function WarCostTicker({ mob }: { mob?: boolean }) {
 const STREAM_COLORS = { ukraine: "#66ccff", israel: "#ff4444", houthis: "#ffcc33", iran: "#e05a50" };
 const STREAM_LABELS = { ukraine: "Ukraine", israel: "Israel", houthis: "Houthis", iran: "Iran" };
 const PERIOD_OPTIONS = [
-  { key: "qoq", label: "QoQ", step: 1 },   // data is already quarterly
-  { key: "hoh", label: "Half-year", step: 2 },
-  { key: "yoy", label: "YoY", step: 4 },
+  { key: "mom", label: "MoM", step: 1, labelFn: "month" as const },
+  { key: "qoq", label: "QoQ", step: 3, labelFn: "quarter" as const },
+  { key: "hoh", label: "Half-year", step: 6, labelFn: "quarter" as const },
+  { key: "yoy", label: "YoY", step: 12, labelFn: "quarter" as const },
 ];
 
 function SpendTrendChart({ mob }: { mob?: boolean }) {
   const [view, setView] = useState<"cumulative" | "velocity">("velocity");
   const [period, setPeriod] = useState("qoq");
 
-  const periodCfg = PERIOD_OPTIONS.find(p => p.key === period) || PERIOD_OPTIONS[0];
-  const deltas = useMemo(() => computeDeltas(MONTHLY_SPEND, periodCfg.step), [periodCfg.step]);
+  const periodCfg = PERIOD_OPTIONS.find(p => p.key === period) || PERIOD_OPTIONS[1];
+  const deltas = useMemo(() => computeDeltas(MONTHLY_SPEND, periodCfg.step, periodCfg.labelFn), [periodCfg.step, periodCfg.labelFn]);
 
-  // For cumulative view, add a "total" field
-  const cumulativeData = useMemo(() => MONTHLY_SPEND.map(r => ({
-    ...r,
-    israel: r.israel ?? 0,
-    houthis: r.houthis ?? 0,
-    iran: r.iran ?? 0,
-    total: r.ukraine + (r.israel ?? 0) + (r.houthis ?? 0) + (r.iran ?? 0),
-  })), []);
+  // For cumulative view, generate labels from month strings
+  const cumulativeData = useMemo(() => {
+    // For cumulative, show quarterly labels to avoid overcrowding
+    return MONTHLY_SPEND
+      .filter(r => { const mo = parseInt(r.month.split("-")[1]); return mo % 3 === 0; })
+      .map(r => {
+        const [y, mo] = r.month.split("-");
+        const q = Math.ceil(parseInt(mo) / 3);
+        return {
+          ...r,
+          label: `Q${q} '${y.slice(2)}`,
+          israel: r.israel ?? 0,
+          houthis: r.houthis ?? 0,
+          iran: r.iran ?? 0,
+          total: r.ukraine + (r.israel ?? 0) + (r.houthis ?? 0) + (r.iran ?? 0),
+        };
+      });
+  }, []);
 
   const streams = ["iran", "israel", "houthis", "ukraine"] as const; // stack order: largest on bottom
 
@@ -630,7 +641,7 @@ function SpendTrendChart({ mob }: { mob?: boolean }) {
           ) : (
             <BarChart data={deltas}>
               <CartesianGrid strokeDasharray="3 3" stroke={T.rule} />
-              <XAxis dataKey="label" stroke={T.mute} fontSize={10} fontFamily="'DM Sans',sans-serif" tick={{ fill: T.sub }} />
+              <XAxis dataKey="label" stroke={T.mute} fontSize={10} fontFamily="'DM Sans',sans-serif" tick={{ fill: T.sub }} interval={period === "mom" ? (mob ? 5 : 2) : 0} angle={period === "mom" ? -45 : 0} textAnchor={period === "mom" ? "end" : "middle"} height={period === "mom" ? 50 : 30} />
               <YAxis stroke={T.rule} fontSize={10} fontFamily="'DM Sans',sans-serif" tick={{ fill: T.sub }} tickFormatter={v => `$${v}B`} />
               <Tooltip
                 contentStyle={{ background: T.card, border: `1px solid ${T.rule}`, borderRadius: 4, fontFamily: "'DM Sans',sans-serif", fontSize: 12 }}
