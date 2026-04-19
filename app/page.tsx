@@ -1735,16 +1735,16 @@ export default function App(){
           </div>
 
           {/* Metrics strip */}
-          <div style={{display:"flex",gap:1,background:T.rule,borderRadius:4,overflow:"hidden",marginBottom:16}}>
+          <div style={{display:"grid",gridTemplateColumns:mob?"repeat(4, 1fr)":`repeat(${Object.keys(ASSET_TYPES).length + 1}, 1fr)`,gap:1,background:T.rule,borderRadius:4,overflow:"hidden",marginBottom:16}}>
             {(Object.entries(ASSET_TYPES) as [AssetType, {label:string;glyph:string}][]).map(([key,info])=>(
-              <div key={key} style={{flex:1,background:T.card,padding:"8px 10px",textAlign:"center",minWidth:0}}>
-                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,fontWeight:700,letterSpacing:1,textTransform:"uppercase",color:T.mute,marginBottom:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{info.glyph} {info.label}</div>
-                <div style={{fontFamily:"'Source Serif 4', serif",fontSize:18,fontWeight:700,color:T.ink}}>{countByType(key)}</div>
+              <div key={key} style={{background:T.card,padding:mob?"8px 6px":"8px 10px",textAlign:"center",minWidth:0}}>
+                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?8:9,fontWeight:700,letterSpacing:mob?0.5:1,textTransform:"uppercase",color:T.mute,marginBottom:2}}>{info.glyph} {info.label}</div>
+                <div style={{fontFamily:"'Source Serif 4', serif",fontSize:mob?16:18,fontWeight:700,color:T.ink}}>{countByType(key)}</div>
               </div>
             ))}
-            <div style={{flex:1,background:T.card,padding:"8px 10px",textAlign:"center",minWidth:0}}>
-              <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,fontWeight:700,letterSpacing:1,textTransform:"uppercase",color:T.mute,marginBottom:2}}>High / Crit</div>
-              <div style={{fontFamily:"'Source Serif 4', serif",fontSize:18,fontWeight:700,color:highCritCount>0?T.accent:T.ink}}>{highCritCount}</div>
+            <div style={{background:T.card,padding:mob?"8px 6px":"8px 10px",textAlign:"center",minWidth:0}}>
+              <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?8:9,fontWeight:700,letterSpacing:mob?0.5:1,textTransform:"uppercase",color:T.mute,marginBottom:2}}>High / Crit</div>
+              <div style={{fontFamily:"'Source Serif 4', serif",fontSize:mob?16:18,fontWeight:700,color:highCritCount>0?T.accent:T.ink}}>{highCritCount}</div>
             </div>
           </div>
 
