@@ -336,9 +336,13 @@ function LiveFeed({feed,theater}:{feed:FeedItem[];theater:string}){
 
 /* ── War Cost Ticker Component ── */
 const THEATER_DOT: Record<string, string> = { ME: "#ff4444", EU: "#66ccff", IP: "#ffcc33" };
+const dkLink = { color: "rgba(255,255,255,0.55)", textDecoration: "underline", textDecorationColor: "rgba(255,255,255,0.2)" } as const;
+const dkLabel = { fontFamily: "'DM Sans', sans-serif", fontSize: 9, fontWeight: 700 as const, letterSpacing: "0.1em", textTransform: "uppercase" as const, color: "rgba(255,255,255,0.35)", marginBottom: 5 };
+const dkBody = { fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "rgba(255,255,255,0.6)", lineHeight: 1.65 };
 
 function WarCostTicker({ mob }: { mob?: boolean }) {
   const [now, setNow] = useState(Date.now());
+  const [expanded, setExpanded] = useState<string | null>(null);
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 50);
     return () => clearInterval(id);
@@ -346,8 +350,6 @@ function WarCostTicker({ mob }: { mob?: boolean }) {
 
   const grand = estimateGrandTotal(CONFLICT_STREAMS, now);
   const perSec = CONFLICT_STREAMS.reduce((s, c) => s + c.perSecond, 0);
-
-  // Split the formatted number so we can animate the last digits
   const fullStr = formatUSDFull(grand);
 
   return (
@@ -366,13 +368,13 @@ function WarCostTicker({ mob }: { mob?: boolean }) {
           boxShadow: "0 0 0 3px rgba(184,55,45,0.3)",
           animation: "pulse-dot 1.2s ease-in-out infinite", flexShrink: 0,
         }} />
-        <span style={{
-          fontFamily: "'Source Serif 4', serif", fontSize: 15, fontWeight: 500,
-        }}>US Military Spend — Active Conflicts</span>
+        <span style={{ fontFamily: "'Source Serif 4', serif", fontSize: 15, fontWeight: 500 }}>
+          US Military Spend — Active Conflicts
+        </span>
         <span style={{
           marginLeft: "auto", fontSize: 9, letterSpacing: "0.1em",
           textTransform: "uppercase", color: "rgba(255,255,255,0.4)",
-        }}>Estimated from public data</span>
+        }}>Estimated from public data &middot; click any stream to verify</span>
       </div>
 
       {/* Big counter */}
@@ -381,24 +383,19 @@ function WarCostTicker({ mob }: { mob?: boolean }) {
           fontFamily: "'DM Sans', monospace", fontSize: mob ? 32 : 48,
           fontWeight: 900, letterSpacing: -1, color: "#fff",
           fontVariantNumeric: "tabular-nums",
-        }}>
-          {fullStr}
-        </div>
+        }}>{fullStr}</div>
         <div style={{
-          fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "rgba(255,255,255,0.5)",
-          marginTop: 4,
-        }}>
-          combined US military expenditure across {CONFLICT_STREAMS.length} active conflict streams
-        </div>
+          fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "rgba(255,255,255,0.5)", marginTop: 4,
+        }}>combined US military expenditure across {CONFLICT_STREAMS.length} active conflict streams</div>
         <div style={{
-          fontFamily: "'DM Sans', monospace", fontSize: 13, color: T.accent,
+          fontFamily: "'DM Sans', monospace", fontSize: 13, color: "#e05a50",
           marginTop: 6, fontVariantNumeric: "tabular-nums",
         }}>
           {formatUSD(perSec)}/sec &middot; {formatUSD(perSec * 60)}/min &middot; {formatUSD(perSec * 3600)}/hr
         </div>
       </div>
 
-      {/* Per-conflict breakdown */}
+      {/* Per-conflict breakdown — clickable cards */}
       <div style={{
         display: "grid",
         gridTemplateColumns: mob ? "1fr" : `repeat(${CONFLICT_STREAMS.length}, 1fr)`,
@@ -407,78 +404,133 @@ function WarCostTicker({ mob }: { mob?: boolean }) {
         {CONFLICT_STREAMS.map((s) => {
           const total = estimateTotal(s, now);
           const pct = (total / grand) * 100;
+          const isOpen = expanded === s.id;
           return (
-            <div key={s.id} style={{
-              background: "#141414", padding: "14px 16px",
-            }}>
-              <div style={{
-                display: "flex", alignItems: "center", gap: 6, marginBottom: 8,
+            <div key={s.id} style={{ background: "#141414" }}>
+              {/* Summary — always visible, clickable */}
+              <button onClick={() => setExpanded(isOpen ? null : s.id)} style={{
+                display: "block", width: "100%", padding: "14px 16px", border: "none",
+                background: isOpen ? "#1c1c1c" : "transparent", cursor: "pointer",
+                textAlign: "left", color: "#f8f5f0", transition: "background 0.15s ease",
               }}>
-                <span style={{
-                  width: 6, height: 6, borderRadius: "50%",
-                  background: THEATER_DOT[s.theater] || "#aaa", flexShrink: 0,
-                }} />
-                <span style={{
-                  fontFamily: "'DM Sans', sans-serif", fontSize: 10, fontWeight: 700,
-                  letterSpacing: "0.08em", textTransform: "uppercase",
-                  color: "rgba(255,255,255,0.6)",
-                }}>{s.shortName}</span>
-              </div>
-              <div style={{
-                fontFamily: "'DM Sans', monospace", fontSize: 20, fontWeight: 800,
-                color: "#fff", fontVariantNumeric: "tabular-nums", marginBottom: 4,
-              }}>
-                {formatUSD(total)}
-              </div>
-              {/* Proportion bar */}
-              <div style={{
-                height: 3, background: "rgba(255,255,255,0.08)",
-                borderRadius: 2, marginBottom: 6, overflow: "hidden",
-              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+                  <span style={{
+                    width: 6, height: 6, borderRadius: "50%",
+                    background: THEATER_DOT[s.theater] || "#aaa", flexShrink: 0,
+                  }} />
+                  <span style={{
+                    fontFamily: "'DM Sans', sans-serif", fontSize: 10, fontWeight: 700,
+                    letterSpacing: "0.08em", textTransform: "uppercase",
+                    color: "rgba(255,255,255,0.6)",
+                  }}>{s.shortName}</span>
+                  <span style={{
+                    marginLeft: "auto", fontSize: 9, color: "rgba(255,255,255,0.3)",
+                    fontFamily: "'DM Sans', sans-serif",
+                    transform: isOpen ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s",
+                  }}>&#9662;</span>
+                </div>
                 <div style={{
-                  height: "100%", width: `${pct}%`,
-                  background: THEATER_DOT[s.theater] || "#aaa",
-                  borderRadius: 2, transition: "width 0.3s ease",
-                }} />
-              </div>
-              <div style={{
-                fontFamily: "'DM Sans', sans-serif", fontSize: 10,
-                color: "rgba(255,255,255,0.4)", lineHeight: 1.5,
-              }}>
-                {formatUSD(s.dailyRate)}/day &middot; since {new Date(s.startDate).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
-              </div>
+                  fontFamily: "'DM Sans', monospace", fontSize: 20, fontWeight: 800,
+                  color: "#fff", fontVariantNumeric: "tabular-nums", marginBottom: 4,
+                }}>{formatUSD(total)}</div>
+                <div style={{
+                  height: 3, background: "rgba(255,255,255,0.08)",
+                  borderRadius: 2, marginBottom: 6, overflow: "hidden",
+                }}>
+                  <div style={{
+                    height: "100%", width: `${pct}%`,
+                    background: THEATER_DOT[s.theater] || "#aaa",
+                    borderRadius: 2, transition: "width 0.3s ease",
+                  }} />
+                </div>
+                <div style={{
+                  fontFamily: "'DM Sans', sans-serif", fontSize: 10,
+                  color: "rgba(255,255,255,0.4)", lineHeight: 1.5,
+                }}>
+                  {formatUSD(s.dailyRate)}/day &middot; since {new Date(s.startDate).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
+                </div>
+              </button>
+
+              {/* Expanded methodology panel */}
+              {isOpen && (
+                <div style={{
+                  padding: "0 16px 16px", borderTop: "1px solid rgba(255,255,255,0.06)",
+                  background: "#1c1c1c",
+                }}>
+                  {/* Anchor data */}
+                  <div style={{ marginTop: 12, marginBottom: 14, padding: "10px 12px", background: "#232323", borderRadius: 4 }}>
+                    <div style={{
+                      display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8,
+                      fontFamily: "'DM Sans', monospace", fontSize: 12, color: "#fff",
+                    }}>
+                      <div>
+                        <div style={dkLabel}>Anchor total</div>
+                        <div style={{ fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{formatUSD(s.anchorTotal)}</div>
+                      </div>
+                      <div>
+                        <div style={dkLabel}>As of</div>
+                        <div>{new Date(s.anchorDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</div>
+                      </div>
+                      <div>
+                        <div style={dkLabel}>Daily rate</div>
+                        <div style={{ fontVariantNumeric: "tabular-nums" }}>{formatUSD(s.dailyRate)}/day</div>
+                      </div>
+                      <div>
+                        <div style={dkLabel}>Per second</div>
+                        <div style={{ fontVariantNumeric: "tabular-nums" }}>{formatUSD(s.perSecond)}/sec</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* How we got the anchor */}
+                  <div style={{ marginBottom: 12 }}>
+                    <div style={dkLabel}>Where the total comes from</div>
+                    <div style={dkBody}>{s.methodology.anchorExplainer}</div>
+                  </div>
+
+                  {/* How we got the rate */}
+                  <div style={{ marginBottom: 12 }}>
+                    <div style={dkLabel}>How we estimated the daily rate</div>
+                    <div style={dkBody}>{s.methodology.rateExplainer}</div>
+                  </div>
+
+                  {/* Caveats */}
+                  <div style={{ marginBottom: 12 }}>
+                    <div style={dkLabel}>Caveats</div>
+                    <div style={dkBody}>{s.methodology.caveats}</div>
+                  </div>
+
+                  {/* Source links */}
+                  <div>
+                    <div style={dkLabel}>Verify it yourself</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                      <a href={s.sourceUrl} target="_blank" rel="noopener noreferrer" style={{
+                        ...dkLink, fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 600,
+                      }}>{s.source} (primary) &#8599;</a>
+                      {s.methodology.additionalSources.map((src, i) => (
+                        <a key={i} href={src.url} target="_blank" rel="noopener noreferrer" style={{
+                          ...dkLink, fontFamily: "'DM Sans', sans-serif", fontSize: 11,
+                        }}>{src.label} &#8599;</a>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}
       </div>
 
-      {/* Sources */}
+      {/* Footer sources */}
       <div style={{
         marginTop: 14, paddingTop: 10,
         borderTop: "1px solid rgba(255,255,255,0.06)",
-        display: "flex", flexWrap: "wrap", gap: 4,
-        fontFamily: "'DM Sans', sans-serif", fontSize: 9,
-        color: "rgba(255,255,255,0.3)", letterSpacing: "0.02em",
-      }}>
-        <span style={{ fontWeight: 700, marginRight: 4 }}>Sources:</span>
-        {CONFLICT_STREAMS.map((s, i) => (
-          <span key={s.id}>
-            <a href={s.sourceUrl} target="_blank" rel="noopener noreferrer" style={{
-              color: "rgba(255,255,255,0.4)", textDecoration: "underline",
-              textDecorationColor: "rgba(255,255,255,0.15)",
-            }}>{s.source}</a>
-            {i < CONFLICT_STREAMS.length - 1 ? " · " : ""}
-          </span>
-        ))}
-      </div>
-
-      {/* Methodology note */}
-      <div style={{
         fontFamily: "'DM Sans', sans-serif", fontSize: 10,
-        color: "rgba(255,255,255,0.25)", marginTop: 6, lineHeight: 1.5,
+        color: "rgba(255,255,255,0.25)", lineHeight: 1.5,
       }}>
-        Figures are estimates extrapolated from anchored totals at known dates using publicly-reported daily burn rates.
+        Figures are estimates extrapolated from anchored institutional totals using publicly-reported daily burn rates.
         Not real-time. Does not include indirect economic costs, veteran care, or classified programs.
+        <strong style={{ color: "rgba(255,255,255,0.4)" }}> Click any stream above to see exactly where every number comes from.</strong>
       </div>
     </div>
   );
