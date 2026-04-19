@@ -3,6 +3,7 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { BarChart, Bar, LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import FeedbackBanner from "./FeedbackBanner";
 import GlobeView from "@/components/GlobeView";
+import { useTheme } from "@/lib/theme";
 import { HEADER_METRICS, THEATERS, PERSONNEL_BY_COUNTRY, POSTURE_ASSETS, ASSET_TYPES, ALERT_COLORS, THEATER_COLORS, POSTURE_FEED, type PostureAsset, type AssetType, type FeedItem } from "@/lib/abroad-data";
 
 function useIsMobile() {
@@ -16,31 +17,20 @@ function useIsMobile() {
    Refined editorial aesthetic with sophisticated 
    color palette - FT × Bloomberg × The Economist
 ───────────────────────────────────────────── */
-const T = {
-  bg: "#f8f5f0",        // warm cream (slightly warmer)
-  card: "#ffffff",
-  ink: "#1a1a1a",       // rich black
-  sub: "#5c5856",       // warm gray
-  mute: "#9a9490",      // lighter warm gray
-  rule: "#e2ded6",      // divider lines
-  accent: "#b8372d",    // refined editorial red
-  gold: "#a67c00",      // darker gold for better contrast
-  blue: "#1d4ed8",      // deeper blue
-  red: "#be123c",       // rose red
-  highlight: "#fef9e7", // softer callout bg
-  paper: "#f3ede5",     // secondary bg
-  // New sophisticated heatmap colors (teal-coral diverging)
-  improve: {
-    strong: "#0d7377",  // deep teal
-    medium: "#14a3a8",  // teal
-    light: "#8ee3e6",   // light teal
-  },
-  decline: {
-    strong: "#c2410c",  // burnt orange
-    medium: "#ea580c",  // orange
-    light: "#fed7aa",   // light peach
-  },
+/* T is reassigned each render by useTheme() inside App() */
+let T = {
+  bg: "#f8f5f0", card: "#ffffff", ink: "#1a1a1a", sub: "#5c5856", mute: "#9a9490",
+  rule: "#e2ded6", accent: "#b8372d", gold: "#a67c00", blue: "#1d4ed8", red: "#be123c",
+  highlight: "#fef9e7", paper: "#f3ede5",
+  improve: { strong: "#0d7377", medium: "#14a3a8", light: "#8ee3e6" },
+  decline: { strong: "#c2410c", medium: "#ea580c", light: "#fed7aa" },
   neutral: "#d4cfc5",
+  globe: {
+    ocean: "#dce8f0", land: "#e8e2d8", landStroke: "#c4bfb4", graticule: "#c4bfb4",
+    gradCenter: "#f5f0e8", gradEdge: "#b8ccd6", labelHalo: "#f5f0e8",
+    markerStroke: "#fff", containerBg: "#fff",
+    zoomBtnBg: "#fff", zoomBtnBorder: "#e2ded6", zoomBtnColor: "#1a1a1a",
+  },
 };
 
 // Mini sparkline component for heatmap cells
@@ -337,6 +327,9 @@ const TABS=[["dashboard","Data"],["scorecard","Scorecard"],["abroad","Abroad"],[
 
 export default function App(){
   const mob = useIsMobile();
+  const themeCtx = useTheme();
+  T = themeCtx.theme;
+  const isDark = themeCtx.isDark;
   const [tab,setTab]=useState("dashboard");
   const [am,setAm]=useState("gdp");
   const [detail,setDetail]=useState(null);
@@ -417,7 +410,7 @@ export default function App(){
 
   const sty={
     page:{minHeight:"100vh",background:T.bg,color:T.ink,fontFamily:"'Source Serif 4','Georgia',serif"},
-    header:{borderBottom:`1px solid ${T.rule}`,padding:"28px 24px 22px",background:"linear-gradient(180deg,#fff 0%,"+T.bg+" 100%)"},
+    header:{borderBottom:`1px solid ${T.rule}`,padding:"28px 24px 22px",background:"linear-gradient(180deg,"+T.card+" 0%,"+T.bg+" 100%)"},
     nav:{borderBottom:`1px solid ${T.rule}`,background:T.card},
     card:{background:T.card,border:`1px solid ${T.rule}`,borderRadius:4,boxShadow:"0 1px 3px rgba(0,0,0,0.04)"},
   };
@@ -614,6 +607,15 @@ export default function App(){
             background:"transparent",color:T.accent,textDecoration:"none",display:"flex",alignItems:"center",gap:6,
             borderBottom:"2px solid transparent",transition:"all 0.2s"
           }}><span style={{width:6,height:6,borderRadius:"50%",background:T.accent,animation:"pulse 2s infinite"}}/>Live Benchmark</a>
+          <button onClick={themeCtx.toggle} style={{
+            marginLeft:"auto",padding:"8px 12px",border:`1px solid ${T.rule}`,borderRadius:4,
+            background:T.card,cursor:"pointer",fontSize:13,lineHeight:1,color:T.sub,
+            display:"flex",alignItems:"center",gap:6,
+            fontFamily:"'DM Sans',sans-serif",fontWeight:600,transition:"all 0.2s",
+          }} title={isDark ? "Switch to light mode" : "Switch to dark mode"}>
+            <span style={{fontSize:14}}>{isDark ? "\u2600" : "\u263E"}</span>
+            <span style={{fontSize:11}}>{isDark?"Light":"Dark"}</span>
+          </button>
         </div>
       </div>
 
@@ -626,7 +628,7 @@ export default function App(){
           {!detail&&(<div>
             {/* Key Insights Callout — desktop only */}
             {!mob && (
-            <div className="insight-pulse" style={{...sty.card,padding:"18px 20px",marginBottom:24,borderLeft:`4px solid ${T.accent}`,background:`linear-gradient(135deg, ${T.highlight} 0%, #fff 100%)`}}>
+            <div className="insight-pulse" style={{...sty.card,padding:"18px 20px",marginBottom:24,borderLeft:`4px solid ${T.accent}`,background:`linear-gradient(135deg, ${T.highlight} 0%, ${T.card} 100%)`}}>
               <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
                 <span style={{fontSize:18}}>&#9733;</span>
                 <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:800,letterSpacing:2,textTransform:"uppercase",color:T.accent}}>Key Insights</span>
@@ -1330,8 +1332,8 @@ export default function App(){
                 return <button key={key} onClick={()=>setAbroadAssetTypes(prev=>({...prev,[key]:!prev[key]}))} style={{
                   padding:"4px 10px",borderRadius:4,
                   border:`1px solid ${on?T.ink:T.rule}`,
-                  background:on?T.ink:"#fff",
-                  color:on?"#fff":T.sub,
+                  background:on?T.ink:T.card,
+                  color:on?T.card:T.sub,
                   fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:600,cursor:"pointer",
                   display:"flex",alignItems:"center",gap:4,transition:"all 0.15s ease",
                 }}>
@@ -1346,7 +1348,7 @@ export default function App(){
             <button onClick={()=>setShowRanges(!showRanges)} style={{
               padding:"4px 10px",borderRadius:4,
               border:`1px solid ${showRanges?T.ink:T.rule}`,
-              background:showRanges?T.ink:"#fff",
+              background:showRanges?T.ink:T.card,
               color:showRanges?T.bg:T.sub,
               fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:500,cursor:"pointer",
               display:"flex",alignItems:"center",gap:5,letterSpacing:"0.02em",
@@ -1357,7 +1359,7 @@ export default function App(){
             <button onClick={()=>setAbroadAutoRotate(!abroadAutoRotate)} style={{
               padding:"4px 10px",borderRadius:4,
               border:`1px solid ${abroadAutoRotate?T.accent:T.rule}`,
-              background:abroadAutoRotate?T.accent+"12":"#fff",
+              background:abroadAutoRotate?T.accent+"12":T.card,
               color:abroadAutoRotate?T.accent:T.sub,
               fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:600,cursor:"pointer",
               display:"flex",alignItems:"center",gap:5,
@@ -1393,6 +1395,7 @@ export default function App(){
                 onSelect={setAbroadSelection}
                 showRanges={showRanges}
                 mob={mob}
+                dark={isDark}
               />
             </div>
             {/* Detail / legend panel */}
@@ -1449,18 +1452,18 @@ export default function App(){
                   </div>
 
                   {/* Assets on station */}
-                  <div style={{background:"#fff",borderRadius:6,padding:"10px 12px",marginBottom:12,border:`1px solid ${T.rule}`}}>
+                  <div style={{background:T.card,borderRadius:6,padding:"10px 12px",marginBottom:12,border:`1px solid ${T.rule}`}}>
                     <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase",color:T.mute,marginBottom:4}}>Assets on station</div>
                     <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:600,color:T.ink}}>{sel.assets}</div>
                   </div>
 
                   {/* Coordinates grid */}
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
-                    <div style={{background:"#fff",borderRadius:4,padding:"8px 10px",border:`1px solid ${T.rule}`}}>
+                    <div style={{background:T.card,borderRadius:4,padding:"8px 10px",border:`1px solid ${T.rule}`}}>
                       <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,fontWeight:700,letterSpacing:1,textTransform:"uppercase",color:T.mute}}>Lat</div>
                       <div style={{fontFamily:"'DM Sans',monospace",fontSize:13,fontWeight:600,color:T.ink}}>{sel.lat.toFixed(2)}&deg;</div>
                     </div>
-                    <div style={{background:"#fff",borderRadius:4,padding:"8px 10px",border:`1px solid ${T.rule}`}}>
+                    <div style={{background:T.card,borderRadius:4,padding:"8px 10px",border:`1px solid ${T.rule}`}}>
                       <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,fontWeight:700,letterSpacing:1,textTransform:"uppercase",color:T.mute}}>Lon</div>
                       <div style={{fontFamily:"'DM Sans',monospace",fontSize:13,fontWeight:600,color:T.ink}}>{sel.lon.toFixed(2)}&deg;</div>
                     </div>
@@ -1470,7 +1473,7 @@ export default function App(){
                     setTheater(sel.theater);
                   }} style={{
                     width:"100%",padding:"8px 0",borderRadius:4,
-                    border:`1px solid ${T.rule}`,background:"#fff",
+                    border:`1px solid ${T.rule}`,background:T.card,
                     fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:600,
                     color:T.ink,cursor:"pointer",
                   }}>Center on globe &rarr;</button>

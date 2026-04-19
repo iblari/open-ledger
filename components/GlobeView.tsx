@@ -13,19 +13,25 @@ import {
 } from "@/lib/abroad-data";
 
 /* ── Design tokens ── */
-const C = {
-  ocean: "#dce8f0",
-  land: "#e8e2d8",
-  landStroke: "#c4bfb4",
-  graticule: "#c4bfb4",
-  bg: "#f8f5f0",
-  ink: "#1a1a1a",
-  sub: "#5c5856",
-  mute: "#9a9490",
-  rule: "#e2ded6",
-  accent: "#b8372d",
-  paper: "#f3ede5",
-};
+function getGlobeColors(dark: boolean) {
+  return dark ? {
+    ocean: "#1a2a35", land: "#2a2620", landStroke: "#3a3630", graticule: "#3a3630",
+    bg: "#111111", ink: "#e8e4df", sub: "#a09a94", mute: "#6b6560",
+    rule: "#2a2725", accent: "#e05a50", paper: "#1e1c1a",
+    gradCenter: "#1e2a30", gradEdge: "#0e1820", labelHalo: "#1a2a35",
+    containerBg: "#1a1a1a", zoomBtnBg: "#2a2725", zoomBtnBorder: "#3a3630",
+    zoomBtnColor: "#e8e4df", markerStroke: "#111",
+    shadow: "rgba(0,0,0,0.25)",
+  } : {
+    ocean: "#dce8f0", land: "#e8e2d8", landStroke: "#c4bfb4", graticule: "#c4bfb4",
+    bg: "#f8f5f0", ink: "#1a1a1a", sub: "#5c5856", mute: "#9a9490",
+    rule: "#e2ded6", accent: "#b8372d", paper: "#f3ede5",
+    gradCenter: "#f5f0e8", gradEdge: "#b8ccd6", labelHalo: "#f5f0e8",
+    containerBg: "#fff", zoomBtnBg: "#fff", zoomBtnBorder: "#e2ded6",
+    zoomBtnColor: "#1a1a1a", markerStroke: "#fff",
+    shadow: "rgba(0,0,0,0.12)",
+  };
+}
 
 /* ── Types ── */
 export type GlobeViewProps = {
@@ -36,6 +42,7 @@ export type GlobeViewProps = {
   onSelect: (asset: PostureAsset | null) => void;
   showRanges?: boolean;
   mob?: boolean;
+  dark?: boolean;
 };
 
 /* ── Cached world data ── */
@@ -112,7 +119,9 @@ function lerp(a: number, b: number, t: number) {
 }
 
 /* ── Component ── */
-export default function GlobeView({ assets, theater, assetTypes, selected, onSelect, showRanges = false, mob }: GlobeViewProps) {
+export default function GlobeView({ assets, theater, assetTypes, selected, onSelect, showRanges = false, mob, dark = false }: GlobeViewProps) {
+  const C = getGlobeColors(dark);
+  const zoomBtnStyle = makeZoomBtnStyle(C);
   const svgRef = useRef<SVGSVGElement>(null);
   const [world, setWorld] = useState<any>(null);
   const [rotation, setRotation] = useState<[number, number, number]>([0, -20, 0]);
@@ -276,12 +285,12 @@ export default function GlobeView({ assets, theater, assetTypes, selected, onSel
     <div
       ref={containerRef}
       style={{
-        background: "#fff",
+        background: C.containerBg,
         border: `1px solid ${C.rule}`,
         borderRadius: 4,
         padding: 20,
         position: "relative",
-        boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+        boxShadow: dark ? "0 1px 3px rgba(0,0,0,0.2)" : "0 1px 3px rgba(0,0,0,0.04)",
       }}
     >
       {/* Compass readout — top-left */}
@@ -335,14 +344,14 @@ export default function GlobeView({ assets, theater, assetTypes, selected, onSel
         <defs>
           {/* Radial gradient for sphere — cream center, darker edges */}
           <radialGradient id={gradId} cx="40%" cy="35%" r="55%">
-            <stop offset="0%" stopColor="#f5f0e8" />
+            <stop offset="0%" stopColor={C.gradCenter} />
             <stop offset="60%" stopColor={C.ocean} />
-            <stop offset="100%" stopColor="#b8ccd6" />
+            <stop offset="100%" stopColor={C.gradEdge} />
           </radialGradient>
           {/* Shadow overlay */}
           <radialGradient id={shadowId} cx="50%" cy="50%" r="50%">
             <stop offset="70%" stopColor="transparent" />
-            <stop offset="100%" stopColor="rgba(0,0,0,0.12)" />
+            <stop offset="100%" stopColor={C.shadow} />
           </radialGradient>
           {/* Pulse animation for high/critical markers */}
           <style>{`
@@ -420,7 +429,7 @@ export default function GlobeView({ assets, theater, assetTypes, selected, onSel
                 letterSpacing: 1.2,
                 textTransform: "uppercase",
                 paintOrder: "stroke",
-                stroke: "#f5f0e8",
+                stroke: C.labelHalo,
                 strokeWidth: 2.5,
                 strokeLinejoin: "round",
               }}
@@ -470,7 +479,7 @@ export default function GlobeView({ assets, theater, assetTypes, selected, onSel
                 <circle cx={pt[0]} cy={pt[1]} r={r + 4} fill="none" stroke={color} strokeWidth={2} opacity={0.4} />
               )}
               {/* Filled circle background */}
-              <circle cx={pt[0]} cy={pt[1]} r={r} fill={color} stroke="#fff" strokeWidth={1.2} />
+              <circle cx={pt[0]} cy={pt[1]} r={r} fill={color} stroke={C.markerStroke} strokeWidth={1.2} />
               {/* Glyph character */}
               <text
                 x={pt[0]}
@@ -501,7 +510,7 @@ export default function GlobeView({ assets, theater, assetTypes, selected, onSel
                     fill: C.ink,
                     pointerEvents: "none",
                     paintOrder: "stroke",
-                    stroke: "#fff",
+                    stroke: C.containerBg,
                     strokeWidth: 3,
                     strokeLinejoin: "round",
                   }}
@@ -517,21 +526,23 @@ export default function GlobeView({ assets, theater, assetTypes, selected, onSel
   );
 }
 
-/* ── Zoom button style ── */
-const zoomBtnStyle: React.CSSProperties = {
-  width: 24,
-  height: 24,
-  borderRadius: 4,
-  border: "1px solid #e2ded6",
-  background: "#fff",
-  color: "#1a1a1a",
-  fontFamily: "'DM Sans',sans-serif",
-  fontSize: 14,
-  fontWeight: 600,
-  cursor: "pointer",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  lineHeight: 1,
-  padding: 0,
-};
+/* ── Zoom button style factory ── */
+function makeZoomBtnStyle(colors: ReturnType<typeof getGlobeColors>): React.CSSProperties {
+  return {
+    width: 24,
+    height: 24,
+    borderRadius: 4,
+    border: `1px solid ${colors.zoomBtnBorder}`,
+    background: colors.zoomBtnBg,
+    color: colors.zoomBtnColor,
+    fontFamily: "'DM Sans',sans-serif",
+    fontSize: 14,
+    fontWeight: 600,
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    lineHeight: 1,
+    padding: 0,
+  };
+}
