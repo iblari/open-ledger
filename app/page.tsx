@@ -1,7 +1,7 @@
 "use client";
 import { useState, useMemo, useEffect, useRef } from "react";
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid,
+  BarChart, Bar, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
 } from "recharts";
 import Link from "next/link";
@@ -198,24 +198,22 @@ function HeroViz({ mob }: { mob: boolean }) {
         <span style={{ fontSize: 11, color: C.mute, letterSpacing: "0.06em", textTransform: "uppercase" }}>31 yrs · BEA</span>
       </div>
       <ResponsiveContainer width="100%" height={280}>
-        <LineChart data={data} margin={{ top: 10, right: 10, left: -10, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke={C.rule} />
+        <BarChart data={data} margin={{ top: 10, right: 10, left: -10, bottom: 5 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke={C.rule} vertical={false} />
           <XAxis dataKey="y" fontSize={10} fontFamily={SANS} stroke={C.mute} tick={{ fill: C.sub }} interval={3} />
           <YAxis fontSize={10} fontFamily={SANS} stroke={C.rule} tick={{ fill: C.sub }} tickFormatter={v => `${v}%`} />
           <Tooltip
             contentStyle={{ background: C.card, border: `1px solid ${C.rule}`, borderRadius: 4, fontFamily: SANS, fontSize: 12 }}
             formatter={(v: number) => [`${v.toFixed(1)}%`, "GDP Growth"]}
             labelStyle={{ fontWeight: 700, color: C.ink }}
+            cursor={{ fill: "rgba(0,0,0,0.04)" }}
           />
-          <Line
-            type="monotone" dataKey="v" stroke={C.accent} strokeWidth={2.5}
-            dot={(props: any) => {
-              const { cx, cy, payload } = props;
-              return <circle key={props.index} cx={cx} cy={cy} r={3.5} fill={ADMINS[payload.a]?.color || C.sub} stroke={C.card} strokeWidth={2} />;
-            }}
-            animationDuration={1200}
-          />
-        </LineChart>
+          <Bar dataKey="v" radius={[2, 2, 0, 0]} animationDuration={1200}>
+            {data.map((d, i) => (
+              <Cell key={i} fill={ADMINS[d.a]?.color || C.sub} />
+            ))}
+          </Bar>
+        </BarChart>
       </ResponsiveContainer>
       <div style={{ marginTop: 12, paddingTop: 10, borderTop: `1px solid ${C.rule}`, display: "flex", justifyContent: "space-between", fontSize: 11, color: C.mute, letterSpacing: "0.06em", textTransform: "uppercase" }}>
         <div style={{ display: "flex", gap: 14, fontSize: 11, color: C.sub }}>
@@ -488,24 +486,22 @@ function DeepDiveSection({ mob, med }: { mob: boolean; med: boolean }) {
 
             {/* Chart */}
             <ResponsiveContainer width="100%" height={mob ? 260 : 360}>
-              <LineChart data={m.d} margin={{ top: 10, right: 10, left: -10, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke={C.rule} />
+              <BarChart data={m.d} margin={{ top: 10, right: 10, left: -10, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={C.rule} vertical={false} />
                 <XAxis dataKey="y" fontSize={10} fontFamily={SANS} stroke={C.mute} tick={{ fill: C.sub }} interval={3} />
                 <YAxis fontSize={10} fontFamily={SANS} stroke={C.rule} tick={{ fill: C.sub }} tickFormatter={v => fmt(v, m.u)} />
                 <Tooltip
                   contentStyle={{ background: C.card, border: `1px solid ${C.rule}`, borderRadius: 4, fontFamily: SANS, fontSize: 12 }}
                   formatter={(v: number) => [fmt(v, m.u), m.l]}
                   labelStyle={{ fontWeight: 700, color: C.ink }}
+                  cursor={{ fill: "rgba(0,0,0,0.04)" }}
                 />
-                <Line
-                  type="monotone" dataKey="v" stroke={C.accent} strokeWidth={2}
-                  dot={(props: any) => {
-                    const { cx, cy, payload } = props;
-                    return <circle key={props.index} cx={cx} cy={cy} r={3} fill={ADMINS[payload.a]?.color || C.sub} stroke={C.card} strokeWidth={2} />;
-                  }}
-                  animationDuration={800}
-                />
-              </LineChart>
+                <Bar dataKey="v" radius={[2, 2, 0, 0]} animationDuration={800}>
+                  {m.d.map((d, i) => (
+                    <Cell key={i} fill={ADMINS[d.a]?.color || C.sub} />
+                  ))}
+                </Bar>
+              </BarChart>
             </ResponsiveContainer>
           </div>
 
