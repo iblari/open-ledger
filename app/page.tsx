@@ -320,6 +320,17 @@ export default function App(){
   const [theater,setTheater]=useState("global");
   const [abroadLayers,setAbroadLayers]=useState({bases:true,csgs:true,btf:true,personnel:false});
   const [abroadSelection,setAbroadSelection]=useState<{kind:string;data:any}|null>(null);
+  const [abroadData,setAbroadData]=useState<any>(null);
+  const [abroadLastUpdated,setAbroadLastUpdated]=useState<Record<string,string>>({});
+
+  // Fetch abroad data from API (enables updates without redeploy)
+  useEffect(()=>{
+    if(tab!=="abroad"||abroadData) return;
+    fetch("/api/abroad-data").then(r=>r.json()).then(d=>{
+      setAbroadData(d);
+      if(d.lastUpdated) setAbroadLastUpdated(d.lastUpdated);
+    }).catch(()=>{/* fall back to static imports */});
+  },[tab,abroadData]);
 
   // Reset abroad selection on tab change
   useEffect(()=>{if(tab!=="abroad")setAbroadSelection(null);},[tab]);
@@ -1237,6 +1248,15 @@ export default function App(){
             </div>
             <p style={{fontSize:12,color:T.sub,lineHeight:1.5,margin:0,marginBottom:4}}>The US military footprint worldwide — bases, carrier groups, personnel — as reported in public sources.</p>
             <p style={{fontSize:10,color:T.mute,fontStyle:"italic",margin:0}}>Not real-time. Base data from DoD Base Structure Report FY2024 and CRS R48123. Carrier positions from USNI Fleet Tracker April 13 2026. Bomber deployments from DoD/USAF press releases. Personnel: DMDC March 2024.</p>
+            {Object.keys(abroadLastUpdated).length>0&&(
+              <div style={{display:"flex",flexWrap:"wrap",gap:10,marginTop:6}}>
+                {([["bases","Bases"],["csgs","Carriers"],["btf","BTF"],["personnel","Personnel"]] as const).map(([key,label])=>(
+                  abroadLastUpdated[key]?<span key={key} style={{fontSize:9,color:T.mute,fontFamily:"'DM Sans',sans-serif"}}>
+                    <span style={{fontWeight:600,color:T.sub}}>{label}:</span> updated {abroadLastUpdated[key]}
+                  </span>:null
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Metrics strip */}

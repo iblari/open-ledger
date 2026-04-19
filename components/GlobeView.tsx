@@ -48,6 +48,61 @@ function loadWorld(): Promise<any> {
   return worldPromise;
 }
 
+/* ── Country labels (major countries for orientation) ── */
+const COUNTRY_LABELS: { name: string; lat: number; lon: number; size?: number }[] = [
+  // Americas
+  { name: "United States", lat: 39, lon: -98, size: 1.1 },
+  { name: "Canada", lat: 56, lon: -96, size: 1 },
+  { name: "Mexico", lat: 23, lon: -102 },
+  { name: "Brazil", lat: -10, lon: -52, size: 1.1 },
+  { name: "Argentina", lat: -35, lon: -64 },
+  { name: "Colombia", lat: 4, lon: -73 },
+  // Europe
+  { name: "UK", lat: 54, lon: -2 },
+  { name: "France", lat: 46, lon: 2 },
+  { name: "Germany", lat: 51, lon: 10 },
+  { name: "Spain", lat: 40, lon: -4 },
+  { name: "Italy", lat: 42, lon: 12 },
+  { name: "Poland", lat: 52, lon: 20 },
+  { name: "Ukraine", lat: 49, lon: 32 },
+  { name: "Norway", lat: 64, lon: 10 },
+  { name: "Turkey", lat: 39, lon: 35 },
+  { name: "Greece", lat: 39, lon: 22 },
+  { name: "Iceland", lat: 65, lon: -19 },
+  // Middle East & Central Asia
+  { name: "Saudi Arabia", lat: 24, lon: 45 },
+  { name: "Iran", lat: 33, lon: 53 },
+  { name: "Iraq", lat: 33, lon: 44 },
+  { name: "Syria", lat: 35, lon: 38 },
+  { name: "Israel", lat: 31, lon: 35 },
+  { name: "Jordan", lat: 31, lon: 36.5 },
+  { name: "Kuwait", lat: 29.5, lon: 48 },
+  { name: "Qatar", lat: 25.3, lon: 51.2 },
+  { name: "Bahrain", lat: 26, lon: 50.5 },
+  // Asia-Pacific
+  { name: "Russia", lat: 60, lon: 100, size: 1.2 },
+  { name: "China", lat: 35, lon: 103, size: 1.1 },
+  { name: "Japan", lat: 36, lon: 138 },
+  { name: "South Korea", lat: 36, lon: 128 },
+  { name: "North Korea", lat: 40, lon: 127 },
+  { name: "India", lat: 22, lon: 78, size: 1 },
+  { name: "Australia", lat: -25, lon: 134, size: 1.1 },
+  { name: "Philippines", lat: 13, lon: 122 },
+  { name: "Taiwan", lat: 23.5, lon: 121 },
+  { name: "Indonesia", lat: -3, lon: 117 },
+  // Africa
+  { name: "Egypt", lat: 26, lon: 30 },
+  { name: "Nigeria", lat: 10, lon: 8 },
+  { name: "South Africa", lat: -30, lon: 25 },
+  { name: "Kenya", lat: 0, lon: 38 },
+  { name: "Libya", lat: 27, lon: 17 },
+  { name: "Algeria", lat: 28, lon: 2 },
+  // Key islands/territories
+  { name: "Guam", lat: 13.5, lon: 144.8 },
+  { name: "Greenland", lat: 72, lon: -40 },
+  { name: "Cuba", lat: 22, lon: -79 },
+];
+
 /* ── Lerp helper ── */
 function lerp(a: number, b: number, t: number) {
   return a + (b - a) * t;
@@ -280,6 +335,29 @@ export default function GlobeView({ theater, layers, onSelect, mob }: GlobeViewP
 
           {/* Graticule */}
           <path d={path(graticule()) || ""} fill="none" stroke={C.graticule} strokeWidth={0.3} opacity={0.3} />
+
+          {/* Country labels */}
+          {COUNTRY_LABELS.map((c) => {
+            if (!isVisible(c.lon, c.lat)) return null;
+            const pt = projection([c.lon, c.lat]);
+            if (!pt) return null;
+            // Fade labels near the edge of the hemisphere for a cleaner look
+            const center = projection.invert!([dims.w / 2, dims.h / 2]);
+            const d = center ? geoDistance([c.lon, c.lat], center) : 0;
+            const edgeFade = Math.max(0, 1 - (d / (Math.PI / 2)) * 1.8 + 0.8);
+            const opacity = Math.min(0.45, edgeFade * 0.45);
+            const sz = (c.size || 0.85) * Math.min(10, 8 + scale * 0.5);
+            return (
+              <text key={`lbl-${c.name}`} x={pt[0]} y={pt[1]}
+                textAnchor="middle" dominantBaseline="central"
+                style={{
+                  fontSize: sz, fontFamily: "'DM Sans',sans-serif", fontWeight: 500,
+                  fill: C.ink, opacity, pointerEvents: "none", userSelect: "none",
+                  letterSpacing: 0.5,
+                }}
+              >{c.name}</text>
+            );
+          })}
 
           {/* Personnel density circles */}
           {layers.personnel && PERSONNEL_BY_COUNTRY.map((p) => {
