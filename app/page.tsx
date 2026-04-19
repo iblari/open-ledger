@@ -267,8 +267,9 @@ function Hero({ mob, med }: { mob: boolean; med: boolean }) {
             marginTop: 28, fontSize: mob ? 16 : 19, color: C.sub,
             maxWidth: "50ch", lineHeight: 1.5, fontFamily: SANS,
           }}>
-            Nineteen economic metrics across ten administrations, drawn from BEA,
-            BLS, Treasury, Census and the Fed. We don&rsquo;t tell you who did better.
+            Nineteen economic metrics across ten administrations, plus live military
+            spend tracking across four active conflicts. Sourced from BEA, BLS, Treasury,
+            the Fed, CSIS, Brown University, and more. We don&rsquo;t tell you who did better.
             We show you what the numbers did.
           </p>
 
@@ -293,11 +294,11 @@ function Hero({ mob, med }: { mob: boolean; med: boolean }) {
 
           {/* Stats */}
           <div style={{
-            display: "grid", gridTemplateColumns: mob ? "1fr 1fr" : "repeat(3, 1fr)",
+            display: "grid", gridTemplateColumns: mob ? "1fr 1fr" : "repeat(4, 1fr)",
             marginTop: 48, paddingTop: 28, borderTop: `1px solid ${C.rule}`, gap: mob ? 16 : 24,
           }}>
-            {[{ n: "19", l: "Metrics tracked" }, { n: "10", l: "Administrations" }, { n: "31", l: "Years of data", suffix: "yrs" }].map((s, i) => (
-              <div key={i} style={mob && i === 2 ? { gridColumn: "span 2" } : {}}>
+            {[{ n: "19", l: "Economic metrics" }, { n: "4", l: "Active conflicts tracked" }, { n: "10", l: "Administrations" }, { n: "31", l: "Years of data", suffix: "yrs" }].map((s, i) => (
+              <div key={i}>
                 <div style={{ fontFamily: SERIF, fontSize: mob ? 28 : 40, lineHeight: 1, letterSpacing: "-0.025em", fontVariantNumeric: "tabular-nums" }}>
                   {s.suffix ? <>{s.n}<span style={{ color: C.mute }}>{s.suffix}</span></> : s.n}
                 </div>
@@ -612,8 +613,12 @@ function SourcesSection({ mob, med }: { mob: boolean; med: boolean }) {
     { src: "Treasury", d: "U.S. Treasury — federal debt, deficit, budget." },
     { src: "Federal Reserve", d: "Fed funds rate, money supply, balance sheet." },
     { src: "EIA", d: "Energy Information Administration — gasoline, energy prices." },
+    { src: "CSIS", d: "Center for Strategic & International Studies — military cost estimates, defense analysis." },
+    { src: "Brown Univ.", d: "Costs of War Project — total war expenditures, veteran care, conflict budgets." },
+    { src: "Kiel Institute", d: "Ukraine Support Tracker — bilateral aid commitments by country." },
     { src: "CBO", d: "Congressional Budget Office — deficit projections, spending analysis." },
     { src: "S&P Global", d: "S&P 500 index, credit ratings, financial indicators." },
+    { src: "CRS", d: "Congressional Research Service — supplemental appropriations, military aid reports." },
   ];
 
   return (
@@ -633,7 +638,7 @@ function SourcesSection({ mob, med }: { mob: boolean; med: boolean }) {
         </div>
 
         <div style={{
-          display: "grid", gridTemplateColumns: mob ? "1fr" : (med ? "repeat(2, 1fr)" : "repeat(4, 1fr)"), gap: 12,
+          display: "grid", gridTemplateColumns: mob ? "1fr" : (med ? "repeat(2, 1fr)" : "repeat(3, 1fr)"), gap: 12,
         }}>
           {sources.map(s => (
             <div key={s.src} style={{
