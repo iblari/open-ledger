@@ -360,21 +360,24 @@ function WarCostTicker({ mob }: { mob?: boolean }) {
     }}>
       {/* Header */}
       <div style={{
-        display: "flex", alignItems: "center", gap: 10,
+        display: "flex", alignItems: mob ? "flex-start" : "center", gap: mob ? 8 : 10,
         paddingBottom: 12, borderBottom: "1px solid rgba(255,255,255,0.1)", marginBottom: 16,
+        flexWrap: mob ? "wrap" : "nowrap",
       }}>
         <span style={{
           width: 8, height: 8, borderRadius: "50%", background: "#b8372d",
           boxShadow: "0 0 0 3px rgba(184,55,45,0.3)",
           animation: "pulse-dot 1.2s ease-in-out infinite", flexShrink: 0,
+          marginTop: mob ? 4 : 0,
         }} />
-        <span style={{ fontFamily: "'Source Serif 4', serif", fontSize: 15, fontWeight: 500 }}>
+        <span style={{ fontFamily: "'Source Serif 4', serif", fontSize: mob ? 14 : 15, fontWeight: 500 }}>
           US Military Spend — Active Conflicts
         </span>
         <span style={{
-          marginLeft: "auto", fontSize: 9, letterSpacing: "0.1em",
+          marginLeft: mob ? 0 : "auto", fontSize: 9, letterSpacing: "0.1em",
           textTransform: "uppercase", color: "rgba(255,255,255,0.4)",
-        }}>Estimated from public data &middot; click any stream to verify</span>
+          width: mob ? "100%" : "auto", paddingLeft: mob ? 16 : 0,
+        }}>{mob ? "Tap any stream to verify" : "Estimated from public data \u00b7 click any stream to verify"}</span>
       </div>
 
       {/* Big counter */}
@@ -388,10 +391,21 @@ function WarCostTicker({ mob }: { mob?: boolean }) {
           fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "rgba(255,255,255,0.5)", marginTop: 4,
         }}>combined US military expenditure across {CONFLICT_STREAMS.length} active conflict streams</div>
         <div style={{
-          fontFamily: "'DM Sans', monospace", fontSize: 13, color: "#e05a50",
+          fontFamily: "'DM Sans', monospace", fontSize: mob ? 11 : 13, color: "#e05a50",
           marginTop: 6, fontVariantNumeric: "tabular-nums",
+          display: mob ? "flex" : "block",
+          flexDirection: mob ? "column" : undefined,
+          gap: mob ? 2 : undefined,
+          alignItems: mob ? "center" : undefined,
         }}>
-          {formatUSD(perSec)}/sec &middot; {formatUSD(perSec * 60)}/min &middot; {formatUSD(perSec * 3600)}/hr
+          {mob ? (
+            <>
+              <span>{formatUSD(perSec)}/sec &middot; {formatUSD(perSec * 60)}/min</span>
+              <span>{formatUSD(perSec * 3600)}/hr</span>
+            </>
+          ) : (
+            <>{formatUSD(perSec)}/sec &middot; {formatUSD(perSec * 60)}/min &middot; {formatUSD(perSec * 3600)}/hr</>
+          )}
         </div>
       </div>
 
@@ -460,7 +474,7 @@ function WarCostTicker({ mob }: { mob?: boolean }) {
                   {/* Anchor data */}
                   <div style={{ marginTop: 12, marginBottom: 14, padding: "10px 12px", background: "#232323", borderRadius: 4 }}>
                     <div style={{
-                      display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8,
+                      display: "grid", gridTemplateColumns: mob ? "1fr" : "1fr 1fr", gap: mob ? 10 : 8,
                       fontFamily: "'DM Sans', monospace", fontSize: 12, color: "#fff",
                     }}>
                       <div>
@@ -525,12 +539,12 @@ function WarCostTicker({ mob }: { mob?: boolean }) {
       <div style={{
         marginTop: 14, paddingTop: 10,
         borderTop: "1px solid rgba(255,255,255,0.06)",
-        fontFamily: "'DM Sans', sans-serif", fontSize: 10,
+        fontFamily: "'DM Sans', sans-serif", fontSize: mob ? 9 : 10,
         color: "rgba(255,255,255,0.25)", lineHeight: 1.5,
       }}>
         Figures are estimates extrapolated from anchored institutional totals using publicly-reported daily burn rates.
         Not real-time. Does not include indirect economic costs, veteran care, or classified programs.
-        <strong style={{ color: "rgba(255,255,255,0.4)" }}> Click any stream above to see exactly where every number comes from.</strong>
+        <strong style={{ color: "rgba(255,255,255,0.4)" }}> {mob ? "Tap" : "Click"} any stream above to see exactly where every number comes from.</strong>
       </div>
     </div>
   );
@@ -581,38 +595,40 @@ function SpendTrendChart({ mob }: { mob?: boolean }) {
       boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
     }}>
       {/* Header row */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", alignItems: mob ? "flex-start" : "center", gap: mob ? 4 : 10, marginBottom: 4, flexDirection: mob ? "column" : "row" }}>
         <h3 style={{
-          fontFamily: "'Source Serif 4', serif", fontSize: 18, fontWeight: 700,
+          fontFamily: "'Source Serif 4', serif", fontSize: mob ? 16 : 18, fontWeight: 700,
           color: T.ink, margin: 0,
         }}>Spend Trends</h3>
         <span style={{
-          fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: T.mute,
+          fontFamily: "'DM Sans', sans-serif", fontSize: mob ? 11 : 11, color: T.mute,
         }}>Who is getting the money — and is it accelerating?</span>
       </div>
 
       {/* Controls */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16, marginTop: 10 }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16, marginTop: 10, flexDirection: mob ? "column" : "row" }}>
         {/* View toggle */}
-        <div style={{ display: "flex", border: `1px solid ${T.rule}`, borderRadius: 4, overflow: "hidden" }}>
+        <div style={{ display: "flex", border: `1px solid ${T.rule}`, borderRadius: 4, overflow: "hidden", alignSelf: mob ? "stretch" : "flex-start" }}>
           {(["velocity", "cumulative"] as const).map(v => (
             <button key={v} onClick={() => setView(v)} style={{
-              padding: "5px 14px", fontFamily: "'DM Sans', sans-serif", fontSize: 11,
+              padding: "6px 14px", fontFamily: "'DM Sans', sans-serif", fontSize: mob ? 12 : 11,
               fontWeight: view === v ? 700 : 500, border: "none", cursor: "pointer",
               background: view === v ? T.ink : "transparent",
               color: view === v ? T.bg : T.sub, transition: "all 0.15s ease",
+              flex: mob ? 1 : undefined,
             }}>{v === "velocity" ? "Spend velocity" : "Cumulative"}</button>
           ))}
         </div>
         {/* Period selector — only for velocity view */}
         {view === "velocity" && (
-          <div style={{ display: "flex", border: `1px solid ${T.rule}`, borderRadius: 4, overflow: "hidden" }}>
+          <div style={{ display: "flex", border: `1px solid ${T.rule}`, borderRadius: 4, overflow: "hidden", alignSelf: mob ? "stretch" : "flex-start" }}>
             {PERIOD_OPTIONS.map(p => (
               <button key={p.key} onClick={() => setPeriod(p.key)} style={{
-                padding: "5px 12px", fontFamily: "'DM Sans', sans-serif", fontSize: 11,
+                padding: "6px 12px", fontFamily: "'DM Sans', sans-serif", fontSize: mob ? 12 : 11,
                 fontWeight: period === p.key ? 700 : 500, border: "none", cursor: "pointer",
                 background: period === p.key ? T.ink : "transparent",
                 color: period === p.key ? T.bg : T.sub, transition: "all 0.15s ease",
+                flex: mob ? 1 : undefined,
               }}>{p.label}</button>
             ))}
           </div>
@@ -625,7 +641,7 @@ function SpendTrendChart({ mob }: { mob?: boolean }) {
           {view === "cumulative" ? (
             <AreaChart data={cumulativeData}>
               <CartesianGrid strokeDasharray="3 3" stroke={T.rule} />
-              <XAxis dataKey="label" stroke={T.mute} fontSize={10} fontFamily="'DM Sans',sans-serif" tick={{ fill: T.sub }} interval={mob ? 2 : 1} />
+              <XAxis dataKey="label" stroke={T.mute} fontSize={mob ? 9 : 10} fontFamily="'DM Sans',sans-serif" tick={{ fill: T.sub }} interval={mob ? 3 : 1} />
               <YAxis stroke={T.rule} fontSize={10} fontFamily="'DM Sans',sans-serif" tick={{ fill: T.sub }} tickFormatter={v => `$${v}B`} />
               <Tooltip
                 contentStyle={{ background: T.card, border: `1px solid ${T.rule}`, borderRadius: 4, fontFamily: "'DM Sans',sans-serif", fontSize: 12 }}
@@ -641,7 +657,7 @@ function SpendTrendChart({ mob }: { mob?: boolean }) {
           ) : (
             <BarChart data={deltas}>
               <CartesianGrid strokeDasharray="3 3" stroke={T.rule} />
-              <XAxis dataKey="label" stroke={T.mute} fontSize={10} fontFamily="'DM Sans',sans-serif" tick={{ fill: T.sub }} interval={period === "mom" ? (mob ? 5 : 2) : 0} angle={period === "mom" ? -45 : 0} textAnchor={period === "mom" ? "end" : "middle"} height={period === "mom" ? 50 : 30} />
+              <XAxis dataKey="label" stroke={T.mute} fontSize={mob ? 9 : 10} fontFamily="'DM Sans',sans-serif" tick={{ fill: T.sub }} interval={period === "mom" ? (mob ? 7 : 2) : (mob ? 1 : 0)} angle={period === "mom" ? -45 : 0} textAnchor={period === "mom" ? "end" : "middle"} height={period === "mom" ? (mob ? 55 : 50) : 30} />
               <YAxis stroke={T.rule} fontSize={10} fontFamily="'DM Sans',sans-serif" tick={{ fill: T.sub }} tickFormatter={v => `$${v}B`} />
               <Tooltip
                 contentStyle={{ background: T.card, border: `1px solid ${T.rule}`, borderRadius: 4, fontFamily: "'DM Sans',sans-serif", fontSize: 12 }}
@@ -669,7 +685,7 @@ function SpendTrendChart({ mob }: { mob?: boolean }) {
       {/* Insight callout */}
       <div style={{
         background: T.highlight, borderLeft: `3px solid ${T.accent}`, borderRadius: "0 4px 4px 0",
-        padding: "10px 14px", fontFamily: "'DM Sans',sans-serif", fontSize: 12,
+        padding: mob ? "10px 12px" : "10px 14px", fontFamily: "'DM Sans',sans-serif", fontSize: mob ? 11 : 12,
         color: T.sub, lineHeight: 1.6,
       }}>
         <strong style={{ color: T.ink }}>What the data shows:</strong> Ukraine dominated US military spend from 2022–2024 ($67B), but aid has flatlined since Jan 2025.
