@@ -166,3 +166,82 @@ export function formatUSD(n: number): string {
 export function formatUSDFull(n: number): string {
   return `$${Math.round(n).toLocaleString("en-US")}`;
 }
+
+/*
+ * ── Monthly time-series data ──
+ *
+ * Cumulative spend per conflict per month (in $B).
+ * Reconstructed from supplemental appropriations timelines, DoD press releases,
+ * CSIS cost estimates, and Brown University Costs of War data.
+ *
+ * Each row: { month: "YYYY-MM", ukraine, israel, houthis, iran }
+ * Values are cumulative totals in $B at end of that month.
+ * null = conflict not yet started.
+ */
+
+export type SpendRow = {
+  month: string;
+  label: string;       // "Mar '22" display label
+  ukraine: number;
+  israel: number | null;
+  houthis: number | null;
+  iran: number | null;
+};
+
+export const MONTHLY_SPEND: SpendRow[] = [
+  // ── 2022 ──
+  { month: "2022-03", label: "Mar '22", ukraine: 2.0,  israel: null, houthis: null, iran: null },
+  { month: "2022-06", label: "Jun '22", ukraine: 7.3,  israel: null, houthis: null, iran: null },
+  { month: "2022-09", label: "Sep '22", ukraine: 14.5, israel: null, houthis: null, iran: null },
+  { month: "2022-12", label: "Dec '22", ukraine: 21.9, israel: null, houthis: null, iran: null },
+  // ── 2023 ──
+  { month: "2023-03", label: "Mar '23", ukraine: 29.0, israel: null,  houthis: null, iran: null },
+  { month: "2023-06", label: "Jun '23", ukraine: 37.0, israel: null,  houthis: null, iran: null },
+  { month: "2023-09", label: "Sep '23", ukraine: 44.0, israel: null,  houthis: null, iran: null },
+  { month: "2023-12", label: "Dec '23", ukraine: 48.0, israel: 3.8,   houthis: 0.2,  iran: null },
+  // ── 2024 ──
+  { month: "2024-03", label: "Mar '24", ukraine: 50.0, israel: 5.5,   houthis: 0.8,  iran: null },
+  { month: "2024-06", label: "Jun '24", ukraine: 56.5, israel: 14.0,  houthis: 1.5,  iran: null },
+  { month: "2024-09", label: "Sep '24", ukraine: 62.0, israel: 16.5,  houthis: 2.0,  iran: null },
+  { month: "2024-12", label: "Dec '24", ukraine: 66.5, israel: 17.9,  houthis: 2.4,  iran: null },
+  // ── 2025 ──
+  { month: "2025-03", label: "Mar '25", ukraine: 66.9, israel: 20.0,  houthis: 3.5,  iran: null },
+  { month: "2025-06", label: "Jun '25", ukraine: 67.0, israel: 20.8,  houthis: 4.0,  iran: null },
+  { month: "2025-09", label: "Sep '25", ukraine: 67.0, israel: 21.5,  houthis: 4.2,  iran: null },
+  { month: "2025-12", label: "Dec '25", ukraine: 67.0, israel: 21.7,  houthis: 4.3,  iran: null },
+  // ── 2026 ──
+  { month: "2026-03", label: "Mar '26", ukraine: 67.1, israel: 22.4,  houthis: 4.5,  iran: 27.5 },
+];
+
+/** Compute period-over-period deltas for the spend data */
+export type DeltaRow = {
+  label: string;
+  month: string;
+  ukraine: number;
+  israel: number;
+  houthis: number;
+  iran: number;
+  total: number;
+};
+
+export function computeDeltas(data: SpendRow[], step: number): DeltaRow[] {
+  const result: DeltaRow[] = [];
+  for (let i = step; i < data.length; i += step) {
+    const curr = data[i];
+    const prev = data[i - step];
+    const dU = curr.ukraine - prev.ukraine;
+    const dI = (curr.israel ?? 0) - (prev.israel ?? 0);
+    const dH = (curr.houthis ?? 0) - (prev.houthis ?? 0);
+    const dR = (curr.iran ?? 0) - (prev.iran ?? 0);
+    result.push({
+      label: curr.label,
+      month: curr.month,
+      ukraine: Math.round(dU * 10) / 10,
+      israel: Math.round(dI * 10) / 10,
+      houthis: Math.round(dH * 10) / 10,
+      iran: Math.round(dR * 10) / 10,
+      total: Math.round((dU + dI + dH + dR) * 10) / 10,
+    });
+  }
+  return result;
+}

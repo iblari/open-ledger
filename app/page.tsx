@@ -4,7 +4,7 @@ import { BarChart, Bar, LineChart, Line, AreaChart, Area, XAxis, YAxis, Cartesia
 import FeedbackBanner from "./FeedbackBanner";
 import GlobeView from "@/components/GlobeView";
 import { HEADER_METRICS, THEATERS, PERSONNEL_BY_COUNTRY, POSTURE_ASSETS, ASSET_TYPES, ALERT_COLORS, THEATER_COLORS, POSTURE_FEED, type PostureAsset, type AssetType, type FeedItem } from "@/lib/abroad-data";
-import { CONFLICT_STREAMS, estimateTotal, estimateGrandTotal, formatUSD, formatUSDFull, type ConflictStream } from "@/lib/war-costs";
+import { CONFLICT_STREAMS, estimateTotal, estimateGrandTotal, formatUSD, formatUSDFull, MONTHLY_SPEND, computeDeltas, type ConflictStream, type SpendRow, type DeltaRow } from "@/lib/war-costs";
 
 function useIsMobile() {
   const [w, setW] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
@@ -531,6 +531,143 @@ function WarCostTicker({ mob }: { mob?: boolean }) {
         Figures are estimates extrapolated from anchored institutional totals using publicly-reported daily burn rates.
         Not real-time. Does not include indirect economic costs, veteran care, or classified programs.
         <strong style={{ color: "rgba(255,255,255,0.4)" }}> Click any stream above to see exactly where every number comes from.</strong>
+      </div>
+    </div>
+  );
+}
+
+/* ── Spend Trend Chart ── */
+const STREAM_COLORS = { ukraine: "#66ccff", israel: "#ff4444", houthis: "#ffcc33", iran: "#e05a50" };
+const STREAM_LABELS = { ukraine: "Ukraine", israel: "Israel", houthis: "Houthis", iran: "Iran" };
+const PERIOD_OPTIONS = [
+  { key: "qoq", label: "QoQ", step: 1 },   // data is already quarterly
+  { key: "hoh", label: "Half-year", step: 2 },
+  { key: "yoy", label: "YoY", step: 4 },
+];
+
+function SpendTrendChart({ mob }: { mob?: boolean }) {
+  const [view, setView] = useState<"cumulative" | "velocity">("velocity");
+  const [period, setPeriod] = useState("qoq");
+
+  const periodCfg = PERIOD_OPTIONS.find(p => p.key === period) || PERIOD_OPTIONS[0];
+  const deltas = useMemo(() => computeDeltas(MONTHLY_SPEND, periodCfg.step), [periodCfg.step]);
+
+  // For cumulative view, add a "total" field
+  const cumulativeData = useMemo(() => MONTHLY_SPEND.map(r => ({
+    ...r,
+    israel: r.israel ?? 0,
+    houthis: r.houthis ?? 0,
+    iran: r.iran ?? 0,
+    total: r.ukraine + (r.israel ?? 0) + (r.houthis ?? 0) + (r.iran ?? 0),
+  })), []);
+
+  const streams = ["iran", "israel", "houthis", "ukraine"] as const; // stack order: largest on bottom
+
+  return (
+    <div style={{
+      background: T.card, border: `1px solid ${T.rule}`, borderRadius: 4,
+      padding: mob ? "16px 14px" : "20px 24px", marginBottom: 24,
+      boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+    }}>
+      {/* Header row */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4, flexWrap: "wrap" }}>
+        <h3 style={{
+          fontFamily: "'Source Serif 4', serif", fontSize: 18, fontWeight: 700,
+          color: T.ink, margin: 0,
+        }}>Spend Trends</h3>
+        <span style={{
+          fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: T.mute,
+        }}>Who is getting the money — and is it accelerating?</span>
+      </div>
+
+      {/* Controls */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16, marginTop: 10 }}>
+        {/* View toggle */}
+        <div style={{ display: "flex", border: `1px solid ${T.rule}`, borderRadius: 4, overflow: "hidden" }}>
+          {(["velocity", "cumulative"] as const).map(v => (
+            <button key={v} onClick={() => setView(v)} style={{
+              padding: "5px 14px", fontFamily: "'DM Sans', sans-serif", fontSize: 11,
+              fontWeight: view === v ? 700 : 500, border: "none", cursor: "pointer",
+              background: view === v ? T.ink : "transparent",
+              color: view === v ? T.bg : T.sub, transition: "all 0.15s ease",
+            }}>{v === "velocity" ? "Spend velocity" : "Cumulative"}</button>
+          ))}
+        </div>
+        {/* Period selector — only for velocity view */}
+        {view === "velocity" && (
+          <div style={{ display: "flex", border: `1px solid ${T.rule}`, borderRadius: 4, overflow: "hidden" }}>
+            {PERIOD_OPTIONS.map(p => (
+              <button key={p.key} onClick={() => setPeriod(p.key)} style={{
+                padding: "5px 12px", fontFamily: "'DM Sans', sans-serif", fontSize: 11,
+                fontWeight: period === p.key ? 700 : 500, border: "none", cursor: "pointer",
+                background: period === p.key ? T.ink : "transparent",
+                color: period === p.key ? T.bg : T.sub, transition: "all 0.15s ease",
+              }}>{p.label}</button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Chart */}
+      <div style={{ marginBottom: 12 }}>
+        <ResponsiveContainer width="100%" height={mob ? 280 : 360}>
+          {view === "cumulative" ? (
+            <AreaChart data={cumulativeData}>
+              <CartesianGrid strokeDasharray="3 3" stroke={T.rule} />
+              <XAxis dataKey="label" stroke={T.mute} fontSize={10} fontFamily="'DM Sans',sans-serif" tick={{ fill: T.sub }} interval={mob ? 2 : 1} />
+              <YAxis stroke={T.rule} fontSize={10} fontFamily="'DM Sans',sans-serif" tick={{ fill: T.sub }} tickFormatter={v => `$${v}B`} />
+              <Tooltip
+                contentStyle={{ background: T.card, border: `1px solid ${T.rule}`, borderRadius: 4, fontFamily: "'DM Sans',sans-serif", fontSize: 12 }}
+                formatter={(v: number, name: string) => [`$${v.toFixed(1)}B`, STREAM_LABELS[name as keyof typeof STREAM_LABELS] || name]}
+                labelStyle={{ fontWeight: 700, color: T.ink }}
+              />
+              {streams.map(s => (
+                <Area key={s} type="monotone" dataKey={s} stackId="1"
+                  fill={STREAM_COLORS[s]} stroke={STREAM_COLORS[s]}
+                  fillOpacity={0.6} strokeWidth={1.5} />
+              ))}
+            </AreaChart>
+          ) : (
+            <BarChart data={deltas}>
+              <CartesianGrid strokeDasharray="3 3" stroke={T.rule} />
+              <XAxis dataKey="label" stroke={T.mute} fontSize={10} fontFamily="'DM Sans',sans-serif" tick={{ fill: T.sub }} />
+              <YAxis stroke={T.rule} fontSize={10} fontFamily="'DM Sans',sans-serif" tick={{ fill: T.sub }} tickFormatter={v => `$${v}B`} />
+              <Tooltip
+                contentStyle={{ background: T.card, border: `1px solid ${T.rule}`, borderRadius: 4, fontFamily: "'DM Sans',sans-serif", fontSize: 12 }}
+                formatter={(v: number, name: string) => [`$${v.toFixed(1)}B`, STREAM_LABELS[name as keyof typeof STREAM_LABELS] || name]}
+                labelStyle={{ fontWeight: 700, color: T.ink }}
+              />
+              {streams.map(s => (
+                <Bar key={s} dataKey={s} stackId="1" fill={STREAM_COLORS[s]} radius={s === "ukraine" ? [2, 2, 0, 0] : 0} />
+              ))}
+            </BarChart>
+          )}
+        </ResponsiveContainer>
+      </div>
+
+      {/* Legend */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 14, marginBottom: 10 }}>
+        {streams.map(s => (
+          <div key={s} style={{ display: "flex", alignItems: "center", gap: 5, fontFamily: "'DM Sans',sans-serif", fontSize: 11 }}>
+            <span style={{ width: 10, height: 10, borderRadius: 2, background: STREAM_COLORS[s], flexShrink: 0 }} />
+            <span style={{ color: T.ink, fontWeight: 600 }}>{STREAM_LABELS[s]}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Insight callout */}
+      <div style={{
+        background: T.highlight, borderLeft: `3px solid ${T.accent}`, borderRadius: "0 4px 4px 0",
+        padding: "10px 14px", fontFamily: "'DM Sans',sans-serif", fontSize: 12,
+        color: T.sub, lineHeight: 1.6,
+      }}>
+        <strong style={{ color: T.ink }}>What the data shows:</strong> Ukraine dominated US military spend from 2022–2024 ($67B), but aid has flatlined since Jan 2025.
+        Iran has overtaken all other streams in daily burn rate since Operation Epic Fury began on Feb 28, 2026 — spending more in one month ($27.5B)
+        than the entire 2-year Israel aid total ($21.7B). The Middle East now accounts for {">"}90% of active US military expenditure.
+      </div>
+
+      <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 10, color: T.mute, marginTop: 8 }}>
+        Sources: CSIS, Brown Univ. Costs of War, Kiel Institute, State Dept, CFR, CRS &middot; Quarterly data reconstructed from supplemental appropriations timelines
       </div>
     </div>
   );
@@ -1586,6 +1723,9 @@ export default function App(){
 
           {/* War cost ticker */}
           <WarCostTicker mob={mob} />
+
+          {/* Spend trend chart */}
+          <SpendTrendChart mob={mob} />
 
           {/* Main panel: globe + detail */}
           <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 380px",gap:16,marginBottom:24}}>
