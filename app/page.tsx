@@ -313,6 +313,68 @@ function Hero({ mob, med }: { mob: boolean; med: boolean }) {
 }
 
 /* ── Scorecard Heatmap ── */
+function HeatCell({ id, mk, c, mob, metricLabel, unit }: { id: string; mk: string; c: { start: number; end: number; pctChange: number; improved: boolean } | undefined; mob: boolean; metricLabel: string; unit: string }) {
+  const [hov, setHov] = useState(false);
+  const st = cellColor(c);
+  const pct = c ? `${c.pctChange >= 0 ? "+" : ""}${c.pctChange.toFixed(1)}%` : "—";
+  const admin = ADMINS[id as keyof typeof ADMINS];
+
+  return (
+    <Link
+      href={`/dashboard?metric=${mk}`}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        position: "relative",
+        margin: mob ? 3 : 5, height: mob ? 44 : 52, borderRadius: 3,
+        display: "grid", placeItems: "center", padding: "4px 6px",
+        background: st.bg, color: st.text, cursor: "pointer",
+        transition: "transform 0.18s ease, box-shadow 0.18s ease",
+        textDecoration: "none",
+        transform: hov ? "scale(1.08)" : "scale(1)",
+        boxShadow: hov ? "0 4px 20px rgba(0,0,0,0.18)" : "none",
+        zIndex: hov ? 10 : 1,
+      }}
+    >
+      <span style={{ fontFamily: SERIF, fontSize: mob ? 13 : 15, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{pct}</span>
+      {!mob && c && (
+        <span style={{ fontSize: 9, letterSpacing: "0.04em", opacity: 0.75, fontVariantNumeric: "tabular-nums" }}>
+          {fmt(c.start, unit)} → {fmt(c.end, unit)}
+        </span>
+      )}
+      {/* Tooltip */}
+      {hov && !mob && c && (
+        <div style={{
+          position: "absolute", bottom: "calc(100% + 10px)", left: "50%", transform: "translateX(-50%)",
+          background: C.ink, color: "#fff", padding: "10px 14px", borderRadius: 6,
+          fontSize: 12, lineHeight: 1.5, whiteSpace: "nowrap", pointerEvents: "none",
+          boxShadow: "0 8px 30px rgba(0,0,0,0.25)", zIndex: 100,
+          minWidth: 180, textAlign: "center",
+        }}>
+          <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4 }}>{metricLabel} under {admin.name}</div>
+          <div style={{ fontVariantNumeric: "tabular-nums" }}>
+            <span style={{ opacity: 0.7 }}>{fmt(c.start, unit)}</span>
+            <span style={{ margin: "0 6px", opacity: 0.5 }}>→</span>
+            <span>{fmt(c.end, unit)}</span>
+          </div>
+          <div style={{
+            fontFamily: SERIF, fontSize: 16, fontWeight: 700, marginTop: 4,
+            color: c.improved ? "#8ee3e6" : "#fed7aa",
+          }}>{pct}</div>
+          <div style={{ fontSize: 10, opacity: 0.5, marginTop: 4 }}>Click to explore →</div>
+          {/* Arrow */}
+          <div style={{
+            position: "absolute", bottom: -6, left: "50%", transform: "translateX(-50%)",
+            width: 0, height: 0,
+            borderLeft: "6px solid transparent", borderRight: "6px solid transparent",
+            borderTop: `6px solid ${C.ink}`,
+          }} />
+        </div>
+      )}
+    </Link>
+  );
+}
+
 function ScorecardSection({ mob, med }: { mob: boolean; med: boolean }) {
   const heat = useMemo(() => computeHeatmap(), []);
 
@@ -386,27 +448,9 @@ function ScorecardSection({ mob, med }: { mob: boolean; med: boolean }) {
                   <span style={{ fontSize: 10, color: C.mute, letterSpacing: "0.08em", textTransform: "uppercase" }}>{m.cat}</span>
                   <span style={{ fontWeight: 600, color: C.ink, fontSize: 13 }}>{m.l}</span>
                 </div>
-                {AID.map(id => {
-                  const c = heat[mk]?.[id];
-                  const st = cellColor(c);
-                  const pct = c ? `${c.pctChange >= 0 ? "+" : ""}${c.pctChange.toFixed(1)}%` : "—";
-                  return (
-                    <Link key={id} href={`/dashboard?metric=${mk}`} style={{
-                      margin: mob ? 3 : 5, height: mob ? 44 : 52, borderRadius: 3,
-                      display: "grid", placeItems: "center", padding: "4px 6px",
-                      background: st.bg, color: st.text, cursor: "pointer",
-                      transition: "transform 0.15s, box-shadow 0.15s",
-                      textDecoration: "none",
-                    }}>
-                      <span style={{ fontFamily: SERIF, fontSize: mob ? 13 : 15, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{pct}</span>
-                      {!mob && c && (
-                        <span style={{ fontSize: 9, letterSpacing: "0.04em", opacity: 0.75, fontVariantNumeric: "tabular-nums" }}>
-                          {fmt(c.start, m.u)} → {fmt(c.end, m.u)}
-                        </span>
-                      )}
-                    </Link>
-                  );
-                })}
+                {AID.map(id => (
+                  <HeatCell key={id} id={id} mk={mk} c={heat[mk]?.[id]} mob={mob} metricLabel={m.l} unit={m.u} />
+                ))}
               </div>
             );
           })}
