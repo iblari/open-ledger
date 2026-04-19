@@ -3,7 +3,7 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { BarChart, Bar, LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import FeedbackBanner from "./FeedbackBanner";
 import GlobeView from "@/components/GlobeView";
-import { HEADER_METRICS, THEATERS, BASES, CSGS, BTF_EVENTS } from "@/lib/abroad-data";
+import { HEADER_METRICS, THEATERS, PERSONNEL_BY_COUNTRY, POSTURE_ASSETS, ASSET_TYPES, ALERT_COLORS, THEATER_COLORS, type PostureAsset, type AssetType } from "@/lib/abroad-data";
 
 function useIsMobile() {
   const [w, setW] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
@@ -317,20 +317,10 @@ export default function App(){
   const [whyOpen,setWhyOpen]=useState(false);
 
   // Abroad tab state
-  const [theater,setTheater]=useState("global");
-  const [abroadLayers,setAbroadLayers]=useState({bases:true,csgs:true,btf:true,personnel:false});
-  const [abroadSelection,setAbroadSelection]=useState<{kind:string;data:any}|null>(null);
-  const [abroadData,setAbroadData]=useState<any>(null);
-  const [abroadLastUpdated,setAbroadLastUpdated]=useState<Record<string,string>>({});
-
-  // Fetch abroad data from API (enables updates without redeploy)
-  useEffect(()=>{
-    if(tab!=="abroad"||abroadData) return;
-    fetch("/api/abroad-data").then(r=>r.json()).then(d=>{
-      setAbroadData(d);
-      if(d.lastUpdated) setAbroadLastUpdated(d.lastUpdated);
-    }).catch(()=>{/* fall back to static imports */});
-  },[tab,abroadData]);
+  const [theater,setTheater]=useState("ALL");
+  const [abroadAssetTypes,setAbroadAssetTypes]=useState<Record<string,boolean>>({carrier:true,arg:true,base:true,bomber:true,drone:true,sub:true});
+  const [abroadSelection,setAbroadSelection]=useState<PostureAsset|null>(null);
+  const [abroadAutoRotate,setAbroadAutoRotate]=useState(false);
 
   // Reset abroad selection on tab change
   useEffect(()=>{if(tab!=="abroad")setAbroadSelection(null);},[tab]);
@@ -405,6 +395,7 @@ export default function App(){
         @keyframes slideIn { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: translateX(0); } }
         @keyframes scaleIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
         @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+        @keyframes pulse-dot { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
         
         .stagger-1 { animation: fadeUp 0.5s ease forwards; animation-delay: 0.03s; opacity: 0; }
         .stagger-2 { animation: fadeUp 0.5s ease forwards; animation-delay: 0.06s; opacity: 0; }
@@ -1239,166 +1230,238 @@ export default function App(){
         </div>)}
 
         {/* ═══ ABROAD ═══ */}
-        {tab==="abroad"&&(<div style={{animation:"fadeUp 0.4s ease"}}>
+        {tab==="abroad"&&(()=>{
+          const filteredAssets = POSTURE_ASSETS.filter(a => {
+            if (!abroadAssetTypes[a.type]) return false;
+            if (theater !== "ALL" && a.theater !== theater) return false;
+            return true;
+          });
+          const countByType = (t: AssetType) => filteredAssets.filter(a => a.type === t).length;
+          const highCritCount = filteredAssets.filter(a => a.alert === "high" || a.alert === "critical").length;
+          const sel = abroadSelection;
+
+          return <div style={{animation:"fadeUp 0.4s ease"}}>
           {/* Header */}
-          <div style={{marginBottom:14}}>
-            <div style={{display:"flex",alignItems:"baseline",gap:10,marginBottom:4,flexWrap:"wrap"}}>
-              <h2 style={{fontFamily:"'Source Serif 4', serif",fontSize:mob?22:28,fontWeight:900,margin:0,letterSpacing:-0.5}}>Abroad</h2>
-              <span style={{fontSize:10,background:T.highlight,color:T.gold,padding:"3px 8px",borderRadius:3,fontWeight:700,letterSpacing:1,textTransform:"uppercase"}}>Prototype</span>
+          <div style={{marginBottom:20}}>
+            <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase",color:T.mute,marginBottom:6}}>Dataset &middot; Defense &amp; foreign policy</div>
+            <h2 style={{fontFamily:"'Source Serif 4', serif",fontSize:mob?24:32,fontWeight:900,margin:"0 0 8px",letterSpacing:-0.5,lineHeight:1.15}}>
+              Where the <span style={{fontStyle:"italic",color:T.accent}}>US military</span> is, right now — and why it is there.
+            </h2>
+            <p style={{fontSize:13,color:T.sub,lineHeight:1.6,margin:"0 0 10px",maxWidth:640}}>
+              A live-ish map of publicly-reported US military deployments, bases, carrier strike groups, bomber patrols, ISR orbits, and submarine port calls.
+              Every marker is sourced from government releases, OSINT imagery, or credible defense journalism.
+            </p>
+            <div style={{display:"flex",flexWrap:"wrap",gap:12,fontFamily:"'DM Sans',sans-serif",fontSize:10,color:T.mute}}>
+              <span>As of April 13, 2026</span>
+              <span style={{color:T.rule}}>|</span>
+              <span>{POSTURE_ASSETS.length} assets tracked</span>
+              <span style={{color:T.rule}}>|</span>
+              <span>Sources: DoD, USNI, DMDC, CRS, USAF</span>
             </div>
-            <p style={{fontSize:12,color:T.sub,lineHeight:1.5,margin:0,marginBottom:4}}>The US military footprint worldwide — bases, carrier groups, personnel — as reported in public sources.</p>
-            <p style={{fontSize:10,color:T.mute,fontStyle:"italic",margin:0}}>Not real-time. Base data from DoD Base Structure Report FY2024 and CRS R48123. Carrier positions from USNI Fleet Tracker April 13 2026. Bomber deployments from DoD/USAF press releases. Personnel: DMDC March 2024.</p>
-            {Object.keys(abroadLastUpdated).length>0&&(
-              <div style={{display:"flex",flexWrap:"wrap",gap:10,marginTop:6}}>
-                {([["bases","Bases"],["csgs","Carriers"],["btf","BTF"],["personnel","Personnel"]] as const).map(([key,label])=>(
-                  abroadLastUpdated[key]?<span key={key} style={{fontSize:9,color:T.mute,fontFamily:"'DM Sans',sans-serif"}}>
-                    <span style={{fontWeight:600,color:T.sub}}>{label}:</span> updated {abroadLastUpdated[key]}
-                  </span>:null
-                ))}
-              </div>
-            )}
+          </div>
+
+          {/* Controls bar */}
+          <div style={{display:"flex",flexWrap:"wrap",gap:12,alignItems:"center",marginBottom:14}}>
+            {/* Theater segmented tabs */}
+            <div style={{display:"flex",border:`1px solid ${T.rule}`,borderRadius:4,overflow:"hidden"}}>
+              {THEATERS.map(th=>{
+                const active = theater===th.id;
+                const swatch = THEATER_COLORS[th.id];
+                return <button key={th.id} onClick={()=>setTheater(th.id)} style={{
+                  padding:"6px 14px",fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:active?700:500,
+                  color:active?"#fff":T.sub,
+                  background:active?T.ink:"transparent",
+                  border:"none",borderRight:`1px solid ${T.rule}`,
+                  cursor:"pointer",whiteSpace:"nowrap",display:"flex",alignItems:"center",gap:5,
+                  transition:"all 0.15s ease",
+                }}>
+                  <span style={{width:8,height:8,borderRadius:"50%",background:swatch,flexShrink:0,opacity:active?1:0.6}}/>
+                  {th.label}
+                </button>;
+              })}
+            </div>
+
+            {/* Show label + asset type toggles */}
+            <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+              <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,fontWeight:700,letterSpacing:1,textTransform:"uppercase",color:T.mute}}>Show</span>
+              {(Object.entries(ASSET_TYPES) as [AssetType, {label:string;glyph:string}][]).map(([key,info])=>{
+                const on = abroadAssetTypes[key];
+                return <button key={key} onClick={()=>setAbroadAssetTypes(prev=>({...prev,[key]:!prev[key]}))} style={{
+                  padding:"4px 10px",borderRadius:4,
+                  border:`1px solid ${on?T.ink:T.rule}`,
+                  background:on?T.ink:"#fff",
+                  color:on?"#fff":T.sub,
+                  fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:600,cursor:"pointer",
+                  display:"flex",alignItems:"center",gap:4,transition:"all 0.15s ease",
+                }}>
+                  <span style={{fontSize:10}}>{info.glyph}</span>
+                  {info.label}
+                </button>;
+              })}
+            </div>
+
+            {/* Auto-rotate */}
+            <button onClick={()=>setAbroadAutoRotate(!abroadAutoRotate)} style={{
+              padding:"4px 10px",borderRadius:4,
+              border:`1px solid ${abroadAutoRotate?T.accent:T.rule}`,
+              background:abroadAutoRotate?T.accent+"12":"#fff",
+              color:abroadAutoRotate?T.accent:T.sub,
+              fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:600,cursor:"pointer",
+              display:"flex",alignItems:"center",gap:5,
+            }}>
+              <span style={{width:6,height:6,borderRadius:"50%",background:abroadAutoRotate?T.accent:T.mute,flexShrink:0,animation:abroadAutoRotate?"pulse-dot 1.5s ease infinite":undefined}}/>
+              Auto-rotate
+            </button>
           </div>
 
           {/* Metrics strip */}
-          <div style={{display:"grid",gridTemplateColumns:mob?"repeat(2,1fr)":`repeat(auto-fit,minmax(130px,1fr))`,gap:8,marginBottom:16}}>
-            {HEADER_METRICS.map((m,i)=>(
-              <div key={i} style={{...sty.card,padding:"10px 12px"}}>
-                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase",color:T.mute,marginBottom:2}}>{m.label}</div>
-                <div style={{fontFamily:"'Source Serif 4', serif",fontSize:20,fontWeight:700,color:T.ink}}>{m.value}</div>
-                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:T.sub}}>{m.sub}</div>
-                {m.src&&<div style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,color:T.mute,marginTop:2}}>{m.src}</div>}
+          <div style={{display:"flex",gap:1,background:T.rule,borderRadius:4,overflow:"hidden",marginBottom:16}}>
+            {(Object.entries(ASSET_TYPES) as [AssetType, {label:string;glyph:string}][]).map(([key,info])=>(
+              <div key={key} style={{flex:1,background:T.card,padding:"8px 10px",textAlign:"center",minWidth:0}}>
+                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,fontWeight:700,letterSpacing:1,textTransform:"uppercase",color:T.mute,marginBottom:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{info.glyph} {info.label}</div>
+                <div style={{fontFamily:"'Source Serif 4', serif",fontSize:18,fontWeight:700,color:T.ink}}>{countByType(key)}</div>
               </div>
             ))}
+            <div style={{flex:1,background:T.card,padding:"8px 10px",textAlign:"center",minWidth:0}}>
+              <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,fontWeight:700,letterSpacing:1,textTransform:"uppercase",color:T.mute,marginBottom:2}}>High / Crit</div>
+              <div style={{fontFamily:"'Source Serif 4', serif",fontSize:18,fontWeight:700,color:highCritCount>0?T.accent:T.ink}}>{highCritCount}</div>
+            </div>
           </div>
 
-          {/* Theater tabs */}
-          <div style={{display:"flex",gap:0,borderBottom:`1px solid ${T.rule}`,marginBottom:16,overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
-            {THEATERS.map(th=>(
-              <button key={th.id} onClick={()=>setTheater(th.id)} style={{
-                padding:"8px 16px",fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:theater===th.id?700:500,
-                color:theater===th.id?T.accent:T.sub,background:"none",border:"none",
-                borderBottom:theater===th.id?`2px solid ${T.accent}`:"2px solid transparent",
-                cursor:"pointer",whiteSpace:"nowrap",transition:"color 0.15s ease",
-              }}>{th.label}</button>
-            ))}
-          </div>
-
-          {/* Layer toggles */}
-          <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:12}}>
-            {([
-              ["bases","Bases",T.improve.strong],
-              ["csgs","Carriers & ARGs",T.accent],
-              ["btf","Bomber deployments","#6b4e9e"],
-              ["personnel","Personnel density","#c4782e"],
-            ] as const).map(([key,label,color])=>{
-              const on=abroadLayers[key as keyof typeof abroadLayers];
-              return <button key={key} onClick={()=>setAbroadLayers(l=>({...l,[key]:!l[key as keyof typeof l]}))} style={{
-                padding:"5px 12px",borderRadius:6,border:`1.5px solid ${on?color:T.rule}`,
-                background:on?color+"12":"#fff",color:on?color:T.sub,
-                fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:600,cursor:"pointer",
-                display:"flex",alignItems:"center",gap:5,
-              }}>
-                <span style={{width:8,height:8,borderRadius:"50%",background:on?color:T.rule,flexShrink:0}}/>
-                {label}
-              </button>;
-            })}
-          </div>
-
-          {/* Main panel: globe + side panel */}
-          <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 240px",gap:16,marginBottom:24}}>
+          {/* Main panel: globe + detail */}
+          <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 380px",gap:16,marginBottom:24}}>
             {/* Globe */}
             <div>
-              <GlobeView theater={theater} layers={abroadLayers} onSelect={setAbroadSelection} mob={mob}/>
+              <GlobeView
+                assets={POSTURE_ASSETS}
+                theater={theater}
+                assetTypes={abroadAssetTypes}
+                selected={abroadSelection}
+                onSelect={setAbroadSelection}
+                mob={mob}
+              />
             </div>
-            {/* Side panel */}
-            <div style={{...sty.card,padding:"14px 16px",minHeight:mob?200:undefined,alignSelf:"start"}}>
-              {abroadSelection===null?(
+            {/* Detail / legend panel */}
+            <div style={{background:T.paper,border:`1px solid ${T.rule}`,borderRadius:4,padding:"16px 20px",alignSelf:"start",position:mob?undefined:"sticky",top:mob?undefined:20}}>
+              {sel===null?(
                 <>
-                  <div style={{fontFamily:"'Source Serif 4', serif",fontSize:14,fontWeight:700,color:T.ink,marginBottom:10}}>Legend</div>
-                  {([
-                    ["Bases",T.improve.strong,"circle"],
-                    ["Carriers / ARGs",T.accent,"circle"],
-                    ["Bomber Task Force","#6b4e9e","diamond"],
-                    ["Personnel density","#c4782e","circle"],
-                  ] as const).map(([label,color,shape])=>(
-                    <div key={label} style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
-                      {shape==="diamond"?(
-                        <span style={{width:10,height:10,background:color,transform:"rotate(45deg)",flexShrink:0}}/>
-                      ):(
-                        <span style={{width:10,height:10,borderRadius:"50%",background:color,flexShrink:0}}/>
-                      )}
-                      <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:T.ink}}>{label}</span>
-                    </div>
-                  ))}
-                  <div style={{marginTop:12,fontFamily:"'DM Sans',sans-serif",fontSize:11,color:T.mute,lineHeight:1.5}}>Drag to rotate. Scroll to zoom. Tap any marker.</div>
+                  <div style={{fontFamily:"'Source Serif 4', serif",fontSize:16,fontWeight:700,color:T.ink,marginBottom:12}}>Legend</div>
+                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:T.sub,lineHeight:1.5,marginBottom:14}}>
+                    Marker color indicates alert level. Shape indicates asset type.
+                  </div>
+                  <div style={{marginBottom:14}}>
+                    <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase",color:T.mute,marginBottom:6}}>Alert levels</div>
+                    {(["normal","elevated","high","critical"] as const).map(level=>(
+                      <div key={level} style={{display:"flex",alignItems:"center",gap:8,marginBottom:5}}>
+                        <span style={{width:10,height:10,borderRadius:"50%",background:ALERT_COLORS[level],flexShrink:0}}/>
+                        <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:T.ink,fontWeight:600,textTransform:"capitalize"}}>{level}</span>
+                        <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:T.mute,marginLeft:"auto"}}>
+                          {level==="normal"?"Routine posture":level==="elevated"?"Increased readiness":level==="high"?"Active operations":"Combat \u002F strike ops"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <div>
+                    <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase",color:T.mute,marginBottom:6}}>Asset types</div>
+                    {(Object.entries(ASSET_TYPES) as [AssetType, {label:string;glyph:string}][]).map(([key,info])=>(
+                      <div key={key} style={{display:"flex",alignItems:"center",gap:8,marginBottom:5}}>
+                        <span style={{width:16,textAlign:"center",fontSize:12,color:T.ink,flexShrink:0}}>{info.glyph}</span>
+                        <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:T.ink}}>{info.label}</span>
+                      </div>
+                    ))}
+                  </div>
                 </>
-              ):abroadSelection.kind==="base"?(()=>{
-                const b=abroadSelection.data;
+              ):(()=>{
+                const alertColor = ALERT_COLORS[sel.alert];
                 return <>
-                  <button onClick={()=>setAbroadSelection(null)} style={{background:"none",border:"none",color:T.accent,fontSize:11,fontWeight:600,cursor:"pointer",padding:0,marginBottom:8,fontFamily:"'DM Sans',sans-serif"}}>&#8592; Back to legend</button>
-                  <span style={{display:"inline-block",fontSize:9,fontWeight:700,letterSpacing:1,textTransform:"uppercase",padding:"2px 6px",borderRadius:3,background:T.improve.strong+"18",color:T.improve.strong,marginBottom:6}}>{b.type==="persistent"?"Persistent":"Other Site"}</span>
-                  <div style={{fontFamily:"'Source Serif 4', serif",fontSize:16,fontWeight:700,color:T.ink,marginBottom:2}}>{b.name}</div>
-                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:T.sub,marginBottom:8}}>{b.country}</div>
-                  <div style={{background:T.paper,borderRadius:6,padding:"8px 10px",marginBottom:8}}>
-                    <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase",color:T.mute}}>Personnel</div>
-                    <div style={{fontFamily:"'Source Serif 4', serif",fontSize:20,fontWeight:700,color:T.ink}}>{b.personnel.toLocaleString()}</div>
+                  <button onClick={()=>setAbroadSelection(null)} style={{background:"none",border:"none",color:T.accent,fontSize:11,fontWeight:600,cursor:"pointer",padding:0,marginBottom:10,fontFamily:"'DM Sans',sans-serif"}}>&larr; Back to legend</button>
+
+                  {/* Badges row */}
+                  <div style={{display:"flex",flexWrap:"wrap",gap:5,marginBottom:10}}>
+                    <span style={{display:"inline-block",fontSize:9,fontWeight:700,letterSpacing:0.5,textTransform:"uppercase",padding:"3px 8px",borderRadius:3,background:alertColor+"20",color:alertColor}}>{sel.alert}</span>
+                    <span style={{display:"inline-block",fontSize:9,fontWeight:700,letterSpacing:0.5,textTransform:"uppercase",padding:"3px 8px",borderRadius:3,background:T.ink+"10",color:T.ink,fontFamily:"'DM Sans',monospace"}}>{sel.short}</span>
+                    <span style={{display:"inline-block",fontSize:9,fontWeight:600,padding:"3px 8px",borderRadius:3,background:T.highlight,color:T.gold}}>{sel.updated}</span>
                   </div>
-                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:T.sub,lineHeight:1.5,marginBottom:6}}>{b.note}</div>
-                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,color:T.mute}}>{b.lat.toFixed(2)}°N, {b.lon.toFixed(2)}°E</div>
-                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,color:T.mute,marginTop:4}}>Source: DoD BSR FY2024 / CRS R48123</div>
-                </>;
-              })():abroadSelection.kind==="csg"?(()=>{
-                const c=abroadSelection.data;
-                return <>
-                  <button onClick={()=>setAbroadSelection(null)} style={{background:"none",border:"none",color:T.accent,fontSize:11,fontWeight:600,cursor:"pointer",padding:0,marginBottom:8,fontFamily:"'DM Sans',sans-serif"}}>&#8592; Back to legend</button>
-                  <span style={{display:"inline-block",fontSize:9,fontWeight:700,letterSpacing:1,textTransform:"uppercase",padding:"2px 6px",borderRadius:3,background:T.accent+"18",color:T.accent,marginBottom:6}}>{c.type}</span>
-                  <div style={{fontFamily:"'Source Serif 4', serif",fontSize:15,fontWeight:700,color:T.ink,marginBottom:2}}>{c.name}</div>
-                  <div style={{background:T.paper,borderRadius:6,padding:"8px 10px",marginBottom:8,marginTop:6}}>
-                    <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase",color:T.mute}}>Location</div>
-                    <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:600,color:T.ink}}>{c.location}</div>
+
+                  <div style={{fontFamily:"'Source Serif 4', serif",fontSize:18,fontWeight:700,color:T.ink,marginBottom:4,lineHeight:1.25}}>{sel.name}</div>
+                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:T.mute,marginBottom:12}}>
+                    {ASSET_TYPES[sel.type].glyph} {ASSET_TYPES[sel.type].label} &middot; {THEATERS.find(t=>t.id===sel.theater)?.label}
                   </div>
-                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:T.sub,lineHeight:1.5,marginBottom:6}}>{c.mission}</div>
-                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,color:T.mute,marginTop:4}}>Source: USNI Fleet Tracker Apr 13 2026</div>
-                </>;
-              })():abroadSelection.kind==="btf"?(()=>{
-                const b=abroadSelection.data;
-                return <>
-                  <button onClick={()=>setAbroadSelection(null)} style={{background:"none",border:"none",color:T.accent,fontSize:11,fontWeight:600,cursor:"pointer",padding:0,marginBottom:8,fontFamily:"'DM Sans',sans-serif"}}>&#8592; Back to legend</button>
-                  <span style={{display:"inline-block",fontSize:9,fontWeight:700,letterSpacing:1,textTransform:"uppercase",padding:"2px 6px",borderRadius:3,background:"#6b4e9e18",color:"#6b4e9e",marginBottom:6}}>{b.airframe}</span>
-                  <div style={{fontFamily:"'Source Serif 4', serif",fontSize:15,fontWeight:700,color:T.ink,marginBottom:2}}>{b.name}</div>
-                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:T.sub,marginBottom:6}}>{b.date}</div>
-                  <div style={{background:T.paper,borderRadius:6,padding:"8px 10px",marginBottom:8}}>
-                    <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase",color:T.mute}}>Route</div>
-                    <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:600,color:T.ink}}>{b.origin} → {b.dest}</div>
+
+                  {/* Mission */}
+                  <div style={{marginBottom:12}}>
+                    <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase",color:T.mute,marginBottom:4}}>Mission</div>
+                    <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:T.sub,lineHeight:1.6}}>{sel.mission}</div>
                   </div>
-                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:T.sub,lineHeight:1.5,marginBottom:6}}>{b.detail}</div>
-                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,color:T.mute,marginTop:4}}>Source: DoD / USAF press release</div>
+
+                  {/* Assets on station */}
+                  <div style={{background:"#fff",borderRadius:6,padding:"10px 12px",marginBottom:12,border:`1px solid ${T.rule}`}}>
+                    <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase",color:T.mute,marginBottom:4}}>Assets on station</div>
+                    <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:600,color:T.ink}}>{sel.assets}</div>
+                  </div>
+
+                  {/* Coordinates grid */}
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
+                    <div style={{background:"#fff",borderRadius:4,padding:"8px 10px",border:`1px solid ${T.rule}`}}>
+                      <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,fontWeight:700,letterSpacing:1,textTransform:"uppercase",color:T.mute}}>Lat</div>
+                      <div style={{fontFamily:"'DM Sans',monospace",fontSize:13,fontWeight:600,color:T.ink}}>{sel.lat.toFixed(2)}&deg;</div>
+                    </div>
+                    <div style={{background:"#fff",borderRadius:4,padding:"8px 10px",border:`1px solid ${T.rule}`}}>
+                      <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,fontWeight:700,letterSpacing:1,textTransform:"uppercase",color:T.mute}}>Lon</div>
+                      <div style={{fontFamily:"'DM Sans',monospace",fontSize:13,fontWeight:600,color:T.ink}}>{sel.lon.toFixed(2)}&deg;</div>
+                    </div>
+                  </div>
+
+                  <button onClick={()=>{
+                    setTheater(sel.theater);
+                  }} style={{
+                    width:"100%",padding:"8px 0",borderRadius:4,
+                    border:`1px solid ${T.rule}`,background:"#fff",
+                    fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:600,
+                    color:T.ink,cursor:"pointer",
+                  }}>Center on globe &rarr;</button>
                 </>;
-              })():null}
+              })()}
+            </div>
+          </div>
+
+          {/* Disclaimer */}
+          <div style={{...sty.card,padding:"16px 20px",borderLeft:`3px solid ${T.accent}`,marginBottom:24}}>
+            <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase",color:T.accent,marginBottom:6}}>Editorial note</div>
+            <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:T.sub,lineHeight:1.7}}>
+              This page reflects publicly-available data from US government reports, press releases, credible defense journalism (USNI News), and open-source intelligence.
+              It is <strong style={{color:T.ink}}>not real-time</strong> and does not track current operations or classified deployments.
+              Positions marked &ldquo;live&rdquo; refer to permanent installations whose coordinates are public record.
+              Ship and aircraft positions are approximate, based on the most recent public reporting.
+              This is a civic transparency tool built for informed democratic participation — not an intelligence product.
+              We do not receive, solicit, or publish classified information.
             </div>
           </div>
 
           {/* Methodology */}
-          <div style={{marginTop:24}}>
-            <h3 style={{fontFamily:"'Source Serif 4', serif",fontSize:18,fontWeight:700,color:T.ink,marginBottom:12}}>Sources & Methodology</h3>
-            <div style={{display:"grid",gridTemplateColumns:`repeat(auto-fit,minmax(240px,1fr))`,gap:10,marginBottom:16}}>
+          <div style={{marginBottom:24}}>
+            <h3 style={{fontFamily:"'Source Serif 4', serif",fontSize:20,fontWeight:700,color:T.ink,marginBottom:14}}>How we sourced each asset type</h3>
+            <div style={{display:"grid",gridTemplateColumns:mob?"1fr":`repeat(auto-fit,minmax(260px,1fr))`,gap:10}}>
               {([
-                {color:T.improve.strong,title:"Bases",text:"DoD FY2024 Base Structure Report enumerates all installations by country. CRS Report R48123 (July 2024) provides context, personnel counts, and status classifications."},
-                {color:T.accent,title:"Carrier Strike Groups",text:"USNI News Fleet and Marine Tracker publishes weekly positions of all deployable CSGs and ARGs. Snapshot date: April 13, 2026."},
-                {color:"#6b4e9e",title:"Bomber Task Force",text:"Deployment announcements sourced from DoD and USAF press releases. Each BTF is a named, publicly-announced deployment of strategic bombers to a forward location."},
-                {color:"#c4782e",title:"Personnel",text:"Defense Manpower Data Center (DMDC) publishes quarterly counts of active-duty military personnel by country. Data as of March 2024."},
-              ]).map((s,i)=>(
-                <div key={i} style={{...sty.card,padding:"12px 14px",borderLeft:`3px solid ${s.color}`}}>
-                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:700,color:T.ink,marginBottom:4}}>{s.title}</div>
+                {type:"carrier" as AssetType, text:"Carrier strike group positions from USNI News Fleet and Marine Tracker, published weekly. Cross-referenced with Navy press releases and AIS data where available. Snapshot: April 13, 2026."},
+                {type:"arg" as AssetType, text:"Amphibious ready group positions from the same USNI tracker. MEU assignments confirmed via USMC press releases."},
+                {type:"base" as AssetType, text:"Installations from DoD FY2024 Base Structure Report. Context and personnel from CRS Report R48123 (July 2024). Coordinates from public GIS records."},
+                {type:"bomber" as AssetType, text:"Bomber Task Force deployments from DoD and USAF press releases. In-flight positions are illustrative of publicly-announced sortie routes, not real-time tracks."},
+                {type:"drone" as AssetType, text:"ISR platform orbits inferred from publicly-reported operating areas, ADS-B tracking (where transmitting), and official mission announcements."},
+                {type:"sub" as AssetType, text:"Submarine positions only shown when publicly confirmed via port calls, Navy imagery, or official announcements. The vast majority of submarine operations are classified and not tracked here."},
+              ]).map((s)=>(
+                <div key={s.type} style={{...sty.card,padding:"12px 14px",borderLeft:`3px solid ${ALERT_COLORS[POSTURE_ASSETS.find(a=>a.type===s.type)?.alert||"normal"]}`}}>
+                  <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:6}}>
+                    <span style={{fontSize:12}}>{ASSET_TYPES[s.type].glyph}</span>
+                    <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:700,color:T.ink}}>{ASSET_TYPES[s.type].label}</span>
+                  </div>
                   <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:T.sub,lineHeight:1.5}}>{s.text}</div>
                 </div>
               ))}
             </div>
-            <div style={{background:T.paper,borderRadius:6,padding:"12px 16px",fontFamily:"'DM Sans',sans-serif",fontSize:11,color:T.sub,lineHeight:1.6}}>
-              <strong style={{color:T.ink}}>Editorial note:</strong> This dashboard reflects publicly-available data from government and press sources. It is not real-time, and does not track current operations. Data is shown as-of its source date. This is a civic transparency tool, not an intelligence product.
-            </div>
           </div>
-        </div>)}
+        </div>;
+        })()}
 
         {/* ═══ HEAD TO HEAD ═══ */}
         {/* ═══ GLOBAL ═══ */}
