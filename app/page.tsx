@@ -795,6 +795,7 @@ function CTASection({ mob, med }: { mob: boolean; med: boolean }) {
         setStatus("success");
         setMsg("You're in. First update drops next month.");
         setEmail("");
+        try { window.localStorage.setItem("vu_banner_dismissed", "1"); } catch {}
       } else {
         setStatus("error");
         setMsg(data.error || "Something went wrong. Try again.");
