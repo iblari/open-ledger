@@ -1770,29 +1770,22 @@ function App(){
           {/* Spend trend chart */}
           <SpendTrendChart mob={mob} />
 
-          {/* Main panel: globe + overlaid legend */}
-          <div style={{position:"relative",marginBottom:24}}>
-            {/* Globe — full width */}
-            <GlobeView
-              assets={POSTURE_ASSETS}
-              theater={theater}
-              assetTypes={abroadAssetTypes}
-              selected={abroadSelection}
-              onSelect={setAbroadSelection}
-              showRanges={showRanges}
-              mob={mob}
-            />
-            {/* Detail / legend panel — overlaid bottom-right */}
-            <div style={{
-              position:mob?"relative":"absolute",
-              bottom:mob?undefined:16, right:mob?undefined:16,
-              width:mob?"100%":340,
-              background:"rgba(248,245,240,0.92)", backdropFilter:"blur(8px)", WebkitBackdropFilter:"blur(8px)",
-              border:`1px solid ${T.rule}`,borderRadius:6,padding:"14px 18px",
-              boxShadow:"0 4px 20px rgba(0,0,0,0.08)",
-              maxHeight:mob?undefined:420, overflowY:mob?undefined:"auto",
-              marginTop:mob?12:undefined,
-            }}>
+          {/* Main panel: globe + detail */}
+          <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 380px",gap:16,marginBottom:24}}>
+            {/* Globe */}
+            <div>
+              <GlobeView
+                assets={POSTURE_ASSETS}
+                theater={theater}
+                assetTypes={abroadAssetTypes}
+                selected={abroadSelection}
+                onSelect={setAbroadSelection}
+                showRanges={showRanges}
+                mob={mob}
+              />
+            </div>
+            {/* Detail / legend panel */}
+            <div style={{background:T.paper,border:`1px solid ${T.rule}`,borderRadius:4,padding:"16px 20px",alignSelf:"start",position:mob?undefined:"sticky",top:mob?undefined:20}}>
               {sel===null?(
                 <>
                   <div style={{fontFamily:"'Source Serif 4', serif",fontSize:16,fontWeight:700,color:T.ink,marginBottom:12}}>Legend</div>
