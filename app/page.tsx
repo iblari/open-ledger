@@ -75,10 +75,19 @@ function computeHeatmap() {
   const out: Record<string, Record<string, { start: number; end: number; pctChange: number; improved: boolean }>> = {};
   for (const [mk, m] of Object.entries(METRICS)) {
     out[mk] = {};
-    for (const id of AID) {
+    for (let ai = 0; ai < AID.length; ai++) {
+      const id = AID[ai];
       const pts = m.d.filter(d => d.a === id);
-      if (pts.length < 2) continue;
-      const start = pts[0].v;
+      if (pts.length < 1) continue;
+
+      // Inherited baseline: use last value of previous admin, or own first value for Clinton
+      let start: number;
+      if (ai > 0) {
+        const prevPts = m.d.filter(d => d.a === AID[ai - 1]);
+        start = prevPts.length > 0 ? prevPts[prevPts.length - 1].v : pts[0].v;
+      } else {
+        start = pts[0].v;
+      }
       const end = pts[pts.length - 1].v;
       const pctChange = ((end - start) / Math.abs(start || 1)) * 100;
       const improved = m.inv ? end < start : end > start;
@@ -483,7 +492,7 @@ function ScorecardSection({ mob, med }: { mob: boolean; med: boolean }) {
             padding: "14px 20px", background: C.paper, borderTop: `1px solid ${C.rule}`,
             fontSize: 11, color: C.sub, letterSpacing: "0.04em", flexWrap: "wrap", gap: 12,
           }}>
-            <span>Each cell = percent change from first to last year of administration.</span>
+            <span>Each cell = percent change from inherited value to last year of administration.</span>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span>Worsened</span>
               <div style={{ display: "flex", border: `1px solid ${C.rule}`, borderRadius: 3, overflow: "hidden" }}>

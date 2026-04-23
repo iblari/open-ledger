@@ -191,6 +191,18 @@ const MK=Object.keys(M);
 const CATS={growth:"Growth",labor:"Labor Market",prices:"Prices & Wages",people:"Living Standards",fiscal:"Fiscal Health",markets:"Markets",sentiment:"Sentiment"};
 const ML={real_gdp:"GDP",gdp:"GDP%",unemployment:"Unemp",lfpr:"LFPR",jobs:"Jobs",mfg:"Mfg",inflation:"CPI",gas:"Gas",wages:"Wages",median_income:"Inc",poverty:"Pov",inequality:"Ineq",consumer_conf:"Conf",debt_gdp:"D/GDP",deficit:"Budget",sp500:"S&P",trade:"Trade",fed_rate:"Rate",purchasing:"$PWR"};
 
+// Inherited baseline: each president starts from the previous president's last value
+function inheritedStart(mk: string, id: string): number {
+  const m = M[mk];
+  const ai = AID.indexOf(id);
+  const pts = m.d.filter((d: {a:string}) => d.a === id);
+  if (ai > 0) {
+    const prevPts = m.d.filter((d: {a:string}) => d.a === AID[ai - 1]);
+    if (prevPts.length > 0) return prevPts[prevPts.length - 1].v;
+  }
+  return pts.length > 0 ? pts[0].v : 0;
+}
+
 const GLOBAL_METRICS={
   gdp_g:{l:"GDP Growth",u:"%",src:"World Bank/IMF",facts:[{t:"China slowing",x:"10%+ in 2000s → ~5% now."},{t:"India rising",x:"Fastest-growing major economy."}],
     d:[{y:2000,us:4.1,china:8.5,uk:3.4,india:3.8,germany:3.0,japan:2.8,skorea:9.1},{y:2004,us:3.8,china:10.1,uk:2.4,india:7.9,germany:1.2,japan:2.2,skorea:5.2},{y:2008,us:-0.1,china:9.7,uk:-0.3,india:3.1,germany:0.8,japan:-1.2,skorea:3.0},{y:2012,us:2.3,china:7.9,uk:1.4,india:5.5,germany:0.4,japan:1.4,skorea:2.4},{y:2016,us:1.7,china:6.8,uk:2.3,india:8.3,germany:2.2,japan:0.5,skorea:2.9},{y:2020,us:-2.8,china:2.2,uk:-10.4,india:-5.8,germany:-3.8,japan:-4.1,skorea:-0.7},{y:2024,us:2.8,china:4.9,uk:1.1,india:6.8,germany:0.0,japan:0.3,skorea:2.2}]},
@@ -218,8 +230,8 @@ function scores(){
     const changes={};
     for(const id of AID){
       const pts=m.d.filter(d=>d.a===id);
-      if(pts.length<2)continue;
-      const start=pts[0].v;const end=pts[pts.length-1].v;
+      if(pts.length<1)continue;
+      const start=inheritedStart(mk,id);const end=pts[pts.length-1].v;
       const abs=end-start;
       const pct=start!==0?((end-start)/Math.abs(start))*100:0;
       // For inverse metrics (lower=better), improvement is negative change
@@ -1079,14 +1091,14 @@ function App(){
                         {catMetrics.map((k,idx)=>{
                           const mx=M[k];
                           const pts=mx.d.filter(d=>d.a===selectedPres);
-                          if(pts.length<2)return null;
-                          const s=pts[0].v,e=pts[pts.length-1].v;
+                          if(pts.length<1)return null;
+                          const s=inheritedStart(k,selectedPres),e=pts[pts.length-1].v;
                           const pc=s!==0?((e-s)/Math.abs(s))*100:0;
                           const absPc=Math.abs(pc);
                           const imp=mx.inv?pc<0:pc>0;
                           const mnt=absPc<5;
                           const sparkData=pts.map(p=>p.v);
-                          
+
                           let bg,fg;
                           if(mnt){bg=T.neutral;fg=T.gold;}
                           else if(imp){bg=absPc>30?T.improve.strong:absPc>10?T.improve.medium:T.improve.light;fg=absPc>10?"#fff":T.improve.strong;}
@@ -1145,8 +1157,8 @@ function App(){
                       ...catMetrics.map((k,rowIdx)=>{
                         const mx=M[k];
                         const perPres=AID.map(id=>{
-                          const pts=mx.d.filter(d=>d.a===id);if(pts.length<2)return null;
-                          const s=pts[0].v,e=pts[pts.length-1].v;
+                          const pts=mx.d.filter(d=>d.a===id);if(pts.length<1)return null;
+                          const s=inheritedStart(k,id),e=pts[pts.length-1].v;
                           const pc=s!==0?((e-s)/Math.abs(s))*100:0;
                           const imp=mx.inv?pc<0:pc>0;const mnt=Math.abs(pc)<5;
                           const sparkData=pts.map(p=>p.v);
@@ -1198,8 +1210,8 @@ function App(){
                   const a=ADMINS[id];
                   let imp=0,dec=0;
                   MK.forEach(k=>{
-                    const mx=M[k];const pts=mx.d.filter(d=>d.a===id);if(pts.length<2)return;
-                    const s=pts[0].v,e=pts[pts.length-1].v;
+                    const mx=M[k];const pts=mx.d.filter(d=>d.a===id);if(pts.length<1)return;
+                    const s=inheritedStart(k,id),e=pts[pts.length-1].v;
                     const pc=s!==0?((e-s)/Math.abs(s))*100:0;
                     const improved=mx.inv?pc<0:pc>0;const mnt=Math.abs(pc)<5;
                     if(mnt)return;if(improved)imp++;else dec++;
@@ -1418,8 +1430,8 @@ function App(){
           {/* Summary cards */}
           <div className="ol-grid-summary" style={{display:"grid",gridTemplateColumns:mob?"repeat(2,1fr)":`repeat(${Math.min(sel.length,5)},1fr)`,gap:mob?8:10,marginBottom:mob?12:20,order:mob?2:1}}>
             {sel.map((id,idx)=>{const s=sums[id];if(!s)return null;const a=ADMINS[id];
-              const pts=m.d.filter(d=>d.a===id);if(pts.length<2)return null;
-              const start=pts[0].v,end=pts[pts.length-1].v;
+              const pts=m.d.filter(d=>d.a===id);if(pts.length<1)return null;
+              const start=inheritedStart(am,id),end=pts[pts.length-1].v;
               const pct=start!==0?((end-start)/Math.abs(start))*100:0;
               const imp=m.inv?pct<0:pct>0;const mnt=Math.abs(pct)<5;
               const col=mnt?T.gold:imp?T.improve.strong:T.decline.strong;
@@ -1522,9 +1534,9 @@ function App(){
               <tbody>
                 {sel.map(id=>{
                   const pts=m.d.filter(d=>d.a===id);
-                  if(pts.length<2)return null;
+                  if(pts.length<1)return null;
                   const a=ADMINS[id];
-                  const start=pts[0].v;const end=pts[pts.length-1].v;
+                  const start=inheritedStart(am,id);const end=pts[pts.length-1].v;
                   const pctChg=start!==0?((end-start)/Math.abs(start))*100:0;
                   const improved=m.inv?pctChg<0:pctChg>0;
                   const maintained=Math.abs(pctChg)<5;
