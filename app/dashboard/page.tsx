@@ -1980,7 +1980,7 @@ function App(){
             })}
           </div>
 
-          {/* Chart */}
+          {/* President cards + Chart */}
           {(()=>{
             const metric=M[scenarioMetric];
             if(!metric)return null;
@@ -2000,6 +2000,35 @@ function App(){
               };
             });
 
+            // Per-president impact cards data
+            const presCards=AID.map(id=>{
+              const a=ADMINS[id];
+              const actualPts=baselineData.filter(d=>d.a===id);
+              const scenarioPts=scenarioData.filter(d=>d.a===id);
+              if(actualPts.length<1)return null;
+
+              const actualStart=inheritedStart(scenarioMetric,id);
+              const actualEnd=actualPts[actualPts.length-1].v;
+              const actualPct=actualStart!==0?((actualEnd-actualStart)/Math.abs(actualStart))*100:0;
+              const actualImproved=metric.inv?actualEnd<actualStart:actualEnd>actualStart;
+
+              const modeledEnd=scenarioPts[scenarioPts.length-1]?.v??actualEnd;
+              const hasModeled=scenarioPts.some(d=>d.estimated);
+              // For modeled start, use the last modeled value of the previous president
+              const ai=AID.indexOf(id);
+              let modeledStart=actualStart;
+              if(ai>0&&activeScenario!=="baseline"){
+                const prevScenario=scenarioData.filter(d=>d.a===AID[ai-1]);
+                if(prevScenario.length>0)modeledStart=prevScenario[prevScenario.length-1].v;
+              }
+              const modeledPct=modeledStart!==0?((modeledEnd-modeledStart)/Math.abs(modeledStart))*100:0;
+              const modeledImproved=metric.inv?modeledEnd<modeledStart:modeledEnd>modeledStart;
+
+              const diff=modeledEnd-actualEnd;
+
+              return {id,a,actualStart,actualEnd,actualPct,actualImproved,modeledStart,modeledEnd,modeledPct,modeledImproved,hasModeled,diff};
+            }).filter(Boolean);
+
             // Compute impact summary
             const lastYear=chartData[chartData.length-1];
             const diff=activeScenario!=="baseline"&&lastYear?.scenario!=null
@@ -2008,6 +2037,69 @@ function App(){
 
             return (
               <div>
+                {/* President impact cards */}
+                <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"repeat(5,1fr)",gap:8,marginBottom:20}}>
+                  {presCards.map(pc=>{
+                    if(!pc)return null;
+                    const {id,a,actualStart,actualEnd,actualPct,actualImproved,modeledEnd,modeledPct,modeledImproved,hasModeled,diff:pDiff}=pc;
+                    const shockHit=scenario.shockYears.length>0&&baselineData.some(d=>d.a===id&&scenario.shockYears.includes(d.y));
+                    return (
+                      <div key={id} style={{
+                        ...sty.card,padding:"14px 14px 12px",borderTop:`3px solid ${a.color}`,
+                        position:"relative",overflow:"hidden"
+                      }}>
+                        {/* President header */}
+                        <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:10}}>
+                          <span style={{width:8,height:8,borderRadius:"50%",background:a.color}}/>
+                          <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:700,color:a.color}}>{a.name}</span>
+                          <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,color:T.mute}}>{a.years}</span>
+                        </div>
+
+                        {/* Actual values */}
+                        <div style={{marginBottom:8}}>
+                          <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:1.2,color:T.mute,marginBottom:3}}>Actual</div>
+                          <div style={{display:"flex",alignItems:"baseline",gap:4}}>
+                            <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,color:T.mute}}>{fmt(actualStart,metric.u)}</span>
+                            <span style={{fontSize:8,color:T.mute}}>→</span>
+                            <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:800,color:T.ink}}>{fmt(actualEnd,metric.u)}</span>
+                          </div>
+                          <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:700,color:actualImproved?T.improve.strong:T.decline.strong}}>
+                            {actualImproved?"▲":"▼"}{Math.abs(actualPct).toFixed(1)}%
+                          </div>
+                        </div>
+
+                        {/* Modeled values — only if scenario is active and this president was affected */}
+                        {activeScenario!=="baseline"&&hasModeled&&(
+                          <div style={{borderTop:`1px dashed ${T.rule}`,paddingTop:8}}>
+                            <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:1.2,color:T.accent,marginBottom:3}}>
+                              Modeled {shockHit&&<span style={{fontSize:8,fontWeight:400,color:T.mute}}>(shock removed)</span>}
+                            </div>
+                            <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:800,color:T.accent}}>
+                              {fmt(modeledEnd,metric.u)}
+                            </div>
+                            <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:700,color:modeledImproved?T.improve.strong:T.decline.strong}}>
+                              {modeledImproved?"▲":"▼"}{Math.abs(modeledPct).toFixed(1)}%
+                            </div>
+                            {Math.abs(pDiff)>0.01&&(
+                              <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,color:T.mute,marginTop:2}}>
+                                Δ {pDiff>0?"+":""}{fmt(pDiff,metric.u)} vs actual
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Shock badge */}
+                        {shockHit&&activeScenario!=="baseline"&&(
+                          <div style={{position:"absolute",top:6,right:8,fontFamily:"'DM Sans',sans-serif",fontSize:8,fontWeight:700,
+                            padding:"2px 6px",borderRadius:3,background:T.accent+"15",color:T.accent}}>
+                            SHOCK
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
                 {/* Impact summary */}
                 {diff!==null&&(
                   <div style={{display:"flex",gap:16,marginBottom:16,flexWrap:"wrap"}}>
