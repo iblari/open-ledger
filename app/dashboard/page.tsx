@@ -716,7 +716,8 @@ function SpendTrendChart({ mob }: { mob?: boolean }) {
   );
 }
 
-const TABS=[["dashboard","Data"],["scorecard","Scorecard"],["scenarios","Scenarios"],["abroad","Abroad"],["global","Global"]];
+const TABS_DESKTOP=[["dashboard","Data"],["scorecard","Scorecard"],["scenarios","Scenarios"],["abroad","Abroad"],["global","Global"]];
+const TABS_MOBILE=[["dashboard","Data"],["scenarios","Scenarios"],["abroad","Abroad"],["global","Global"]];
 
 export default function DashboardPage() {
   return <Suspense><App /></Suspense>;
@@ -1004,7 +1005,7 @@ function App(){
       {/* ── NAV ── */}
       <div style={sty.nav}>
         <div className="ol-nav-wrap" style={{maxWidth:1080,margin:"0 auto",padding:"0 24px",display:"flex",gap:0,overflowX:"auto"}}>
-          {TABS.map(([k,l])=><button key={k} className="ol-nav-btn" onClick={()=>setTab(k)} style={{
+          {(mob?TABS_MOBILE:TABS_DESKTOP).map(([k,l])=><button key={k} className="ol-nav-btn" onClick={()=>setTab(k)} style={{
             padding:"13px 20px",border:"none",fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:600,whiteSpace:"nowrap",
             background:"transparent",color:tab===k?T.ink:T.mute,
             borderBottom:tab===k?`2px solid ${T.accent}`:"2px solid transparent",transition:"all 0.2s"
