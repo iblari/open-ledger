@@ -2053,61 +2053,52 @@ function App(){
 
             return (
               <div>
-                {/* President impact cards — horizontal scroll on mobile, grid on desktop */}
-                <div style={mob?{display:"flex",gap:10,overflowX:"auto",WebkitOverflowScrolling:"touch",paddingBottom:8,marginBottom:16,scrollSnapType:"x mandatory"}:{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8,marginBottom:20}}>
-                  {presCards.map(pc=>{
+                {/* President impact cards — 2-col grid on mobile (matches Data tab), 5-col on desktop */}
+                <div style={{display:"grid",gridTemplateColumns:mob?"repeat(2,1fr)":"repeat(5,1fr)",gap:mob?8:8,marginBottom:mob?12:20}}>
+                  {presCards.map((pc,idx)=>{
                     if(!pc)return null;
                     const {id,a,actualStart,actualEnd,actualPct,actualImproved,modeledEnd,modeledPct,modeledImproved,hasModeled,diff:pDiff}=pc;
                     const shockHit=scenario.shockYears.length>0&&baselineData.some(d=>d.a===id&&scenario.shockYears.includes(d.y));
+                    const mnt=Math.abs(actualPct)<5;
+                    const col=mnt?T.gold:actualImproved?T.improve.strong:T.decline.strong;
                     return (
-                      <div key={id} style={{
-                        ...sty.card,padding:"14px 14px 12px",borderTop:`3px solid ${a.color}`,
-                        position:"relative",overflow:"hidden",
-                        ...(mob?{minWidth:200,flex:"0 0 200px",scrollSnapAlign:"start"}:{})
+                      <div key={id} className={`hover-lift stagger-${idx+1}`} style={{
+                        ...sty.card,padding:mob?"10px 12px":"14px 14px 12px",borderTop:`${mob?3:4}px solid ${a.color}`,
+                        position:"relative",overflow:"hidden"
                       }}>
-                        {/* President header */}
-                        <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:10}}>
-                          <span style={{width:8,height:8,borderRadius:"50%",background:a.color}}/>
-                          <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:700,color:a.color}}>{a.name}</span>
-                          <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,color:T.mute}}>{a.years}</span>
+                        {!mob&&<div style={{position:"absolute",top:0,right:0,width:80,height:80,background:`linear-gradient(135deg, ${a.color}08 0%, transparent 70%)`,borderRadius:"0 0 0 80px"}}/>}
+
+                        {/* Name */}
+                        <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?9:10,fontWeight:800,textTransform:"uppercase",letterSpacing:1,color:a.color,marginBottom:mob?4:6}}>{a.name}</div>
+
+                        {/* Inherited → Exit */}
+                        <div style={{display:"flex",alignItems:"baseline",gap:mob?4:6,marginBottom:mob?3:4}}>
+                          <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?10:12,color:T.mute,fontVariantNumeric:"tabular-nums"}}>{fmt(actualStart,metric.u)}</span>
+                          <span style={{fontSize:mob?8:10,color:T.mute}}>→</span>
+                          <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?10:18,fontWeight:700,color:T.ink,fontVariantNumeric:"tabular-nums"}}>{fmt(actualEnd,metric.u)}</span>
                         </div>
 
-                        {/* Actual values */}
-                        <div style={{marginBottom:8}}>
-                          <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:1.2,color:T.mute,marginBottom:3}}>Actual</div>
-                          <div style={{display:"flex",alignItems:"baseline",gap:4}}>
-                            <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,color:T.mute}}>{fmt(actualStart,metric.u)}</span>
-                            <span style={{fontSize:8,color:T.mute}}>→</span>
-                            <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:800,color:T.ink}}>{fmt(actualEnd,metric.u)}</span>
+                        {/* % change */}
+                        <div style={{display:"flex",alignItems:"center",gap:mob?4:8,marginBottom:mob?4:6}}>
+                          <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?17:24,fontWeight:900,color:col,fontVariantNumeric:"tabular-nums"}}>
+                            {mnt?"—":actualImproved?"▲":"▼"}{Math.abs(actualPct).toFixed(0)}%
                           </div>
-                          <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:700,color:actualImproved?T.improve.strong:T.decline.strong}}>
-                            {actualImproved?"▲":"▼"}{Math.abs(actualPct).toFixed(1)}%
-                          </div>
+                          {!mob&&<Sparkline data={baselineData.filter(d=>d.a===id).map(d=>d.v)} color={a.color} width={50} height={20} />}
                         </div>
 
-                        {/* Modeled values — only if scenario is active and this president was affected */}
-                        {activeScenario!=="baseline"&&hasModeled&&(
-                          <div style={{borderTop:`1px dashed ${T.rule}`,paddingTop:8}}>
-                            <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:1.2,color:T.accent,marginBottom:3}}>
-                              Modeled {shockHit&&<span style={{fontSize:8,fontWeight:400,color:T.mute}}>(shock removed)</span>}
-                            </div>
-                            <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:800,color:T.accent}}>
-                              {fmt(modeledEnd,metric.u)}
-                            </div>
-                            <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:700,color:modeledImproved?T.improve.strong:T.decline.strong}}>
-                              {modeledImproved?"▲":"▼"}{Math.abs(modeledPct).toFixed(1)}%
-                            </div>
-                            {Math.abs(pDiff)>0.01&&(
-                              <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,color:T.mute,marginTop:2}}>
-                                Δ {pDiff>0?"+":""}{fmt(pDiff,metric.u)} vs actual
-                              </div>
-                            )}
-                          </div>
-                        )}
+                        {/* Bottom row: modeled or years */}
+                        <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?9:10,color:T.mute,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                          {activeScenario!=="baseline"&&hasModeled&&Math.abs(pDiff)>0.01?(
+                            <span style={{color:T.accent,fontWeight:600}}>modeled {fmt(modeledEnd,metric.u)}</span>
+                          ):(
+                            <span>actual</span>
+                          )}
+                          <span style={{color:a.color,fontWeight:600}}>{a.years}</span>
+                        </div>
 
                         {/* Shock badge */}
                         {shockHit&&activeScenario!=="baseline"&&(
-                          <div style={{position:"absolute",top:6,right:8,fontFamily:"'DM Sans',sans-serif",fontSize:8,fontWeight:700,
+                          <div style={{position:"absolute",top:mob?4:6,right:mob?6:8,fontFamily:"'DM Sans',sans-serif",fontSize:mob?7:8,fontWeight:700,
                             padding:"2px 6px",borderRadius:3,background:T.accent+"15",color:T.accent}}>
                             SHOCK
                           </div>
@@ -2116,7 +2107,6 @@ function App(){
                     );
                   })}
                 </div>
-                {mob&&<div style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,color:T.mute,textAlign:"center",marginTop:-10,marginBottom:12}}>Swipe to see all presidents →</div>}
 
                 <div style={{...sty.card,padding:"20px 16px 10px",marginBottom:12}}>
                   <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:700,color:T.ink,marginBottom:4}}>
