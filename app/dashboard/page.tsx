@@ -2053,93 +2053,8 @@ function App(){
 
             return (
               <div>
-                {/* President impact cards — 2-col grid on mobile (matches Data tab), 5-col on desktop */}
-                <div style={{display:"grid",gridTemplateColumns:mob?"repeat(2,1fr)":"repeat(5,1fr)",gap:mob?8:8,marginBottom:mob?12:20}}>
-                  {presCards.map((pc,idx)=>{
-                    if(!pc)return null;
-                    const {id,a,actualStart,actualEnd,actualPct,actualImproved,modeledEnd,modeledPct,modeledImproved,hasModeled,diff:pDiff}=pc;
-                    const shockHit=scenario.shockYears.length>0&&baselineData.some(d=>d.a===id&&scenario.shockYears.includes(d.y));
-                    const mnt=Math.abs(actualPct)<5;
-                    const col=mnt?T.gold:actualImproved?T.improve.strong:T.decline.strong;
-                    return (
-                      <div key={id} className={`hover-lift stagger-${idx+1}`} style={{
-                        ...sty.card,padding:mob?"10px 12px":"14px 14px 12px",borderTop:`${mob?3:4}px solid ${a.color}`,
-                        position:"relative",overflow:"hidden"
-                      }}>
-                        {!mob&&<div style={{position:"absolute",top:0,right:0,width:80,height:80,background:`linear-gradient(135deg, ${a.color}08 0%, transparent 70%)`,borderRadius:"0 0 0 80px"}}/>}
-
-                        {/* Name */}
-                        <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?9:10,fontWeight:800,textTransform:"uppercase",letterSpacing:1,color:a.color,marginBottom:mob?4:6}}>{a.name}</div>
-
-                        {/* Inherited → Exit */}
-                        <div style={{display:"flex",alignItems:"baseline",gap:mob?4:6,marginBottom:mob?3:4}}>
-                          <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?10:12,color:T.mute,fontVariantNumeric:"tabular-nums"}}>{fmt(actualStart,metric.u)}</span>
-                          <span style={{fontSize:mob?8:10,color:T.mute}}>→</span>
-                          <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?10:18,fontWeight:700,color:T.ink,fontVariantNumeric:"tabular-nums"}}>{fmt(actualEnd,metric.u)}</span>
-                        </div>
-
-                        {/* % change — actual */}
-                        <div style={{display:"flex",alignItems:"center",gap:mob?4:8,marginBottom:activeScenario!=="baseline"&&hasModeled&&Math.abs(pDiff)>0.01?(mob?2:4):(mob?4:6)}}>
-                          <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?17:24,fontWeight:900,color:col,fontVariantNumeric:"tabular-nums"}}>
-                            {mnt?"—":actualImproved?"▲":"▼"}{Math.abs(actualPct).toFixed(0)}%
-                          </div>
-                          {!mob&&<Sparkline data={baselineData.filter(d=>d.a===id).map(d=>d.v)} color={a.color} width={50} height={20} />}
-                          {activeScenario!=="baseline"&&hasModeled&&Math.abs(pDiff)>0.01&&(
-                            <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?8:9,color:T.mute,fontWeight:500}}>actual</span>
-                          )}
-                        </div>
-
-                        {/* % change — modeled (only when scenario active and data differs) */}
-                        {activeScenario!=="baseline"&&hasModeled&&Math.abs(pDiff)>0.01&&(()=>{
-                          const mMnt=Math.abs(modeledPct)<5;
-                          const mCol=mMnt?T.gold:modeledImproved?T.improve.strong:T.decline.strong;
-                          return <div style={{display:"flex",alignItems:"center",gap:mob?4:8,marginBottom:mob?4:6}}>
-                            <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?14:18,fontWeight:800,color:mCol,fontVariantNumeric:"tabular-nums"}}>
-                              {mMnt?"—":modeledImproved?"▲":"▼"}{Math.abs(modeledPct).toFixed(0)}%
-                            </div>
-                            <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?8:9,color:T.accent,fontWeight:600}}>modeled</span>
-                          </div>;
-                        })()}
-
-                        {/* Bottom row: years */}
-                        <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?9:10,color:T.mute,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                          {activeScenario!=="baseline"&&hasModeled&&Math.abs(pDiff)>0.01?(
-                            <span style={{color:T.accent,fontWeight:600,fontSize:mob?8:9}}>{fmt(modeledEnd,metric.u)}</span>
-                          ):(
-                            <span>actual</span>
-                          )}
-                          <span style={{color:a.color,fontWeight:600}}>{a.years}</span>
-                        </div>
-
-                        {/* Shock badge */}
-                        {shockHit&&activeScenario!=="baseline"&&(
-                          <div style={{position:"absolute",top:mob?4:6,right:mob?6:8,fontFamily:"'DM Sans',sans-serif",fontSize:mob?7:8,fontWeight:700,
-                            padding:"2px 6px",borderRadius:3,background:T.accent+"15",color:T.accent}}>
-                            SHOCK
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                  {/* Live Trump II banner card */}
-                  <a href={`/live-benchmark?metric=${scenarioMetric}`} className={`hover-lift stagger-${presCards.length+1}`} style={{
-                    background:T.accent,border:`1px solid ${T.accent}`,borderRadius:4,
-                    padding:mob?"10px 12px":"14px 14px 12px",textDecoration:"none",color:"#fff",cursor:"pointer",
-                    display:"flex",flexDirection:"column",justifyContent:"space-between",minHeight:0
-                  }}>
-                    <div style={{display:"flex",alignItems:"center",gap:5}}>
-                      <span style={{width:6,height:6,borderRadius:"50%",background:"#fff",animation:"pulse 2s ease-in-out infinite"}}/>
-                      <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?9:10,fontWeight:700,textTransform:"uppercase",letterSpacing:1.2}}>Live · Trump II</span>
-                    </div>
-                    <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?10:11,fontWeight:500,color:"rgba(255,255,255,0.88)",margin:"6px 0"}}>Current term, updated daily</div>
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                      <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?9:10,fontWeight:700}}>See live data</span>
-                      <span style={{fontSize:12}}>→</span>
-                    </div>
-                  </a>
-                </div>
-
-                <div style={{...sty.card,padding:"20px 16px 10px",marginBottom:12}}>
+                {/* Chart first (matches Data tab order) */}
+                <div style={{...sty.card,padding:mob?"12px 8px 8px":"20px 16px 10px",marginBottom:mob?12:12}}>
                   <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:700,color:T.ink,marginBottom:4}}>
                     {metric.l} <span style={{fontWeight:400,color:T.mute}}>({metric.s})</span>
                   </div>
@@ -2218,24 +2133,85 @@ function App(){
                   </div>
                 </div>
 
+                {/* President impact cards — below chart (matches Data tab order) */}
+                <div style={{display:"grid",gridTemplateColumns:mob?"repeat(2,1fr)":"repeat(5,1fr)",gap:mob?8:8,marginBottom:mob?12:20}}>
+                  {presCards.map((pc,idx)=>{
+                    if(!pc)return null;
+                    const {id,a,actualStart,actualEnd,actualPct,actualImproved,modeledEnd,modeledPct,modeledImproved,hasModeled,diff:pDiff}=pc;
+                    const shockHit=scenario.shockYears.length>0&&baselineData.some(d=>d.a===id&&scenario.shockYears.includes(d.y));
+                    const mnt=Math.abs(actualPct)<5;
+                    const col=mnt?T.gold:actualImproved?T.improve.strong:T.decline.strong;
+                    return (
+                      <div key={id} className={`hover-lift stagger-${idx+1}`} style={{
+                        ...sty.card,padding:mob?"10px 12px":"14px 14px 12px",borderTop:`${mob?3:4}px solid ${a.color}`,
+                        position:"relative",overflow:"hidden"
+                      }}>
+                        {!mob&&<div style={{position:"absolute",top:0,right:0,width:80,height:80,background:`linear-gradient(135deg, ${a.color}08 0%, transparent 70%)`,borderRadius:"0 0 0 80px"}}/>}
+                        <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?9:10,fontWeight:800,textTransform:"uppercase",letterSpacing:1,color:a.color,marginBottom:mob?4:6}}>{a.name}</div>
+                        <div style={{display:"flex",alignItems:"baseline",gap:mob?4:6,marginBottom:mob?3:4}}>
+                          <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?10:12,color:T.mute,fontVariantNumeric:"tabular-nums"}}>{fmt(actualStart,metric.u)}</span>
+                          <span style={{fontSize:mob?8:10,color:T.mute}}>→</span>
+                          <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?10:18,fontWeight:700,color:T.ink,fontVariantNumeric:"tabular-nums"}}>{fmt(actualEnd,metric.u)}</span>
+                        </div>
+                        <div style={{display:"flex",alignItems:"center",gap:mob?4:8,marginBottom:activeScenario!=="baseline"&&hasModeled&&Math.abs(pDiff)>0.01?(mob?2:4):(mob?4:6)}}>
+                          <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?17:24,fontWeight:900,color:col,fontVariantNumeric:"tabular-nums"}}>
+                            {mnt?"—":actualImproved?"▲":"▼"}{Math.abs(actualPct).toFixed(0)}%
+                          </div>
+                          {!mob&&<Sparkline data={baselineData.filter(d=>d.a===id).map(d=>d.v)} color={a.color} width={50} height={20} />}
+                          {activeScenario!=="baseline"&&hasModeled&&Math.abs(pDiff)>0.01&&(
+                            <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?8:9,color:T.mute,fontWeight:500}}>actual</span>
+                          )}
+                        </div>
+                        {activeScenario!=="baseline"&&hasModeled&&Math.abs(pDiff)>0.01&&(()=>{
+                          const mMnt=Math.abs(modeledPct)<5;
+                          const mCol=mMnt?T.gold:modeledImproved?T.improve.strong:T.decline.strong;
+                          return <div style={{display:"flex",alignItems:"center",gap:mob?4:8,marginBottom:mob?4:6}}>
+                            <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?14:18,fontWeight:800,color:mCol,fontVariantNumeric:"tabular-nums"}}>
+                              {mMnt?"—":modeledImproved?"▲":"▼"}{Math.abs(modeledPct).toFixed(0)}%
+                            </div>
+                            <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?8:9,color:T.accent,fontWeight:600}}>modeled</span>
+                          </div>;
+                        })()}
+                        <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?9:10,color:T.mute,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                          {activeScenario!=="baseline"&&hasModeled&&Math.abs(pDiff)>0.01?(
+                            <span style={{color:T.accent,fontWeight:600,fontSize:mob?8:9}}>{fmt(modeledEnd,metric.u)}</span>
+                          ):(
+                            <span>actual</span>
+                          )}
+                          <span style={{color:a.color,fontWeight:600}}>{a.years}</span>
+                        </div>
+                        {shockHit&&activeScenario!=="baseline"&&(
+                          <div style={{position:"absolute",top:mob?4:6,right:mob?6:8,fontFamily:"'DM Sans',sans-serif",fontSize:mob?7:8,fontWeight:700,
+                            padding:"2px 6px",borderRadius:3,background:T.accent+"15",color:T.accent}}>
+                            SHOCK
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                  <a href={`/live-benchmark?metric=${scenarioMetric}`} className={`hover-lift stagger-${presCards.length+1}`} style={{
+                    background:T.accent,border:`1px solid ${T.accent}`,borderRadius:4,
+                    padding:mob?"10px 12px":"14px 14px 12px",textDecoration:"none",color:"#fff",cursor:"pointer",
+                    display:"flex",flexDirection:"column",justifyContent:"space-between",minHeight:0
+                  }}>
+                    <div style={{display:"flex",alignItems:"center",gap:5}}>
+                      <span style={{width:6,height:6,borderRadius:"50%",background:"#fff",animation:"pulse 2s ease-in-out infinite"}}/>
+                      <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?9:10,fontWeight:700,textTransform:"uppercase",letterSpacing:1.2}}>Live · Trump II</span>
+                    </div>
+                    <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?10:11,fontWeight:500,color:"rgba(255,255,255,0.88)",margin:"6px 0"}}>Current term, updated daily</div>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                      <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?9:10,fontWeight:700}}>See live data</span>
+                      <span style={{fontSize:12}}>→</span>
+                    </div>
+                  </a>
+                </div>
+
                 {/* Shock years highlight */}
                 {activeScenario!=="baseline"&&scenario.shockYears.length>0&&(
                   <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:T.mute,marginBottom:16}}>
                     Shock years replaced: {scenario.shockYears.join(", ")} · Trend fitted from: {scenario.trendYears.join(", ")}
                   </div>
                 )}
-
-                {/* Admin color legend */}
-                <div style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:20}}>
-                  {AID.map(id=>{
-                    const a=ADMINS[id];
-                    return <div key={id} style={{display:"flex",alignItems:"center",gap:5,fontFamily:"'DM Sans',sans-serif",fontSize:11}}>
-                      <span style={{width:8,height:8,borderRadius:"50%",background:a.color}}/>
-                      <span style={{color:T.sub,fontWeight:600}}>{a.name}</span>
-                      <span style={{color:T.mute,fontSize:10}}>{a.years}</span>
-                    </div>;
-                  })}
-                </div>
 
                 {/* ── Inherited vs Left Behind (selected metric only, scorecard style) ── */}
                 <div style={{...sty.card,padding:"12px 14px",marginBottom:24}}>
