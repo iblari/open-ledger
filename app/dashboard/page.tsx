@@ -2201,7 +2201,9 @@ function App(){
                   <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:700,marginBottom:2,color:T.ink}}>
                     {metric.l} {activeScenario!=="baseline"&&<span style={{fontSize:11,fontWeight:400,color:T.accent}}>— {SCENARIOS[activeScenario].shortLabel}</span>}
                   </div>
-                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,color:T.mute,marginBottom:8,textTransform:"uppercase",letterSpacing:0.5}}>Inherited → Exit → Change</div>
+                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,color:T.mute,marginBottom:8,textTransform:"uppercase",letterSpacing:0.5}}>
+                    Inherited → Exit → {activeScenario!=="baseline"?"Actual · Modeled":"Change"}
+                  </div>
                   {AID.map((id,i)=>{
                     const a=ADMINS[id];
                     const pts=baselineData.filter(d=>d.a===id);
@@ -2236,13 +2238,13 @@ function App(){
                         <span style={{color:T.mute,fontSize:8}}>→</span>
                         <span style={{color:T.ink,fontWeight:600}}>{fmt(actualEnd,metric.u)}</span>
                       </div>
-                      <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:600,color:arrowColor,width:56,textAlign:"right"}}>
-                        {arrow}{Math.abs(actualPct).toFixed(0)}%
+                      <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:600,color:arrowColor,width:hasModeled&&Math.abs(modeledEnd-actualEnd)>0.01?80:56,textAlign:"right"}}>
+                        {arrow}{Math.abs(actualPct).toFixed(0)}%{hasModeled&&Math.abs(modeledEnd-actualEnd)>0.01&&<span style={{fontSize:8,fontWeight:400,color:T.mute,marginLeft:3}}>actual</span>}
                       </span>
-                      {/* Modeled delta inline */}
+                      {/* Modeled delta inline — proper green/red colors */}
                       {hasModeled&&Math.abs(modeledEnd-actualEnd)>0.01&&(
-                        <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,color:T.accent,fontWeight:600,width:72,textAlign:"right",borderLeft:`1px dashed ${T.rule}`,paddingLeft:8}}>
-                          {mArrow}{Math.abs(modeledPct).toFixed(0)}% <span style={{fontSize:8,color:T.mute}}>mod.</span>
+                        <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,fontWeight:600,color:mArrowColor,width:80,textAlign:"right",borderLeft:`1px dashed ${T.rule}`,paddingLeft:8}}>
+                          {mArrow}{Math.abs(modeledPct).toFixed(0)}% <span style={{fontSize:8,fontWeight:400,color:T.mute}}>modeled</span>
                         </span>
                       )}
                     </div>;
