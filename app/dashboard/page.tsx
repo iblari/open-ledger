@@ -2078,18 +2078,33 @@ function App(){
                           <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?10:18,fontWeight:700,color:T.ink,fontVariantNumeric:"tabular-nums"}}>{fmt(actualEnd,metric.u)}</span>
                         </div>
 
-                        {/* % change */}
-                        <div style={{display:"flex",alignItems:"center",gap:mob?4:8,marginBottom:mob?4:6}}>
+                        {/* % change — actual */}
+                        <div style={{display:"flex",alignItems:"center",gap:mob?4:8,marginBottom:activeScenario!=="baseline"&&hasModeled&&Math.abs(pDiff)>0.01?(mob?2:4):(mob?4:6)}}>
                           <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?17:24,fontWeight:900,color:col,fontVariantNumeric:"tabular-nums"}}>
                             {mnt?"—":actualImproved?"▲":"▼"}{Math.abs(actualPct).toFixed(0)}%
                           </div>
                           {!mob&&<Sparkline data={baselineData.filter(d=>d.a===id).map(d=>d.v)} color={a.color} width={50} height={20} />}
+                          {activeScenario!=="baseline"&&hasModeled&&Math.abs(pDiff)>0.01&&(
+                            <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?8:9,color:T.mute,fontWeight:500}}>actual</span>
+                          )}
                         </div>
 
-                        {/* Bottom row: modeled or years */}
+                        {/* % change — modeled (only when scenario active and data differs) */}
+                        {activeScenario!=="baseline"&&hasModeled&&Math.abs(pDiff)>0.01&&(()=>{
+                          const mMnt=Math.abs(modeledPct)<5;
+                          const mCol=mMnt?T.gold:modeledImproved?T.improve.strong:T.decline.strong;
+                          return <div style={{display:"flex",alignItems:"center",gap:mob?4:8,marginBottom:mob?4:6}}>
+                            <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?14:18,fontWeight:800,color:mCol,fontVariantNumeric:"tabular-nums"}}>
+                              {mMnt?"—":modeledImproved?"▲":"▼"}{Math.abs(modeledPct).toFixed(0)}%
+                            </div>
+                            <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?8:9,color:T.accent,fontWeight:600}}>modeled</span>
+                          </div>;
+                        })()}
+
+                        {/* Bottom row: years */}
                         <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?9:10,color:T.mute,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                           {activeScenario!=="baseline"&&hasModeled&&Math.abs(pDiff)>0.01?(
-                            <span style={{color:T.accent,fontWeight:600}}>modeled {fmt(modeledEnd,metric.u)}</span>
+                            <span style={{color:T.accent,fontWeight:600,fontSize:mob?8:9}}>{fmt(modeledEnd,metric.u)}</span>
                           ):(
                             <span>actual</span>
                           )}
@@ -2106,6 +2121,22 @@ function App(){
                       </div>
                     );
                   })}
+                  {/* Live Trump II banner card */}
+                  <a href={`/live-benchmark?metric=${scenarioMetric}`} className={`hover-lift stagger-${presCards.length+1}`} style={{
+                    background:T.accent,border:`1px solid ${T.accent}`,borderRadius:4,
+                    padding:mob?"10px 12px":"14px 14px 12px",textDecoration:"none",color:"#fff",cursor:"pointer",
+                    display:"flex",flexDirection:"column",justifyContent:"space-between",minHeight:0
+                  }}>
+                    <div style={{display:"flex",alignItems:"center",gap:5}}>
+                      <span style={{width:6,height:6,borderRadius:"50%",background:"#fff",animation:"pulse 2s ease-in-out infinite"}}/>
+                      <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?9:10,fontWeight:700,textTransform:"uppercase",letterSpacing:1.2}}>Live · Trump II</span>
+                    </div>
+                    <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?10:11,fontWeight:500,color:"rgba(255,255,255,0.88)",margin:"6px 0"}}>Current term, updated daily</div>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                      <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?9:10,fontWeight:700}}>See live data</span>
+                      <span style={{fontSize:12}}>→</span>
+                    </div>
+                  </a>
                 </div>
 
                 <div style={{...sty.card,padding:"20px 16px 10px",marginBottom:12}}>
