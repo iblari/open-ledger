@@ -7,6 +7,8 @@ import FeedbackBanner from "./FeedbackBanner";
 import GlobeView from "@/components/GlobeView";
 import { HEADER_METRICS, THEATERS, PERSONNEL_BY_COUNTRY, POSTURE_ASSETS, ASSET_TYPES, ALERT_COLORS, THEATER_COLORS, POSTURE_FEED, type PostureAsset, type AssetType, type FeedItem } from "@/lib/abroad-data";
 import { CONFLICT_STREAMS, estimateTotal, estimateGrandTotal, formatUSD, formatUSDFull, MONTHLY_SPEND, computeDeltas, type ConflictStream, type SpendRow, type DeltaRow } from "@/lib/war-costs";
+import { SCENARIOS, SCENARIO_ORDER, applyScenario, type ScenarioId, type DataPoint } from "@/lib/scenarios";
+import { SCENARIO_DETAILS, METHODOLOGY_TEXT } from "@/lib/scenario-descriptions";
 
 function useIsMobile() {
   const [w, setW] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
@@ -714,7 +716,7 @@ function SpendTrendChart({ mob }: { mob?: boolean }) {
   );
 }
 
-const TABS=[["dashboard","Data"],["scorecard","Scorecard"],["abroad","Abroad"],["global","Global"]];
+const TABS=[["dashboard","Data"],["scorecard","Scorecard"],["scenarios","Scenarios"],["abroad","Abroad"],["global","Global"]];
 
 export default function DashboardPage() {
   return <Suspense><App /></Suspense>;
@@ -734,6 +736,9 @@ function App(){
   const [openFacts,setOpenFacts]=useState(false);
   const [mobileView,setMobileView]=useState<"table"|"cards">("cards");
   const [selectedPres,setSelectedPres]=useState("clinton");
+  const [scenarioMetric,setScenarioMetric]=useState("gdp");
+  const [activeScenario,setActiveScenario]=useState<ScenarioId>("no_covid");
+  const [showMethodology,setShowMethodology]=useState(false);
 
   // Read metric from URL query param (e.g. /dashboard?metric=unemployment)
   useEffect(() => {
@@ -1920,6 +1925,236 @@ function App(){
           </div>
         </div>;
         })()}
+
+        {/* ═══ SCENARIOS ═══ */}
+        {tab==="scenarios"&&(<div style={{animation:"fadeUp 0.4s ease"}}>
+          <div style={{marginBottom:24}}>
+            <h2 style={{fontSize:mob?24:28,fontWeight:900,margin:"0 0 4px",color:T.ink}}>Scenario Modeling</h2>
+            <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:T.sub,margin:"0 0 0",lineHeight:1.6,maxWidth:600}}>
+              What would the data look like if a major economic shock never happened? Transparent trend extrapolation — not a prediction.
+            </p>
+          </div>
+
+          {/* Scenario selector pills */}
+          <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:20}}>
+            {SCENARIO_ORDER.map(sid=>{
+              const s=SCENARIOS[sid];
+              const active=activeScenario===sid;
+              return <button key={sid} onClick={()=>setActiveScenario(sid)} style={{
+                padding:"8px 16px",borderRadius:20,border:`1.5px solid ${active?T.accent:T.rule}`,
+                background:active?T.accent:"transparent",color:active?"#fff":T.sub,
+                fontSize:12,fontWeight:active?700:500,fontFamily:"'DM Sans',sans-serif",
+                cursor:"pointer",transition:"all 0.2s"
+              }}>{s.shortLabel}</button>;
+            })}
+          </div>
+
+          {/* Scenario description card */}
+          {activeScenario!=="baseline"&&(
+            <div style={{...sty.card,padding:"16px 20px",marginBottom:20,borderLeft:`3px solid ${T.accent}`,background:`linear-gradient(135deg, ${T.highlight} 0%, #fff 100%)`}}>
+              <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:700,color:T.ink,marginBottom:6}}>
+                {SCENARIO_DETAILS[activeScenario].title}
+              </div>
+              <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:T.sub,lineHeight:1.6,marginBottom:SCENARIO_DETAILS[activeScenario].caveat?8:0}}>
+                {SCENARIO_DETAILS[activeScenario].methodology}
+              </div>
+              {SCENARIO_DETAILS[activeScenario].caveat&&(
+                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:T.mute,lineHeight:1.5,fontStyle:"italic"}}>
+                  ⚠ {SCENARIO_DETAILS[activeScenario].caveat}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Metric picker */}
+          <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:16}}>
+            {MK.map(mk=>{
+              const active=scenarioMetric===mk;
+              return <button key={mk} onClick={()=>setScenarioMetric(mk)} style={{
+                padding:"5px 12px",borderRadius:3,
+                border:`1px solid ${active?T.accent+"55":T.rule}`,
+                background:active?T.accent+"0A":"transparent",
+                color:active?T.accent:T.sub,fontSize:11,fontWeight:active?700:500,
+                fontFamily:"'DM Sans',sans-serif",cursor:"pointer"
+              }}>{M[scenarioMetric===mk?mk:mk]?.l||mk}</button>;
+            })}
+          </div>
+
+          {/* Chart */}
+          {(()=>{
+            const metric=M[scenarioMetric];
+            if(!metric)return null;
+            const scenario=SCENARIOS[activeScenario];
+            const baselineData=metric.d as DataPoint[];
+            const scenarioData=applyScenario(baselineData,scenario,scenarioMetric);
+
+            // Build chart data: year, baseline value, scenario value
+            const chartData=baselineData.map((d,i)=>{
+              const sd=scenarioData[i];
+              return {
+                y:d.y,
+                baseline:d.v,
+                scenario:sd.estimated?sd.v:null,
+                admin:d.a,
+                estimated:sd.estimated,
+              };
+            });
+
+            // Compute impact summary
+            const lastYear=chartData[chartData.length-1];
+            const diff=activeScenario!=="baseline"&&lastYear?.scenario!=null
+              ?(lastYear.scenario-lastYear.baseline)
+              :null;
+
+            return (
+              <div>
+                {/* Impact summary */}
+                {diff!==null&&(
+                  <div style={{display:"flex",gap:16,marginBottom:16,flexWrap:"wrap"}}>
+                    {[
+                      {label:"Actual (Latest)",value:fmt(lastYear.baseline,metric.u),color:T.ink},
+                      {label:"Without Shock",value:fmt(lastYear.scenario!,metric.u),color:T.accent},
+                      {label:"Estimated Impact",value:`${diff>0?"+":""}${fmt(diff,metric.u)}`,color:diff>0?T.improve.strong:T.decline.strong},
+                    ].map((item,i)=>(
+                      <div key={i} style={{...sty.card,padding:"14px 18px",flex:"1 1 140px",minWidth:140}}>
+                        <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:1.5,color:T.mute,marginBottom:4}}>{item.label}</div>
+                        <div style={{fontSize:22,fontWeight:900,color:item.color,letterSpacing:-0.5}}>{item.value}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div style={{...sty.card,padding:"20px 16px 10px",marginBottom:12}}>
+                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:700,color:T.ink,marginBottom:4}}>
+                    {metric.l} <span style={{fontWeight:400,color:T.mute}}>({metric.s})</span>
+                  </div>
+                  <ResponsiveContainer width="100%" height={mob?300:400}>
+                    <LineChart data={chartData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={T.rule} />
+                      <XAxis dataKey="y" stroke={T.mute} fontSize={11} fontFamily="'DM Sans',sans-serif" tick={{fill:T.sub}} />
+                      <YAxis stroke={T.rule} fontSize={10} fontFamily="'DM Sans',sans-serif" tick={{fill:T.sub}} tickFormatter={v=>fmt(v,metric.u)} />
+                      <Tooltip content={({active,payload,label})=>{
+                        if(!active||!payload?.length)return null;
+                        const d=payload[0]?.payload;
+                        const admin=d?.admin?ADMINS[d.admin]:null;
+                        return (
+                          <div style={{background:"rgba(255,255,255,0.97)",backdropFilter:"blur(8px)",border:`1px solid ${T.rule}`,borderRadius:6,padding:"10px 14px",boxShadow:"0 4px 16px rgba(0,0,0,0.08)"}}>
+                            <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:700,color:T.ink,marginBottom:4}}>
+                              {label} {admin&&<span style={{color:admin.color,fontWeight:600}}>· {admin.name}</span>}
+                            </div>
+                            <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:T.sub}}>
+                              Actual: <strong style={{color:T.ink}}>{fmt(d.baseline,metric.u)}</strong>
+                            </div>
+                            {d.scenario!=null&&(
+                              <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:T.accent}}>
+                                Modeled: <strong>{fmt(d.scenario,metric.u)}</strong>
+                                {d.estimated&&<span style={{fontSize:10,marginLeft:4,color:T.mute}}>(estimated)</span>}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      }}/>
+
+                      {/* Admin background bands */}
+                      {AID.map(id=>{
+                        const pts=chartData.filter(d=>d.admin===id);
+                        if(pts.length<2)return null;
+                        const startIdx=chartData.indexOf(pts[0]);
+                        const endIdx=chartData.indexOf(pts[pts.length-1]);
+                        return null; // bands handled by line colors
+                      })}
+
+                      {/* Baseline line — solid, with admin colors */}
+                      <Line type="monotone" dataKey="baseline" stroke={T.ink} strokeWidth={2.5}
+                        dot={({cx,cy,payload})=>{
+                          if(!cx||!cy)return null;
+                          const admin=ADMINS[payload.admin];
+                          return <circle cx={cx} cy={cy} r={3.5} fill={admin?.color||T.ink} stroke="#fff" strokeWidth={1.5}/>;
+                        }}
+                        name="Actual" connectNulls />
+
+                      {/* Scenario line — dashed */}
+                      {activeScenario!=="baseline"&&(
+                        <Line type="monotone" dataKey="scenario" stroke={T.accent} strokeWidth={2.5}
+                          strokeDasharray="6 3"
+                          dot={({cx,cy,payload})=>{
+                            if(!cx||!cy||payload.scenario==null)return null;
+                            return <circle cx={cx} cy={cy} r={3} fill={T.accent} stroke="#fff" strokeWidth={1.5}/>;
+                          }}
+                          name="Modeled" connectNulls />
+                      )}
+                    </LineChart>
+                  </ResponsiveContainer>
+
+                  {/* Legend */}
+                  <div style={{display:"flex",gap:20,justifyContent:"center",marginTop:4,marginBottom:8}}>
+                    <div style={{display:"flex",alignItems:"center",gap:6,fontFamily:"'DM Sans',sans-serif",fontSize:11,color:T.sub}}>
+                      <svg width="24" height="2"><line x1="0" y1="1" x2="24" y2="1" stroke={T.ink} strokeWidth="2.5"/></svg>
+                      Actual data
+                    </div>
+                    {activeScenario!=="baseline"&&(
+                      <div style={{display:"flex",alignItems:"center",gap:6,fontFamily:"'DM Sans',sans-serif",fontSize:11,color:T.sub}}>
+                        <svg width="24" height="2"><line x1="0" y1="1" x2="24" y2="1" stroke={T.accent} strokeWidth="2.5" strokeDasharray="4 2"/></svg>
+                        Modeled (without shock)
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Shock years highlight */}
+                {activeScenario!=="baseline"&&scenario.shockYears.length>0&&(
+                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:T.mute,marginBottom:16}}>
+                    Shock years replaced: {scenario.shockYears.join(", ")} · Trend fitted from: {scenario.trendYears.join(", ")}
+                  </div>
+                )}
+
+                {/* Admin color legend */}
+                <div style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:20}}>
+                  {AID.map(id=>{
+                    const a=ADMINS[id];
+                    return <div key={id} style={{display:"flex",alignItems:"center",gap:5,fontFamily:"'DM Sans',sans-serif",fontSize:11}}>
+                      <span style={{width:8,height:8,borderRadius:"50%",background:a.color}}/>
+                      <span style={{color:T.sub,fontWeight:600}}>{a.name}</span>
+                      <span style={{color:T.mute,fontSize:10}}>{a.years}</span>
+                    </div>;
+                  })}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Methodology disclosure */}
+          <div style={{...sty.card,padding:0,marginBottom:16,overflow:"hidden"}}>
+            <button onClick={()=>setShowMethodology(!showMethodology)} style={{
+              width:"100%",padding:"14px 20px",border:"none",background:"transparent",cursor:"pointer",
+              display:"flex",alignItems:"center",justifyContent:"space-between",
+              fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:700,color:T.ink
+            }}>
+              <span>📐 {METHODOLOGY_TEXT.title}</span>
+              <span style={{fontSize:10,color:T.mute,transform:showMethodology?"rotate(180deg)":"rotate(0deg)",transition:"transform 0.2s"}}>▼</span>
+            </button>
+            {showMethodology&&(
+              <div style={{padding:"0 20px 20px",borderTop:`1px solid ${T.rule}`}}>
+                {METHODOLOGY_TEXT.paragraphs.map((p,i)=>(
+                  <p key={i} style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:T.sub,lineHeight:1.7,margin:"12px 0 0"}}>{p}</p>
+                ))}
+                <div style={{marginTop:16}}>
+                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:1.5,color:T.mute,marginBottom:8}}>Limitations</div>
+                  {METHODOLOGY_TEXT.limitations.map((l,i)=>(
+                    <div key={i} style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:T.sub,lineHeight:1.6,marginBottom:6,paddingLeft:12,borderLeft:`2px solid ${T.rule}`}}>{l}</div>
+                  ))}
+                </div>
+                <div style={{marginTop:16,padding:"12px 16px",background:T.highlight,borderRadius:4,borderLeft:`3px solid ${T.gold}`}}>
+                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:T.ink,lineHeight:1.6,fontWeight:500}}>{METHODOLOGY_TEXT.disclaimer}</div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:T.mute}}>
+            Source: All baseline data from BEA, BLS, Treasury, Census. Scenario values are mechanically derived via OLS trend extrapolation.
+          </div>
+        </div>)}
 
         {/* ═══ HEAD TO HEAD ═══ */}
         {/* ═══ GLOBAL ═══ */}
