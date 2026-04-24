@@ -2211,6 +2211,96 @@ function App(){
                     </div>;
                   })}
                 </div>
+
+                {/* ── Inherited vs Left Behind table ── */}
+                <h3 style={{fontSize:mob?16:18,fontWeight:700,margin:"8px 0 12px",borderBottom:`1px solid ${T.rule}`,paddingBottom:8,color:T.ink}}>
+                  Inherited vs Left Behind {activeScenario!=="baseline"&&<span style={{fontSize:12,fontWeight:400,color:T.accent}}>— {SCENARIOS[activeScenario].shortLabel} scenario</span>}
+                </h3>
+
+                {/* Full comparison table */}
+                <div style={{overflowX:"auto",marginBottom:24}}>
+                  <table style={{width:"100%",borderCollapse:"collapse",fontFamily:"'DM Sans',sans-serif",fontSize:12}}>
+                    <thead>
+                      <tr style={{borderBottom:`2px solid ${T.rule}`}}>
+                        <th style={{textAlign:"left",padding:"8px 10px",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:1.2,color:T.mute}}>Metric</th>
+                        {AID.map(id=>{
+                          const a=ADMINS[id];
+                          return <th key={id} style={{textAlign:"center",padding:"8px 6px",minWidth:mob?80:110}}>
+                            <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
+                              <span style={{width:6,height:6,borderRadius:"50%",background:a.color}}/>
+                              <span style={{fontSize:11,fontWeight:700,color:a.color}}>{a.name}</span>
+                              <span style={{fontSize:9,color:T.mute}}>{a.years}</span>
+                            </div>
+                          </th>;
+                        })}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {MK.map((mk,ri)=>{
+                        const mx=M[mk];
+                        const scenData=applyScenario(mx.d as DataPoint[],scenario,mk);
+
+                        return <tr key={mk} style={{borderBottom:`1px solid ${T.rule}22`,background:ri%2===0?"transparent":T.paper+"44"}}>
+                          <td style={{padding:"10px 10px",fontWeight:600,color:T.ink,fontSize:11,whiteSpace:"nowrap",position:"sticky",left:0,background:ri%2===0?T.card:T.paper}}>
+                            {mx.l}
+                            <div style={{fontSize:9,fontWeight:400,color:T.mute}}>{mx.s}</div>
+                          </td>
+                          {AID.map(id=>{
+                            const a=ADMINS[id];
+                            const pts=mx.d.filter(d=>d.a===id);
+                            if(pts.length<1)return <td key={id} style={{padding:"8px 6px",textAlign:"center",color:T.mute,fontSize:10}}>—</td>;
+
+                            const actualStart=inheritedStart(mk,id);
+                            const actualEnd=pts[pts.length-1].v;
+                            const actualPct=actualStart!==0?((actualEnd-actualStart)/Math.abs(actualStart))*100:0;
+                            const actualImproved=mx.inv?actualEnd<actualStart:actualEnd>actualStart;
+
+                            // Modeled values
+                            const scenPts=scenData.filter(d=>d.a===id);
+                            const hasModeled=scenPts.some(d=>d.estimated);
+                            const modeledEnd=scenPts.length>0?scenPts[scenPts.length-1].v:actualEnd;
+                            const ai=AID.indexOf(id);
+                            let modeledStart=actualStart;
+                            if(ai>0&&activeScenario!=="baseline"){
+                              const prevScen=scenData.filter(d=>d.a===AID[ai-1]);
+                              if(prevScen.length>0)modeledStart=prevScen[prevScen.length-1].v;
+                            }
+                            const modeledPct=modeledStart!==0?((modeledEnd-modeledStart)/Math.abs(modeledStart))*100:0;
+                            const modeledImproved=mx.inv?modeledEnd<modeledStart:modeledEnd>modeledStart;
+
+                            const arrowColor=actualImproved?"#16a34a":T.decline.strong;
+                            const arrow=actualImproved?"▲":"▼";
+
+                            return <td key={id} style={{padding:"8px 6px",textAlign:"center",verticalAlign:"top"}}>
+                              {/* Actual row */}
+                              <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:3,fontSize:10,color:T.mute,marginBottom:1}}>
+                                <span>{fmt(actualStart,mx.u)}</span>
+                                <span style={{fontSize:7}}>→</span>
+                                <span style={{fontWeight:700,color:T.ink}}>{fmt(actualEnd,mx.u)}</span>
+                              </div>
+                              <div style={{fontSize:10,fontWeight:700,color:arrowColor}}>
+                                {arrow}{Math.abs(actualPct).toFixed(0)}%
+                              </div>
+
+                              {/* Modeled row — only if different */}
+                              {activeScenario!=="baseline"&&hasModeled&&Math.abs(modeledEnd-actualEnd)>0.01&&(
+                                <div style={{marginTop:4,paddingTop:4,borderTop:`1px dashed ${T.rule}`}}>
+                                  <div style={{fontSize:9,fontWeight:600,color:T.accent,marginBottom:1}}>Modeled</div>
+                                  <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:3,fontSize:10,color:T.mute}}>
+                                    <span style={{fontWeight:600,color:T.accent}}>{fmt(modeledEnd,mx.u)}</span>
+                                  </div>
+                                  <div style={{fontSize:10,fontWeight:700,color:modeledImproved?"#16a34a":T.decline.strong}}>
+                                    {modeledImproved?"▲":"▼"}{Math.abs(modeledPct).toFixed(0)}%
+                                  </div>
+                                </div>
+                              )}
+                            </td>;
+                          })}
+                        </tr>;
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             );
           })()}
