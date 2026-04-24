@@ -1941,9 +1941,9 @@ function App(){
               const s=SCENARIOS[sid];
               const active=activeScenario===sid;
               return <button key={sid} onClick={()=>setActiveScenario(sid)} style={{
-                padding:"8px 16px",borderRadius:20,border:`1.5px solid ${active?T.accent:T.rule}`,
+                padding:mob?"6px 12px":"8px 16px",borderRadius:20,border:`1.5px solid ${active?T.accent:T.rule}`,
                 background:active?T.accent:"transparent",color:active?"#fff":T.sub,
-                fontSize:12,fontWeight:active?700:500,fontFamily:"'DM Sans',sans-serif",
+                fontSize:mob?11:12,fontWeight:active?700:500,fontFamily:"'DM Sans',sans-serif",
                 cursor:"pointer",transition:"all 0.2s"
               }}>{s.shortLabel}</button>;
             })}
@@ -1966,19 +1966,35 @@ function App(){
             </div>
           )}
 
-          {/* Metric picker */}
-          <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:16}}>
-            {MK.map(mk=>{
-              const active=scenarioMetric===mk;
-              return <button key={mk} onClick={()=>setScenarioMetric(mk)} style={{
-                padding:"5px 12px",borderRadius:3,
-                border:`1px solid ${active?T.accent+"55":T.rule}`,
-                background:active?T.accent+"0A":"transparent",
-                color:active?T.accent:T.sub,fontSize:11,fontWeight:active?700:500,
-                fontFamily:"'DM Sans',sans-serif",cursor:"pointer"
-              }}>{M[scenarioMetric===mk?mk:mk]?.l||mk}</button>;
-            })}
-          </div>
+          {/* Metric picker — dropdown on mobile, pills on desktop */}
+          {mob?(
+            <select value={scenarioMetric} onChange={e=>setScenarioMetric(e.target.value)} style={{
+              width:"100%",padding:"10px 14px",border:`1.5px solid ${T.rule}`,borderRadius:6,
+              background:T.card,fontFamily:"'DM Sans',sans-serif",fontSize:14,fontWeight:600,
+              color:T.accent,marginBottom:16,appearance:"auto"
+            }}>
+              {Object.entries(CATS).map(([catKey,catLabel])=>(
+                <optgroup key={catKey} label={catLabel}>
+                  {MK.filter(k=>M[k].cat===catKey).map(mk=>(
+                    <option key={mk} value={mk}>{M[mk].l}</option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+          ):(
+            <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:16}}>
+              {MK.map(mk=>{
+                const active=scenarioMetric===mk;
+                return <button key={mk} onClick={()=>setScenarioMetric(mk)} style={{
+                  padding:"5px 12px",borderRadius:3,
+                  border:`1px solid ${active?T.accent+"55":T.rule}`,
+                  background:active?T.accent+"0A":"transparent",
+                  color:active?T.accent:T.sub,fontSize:11,fontWeight:active?700:500,
+                  fontFamily:"'DM Sans',sans-serif",cursor:"pointer"
+                }}>{M[mk]?.l||mk}</button>;
+              })}
+            </div>
+          )}
 
           {/* President cards + Chart */}
           {(()=>{
@@ -2037,8 +2053,8 @@ function App(){
 
             return (
               <div>
-                {/* President impact cards */}
-                <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"repeat(5,1fr)",gap:8,marginBottom:20}}>
+                {/* President impact cards — horizontal scroll on mobile, grid on desktop */}
+                <div style={mob?{display:"flex",gap:10,overflowX:"auto",WebkitOverflowScrolling:"touch",paddingBottom:8,marginBottom:16,scrollSnapType:"x mandatory"}:{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8,marginBottom:20}}>
                   {presCards.map(pc=>{
                     if(!pc)return null;
                     const {id,a,actualStart,actualEnd,actualPct,actualImproved,modeledEnd,modeledPct,modeledImproved,hasModeled,diff:pDiff}=pc;
@@ -2046,7 +2062,8 @@ function App(){
                     return (
                       <div key={id} style={{
                         ...sty.card,padding:"14px 14px 12px",borderTop:`3px solid ${a.color}`,
-                        position:"relative",overflow:"hidden"
+                        position:"relative",overflow:"hidden",
+                        ...(mob?{minWidth:200,flex:"0 0 200px",scrollSnapAlign:"start"}:{})
                       }}>
                         {/* President header */}
                         <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:10}}>
@@ -2099,6 +2116,7 @@ function App(){
                     );
                   })}
                 </div>
+                {mob&&<div style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,color:T.mute,textAlign:"center",marginTop:-10,marginBottom:12}}>Swipe to see all presidents →</div>}
 
                 <div style={{...sty.card,padding:"20px 16px 10px",marginBottom:12}}>
                   <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:700,color:T.ink,marginBottom:4}}>
@@ -2107,8 +2125,8 @@ function App(){
                   <ResponsiveContainer width="100%" height={mob?300:400}>
                     <LineChart data={chartData}>
                       <CartesianGrid strokeDasharray="3 3" stroke={T.rule} />
-                      <XAxis dataKey="y" stroke={T.mute} fontSize={11} fontFamily="'DM Sans',sans-serif" tick={{fill:T.sub}} />
-                      <YAxis stroke={T.rule} fontSize={10} fontFamily="'DM Sans',sans-serif" tick={{fill:T.sub}} tickFormatter={v=>fmt(v,metric.u)} />
+                      <XAxis dataKey="y" stroke={T.mute} fontSize={mob?9:11} fontFamily="'DM Sans',sans-serif" tick={{fill:T.sub}} interval={mob?3:1} />
+                      <YAxis stroke={T.rule} fontSize={mob?9:10} fontFamily="'DM Sans',sans-serif" tick={{fill:T.sub}} tickFormatter={v=>fmt(v,metric.u)} width={mob?45:60} />
                       <Tooltip content={({active,payload,label})=>{
                         if(!active||!payload?.length)return null;
                         const d=payload[0]?.payload;
@@ -2141,22 +2159,24 @@ function App(){
                       })}
 
                       {/* Baseline line — solid, with admin colors */}
-                      <Line type="monotone" dataKey="baseline" stroke={T.ink} strokeWidth={2.5}
-                        dot={({cx,cy,payload})=>{
+                      <Line type="monotone" dataKey="baseline" stroke={T.ink} strokeWidth={mob?2:2.5}
+                        dot={mob?false:({cx,cy,payload})=>{
                           if(!cx||!cy)return null;
                           const admin=ADMINS[payload.admin];
                           return <circle cx={cx} cy={cy} r={3.5} fill={admin?.color||T.ink} stroke="#fff" strokeWidth={1.5}/>;
                         }}
+                        activeDot={{r:5,stroke:"#fff",strokeWidth:2}}
                         name="Actual" connectNulls />
 
                       {/* Scenario line — dashed */}
                       {activeScenario!=="baseline"&&(
-                        <Line type="monotone" dataKey="scenario" stroke={T.accent} strokeWidth={2.5}
+                        <Line type="monotone" dataKey="scenario" stroke={T.accent} strokeWidth={mob?2:2.5}
                           strokeDasharray="6 3"
-                          dot={({cx,cy,payload})=>{
+                          dot={mob?false:({cx,cy,payload})=>{
                             if(!cx||!cy||payload.scenario==null)return null;
                             return <circle cx={cx} cy={cy} r={3} fill={T.accent} stroke="#fff" strokeWidth={1.5}/>;
                           }}
+                          activeDot={{r:5,stroke:"#fff",strokeWidth:2,fill:T.accent}}
                           name="Modeled" connectNulls />
                       )}
                     </LineChart>
