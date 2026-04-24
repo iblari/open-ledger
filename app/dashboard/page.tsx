@@ -2201,8 +2201,13 @@ function App(){
                   <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:700,marginBottom:2,color:T.ink}}>
                     {metric.l} {activeScenario!=="baseline"&&<span style={{fontSize:11,fontWeight:400,color:T.accent}}>— {SCENARIOS[activeScenario].shortLabel}</span>}
                   </div>
-                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,color:T.mute,marginBottom:8,textTransform:"uppercase",letterSpacing:0.5}}>
-                    Inherited → Exit → {activeScenario!=="baseline"?"Actual · Modeled":"Change"}
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8,flexWrap:"wrap",gap:4}}>
+                    <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,color:T.mute,textTransform:"uppercase",letterSpacing:0.5}}>
+                      Inherited → Exit → {activeScenario!=="baseline"?"Actual · Modeled":"Change"}
+                    </span>
+                    <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,color:T.mute}}>
+                      <span style={{color:"#16a34a",fontWeight:700}}>▲</span> improved · <span style={{color:"#dc2626",fontWeight:700}}>▼</span> worsened{metric.inv?" (lower = better)":""}
+                    </span>
                   </div>
                   {AID.map((id,i)=>{
                     const a=ADMINS[id];
