@@ -16,8 +16,8 @@
       "title": "State of the Union 2024",
       "videoId": "cplSUhU2avc",
       "duration": "72m",
-      "claims": 30,
-      "scores": {"true": 14, "mostly_true": 8, "misleading": 4, "false": 2, "unverifiable": 0},
+      "claims": 27,
+      "scores": {"true": 10, "mostly_true": 10, "misleading": 4, "false": 1, "unverifiable": 2},
       "date": "2024-03-07",
       "isDemo": true
     }

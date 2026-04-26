@@ -7,58 +7,58 @@
   "segments": [
     {
       "time": 0,
-      "text": "When I took office the economy was in ruins. COVID had shut down businesses across the country. Unemployment stood at 6.4 percent. Hundreds of thousands of small businesses closed their doors.",
-      "claims": [
-        {
-          "quote": "Unemployment stood at 6.4 percent",
-          "rating": "TRUE",
-          "actual": "BLS: Unemployment was 6.4% in January 2021 when Biden took office.",
-          "explanation": "Matches BLS data exactly."
-        }
-      ]
-    },
-    {
-      "time": 15,
-      "text": "Today we have the strongest economy in the world. We created 15 million new jobs in just three years. That is a record. Unemployment has been below 4 percent for the longest stretch in 50 years.",
-      "claims": [
-        {
-          "quote": "We created 15 million new jobs in just three years",
-          "rating": "MOSTLY TRUE",
-          "actual": "BLS: ~14.8M jobs added Jan 2021–Jan 2024. Many were pandemic recovery, not net new creation.",
-          "explanation": "Number is close, but includes jobs recovering from COVID losses."
-        },
-        {
-          "quote": "Unemployment has been below 4 percent for the longest stretch in 50 years",
-          "rating": "TRUE",
-          "actual": "BLS: Unemployment stayed below 4% for 24 months through early 2024, longest since 1969–1970.",
-          "explanation": "Confirmed by BLS historical data."
-        }
-      ]
+      "text": "Good evening. If I were smart, I'd go home now. Mr. Speaker, Madam Vice President, members of Congress. Tonight I want to talk about the future of America.",
+      "claims": []
     },
     {
       "time": 30,
-      "text": "Inflation has dropped from 9 percent to 3 percent. The lowest in the world. And trending lower. Wages are rising faster than prices. The racial wealth gap is the narrowest it has been in 20 years.",
+      "text": "Not since President Lincoln and the Civil War have freedom and democracy been under assault at home as they are today. What makes our moment rare is that freedom and democracy are under attack both at home and overseas at the very same time.",
+      "claims": []
+    },
+    {
+      "time": 60,
+      "text": "Overseas, Putin of Russia is on the march, invading Ukraine and sowing chaos throughout Europe and beyond. If anybody in this room thinks Putin will stop at Ukraine, I assure you he will not.",
+      "claims": []
+    },
+    {
+      "time": 90,
+      "text": "Ukraine can stop Putin if we stand with them and provide the weapons they need to defend themselves. That is all they are asking. They are not asking for American soldiers.",
+      "claims": []
+    },
+    {
+      "time": 120,
+      "text": "History is watching, just like history watched three years ago on January 6th when insurrectionists stormed this very Capitol and placed a dagger at the throat of American democracy.",
+      "claims": []
+    },
+    {
+      "time": 180,
+      "text": "I know I may not look like it, but I've been around a while. When you get to be my age, certain things become clearer than ever. I know the American story. Again and again, I've seen the contest between competing forces in the battle for the soul of our nation.",
+      "claims": []
+    },
+    {
+      "time": 240,
+      "text": "Folks, I hear the economy is on the brink. Now, our economy is literally the envy of the world. 15 million new jobs in just three years, a record. A record.",
       "claims": [
         {
-          "quote": "Inflation has dropped from 9 percent to 3 percent",
+          "quote": "15 million new jobs in just three years",
           "rating": "MOSTLY TRUE",
-          "actual": "BLS CPI: Peaked at 9.1% (Jun 2022), was 3.1% in Jan 2024.",
-          "explanation": "Directionally correct, though inflation also rose to 9% under this term."
-        },
-        {
-          "quote": "The lowest in the world",
-          "rating": "MISLEADING",
-          "actual": "IMF data: Several G7 nations had lower inflation. Japan was at 2.6%, Switzerland below 2%.",
-          "explanation": "U.S. inflation was not the lowest among advanced economies."
+          "actual": "BLS: ~14.8M nonfarm jobs added Jan 2021–Jan 2024. Many were recovering pandemic-era losses, not entirely net new creation.",
+          "explanation": "Number is close to accurate but includes pandemic recovery jobs."
         }
       ]
     },
     {
-      "time": 45,
-      "text": "We have seen record small business creation. 16 million new small business applications since I took office. Every single one is a family hoping to build a future. Consumer confidence is surging.",
+      "time": 260,
+      "text": "Unemployment at 50-year lows. A record 16 million Americans are starting small businesses and each one is a little act of hope.",
       "claims": [
         {
-          "quote": "16 million new small business applications since I took office",
+          "quote": "Unemployment at 50-year lows",
+          "rating": "TRUE",
+          "actual": "BLS: Unemployment fell to 3.4% in Jan 2023, the lowest since 1969.",
+          "explanation": "Confirmed — 54-year low reached during Biden's term."
+        },
+        {
+          "quote": "16 million Americans are starting small businesses",
           "rating": "TRUE",
           "actual": "Census Bureau: Over 16M new business applications filed from Jan 2021 through early 2024.",
           "explanation": "Census Business Formation Statistics confirm this figure."
@@ -66,255 +66,131 @@
       ]
     },
     {
-      "time": 60,
-      "text": "I signed the largest investment in infrastructure in American history. We have already announced over 40,000 projects across the country. Creating hundreds of thousands of good paying jobs.",
-      "claims": [
-        {
-          "quote": "The largest investment in infrastructure in American history",
-          "rating": "TRUE",
-          "actual": "The $1.2T Infrastructure Investment and Jobs Act (2021) is the largest federal infrastructure bill in U.S. history.",
-          "explanation": "Confirmed — largest single infrastructure authorization ever."
-        }
-      ]
-    },
-    {
-      "time": 75,
-      "text": "We are bringing manufacturing back to America. 800,000 new manufacturing jobs and counting. Where is it written that America cannot lead the world in manufacturing again?",
+      "time": 285,
+      "text": "With historic job growth and small business growth for Black and Hispanic and Asian Americans. 800,000 new manufacturing jobs in America and counting.",
       "claims": [
         {
           "quote": "800,000 new manufacturing jobs",
           "rating": "MOSTLY TRUE",
-          "actual": "BLS: ~790K manufacturing jobs added Jan 2021–Feb 2024. Most recovered pandemic losses.",
-          "explanation": "Close to stated figure, though many were recovery jobs."
+          "actual": "BLS: ~790K manufacturing jobs added Jan 2021–Feb 2024, though many were recovering pre-COVID levels.",
+          "explanation": "Close to stated figure, but includes pandemic recovery jobs."
         }
       ]
     },
     {
-      "time": 90,
-      "text": "The federal deficit. I promised to reduce the federal deficit. And I did. We cut the deficit by over one trillion dollars. The largest deficit reduction in American history. And that is a fact.",
+      "time": 310,
+      "text": "The racial wealth gap is as small as it's been in 20 years. Wages keep going up, inflation keeps coming down.",
       "claims": [
         {
-          "quote": "We cut the deficit by over one trillion dollars",
-          "rating": "MISLEADING",
-          "actual": "Treasury: Deficit fell from $3.1T (FY2020) to $1.7T (FY2022), but the drop was mostly from expiring COVID emergency spending, not new policy.",
-          "explanation": "True in dollar terms, but driven by temporary COVID spending ending."
-        },
-        {
-          "quote": "The largest deficit reduction in American history",
-          "rating": "MISLEADING",
-          "actual": "CBO: The reduction was the largest in dollars, but it reflects pandemic spending expiring, not structural fiscal improvement.",
-          "explanation": "Largest nominal drop, but context matters significantly."
-        }
-      ]
-    },
-    {
-      "time": 105,
-      "text": "Gas prices are down from their peak. The price of insulin for seniors is capped at 35 dollars a month. It used to cost 400 dollars a month. We finally beat big pharma.",
-      "claims": [
-        {
-          "quote": "The price of insulin for seniors is capped at 35 dollars a month",
-          "rating": "TRUE",
-          "actual": "Inflation Reduction Act caps Medicare insulin copays at $35/month, effective Jan 2023.",
-          "explanation": "Confirmed — applies to Medicare Part D enrollees."
-        }
-      ]
-    },
-    {
-      "time": 120,
-      "text": "I have already cut the national deficit by 1.7 trillion dollars. No president has cut the deficit that much. And I am not done. My budget will reduce the deficit by another 3 trillion over the next decade.",
-      "claims": [
-        {
-          "quote": "I have already cut the national deficit by 1.7 trillion dollars",
-          "rating": "MISLEADING",
-          "actual": "Treasury: Deficit fell $1.7T from FY2020 peak, but FY2020 included $3.1T in one-time COVID spending. FY2023 deficit was $1.7T — higher than any pre-COVID year.",
-          "explanation": "Dollar figure is correct but omits that the baseline was emergency spending."
-        }
-      ]
-    },
-    {
-      "time": 135,
-      "text": "We have the lowest violent crime rate in nearly 50 years. We passed the most significant gun safety legislation in nearly 30 years. Border crossings are down since I signed the executive order.",
-      "claims": []
-    },
-    {
-      "time": 150,
-      "text": "America has the best economy in the world right now. GDP grew 3.1 percent last year, stronger than any year under the previous administration even before the pandemic hit.",
-      "claims": [
-        {
-          "quote": "GDP grew 3.1 percent last year",
+          "quote": "The racial wealth gap is as small as it's been in 20 years",
           "rating": "MOSTLY TRUE",
-          "actual": "BEA: Real GDP grew 2.5% in 2023 (later revised). The 3.1% figure may reference Q4 annualized rate.",
-          "explanation": "Annual growth was 2.5%, not 3.1%. Likely citing quarterly rate."
-        }
-      ]
-    },
-    {
-      "time": 165,
-      "text": "Stock market has hit record highs 40 times since I took office. 401k plans and pensions are stronger. More Americans have health insurance today than ever before in history.",
-      "claims": [
-        {
-          "quote": "Stock market has hit record highs 40 times since I took office",
-          "rating": "MOSTLY TRUE",
-          "actual": "S&P 500 hit multiple all-time closing highs during Biden's term, though exact count varies by index used.",
-          "explanation": "Broadly accurate — markets did reach many new highs."
-        },
-        {
-          "quote": "More Americans have health insurance today than ever before in history",
-          "rating": "TRUE",
-          "actual": "Census/CMS: Uninsured rate hit record low of 7.7% in early 2023. Over 300M Americans had coverage.",
-          "explanation": "Confirmed by Census Bureau data."
-        }
-      ]
-    },
-    {
-      "time": 180,
-      "text": "Child poverty was cut in half with the child tax credit. We should restore it. It helped millions of working families put food on the table and keep a roof over their heads.",
-      "claims": [
-        {
-          "quote": "Child poverty was cut in half with the child tax credit",
-          "rating": "MOSTLY TRUE",
-          "actual": "Census: Supplemental Poverty Measure child poverty fell from 9.7% (2020) to 5.2% (2021) with expanded CTC, then rose back to 12.4% in 2022 when it expired.",
-          "explanation": "True for 2021, but effect reversed when CTC expansion expired."
-        }
-      ]
-    },
-    {
-      "time": 195,
-      "text": "We have invested more in America than any president in history. We are seeing the results. Factories are being built, roads and bridges are being fixed, and people are going back to work.",
-      "claims": []
-    },
-    {
-      "time": 210,
-      "text": "We capped the cost of insulin at 35 dollars a month for seniors on Medicare. Before, they were paying as much as 400 dollars a month. Now we need to cap costs for everyone, not just seniors.",
-      "claims": [
-        {
-          "quote": "They were paying as much as 400 dollars a month",
-          "rating": "TRUE",
-          "actual": "HHS: Average insulin list price was $300–$400/month before caps. Some formulations exceeded $500/month.",
-          "explanation": "Confirmed — insulin prices were frequently in the $300–$400 range."
-        }
-      ]
-    },
-    {
-      "time": 225,
-      "text": "The Inflation Reduction Act is also the most significant climate legislation in the history of the world. It provides tax credits for families to buy electric vehicles, put solar panels on their homes, and save on energy costs.",
-      "claims": [
-        {
-          "quote": "The most significant climate legislation in the history of the world",
-          "rating": "MOSTLY TRUE",
-          "actual": "CBO/IEA: The IRA allocates ~$369B for climate and energy provisions, the largest single climate investment by any nation.",
-          "explanation": "Largest single-law climate investment, though EU collectively spends more."
-        }
-      ]
-    },
-    {
-      "time": 240,
-      "text": "We have created 800,000 manufacturing jobs since I took office. More than any president in decades. Semiconductor factories are being built right here in America for the first time in a generation.",
-      "claims": [
-        {
-          "quote": "We have created 800,000 manufacturing jobs since I took office",
-          "rating": "MOSTLY TRUE",
-          "actual": "BLS: ~790K manufacturing jobs added Jan 2021–Mar 2024, though many were recovering pre-COVID levels.",
-          "explanation": "Number is close to accurate, but includes pandemic recovery jobs."
-        }
-      ]
-    },
-    {
-      "time": 255,
-      "text": "The Bipartisan Infrastructure Law has already funded over 40,000 projects in communities across the country. Every state in the union is seeing the benefits. And we are just getting started.",
-      "claims": [
-        {
-          "quote": "Funded over 40,000 projects",
-          "rating": "TRUE",
-          "actual": "White House/DOT: Over 40,000 infrastructure projects funded or announced as of early 2024.",
-          "explanation": "Confirmed by federal infrastructure tracking data."
-        }
-      ]
-    },
-    {
-      "time": 270,
-      "text": "The racial wealth gap is at its lowest level in 20 years. Black unemployment hit a record low during my administration. Hispanic unemployment has also reached historic lows.",
-      "claims": [
-        {
-          "quote": "Black unemployment hit a record low during my administration",
-          "rating": "TRUE",
-          "actual": "BLS: Black unemployment rate fell to 4.7% in April 2023, the lowest on record since BLS began tracking in 1972.",
-          "explanation": "Confirmed — historic low for Black unemployment."
-        },
-        {
-          "quote": "Hispanic unemployment has also reached historic lows",
-          "rating": "TRUE",
-          "actual": "BLS: Hispanic unemployment fell to 3.9% in September 2022, a record low.",
-          "explanation": "Confirmed by BLS historical data."
-        }
-      ]
-    },
-    {
-      "time": 285,
-      "text": "We are making prescription drugs more affordable. Medicare will be able to negotiate prices for some of the most expensive drugs. Seniors will pay no more than 2,000 dollars a year for prescription drugs.",
-      "claims": [
-        {
-          "quote": "Seniors will pay no more than 2,000 dollars a year for prescription drugs",
-          "rating": "TRUE",
-          "actual": "CMS: The Inflation Reduction Act caps Medicare Part D out-of-pocket costs at $2,000/year starting 2025.",
-          "explanation": "Confirmed — $2,000 annual cap takes effect in 2025."
-        }
-      ]
-    },
-    {
-      "time": 300,
-      "text": "And by the way, the federal debt went up by 25 percent under the previous administration. 25 percent in four years. He added more to the national debt than any president in a single term in American history.",
-      "claims": [
-        {
-          "quote": "The federal debt went up by 25 percent under the previous administration",
-          "rating": "MOSTLY TRUE",
-          "actual": "Treasury: Federal debt rose from $19.9T to $27.7T under Trump (FY2017–FY2021), about 39%. The 25% figure may exclude COVID relief.",
-          "explanation": "Debt increase was closer to 39% total, though ~25% excluding COVID relief."
-        },
-        {
-          "quote": "He added more to the national debt than any president in a single term",
-          "rating": "MISLEADING",
-          "actual": "Treasury: Trump added ~$7.8T in debt. In nominal dollars this is high, but much was bipartisan COVID spending. As % of GDP, WWII-era spending was higher.",
-          "explanation": "Largest in nominal dollars, but context of COVID is essential."
-        }
-      ]
-    },
-    {
-      "time": 315,
-      "text": "My administration has overseen the strongest job creation in American history. More people are working today than at any time in the history of this country. The economy is growing and wages are rising.",
-      "claims": [
-        {
-          "quote": "More people are working today than at any time in the history of this country",
-          "rating": "TRUE",
-          "actual": "BLS: Total nonfarm employment reached 157.5M in early 2024, surpassing the pre-pandemic peak of 152.4M.",
-          "explanation": "Confirmed — total employment hit new records."
+          "actual": "FRED/Fed Survey of Consumer Finances: The Black-white wealth gap narrowed during 2020–2023, driven by home equity and labor market gains. However, data varies by measure used.",
+          "explanation": "Directionally accurate, though exact '20 years' framing depends on metric."
         }
       ]
     },
     {
       "time": 330,
-      "text": "America's economy grew at a rate of 3.1 percent last year. That is the fastest growth among all major economies. Faster than China. Faster than Europe. Faster than Japan.",
+      "text": "Inflation has dropped from 9 percent to 3 percent, the lowest in the world and trending lower. The landing is and will be soft.",
       "claims": [
         {
-          "quote": "Faster than China",
-          "rating": "FALSE",
-          "actual": "IMF/World Bank: China's GDP grew 5.2% in 2023 vs. U.S. at 2.5%. China grew significantly faster.",
-          "explanation": "China's growth rate was more than double the U.S. rate in 2023."
+          "quote": "Inflation has dropped from 9 percent to 3 percent",
+          "rating": "MOSTLY TRUE",
+          "actual": "BLS CPI: Peaked at 9.1% (Jun 2022), was ~3.1% by Jan 2024. But inflation also rose to 9% under this administration.",
+          "explanation": "Directionally correct, though inflation also rose to 9% under Biden."
         },
         {
-          "quote": "Faster than Europe. Faster than Japan",
-          "rating": "TRUE",
-          "actual": "IMF: Eurozone grew 0.4% and Japan grew 1.9% in 2023, both below U.S. growth of 2.5%.",
-          "explanation": "Confirmed — U.S. outpaced both Europe and Japan in 2023."
+          "quote": "The lowest in the world",
+          "rating": "FALSE",
+          "actual": "IMF data: Several G7 nations had lower inflation. Japan ~2.6%, Switzerland below 2%, Canada ~2.9%.",
+          "explanation": "U.S. inflation was not the lowest among advanced economies."
         }
       ]
     },
     {
-      "time": 345,
-      "text": "The Affordable Care Act has been the law of the land for 14 years now. More than 100 million Americans can no longer be denied health insurance because of pre-existing conditions.",
+      "time": 360,
+      "text": "In fact, my policies have attracted $650 billion in private sector investment in clean energy, advanced manufacturing, creating tens of thousands of jobs here in America.",
       "claims": [
         {
-          "quote": "More than 100 million Americans can no longer be denied health insurance because of pre-existing conditions",
+          "quote": "$650 billion in private sector investment",
+          "rating": "MOSTLY TRUE",
+          "actual": "White House/Clean Investment Monitor: Private clean energy and manufacturing commitments exceeded $600B by early 2024, though not all have been deployed yet.",
+          "explanation": "Announced commitments reached this level, though actual deployed capital is lower."
+        }
+      ]
+    },
+    {
+      "time": 390,
+      "text": "And thanks to our bipartisan infrastructure law, 46,000 new projects have been announced all across your communities. Modernizing our roads and bridges, ports and airports, public transit systems.",
+      "claims": [
+        {
+          "quote": "46,000 new projects have been announced",
+          "rating": "TRUE",
+          "actual": "White House/DOT: Over 46,000 infrastructure projects funded or announced under the Infrastructure Investment and Jobs Act as of early 2024.",
+          "explanation": "Confirmed by federal infrastructure tracking data."
+        }
+      ]
+    },
+    {
+      "time": 420,
+      "text": "Since I've come to office, our GDP is up, our trade deficit with China is down to the lowest point in over a decade.",
+      "claims": [
+        {
+          "quote": "Our trade deficit with China is down to the lowest point in over a decade",
+          "rating": "TRUE",
+          "actual": "Census Bureau: U.S. goods trade deficit with China fell to $279B in 2023, the lowest since 2010.",
+          "explanation": "Confirmed — trade deficit with China at a 13-year low."
+        }
+      ]
+    },
+    {
+      "time": 450,
+      "text": "Instead of paying $400 a month or thereabouts for insulin with diabetes, and it only costs ten bucks to make, they only get paid 35 a month now.",
+      "claims": [
+        {
+          "quote": "Paying $400 a month or thereabouts for insulin",
+          "rating": "TRUE",
+          "actual": "HHS: Average insulin list price was $300–$400/month before caps. Some formulations exceeded $500/month.",
+          "explanation": "Confirmed — insulin prices were frequently in the $300–$400 range."
+        },
+        {
+          "quote": "It only costs ten bucks to make",
+          "rating": "TRUE",
+          "actual": "Yale Insulin Cost Study: Production cost for a vial of insulin analog is estimated at $2–$6. A month's supply costs roughly $10 to manufacture.",
+          "explanation": "Research confirms insulin manufacturing cost is very low."
+        }
+      ]
+    },
+    {
+      "time": 480,
+      "text": "We cut the federal deficit by $160 billion because Medicare will no longer have to pay those exorbitant prices to Big Pharma.",
+      "claims": [
+        {
+          "quote": "We cut the federal deficit by $160 billion because Medicare will no longer have to pay those exorbitant prices",
+          "rating": "MOSTLY TRUE",
+          "actual": "CBO: The Inflation Reduction Act's drug pricing provisions are estimated to reduce federal spending by ~$160B over 10 years, not per year.",
+          "explanation": "The $160B is a 10-year projection, not an annual savings figure."
+        }
+      ]
+    },
+    {
+      "time": 510,
+      "text": "It's now time to go further and give Medicare the power to negotiate lower prices for 500 different drugs over the next decade. It will not only save lives, it will save taxpayers another $200 billion.",
+      "claims": [
+        {
+          "quote": "It will save taxpayers another $200 billion",
+          "rating": "UNVERIFIABLE",
+          "actual": "CBO: This is a projection for proposed legislation that hasn't passed. CBO would need to score the specific bill to confirm.",
+          "explanation": "Budget projection for future legislation — not yet scored by CBO."
+        }
+      ]
+    },
+    {
+      "time": 540,
+      "text": "Over 100 million of you can no longer be denied health insurance because of preexisting conditions. But my predecessor and many in this chamber want to take those prescription drugs away by repealing the Affordable Care Act.",
+      "claims": [
+        {
+          "quote": "Over 100 million of you can no longer be denied health insurance because of preexisting conditions",
           "rating": "TRUE",
           "actual": "HHS: An estimated 133 million Americans have pre-existing conditions that could have led to denial of coverage before the ACA.",
           "explanation": "HHS estimates confirm over 100 million with pre-existing conditions."
@@ -322,16 +198,156 @@
       ]
     },
     {
-      "time": 360,
-      "text": "We have invested more in research and development than any point in over 50 years. The CHIPS Act is bringing semiconductor manufacturing back to America. We are making things in America again.",
+      "time": 570,
+      "text": "The child tax credit I passed during the pandemic cut taxes for millions of working families and cut child poverty in half.",
       "claims": [
         {
-          "quote": "We have invested more in research and development than any point in over 50 years",
+          "quote": "Cut child poverty in half",
           "rating": "MOSTLY TRUE",
-          "actual": "NSF/AAAS: Federal R&D spending as a share of GDP is rising but still below 1960s-era peaks. Total (public + private) R&D is at record highs in nominal dollars.",
-          "explanation": "True in nominal dollars, but as % of GDP, 1960s spending was higher."
+          "actual": "Census: Supplemental Poverty Measure child poverty fell from 9.7% (2020) to 5.2% (2021) with expanded CTC. It rose back to 12.4% in 2022 when the expansion expired.",
+          "explanation": "True for 2021, but the effect reversed when CTC expansion expired."
         }
       ]
+    },
+    {
+      "time": 600,
+      "text": "Remember in 2020, 55 of the biggest companies in America made $40 billion and paid zero in federal income tax. Zero. Not anymore.",
+      "claims": [
+        {
+          "quote": "55 of the biggest companies in America made $40 billion and paid zero in federal income tax",
+          "rating": "TRUE",
+          "actual": "ITEP: In 2020, 55 profitable Fortune 500 companies paid $0 in federal income taxes on combined profits of ~$40.5 billion.",
+          "explanation": "Confirmed by Institute on Taxation and Economic Policy analysis."
+        }
+      ]
+    },
+    {
+      "time": 630,
+      "text": "Big companies have to pay a minimum of 15 percent. And I've kept my commitment. No one earning less than $400,000 a year has paid a penny more in federal taxes. Nobody. Not a penny.",
+      "claims": [
+        {
+          "quote": "No one earning less than $400,000 a year has paid a penny more in federal taxes",
+          "rating": "MOSTLY TRUE",
+          "actual": "Tax Policy Center: No major direct tax increases on those under $400K, though some argue indirect effects (corporate tax pass-through, inflation) affected this group.",
+          "explanation": "Technically accurate for direct tax policy changes."
+        }
+      ]
+    },
+    {
+      "time": 660,
+      "text": "You know there are 1,000 billionaires in America. You know what the average federal tax is for those billionaires? They are making great sacrifices, 8.2 percent. That is far less than the vast majority of Americans pay.",
+      "claims": [
+        {
+          "quote": "1,000 billionaires in America...average federal tax...8.2 percent",
+          "rating": "MISLEADING",
+          "actual": "White House/OMB: The 8.2% figure uses a broad 'income' definition including unrealized capital gains. Under standard tax definitions, billionaires pay higher effective rates (~23% per IRS data).",
+          "explanation": "The 8.2% figure relies on counting unrealized gains as income."
+        }
+      ]
+    },
+    {
+      "time": 690,
+      "text": "I propose a minimum tax for billionaires at 25 percent. Just 25 percent. That would raise $500 billion over the next ten years. Imagine what that could do for America.",
+      "claims": [
+        {
+          "quote": "That would raise $500 billion over the next ten years",
+          "rating": "UNVERIFIABLE",
+          "actual": "OMB estimate: $500B is the White House projection. CBO and independent scorers have not fully scored this specific proposal.",
+          "explanation": "White House projection — independent scoring would likely differ."
+        }
+      ]
+    },
+    {
+      "time": 720,
+      "text": "My administration announced we're cutting credit card late fees from $32 to $8. I'm saving American families $20 billion a year with all the junk fees I'm eliminating.",
+      "claims": [
+        {
+          "quote": "Credit card late fees from $32 to $8",
+          "rating": "MOSTLY TRUE",
+          "actual": "CFPB: Rule proposed capping late fees at $8, down from avg $32. However, a federal court blocked the rule in May 2024 before it took effect.",
+          "explanation": "Proposed but not yet implemented — later blocked by courts."
+        },
+        {
+          "quote": "$20 billion a year with all the junk fees I'm eliminating",
+          "rating": "MISLEADING",
+          "actual": "CFPB estimates: Various junk fee rules projected to save ~$20B/year total, but many rules face legal challenges and aren't fully in effect.",
+          "explanation": "Projected savings, not yet realized — several rules blocked by courts."
+        }
+      ]
+    },
+    {
+      "time": 760,
+      "text": "We've already cut the federal deficit over $1 trillion. I signed the bipartisan deal to cut another trillion dollars in the next decade.",
+      "claims": [
+        {
+          "quote": "We've already cut the federal deficit over $1 trillion",
+          "rating": "MISLEADING",
+          "actual": "Treasury: Deficit fell from $3.1T (FY2020) to $1.7T (FY2022), but the drop was from expiring COVID emergency spending, not new deficit-reduction policies.",
+          "explanation": "True in nominal terms but driven by temporary COVID spending ending."
+        }
+      ]
+    },
+    {
+      "time": 790,
+      "text": "The last administration enacted a $2 trillion tax cut, overwhelmingly benefiting the top 1 percent, the very wealthy and the biggest corporations, and exploded the federal deficit.",
+      "claims": [
+        {
+          "quote": "The last administration enacted a $2 trillion tax cut",
+          "rating": "TRUE",
+          "actual": "CBO: The 2017 Tax Cuts and Jobs Act was estimated to reduce federal revenue by $1.9 trillion over 10 years.",
+          "explanation": "CBO scoring confirmed the ~$2 trillion revenue impact."
+        },
+        {
+          "quote": "Overwhelmingly benefiting the top 1 percent",
+          "rating": "MISLEADING",
+          "actual": "Tax Policy Center: All income groups received tax cuts. Top 1% received ~21% of total benefit. Middle-income households also saw significant cuts.",
+          "explanation": "Top 1% got largest per-capita benefit but all groups saw cuts."
+        }
+      ]
+    },
+    {
+      "time": 830,
+      "text": "Last year, the murder rate saw the sharpest decrease in history. Violent crime fell to one of its lowest levels in more than 50 years.",
+      "claims": [
+        {
+          "quote": "The murder rate saw the sharpest decrease in history",
+          "rating": "MOSTLY TRUE",
+          "actual": "FBI/BJS: Preliminary 2023 data showed murder rate dropping ~12.5%, one of the largest year-over-year declines. But data is preliminary and 'in history' is hard to confirm for all years.",
+          "explanation": "Among the largest declines on record, though historic data is incomplete."
+        }
+      ]
+    },
+    {
+      "time": 860,
+      "text": "Here at home, I've signed over 400 bipartisan bills, but there's more to pass my unity agenda.",
+      "claims": [
+        {
+          "quote": "I've signed over 400 bipartisan bills",
+          "rating": "TRUE",
+          "actual": "Congress.gov: Biden signed over 400 bills with bipartisan support through early 2024, including infrastructure, CHIPS Act, and PACT Act.",
+          "explanation": "Confirmed by congressional records."
+        }
+      ]
+    },
+    {
+      "time": 890,
+      "text": "I'm determined to protect Social Security and Medicare. I will not allow them to be gutted or taken away. Not today, not tomorrow, not ever. When I say I will protect Social Security, I mean it.",
+      "claims": []
+    },
+    {
+      "time": 930,
+      "text": "Let me close with this. I know I may not look like it, but I've been doing this a long time. I know what America can do. We're the only nation in the world that has come out of every crisis stronger than when we went in.",
+      "claims": []
+    },
+    {
+      "time": 960,
+      "text": "I see a future where we defend democracy, not diminish it. I see a future where we restore the right to choose and protect our freedoms, not take them away. I see a future where the middle class finally has a fair shot and the wealthy begin to pay their fair share.",
+      "claims": []
+    },
+    {
+      "time": 990,
+      "text": "This is our moment. My fellow Americans, the state of our union is strong and getting stronger. God bless you all, and may God protect our troops. Thank you, thank you, thank you.",
+      "claims": []
     }
   ]
 }
