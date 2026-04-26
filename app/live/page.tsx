@@ -17,6 +17,26 @@ const RATING_COLORS: Record<string, { bg: string; text: string }> = {
   UNVERIFIABLE: { bg: "#9a9490", text: "#fff" },
 };
 
+/* ── Source URL map — where users can verify data ─────────────── */
+const SOURCE_URLS: Record<string, { label: string; url: string }> = {
+  BLS:      { label: "Bureau of Labor Statistics", url: "https://www.bls.gov/data/" },
+  BEA:      { label: "Bureau of Economic Analysis", url: "https://www.bea.gov/data" },
+  Treasury: { label: "U.S. Treasury", url: "https://fiscaldata.treasury.gov/" },
+  CBO:      { label: "Congressional Budget Office", url: "https://www.cbo.gov/data/budget-economic-data" },
+  FRED:     { label: "Federal Reserve (FRED)", url: "https://fred.stlouisfed.org/" },
+  Census:   { label: "U.S. Census Bureau", url: "https://www.census.gov/data.html" },
+  CMS:      { label: "Centers for Medicare & Medicaid", url: "https://data.cms.gov/" },
+  IMF:      { label: "International Monetary Fund", url: "https://www.imf.org/en/Data" },
+};
+
+function detectSources(text: string): { label: string; url: string }[] {
+  const found: { label: string; url: string }[] = [];
+  for (const [key, val] of Object.entries(SOURCE_URLS)) {
+    if (text.includes(key)) found.push(val);
+  }
+  return found;
+}
+
 /* ── Types ────────────────────────────────────────────────────── */
 interface Claim {
   id: string;
@@ -25,6 +45,7 @@ interface Claim {
   actual: string;
   explanation: string;
   timestamp: string;
+  videoTime?: number; // seconds into the video
 }
 
 interface LiveConfig {
@@ -63,37 +84,109 @@ function useIsMobile() {
   return mob;
 }
 
+/* ── Format seconds as mm:ss ──────────────────────────────────── */
+function fmtTime(sec: number): string {
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
 /* ── Fact-Check Card ──────────────────────────────────────────── */
-function FactCard({ claim, isNew }: { claim: Claim; isNew: boolean }) {
+function FactCard({ claim, isNew, onSeek }: { claim: Claim; isNew: boolean; onSeek?: (t: number) => void }) {
+  const [expanded, setExpanded] = useState(false);
   const rc = RATING_COLORS[claim.rating] || RATING_COLORS.UNVERIFIABLE;
+  const sources = detectSources(claim.actual);
+
   return (
-    <div style={{
-      background: T.card, border: `1px solid ${T.rule}`, borderRadius: 10,
-      padding: "12px 14px", marginBottom: 8,
-      borderLeft: `4px solid ${rc.bg}`,
-      animation: isNew ? "cardSlideIn 0.3s ease" : "none",
-    }}>
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+    <div
+      style={{
+        background: T.card, border: `1px solid ${T.rule}`, borderRadius: 10,
+        padding: "12px 14px", marginBottom: 8,
+        borderLeft: `4px solid ${rc.bg}`,
+        animation: isNew ? "cardSlideIn 0.3s ease" : "none",
+        cursor: "pointer",
+      }}
+      onClick={() => setExpanded(!expanded)}
+    >
+      {/* Header: rating badge + video timestamp */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
         <span style={{
           padding: "2px 8px", borderRadius: 4, fontSize: 10, fontWeight: 700,
           background: rc.bg, color: rc.text, letterSpacing: 0.5,
         }}>{claim.rating}</span>
-        <span style={{ fontSize: 10, color: T.mute }}>
-          {new Date(claim.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-        </span>
+        {claim.videoTime != null && claim.videoTime > 0 ? (
+          <button
+            onClick={(e) => { e.stopPropagation(); onSeek?.(claim.videoTime!); }}
+            style={{
+              fontSize: 10, color: T.blue, background: "none", border: "none",
+              cursor: "pointer", fontFamily: "'DM Sans',sans-serif", fontWeight: 600,
+              padding: "2px 6px", borderRadius: 4,
+              display: "flex", alignItems: "center", gap: 3,
+            }}
+            title="Jump to this moment in the video"
+          >
+            ▶ {fmtTime(claim.videoTime)}
+          </button>
+        ) : (
+          <span style={{ fontSize: 10, color: T.mute }}>
+            {new Date(claim.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+          </span>
+        )}
       </div>
+
+      {/* Quote */}
       <div style={{
         fontSize: 13, fontWeight: 600, color: T.ink, marginBottom: 6,
         fontStyle: "italic", fontFamily: "'Source Serif 4',serif", lineHeight: 1.4,
       }}>
         &ldquo;{claim.quote}&rdquo;
       </div>
+
+      {/* Actual data */}
       <div style={{ fontSize: 11, color: T.sub, marginBottom: 4, lineHeight: 1.5 }}>
         <strong>Actual:</strong> {claim.actual}
       </div>
+
+      {/* Explanation */}
       <div style={{ fontSize: 11, color: T.mute, lineHeight: 1.4 }}>
         {claim.explanation}
       </div>
+
+      {/* Expanded: source links */}
+      {expanded && sources.length > 0 && (
+        <div style={{
+          marginTop: 8, paddingTop: 8, borderTop: `1px solid ${T.rule}`,
+          display: "flex", flexWrap: "wrap", gap: 6,
+        }}>
+          <span style={{ fontSize: 9, fontWeight: 700, color: T.mute, textTransform: "uppercase", letterSpacing: 0.5 }}>
+            Verify:
+          </span>
+          {sources.map((src, i) => (
+            <a
+              key={i}
+              href={src.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                fontSize: 10, color: T.blue, textDecoration: "none", fontWeight: 600,
+                fontFamily: "'DM Sans',sans-serif",
+                padding: "2px 8px", background: T.blue + "0a", borderRadius: 4,
+                border: `1px solid ${T.blue}20`,
+              }}
+            >
+              {src.label} ↗
+            </a>
+          ))}
+        </div>
+      )}
+
+      {/* "tap to expand" hint */}
+      {!expanded && sources.length > 0 && (
+        <div style={{ fontSize: 9, color: T.mute, marginTop: 6, opacity: 0.6 }}>
+          Tap to see sources
+        </div>
+      )}
     </div>
   );
 }
@@ -159,7 +252,6 @@ export default function LiveFactCheckPage() {
   const [config, setConfig] = useState<LiveConfig | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isDemo, setIsDemo] = useState(false);
-  const [demoSpeech, setDemoSpeech] = useState<DemoSpeech | null>(null);
   const [videoId, setVideoId] = useState("");
   const [title, setTitle] = useState("");
   const [claims, setClaims] = useState<Claim[]>([]);
@@ -173,7 +265,18 @@ export default function LiveFactCheckPage() {
   const contextRef = useRef("");
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const demoAbortRef = useRef(false);
-  const factsPanel = useRef<HTMLDivElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const demoStartTime = useRef(0);
+
+  /* ── YouTube seek via postMessage ── */
+  const seekVideo = useCallback((seconds: number) => {
+    if (iframeRef.current?.contentWindow) {
+      iframeRef.current.contentWindow.postMessage(
+        JSON.stringify({ event: "command", func: "seekTo", args: [seconds, true] }),
+        "*"
+      );
+    }
+  }, []);
 
   /* ── Load config on mount ── */
   useEffect(() => {
@@ -206,9 +309,11 @@ export default function LiveFactCheckPage() {
       contextRef.current = (contextRef.current + " " + text).slice(-500);
 
       if (data.claims?.length > 0) {
-        const ids = new Set(data.claims.map((c: Claim) => c.id));
+        const elapsed = Math.floor((Date.now() - demoStartTime.current) / 1000);
+        const enriched = data.claims.map((c: Claim) => ({ ...c, videoTime: elapsed }));
+        const ids = new Set(enriched.map((c: Claim) => c.id));
         setNewClaimIds(ids);
-        setClaims(prev => [...data.claims, ...prev]);
+        setClaims(prev => [...enriched, ...prev]);
       }
     } catch (e) {
       console.error("Fact-check error:", e);
@@ -256,7 +361,6 @@ export default function LiveFactCheckPage() {
     };
 
     recognition.onend = () => {
-      // Auto-restart if still playing
       if (isPlaying) {
         try { recognition.start(); } catch {}
       }
@@ -291,11 +395,11 @@ export default function LiveFactCheckPage() {
     setShowSummary(false);
     bufferRef.current = "";
     contextRef.current = "";
-    // Start mic listening after a short delay
+    demoStartTime.current = Date.now();
     setTimeout(() => startMicListening(), 1000);
   }, [startMicListening]);
 
-  /* ── Demo mode ── */
+  /* ── Demo mode — claims trickle in naturally ── */
   const startDemo = useCallback(async () => {
     demoAbortRef.current = false;
     setIsDemo(true);
@@ -309,23 +413,23 @@ export default function LiveFactCheckPage() {
     try {
       const res = await fetch("/speeches/sotu-2024.json");
       const speech: DemoSpeech = await res.json();
-      setDemoSpeech(speech);
       setVideoId(speech.videoId);
       setTitle(`DEMO — ${speech.title}, ${speech.date}`);
+      demoStartTime.current = Date.now();
 
-      // Feed segments with delays to simulate real-time
-      for (const segment of speech.segments) {
+      for (let si = 0; si < speech.segments.length; si++) {
+        const segment = speech.segments[si];
         if (demoAbortRef.current) break;
 
         // Add text to transcript
         setLiveTranscript(prev => prev + " " + segment.text);
         bufferRef.current += " " + segment.text;
 
-        // Wait a beat then fact-check
-        await new Promise(r => setTimeout(r, 2500));
+        // Wait for segment to "play" — 5 seconds per segment
+        await new Promise(r => setTimeout(r, 5000));
         if (demoAbortRef.current) break;
 
-        // Try API first, fall back to pre-computed claims
+        // Try API first
         const text = bufferRef.current.trim();
         let foundClaims: Claim[] = [];
 
@@ -340,28 +444,48 @@ export default function LiveFactCheckPage() {
             const data = await fcRes.json();
             contextRef.current = (contextRef.current + " " + text).slice(-500);
             if (data.claims?.length > 0) {
-              foundClaims = data.claims;
+              foundClaims = data.claims.map((c: Claim) => ({
+                ...c,
+                videoTime: segment.time,
+              }));
             }
           } catch {}
         }
 
-        // Fallback: use pre-computed claims from the speech file
+        // Fallback: use pre-computed claims, with staggered timing
         if (foundClaims.length === 0 && segment.claims && segment.claims.length > 0) {
-          foundClaims = segment.claims.map(c => ({
-            ...c,
-            timestamp: new Date().toISOString(),
-            id: `claim-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-          }));
+          for (let ci = 0; ci < segment.claims.length; ci++) {
+            if (demoAbortRef.current) break;
+            const c = segment.claims[ci];
+            const newClaim: Claim = {
+              ...c,
+              timestamp: new Date().toISOString(),
+              id: `claim-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+              videoTime: segment.time,
+            };
+
+            setNewClaimIds(new Set([newClaim.id]));
+            setClaims(prev => [newClaim, ...prev]);
+
+            // Stagger multiple claims from same segment
+            if (ci < segment.claims.length - 1) {
+              await new Promise(r => setTimeout(r, 1500));
+            }
+          }
+        } else if (foundClaims.length > 0) {
+          // Stagger API claims too
+          for (let ci = 0; ci < foundClaims.length; ci++) {
+            if (demoAbortRef.current) break;
+            setNewClaimIds(new Set([foundClaims[ci].id]));
+            setClaims(prev => [foundClaims[ci], ...prev]);
+            if (ci < foundClaims.length - 1) {
+              await new Promise(r => setTimeout(r, 1500));
+            }
+          }
         }
 
-        if (foundClaims.length > 0) {
-          const ids = new Set(foundClaims.map((c: Claim) => c.id));
-          setNewClaimIds(ids);
-          setClaims(prev => [...foundClaims, ...prev]);
-        }
-
-        // Wait between segments
-        await new Promise(r => setTimeout(r, 4000));
+        // Wait between segments — longer pause to feel natural
+        await new Promise(r => setTimeout(r, 3000));
       }
 
       if (!demoAbortRef.current) {
@@ -398,18 +522,13 @@ export default function LiveFactCheckPage() {
     }
   }, [claims]);
 
-  /* ── Time helper ── */
+  /* ── Time helpers ── */
   const timeAgo = (iso: string) => {
     const diff = Date.now() - new Date(iso).getTime();
     const mins = Math.floor(diff / 60000);
     if (mins < 1) return "Just started";
     if (mins < 60) return `Started ${mins} min ago`;
     return `Started ${Math.floor(mins / 60)}h ago`;
-  };
-
-  const formatDate = (iso: string) => {
-    const d = new Date(iso);
-    return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   };
 
   const formatTime = (iso: string) => {
@@ -460,7 +579,7 @@ export default function LiveFactCheckPage() {
       <div style={{ maxWidth: 1400, margin: "0 auto", padding: mob ? "16px" : "24px 32px" }}>
 
         {/* ── Idle State: not playing ── */}
-        {!isPlaying && (
+        {!isPlaying && !showSummary && (
           <div>
             {/* Hero */}
             <div style={{ textAlign: "center", marginBottom: mob ? 24 : 40, padding: mob ? "16px 0" : "32px 0" }}>
@@ -681,13 +800,15 @@ export default function LiveFactCheckPage() {
               {/* Video Player */}
               <div style={{
                 position: "relative", width: "100%", aspectRatio: "16/9",
-                background: "#000", borderRadius: isPlaying ? "0" : "0 0 8px 8px",
+                background: "#000",
               }}>
                 {videoId ? (
                   <iframe
+                    ref={iframeRef}
+                    id="yt-player"
                     width="100%"
                     height="100%"
-                    src={`https://www.youtube.com/embed/${videoId}?autoplay=1&enablejsapi=1`}
+                    src={`https://www.youtube.com/embed/${videoId}?autoplay=1&enablejsapi=1&origin=${typeof window !== "undefined" ? window.location.origin : ""}`}
                     allow="autoplay; encrypted-media"
                     allowFullScreen
                     style={{ border: "none", position: "absolute", top: 0, left: 0 }}
@@ -796,7 +917,7 @@ export default function LiveFactCheckPage() {
             </div>
 
             {/* RIGHT: Fact-check panel */}
-            <div ref={factsPanel} style={{
+            <div style={{
               display: "flex", flexDirection: "column",
               maxHeight: mob ? "none" : "calc(100vh - 100px)",
               overflow: mob ? "visible" : "hidden",
@@ -804,7 +925,7 @@ export default function LiveFactCheckPage() {
               {/* Panel header */}
               <div style={{
                 padding: "12px 14px", background: T.card,
-                border: `1px solid ${T.rule}`, borderRadius: mob ? "8px 8px 0 0" : "8px 8px 0 0",
+                border: `1px solid ${T.rule}`, borderRadius: "8px 8px 0 0",
                 display: "flex", alignItems: "center", justifyContent: "space-between",
                 marginTop: mob ? 12 : 0,
               }}>
@@ -838,7 +959,7 @@ export default function LiveFactCheckPage() {
                     </div>
                   )}
                   {claims.map(c => (
-                    <FactCard key={c.id} claim={c} isNew={newClaimIds.has(c.id)} />
+                    <FactCard key={c.id} claim={c} isNew={newClaimIds.has(c.id)} onSeek={seekVideo} />
                   ))}
                 </div>
               </div>
@@ -904,7 +1025,7 @@ export default function LiveFactCheckPage() {
                   fontFamily: "'DM Sans',sans-serif", fontSize: 10, fontWeight: 700,
                   textTransform: "uppercase", letterSpacing: 1, color: T.mute, marginBottom: 8,
                 }}>All Claims</div>
-                {claims.map(c => <FactCard key={c.id} claim={c} isNew={false} />)}
+                {claims.map(c => <FactCard key={c.id} claim={c} isNew={false} onSeek={seekVideo} />)}
               </div>
             )}
           </div>
