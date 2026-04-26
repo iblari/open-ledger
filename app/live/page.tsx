@@ -265,6 +265,7 @@ export default function LiveFactCheckPage() {
   const [isListening, setIsListening] = useState(false);
   const [micError, setMicError] = useState("");
   const [showSummary, setShowSummary] = useState(false);
+  const [isManualChecking, setIsManualChecking] = useState(false);
   const [newClaimIds, setNewClaimIds] = useState<Set<string>>(new Set());
 
   const [demoSpeech, setDemoSpeech] = useState<DemoSpeech | null>(null);
@@ -552,6 +553,82 @@ export default function LiveFactCheckPage() {
     }
     if (claims.length > 0) setShowSummary(true);
   }, [claims.length, stopMicListening]);
+
+  /* ── Manual "Fact Check This" — grabs last ~30s of context ── */
+  const manualFactCheck = useCallback(async () => {
+    setIsManualChecking(true);
+
+    // Gather recent transcript text
+    let recentText = "";
+    let videoTime = 0;
+
+    if (isDemo && demoSpeech) {
+      // In demo mode: get segments near current video time
+      let vt = (Date.now() - demoStartTime.current) / 1000;
+      if (ytPlayerRef.current?.getCurrentTime) {
+        try { vt = ytPlayerRef.current.getCurrentTime(); } catch {}
+      }
+      videoTime = Math.floor(vt);
+
+      // Grab segments from the last ~40 seconds
+      const windowStart = vt - 40;
+      recentText = demoSpeech.segments
+        .filter(s => s.time >= windowStart && s.time <= vt)
+        .map(s => s.text)
+        .join(" ");
+    } else {
+      // Live mode: use the transcript buffer
+      recentText = liveTranscript.split(" ").slice(-80).join(" ");
+      videoTime = Math.floor((Date.now() - demoStartTime.current) / 1000);
+    }
+
+    if (recentText.trim().length < 20) {
+      setIsManualChecking(false);
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/live-fact-check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: recentText,
+          context: "User manually requested fact-check of this section.",
+        }),
+      });
+      const data = await res.json();
+
+      if (data.claims?.length > 0) {
+        const enriched: Claim[] = data.claims.map((c: Claim) => ({
+          ...c,
+          videoTime,
+          timestamp: new Date().toISOString(),
+          id: `manual-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        }));
+        setNewClaimIds(new Set(enriched.map(c => c.id)));
+        setClaims(prev => [...enriched, ...prev]);
+      } else if (data.error) {
+        // No API key — use a "no claims found" placeholder
+        const placeholder: Claim = {
+          quote: recentText.slice(0, 80) + "...",
+          rating: "UNVERIFIABLE",
+          actual: data.error === "ANTHROPIC_API_KEY not configured"
+            ? "AI fact-checking requires an API key. Add ANTHROPIC_API_KEY to your Vercel environment variables."
+            : "No verifiable economic claims detected in this section.",
+          explanation: "Try clicking during a section with specific economic data or statistics.",
+          videoTime,
+          timestamp: new Date().toISOString(),
+          id: `manual-${Date.now()}`,
+        };
+        setNewClaimIds(new Set([placeholder.id]));
+        setClaims(prev => [placeholder, ...prev]);
+      }
+    } catch (e) {
+      console.error("Manual fact-check error:", e);
+    }
+
+    setIsManualChecking(false);
+  }, [isDemo, demoSpeech, liveTranscript]);
 
   /* ── Share ── */
   const shareResults = useCallback(() => {
@@ -929,6 +1006,28 @@ export default function LiveFactCheckPage() {
                   }}
                 >
                   ■ Stop
+                </button>
+
+                <button
+                  onClick={manualFactCheck}
+                  disabled={isManualChecking}
+                  style={{
+                    background: isManualChecking ? T.rule : T.blue,
+                    color: "#fff", border: "none", borderRadius: 6,
+                    padding: "6px 16px", fontFamily: "'DM Sans',sans-serif", fontSize: 12,
+                    fontWeight: 700, cursor: isManualChecking ? "default" : "pointer",
+                    opacity: isManualChecking ? 0.7 : 1,
+                    display: "flex", alignItems: "center", gap: 6,
+                  }}
+                >
+                  {isManualChecking ? (
+                    <>
+                      <span style={{ animation: "pulse 1s infinite" }}>⏳</span>
+                      Checking...
+                    </>
+                  ) : (
+                    <>🔍 Fact Check This</>
+                  )}
                 </button>
 
                 {!isDemo && (
