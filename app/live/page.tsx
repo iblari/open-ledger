@@ -266,6 +266,7 @@ export default function LiveFactCheckPage() {
   const [micError, setMicError] = useState("");
   const [showSummary, setShowSummary] = useState(false);
   const [isManualChecking, setIsManualChecking] = useState(false);
+  const [manualResult, setManualResult] = useState<Claim[] | null>(null);
   const [newClaimIds, setNewClaimIds] = useState<Set<string>>(new Set());
 
   const [demoSpeech, setDemoSpeech] = useState<DemoSpeech | null>(null);
@@ -545,6 +546,7 @@ export default function LiveFactCheckPage() {
     setIsPlaying(false);
     setIsDemo(false);
     setDemoSpeech(null);
+    setManualResult(null);
     shownSegmentsRef.current = new Set();
     stopMicListening();
     if (ytPlayerRef.current?.destroy) {
@@ -557,28 +559,23 @@ export default function LiveFactCheckPage() {
   /* ── Manual "Fact Check This" — grabs recent transcript ── */
   const manualFactCheck = useCallback(async () => {
     setIsManualChecking(true);
+    setManualResult(null);
 
-    // Use whatever transcript is currently on screen
     const recentText = liveTranscript.split(" ").slice(-80).join(" ").trim();
 
-    // Get video time for the card timestamp
     let videoTime = Math.floor((Date.now() - demoStartTime.current) / 1000);
     if (ytPlayerRef.current?.getCurrentTime) {
       try { videoTime = Math.floor(ytPlayerRef.current.getCurrentTime()); } catch {}
     }
 
     if (recentText.length < 20) {
-      // Nothing to check yet — show a hint
-      const hint: Claim = {
+      setManualResult([{
         quote: "No transcript available yet",
         rating: "UNVERIFIABLE",
         actual: "Wait for the transcript to build up, then try again.",
         explanation: "The fact-checker needs at least a few sentences of speech to analyze.",
-        videoTime, timestamp: new Date().toISOString(),
-        id: `manual-hint-${Date.now()}`,
-      };
-      setNewClaimIds(new Set([hint.id]));
-      setClaims(prev => [hint, ...prev]);
+        videoTime, timestamp: new Date().toISOString(), id: `manual-hint-${Date.now()}`,
+      }]);
       setIsManualChecking(false);
       return;
     }
@@ -587,40 +584,43 @@ export default function LiveFactCheckPage() {
       const res = await fetch("/api/live-fact-check", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          text: recentText,
-          context: "User manually requested fact-check of this section.",
-        }),
+        body: JSON.stringify({ text: recentText, context: "User manually requested fact-check." }),
       });
       const data = await res.json();
 
       if (data.claims?.length > 0) {
-        const enriched: Claim[] = data.claims.map((c: Claim) => ({
-          ...c,
-          videoTime,
-          timestamp: new Date().toISOString(),
+        const results: Claim[] = data.claims.map((c: Claim) => ({
+          ...c, videoTime, timestamp: new Date().toISOString(),
           id: `manual-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
         }));
-        setNewClaimIds(new Set(enriched.map(c => c.id)));
-        setClaims(prev => [...enriched, ...prev]);
-      } else if (data.error) {
-        // No API key — use a "no claims found" placeholder
-        const placeholder: Claim = {
-          quote: recentText.slice(0, 80) + "...",
+        setManualResult(results);
+        // Also add to the side panel
+        setNewClaimIds(new Set(results.map(c => c.id)));
+        setClaims(prev => [...results, ...prev]);
+      } else {
+        // API returned no claims or returned an error
+        const msg = data.error
+          ? (data.error === "ANTHROPIC_API_KEY not configured"
+            ? "API key not configured — add ANTHROPIC_API_KEY to Vercel env vars."
+            : data.error)
+          : "No verifiable economic claims detected in this section of the speech.";
+        setManualResult([{
+          quote: recentText.slice(0, 100) + (recentText.length > 100 ? "..." : ""),
           rating: "UNVERIFIABLE",
-          actual: data.error === "ANTHROPIC_API_KEY not configured"
-            ? "AI fact-checking requires an API key. Add ANTHROPIC_API_KEY to your Vercel environment variables."
-            : "No verifiable economic claims detected in this section.",
-          explanation: "Try clicking during a section with specific economic data or statistics.",
-          videoTime,
-          timestamp: new Date().toISOString(),
-          id: `manual-${Date.now()}`,
-        };
-        setNewClaimIds(new Set([placeholder.id]));
-        setClaims(prev => [placeholder, ...prev]);
+          actual: msg,
+          explanation: "Try clicking during a section where specific numbers, percentages, or dollar figures are mentioned.",
+          videoTime, timestamp: new Date().toISOString(), id: `manual-${Date.now()}`,
+        }]);
       }
     } catch (e) {
       console.error("Manual fact-check error:", e);
+      setManualResult([{
+        quote: "Error",
+        rating: "UNVERIFIABLE",
+        actual: "Something went wrong. Please try again.",
+        explanation: "",
+        videoTime, timestamp: new Date().toISOString(), id: `manual-err-${Date.now()}`,
+      }]);
     }
 
     setIsManualChecking(false);
@@ -1058,6 +1058,78 @@ export default function LiveFactCheckPage() {
                   </span>
                 )}
               </div>
+
+              {/* Manual Fact-Check Results */}
+              {manualResult && (
+                <div style={{
+                  marginTop: 10, padding: "14px 16px",
+                  background: "linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%)",
+                  border: `1px solid ${T.blue}33`,
+                  borderRadius: 10,
+                  position: "relative",
+                }}>
+                  {/* Close button */}
+                  <button
+                    onClick={() => setManualResult(null)}
+                    style={{
+                      position: "absolute", top: 8, right: 10,
+                      background: "none", border: "none", cursor: "pointer",
+                      fontSize: 16, color: T.mute, lineHeight: 1,
+                    }}
+                    title="Dismiss"
+                  >×</button>
+
+                  <div style={{
+                    fontFamily: "'DM Sans',sans-serif", fontSize: 11, fontWeight: 700,
+                    color: T.blue, textTransform: "uppercase", letterSpacing: 0.8,
+                    marginBottom: 10, display: "flex", alignItems: "center", gap: 6,
+                  }}>
+                    🔍 AI Fact-Check Result
+                  </div>
+
+                  {manualResult.map((r, i) => {
+                    const rc = RATING_COLORS[r.rating] || RATING_COLORS.UNVERIFIABLE;
+                    return (
+                      <div key={r.id || i} style={{
+                        background: T.card, border: `1px solid ${T.rule}`,
+                        borderLeft: `4px solid ${rc.bg}`,
+                        borderRadius: 8, padding: "10px 12px",
+                        marginBottom: i < manualResult.length - 1 ? 8 : 0,
+                      }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                          <span style={{
+                            padding: "2px 8px", borderRadius: 4, fontSize: 10, fontWeight: 700,
+                            background: rc.bg, color: rc.text, letterSpacing: 0.5,
+                          }}>{r.rating}</span>
+                        </div>
+                        <div style={{
+                          fontSize: 13, fontWeight: 600, color: T.ink,
+                          fontStyle: "italic", fontFamily: "'Source Serif 4',serif",
+                          lineHeight: 1.4, marginBottom: 6,
+                        }}>
+                          &ldquo;{r.quote}&rdquo;
+                        </div>
+                        {r.actual && r.actual !== "N/A" && (
+                          <div style={{
+                            fontSize: 11, color: T.sub, lineHeight: 1.5,
+                            fontFamily: "'DM Sans',sans-serif",
+                          }}>
+                            <strong style={{ color: T.ink }}>Data:</strong> {r.actual}
+                          </div>
+                        )}
+                        {r.explanation && (
+                          <div style={{
+                            fontSize: 11, color: T.mute, marginTop: 4,
+                            fontFamily: "'DM Sans',sans-serif", lineHeight: 1.4,
+                          }}>
+                            {r.explanation}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
 
               {/* Mic hint for live (non-demo) */}
               {!isDemo && !isListening && !micError && (
