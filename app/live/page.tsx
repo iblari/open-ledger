@@ -421,42 +421,47 @@ export default function LiveFactCheckPage() {
         const segment = speech.segments[si];
         if (demoAbortRef.current) break;
 
+        const hasClaims = segment.claims && segment.claims.length > 0;
+
         // Add text to transcript
         setLiveTranscript(prev => prev + " " + segment.text);
         bufferRef.current += " " + segment.text;
 
-        // Wait for segment to "play" — 5 seconds per segment
-        await new Promise(r => setTimeout(r, 5000));
+        // Wait for segment — fast-forward through non-claim segments
+        const playDelay = hasClaims ? 4000 : 1200;
+        await new Promise(r => setTimeout(r, playDelay));
         if (demoAbortRef.current) break;
 
-        // Try API first
-        const text = bufferRef.current.trim();
+        // Try API first (only for segments with claims, skip API for empty ones)
         let foundClaims: Claim[] = [];
 
-        if (text.length >= 30) {
-          bufferRef.current = "";
-          try {
-            const fcRes = await fetch("/api/live-fact-check", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ text, context: contextRef.current }),
-            });
-            const data = await fcRes.json();
-            contextRef.current = (contextRef.current + " " + text).slice(-500);
-            if (data.claims?.length > 0) {
-              foundClaims = data.claims.map((c: Claim) => ({
-                ...c,
-                videoTime: segment.time,
-              }));
-            }
-          } catch {}
+        if (hasClaims) {
+          const text = bufferRef.current.trim();
+          if (text.length >= 30) {
+            bufferRef.current = "";
+            try {
+              const fcRes = await fetch("/api/live-fact-check", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ text, context: contextRef.current }),
+              });
+              const data = await fcRes.json();
+              contextRef.current = (contextRef.current + " " + text).slice(-500);
+              if (data.claims?.length > 0) {
+                foundClaims = data.claims.map((c: Claim) => ({
+                  ...c,
+                  videoTime: segment.time,
+                }));
+              }
+            } catch {}
+          }
         }
 
         // Fallback: use pre-computed claims, with staggered timing
-        if (foundClaims.length === 0 && segment.claims && segment.claims.length > 0) {
-          for (let ci = 0; ci < segment.claims.length; ci++) {
+        if (foundClaims.length === 0 && hasClaims) {
+          for (let ci = 0; ci < segment.claims!.length; ci++) {
             if (demoAbortRef.current) break;
-            const c = segment.claims[ci];
+            const c = segment.claims![ci];
             const newClaim: Claim = {
               ...c,
               timestamp: new Date().toISOString(),
@@ -468,7 +473,7 @@ export default function LiveFactCheckPage() {
             setClaims(prev => [newClaim, ...prev]);
 
             // Stagger multiple claims from same segment
-            if (ci < segment.claims.length - 1) {
+            if (ci < segment.claims!.length - 1) {
               await new Promise(r => setTimeout(r, 1500));
             }
           }
@@ -484,8 +489,9 @@ export default function LiveFactCheckPage() {
           }
         }
 
-        // Wait between segments — longer pause to feel natural
-        await new Promise(r => setTimeout(r, 3000));
+        // Gap between segments — shorter for non-claim segments
+        const gapDelay = hasClaims ? 2500 : 800;
+        await new Promise(r => setTimeout(r, gapDelay));
       }
 
       if (!demoAbortRef.current) {
