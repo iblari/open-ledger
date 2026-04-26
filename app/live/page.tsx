@@ -270,10 +270,24 @@ export default function LiveFactCheckPage() {
   const shownSegmentsRef = useRef<Set<number>>(new Set());
   const demoSpeechRef = useRef<DemoSpeech | null>(null);
   const videoTimeRef = useRef(0);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const ytPlayerRef = useRef<any>(null);
 
-  /* ── YouTube seek via postMessage ── */
+  /* ── YouTube IFrame Player API ── */
+  useEffect(() => {
+    // Load YouTube IFrame API script once
+    if (typeof window !== "undefined" && !(window as Record<string, unknown>).YT) {
+      const tag = document.createElement("script");
+      tag.src = "https://www.youtube.com/iframe_api";
+      document.head.appendChild(tag);
+    }
+  }, []);
+
+  /* ── Seek using YT Player API or postMessage fallback ── */
   const seekVideo = useCallback((seconds: number) => {
-    if (iframeRef.current?.contentWindow) {
+    if (ytPlayerRef.current?.seekTo) {
+      ytPlayerRef.current.seekTo(seconds, true);
+    } else if (iframeRef.current?.contentWindow) {
       iframeRef.current.contentWindow.postMessage(
         JSON.stringify({ event: "command", func: "seekTo", args: [seconds, true] }),
         "*"
@@ -402,22 +416,7 @@ export default function LiveFactCheckPage() {
     setTimeout(() => startMicListening(), 1000);
   }, [startMicListening]);
 
-  /* ── Listen for YouTube player time updates via postMessage ── */
-  useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      if (typeof event.data !== "string") return;
-      try {
-        const data = JSON.parse(event.data);
-        if (data.event === "infoDelivery" && data.info?.currentTime != null) {
-          videoTimeRef.current = data.info.currentTime;
-        }
-      } catch {}
-    };
-    window.addEventListener("message", handleMessage);
-    return () => window.removeEventListener("message", handleMessage);
-  }, []);
-
-  /* ── Trigger claims based on video playback position ── */
+  /* ── Poll YouTube player time + trigger claims ── */
   useEffect(() => {
     if (!isDemo || !isPlaying) return;
     const speech = demoSpeechRef.current;
@@ -427,6 +426,15 @@ export default function LiveFactCheckPage() {
 
     const interval = setInterval(() => {
       if (demoAbortRef.current) return;
+
+      // Get current video time from YT player or fallback to elapsed time
+      if (ytPlayerRef.current?.getCurrentTime) {
+        videoTimeRef.current = ytPlayerRef.current.getCurrentTime();
+      } else {
+        // Fallback: use elapsed wall-clock time since demo start
+        videoTimeRef.current = (Date.now() - demoStartTime.current) / 1000;
+      }
+
       const vt = videoTimeRef.current;
 
       // Update transcript — show text for the latest segment we've reached
@@ -447,14 +455,11 @@ export default function LiveFactCheckPage() {
         const segment = speech.segments[si];
         if (shownSegmentsRef.current.has(si)) continue;
         if (!segment.claims || segment.claims.length === 0) {
-          // Mark no-claim segments as shown when we pass them
           if (vt >= segment.time) shownSegmentsRef.current.add(si);
           continue;
         }
-        // Show claims CLAIM_DELAY seconds after the claim was spoken
         if (vt >= segment.time + CLAIM_DELAY) {
           shownSegmentsRef.current.add(si);
-          // Add all claims from this segment
           const newClaims: Claim[] = segment.claims.map((c, ci) => ({
             ...c,
             timestamp: new Date().toISOString(),
@@ -472,10 +477,51 @@ export default function LiveFactCheckPage() {
       if (allShown && vt >= speech.segments[speech.segments.length - 1].time) {
         setShowSummary(true);
       }
-    }, 500); // poll every 500ms
+    }, 800);
 
     return () => clearInterval(interval);
   }, [isDemo, isPlaying]);
+
+  /* ── Initialize YT Player when videoId is set for demo ── */
+  useEffect(() => {
+    if (!isDemo || !isPlaying || !videoId) return;
+
+    const initPlayer = () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const YT = (window as any).YT;
+      if (!YT?.Player) {
+        // API not loaded yet — retry
+        setTimeout(initPlayer, 500);
+        return;
+      }
+
+      // Destroy previous player if any
+      if (ytPlayerRef.current?.destroy) {
+        try { ytPlayerRef.current.destroy(); } catch {}
+      }
+
+      ytPlayerRef.current = new YT.Player("yt-player-div", {
+        videoId,
+        playerVars: { autoplay: 1, rel: 0 },
+        events: {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          onReady: (event: any) => {
+            event.target.playVideo();
+          },
+        },
+      });
+    };
+
+    // Small delay to let the DOM render the div
+    setTimeout(initPlayer, 300);
+
+    return () => {
+      if (ytPlayerRef.current?.destroy) {
+        try { ytPlayerRef.current.destroy(); } catch {}
+        ytPlayerRef.current = null;
+      }
+    };
+  }, [isDemo, isPlaying, videoId]);
 
   /* ── Demo mode — video-time-synced ── */
   const startDemo = useCallback(async () => {
@@ -497,20 +543,6 @@ export default function LiveFactCheckPage() {
       setVideoId(speech.videoId);
       setTitle(`DEMO — ${speech.title}, ${speech.date}`);
       demoStartTime.current = Date.now();
-
-      // Start listening to YouTube player time updates
-      // The iframe will send infoDelivery events once we post "listening"
-      const waitForIframe = () => {
-        setTimeout(() => {
-          if (iframeRef.current?.contentWindow) {
-            iframeRef.current.contentWindow.postMessage(
-              JSON.stringify({ event: "listening" }),
-              "*"
-            );
-          }
-        }, 2000);
-      };
-      waitForIframe();
     } catch (e) {
       console.error("Demo error:", e);
     }
@@ -824,7 +856,12 @@ export default function LiveFactCheckPage() {
                 position: "relative", width: "100%", aspectRatio: "16/9",
                 background: "#000",
               }}>
-                {videoId ? (
+                {videoId && isDemo ? (
+                  <div
+                    id="yt-player-div"
+                    style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}
+                  />
+                ) : videoId ? (
                   <iframe
                     ref={iframeRef}
                     id="yt-player"
