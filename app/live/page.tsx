@@ -268,6 +268,9 @@ export default function LiveFactCheckPage() {
   const [isManualChecking, setIsManualChecking] = useState(false);
   const [manualResult, setManualResult] = useState<Claim[] | null>(null);
   const [newClaimIds, setNewClaimIds] = useState<Set<string>>(new Set());
+  const [urlInput, setUrlInput] = useState("");
+  const [urlLoading, setUrlLoading] = useState(false);
+  const [urlError, setUrlError] = useState("");
 
   const [demoSpeech, setDemoSpeech] = useState<DemoSpeech | null>(null);
 
@@ -540,6 +543,61 @@ export default function LiveFactCheckPage() {
     }
   }, []);
 
+  /* ── Start from URL — fetch transcript then reuse demo machinery ── */
+  const startFromUrl = useCallback(async (url: string) => {
+    setUrlError("");
+    setUrlLoading(true);
+    try {
+      const res = await fetch("/api/fetch-transcript", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setUrlError(data.error || "Failed to fetch transcript");
+        setUrlLoading(false);
+        return;
+      }
+
+      // Build a DemoSpeech object from the transcript data
+      const speech: DemoSpeech = {
+        title: data.title || "YouTube Video",
+        speaker: data.speaker || "Unknown",
+        date: data.date || new Date().toISOString().slice(0, 10),
+        videoId: data.videoId,
+        duration: data.duration || "?",
+        segments: (data.segments || []).map((s: { time: number; text: string }) => ({
+          time: s.time,
+          text: s.text,
+          claims: [], // no pre-loaded claims — user can use "Fact Check This"
+        })),
+      };
+
+      // Reuse the same state setup as startDemo
+      demoAbortRef.current = false;
+      shownSegmentsRef.current = new Set();
+      setIsDemo(true);
+      setIsPlaying(true);
+      setClaims([]);
+      setLiveTranscript("");
+      setShowSummary(false);
+      setDemoSpeech(null);
+      bufferRef.current = "";
+      contextRef.current = "";
+      setVideoId(speech.videoId);
+      setTitle(speech.title);
+      demoStartTime.current = Date.now();
+      setDemoSpeech(speech);
+      setUrlInput("");
+    } catch (e) {
+      console.error("URL fetch error:", e);
+      setUrlError("Network error — could not reach the server.");
+    } finally {
+      setUrlLoading(false);
+    }
+  }, []);
+
   /* ── Stop ── */
   const stopSession = useCallback(() => {
     demoAbortRef.current = true;
@@ -724,6 +782,67 @@ export default function LiveFactCheckPage() {
               }}>
                 Watch political speeches with real-time AI fact-checking. Every economic claim verified against official data from BLS, BEA, Treasury, and FRED.
               </p>
+            </div>
+
+            {/* ── Paste a YouTube URL ── */}
+            <div style={{
+              maxWidth: 600, margin: "0 auto 24px", padding: mob ? "16px" : "20px 24px",
+              background: T.card, border: `1px solid ${T.rule}`, borderRadius: 12,
+            }}>
+              <div style={{
+                fontFamily: "'DM Sans',sans-serif", fontSize: 11, fontWeight: 700,
+                textTransform: "uppercase", letterSpacing: 1.2, color: T.sub, marginBottom: 10,
+              }}>
+                Fact-Check Any YouTube Video
+              </div>
+              <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
+                <input
+                  type="text"
+                  value={urlInput}
+                  onChange={e => { setUrlInput(e.target.value); setUrlError(""); }}
+                  onKeyDown={e => { if (e.key === "Enter" && urlInput.trim()) startFromUrl(urlInput.trim()); }}
+                  placeholder="Paste a YouTube URL…"
+                  style={{
+                    flex: 1, padding: "10px 14px", borderRadius: 8,
+                    border: `1px solid ${urlError ? "#dc2626" : T.rule}`,
+                    fontFamily: "'DM Sans',sans-serif", fontSize: 14, color: T.ink,
+                    background: T.paper, outline: "none",
+                  }}
+                />
+                <button
+                  onClick={() => urlInput.trim() && startFromUrl(urlInput.trim())}
+                  disabled={urlLoading || !urlInput.trim()}
+                  style={{
+                    background: urlLoading ? T.rule : T.accent, color: "#fff",
+                    border: "none", borderRadius: 8, padding: "10px 20px",
+                    fontFamily: "'DM Sans',sans-serif", fontSize: 13, fontWeight: 700,
+                    cursor: urlLoading || !urlInput.trim() ? "default" : "pointer",
+                    opacity: urlLoading || !urlInput.trim() ? 0.6 : 1,
+                    whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 6,
+                  }}
+                >
+                  {urlLoading ? (
+                    <><span style={{ animation: "pulse 1s infinite" }}>⏳</span> Loading…</>
+                  ) : (
+                    <>▶ Watch &amp; Fact-Check</>
+                  )}
+                </button>
+              </div>
+              {urlError && (
+                <div style={{
+                  marginTop: 8, padding: "8px 12px", background: "#fef2f2",
+                  border: "1px solid #fecaca", borderRadius: 6,
+                  fontFamily: "'DM Sans',sans-serif", fontSize: 12, color: "#991b1b",
+                }}>
+                  {urlError}
+                </div>
+              )}
+              <div style={{
+                fontFamily: "'DM Sans',sans-serif", fontSize: 10, color: T.mute, marginTop: 8,
+                lineHeight: 1.5,
+              }}>
+                Works with any video that has captions enabled. The AI will read the transcript and fact-check economic claims as the video plays.
+              </div>
             </div>
 
             {/* Live Now Card */}
