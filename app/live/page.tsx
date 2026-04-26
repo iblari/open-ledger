@@ -600,6 +600,56 @@ export default function LiveFactCheckPage() {
     }
   }, []);
 
+  /* ── Client-side XML transcript parser (mirrors server logic) ── */
+  const parseTranscriptXml = useCallback((xml: string): { time: number; text: string }[] => {
+    const items: { startSec: number; text: string }[] = [];
+    const decode = (s: string) => s
+      .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&apos;/g, "'")
+      .replace(/&#x([0-9a-fA-F]+);/g, (_, h: string) => String.fromCodePoint(parseInt(h, 16)))
+      .replace(/&#(\d+);/g, (_, d: string) => String.fromCodePoint(parseInt(d, 10)))
+      .replace(/\n/g, " ").trim();
+
+    // srv3 format: <p t="ms" d="ms"><s>word</s>...</p>
+    const pRe = /<p\s+t="(\d+)"\s+d="(\d+)"[^>]*>([\s\S]*?)<\/p>/g;
+    let m;
+    while ((m = pRe.exec(xml)) !== null) {
+      const inner = m[3];
+      let text = "";
+      const sRe = /<s[^>]*>([^<]*)<\/s>/g;
+      let s;
+      while ((s = sRe.exec(inner)) !== null) text += s[1];
+      if (!text) text = inner.replace(/<[^>]+>/g, "");
+      text = decode(text).trim();
+      if (text) items.push({ startSec: parseInt(m[1], 10) / 1000, text });
+    }
+    if (items.length === 0) {
+      // Classic format: <text start="s" dur="s">content</text>
+      const tRe = /<text start="([^"]*)" dur="([^"]*)">([^<]*)<\/text>/g;
+      while ((m = tRe.exec(xml)) !== null) {
+        const text = decode(m[3]);
+        if (text) items.push({ startSec: parseFloat(m[1]), text });
+      }
+    }
+
+    // Group into 15-second segments
+    if (items.length === 0) return [];
+    const segments: { time: number; text: string }[] = [];
+    let winStart = Math.floor(items[0].startSec);
+    let buf: string[] = [];
+    for (const item of items) {
+      const sec = Math.floor(item.startSec);
+      if (sec - winStart >= 15 && buf.length > 0) {
+        segments.push({ time: winStart, text: buf.join(" ") });
+        buf = [];
+        winStart = sec;
+      }
+      if (item.text.trim()) buf.push(item.text.trim());
+    }
+    if (buf.length > 0) segments.push({ time: winStart, text: buf.join(" ") });
+    return segments;
+  }, []);
+
   /* ── Start from URL — fetch transcript then reuse demo machinery ── */
   const startFromUrl = useCallback(async (url: string) => {
     setUrlError("");
@@ -611,20 +661,102 @@ export default function LiveFactCheckPage() {
         body: JSON.stringify({ url }),
       });
       const data = await res.json();
-      if (!res.ok || data.error) {
-        setUrlError(data.error || "Failed to fetch transcript");
+
+      let segments: { time: number; text: string }[] = [];
+      let videoTitle = data.title || "YouTube Video";
+      let vid = data.videoId || "";
+      let duration = data.duration || "?";
+
+      if (data.segments && data.segments.length > 0) {
+        // Server returned full transcript
+        segments = data.segments;
+      } else if (data.clientFetch && data.captionUrl) {
+        // Server returned a signed timedtext URL — fetch from browser (CORS supported!)
+        console.log("[clientFetch] Fetching timedtext from browser...");
+        try {
+          const txRes = await fetch(data.captionUrl);
+          if (txRes.ok) {
+            const xml = await txRes.text();
+            if (xml && xml.length > 50) {
+              segments = parseTranscriptXml(xml);
+              console.log(`[clientFetch] Parsed ${segments.length} segments from browser`);
+            }
+          }
+        } catch (e) {
+          console.warn("[clientFetch] Browser timedtext fetch failed:", e);
+        }
+      } else if (data.error && !data.clientFetch) {
+        setUrlError(data.error);
         setUrlLoading(false);
         return;
       }
 
+      // If we still don't have segments, try client-side InnerTube as last resort
+      if (segments.length === 0 && vid) {
+        console.log("[clientFetch] Trying client-side InnerTube...");
+        try {
+          // InnerTube accepts text/plain Content-Type (avoids CORS preflight)
+          // Note: YouTube may block this via Origin header, but worth trying
+          const itRes = await fetch(
+            "https://www.youtube.com/youtubei/v1/player?prettyPrint=false",
+            {
+              method: "POST",
+              headers: { "Content-Type": "text/plain" },
+              body: JSON.stringify({
+                context: { client: { clientName: "ANDROID", clientVersion: "20.10.38" } },
+                videoId: vid,
+              }),
+            }
+          );
+          if (itRes.ok) {
+            const itData = await itRes.json();
+            videoTitle = itData?.videoDetails?.title || videoTitle;
+            const tracks = itData?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
+            if (Array.isArray(tracks) && tracks.length > 0) {
+              const track =
+                tracks.find((t: { languageCode: string; kind?: string }) =>
+                  t.languageCode.startsWith("en") && t.kind !== "asr") ||
+                tracks.find((t: { languageCode: string }) =>
+                  t.languageCode.startsWith("en")) ||
+                tracks[0];
+              const txRes2 = await fetch(track.baseUrl);
+              if (txRes2.ok) {
+                const xml2 = await txRes2.text();
+                if (xml2 && xml2.length > 50) {
+                  segments = parseTranscriptXml(xml2);
+                  console.log(`[clientFetch] Client InnerTube success: ${segments.length} segments`);
+                }
+              }
+            }
+          }
+        } catch (e) {
+          console.warn("[clientFetch] Client InnerTube failed (expected):", e);
+        }
+      }
+
+      if (segments.length === 0) {
+        setUrlError(
+          "Could not load transcript. YouTube may be blocking automated access. " +
+          "Try a different video, or open the video on YouTube → click '...' → 'Show transcript' to verify captions exist."
+        );
+        setUrlLoading(false);
+        return;
+      }
+
+      // Calculate duration from segments
+      const lastSeg = segments[segments.length - 1];
+      if (lastSeg) {
+        duration = `${Math.ceil(lastSeg.time / 60)}m`;
+      }
+
       // Build a DemoSpeech with empty claims — AI will fact-check in real-time
       const speech: DemoSpeech = {
-        title: data.title || "YouTube Video",
+        title: videoTitle,
         speaker: data.speaker || "Unknown",
         date: data.date || new Date().toISOString().slice(0, 10),
-        videoId: data.videoId,
-        duration: data.duration || "?",
-        segments: (data.segments || []).map((s: { time: number; text: string }) => ({
+        videoId: vid,
+        duration,
+        segments: segments.map((s: { time: number; text: string }) => ({
           time: s.time,
           text: s.text,
           claims: [], // no pre-loaded claims — Claude will analyze in real-time
@@ -653,7 +785,7 @@ export default function LiveFactCheckPage() {
     } finally {
       setUrlLoading(false);
     }
-  }, []);
+  }, [parseTranscriptXml]);
 
   /* ── Stop ── */
   const stopSession = useCallback(() => {

@@ -2,14 +2,23 @@ import { NextResponse } from "next/server";
 
 // Run on Vercel Edge Runtime (Cloudflare network) instead of Node.js (AWS).
 export const runtime = "edge";
+// Try multiple regions — YouTube may block some Cloudflare POPs but not others
+export const preferredRegion = ["cdg1", "hnd1", "sfo1", "gru1", "iad1"];
 
 /**
  * POST /api/fetch-transcript
  * Body: { url: string }
- * Returns: { title, videoId, duration, segments: [{time, text}] }
  *
- * Pure fetch() implementation — Edge Runtime compatible.
- * Uses YouTube InnerTube ANDROID client API (same approach as youtube-transcript npm).
+ * Returns EITHER:
+ *   { title, videoId, duration, segments: [{time, text}] }        — full transcript
+ *   { clientFetch: true, videoId, title, captionUrl }              — client should fetch timedtext
+ *   { error: "..." }                                               — unrecoverable error
+ *
+ * Architecture:
+ * 1. Server tries InnerTube ANDROID client (forwarding client IP)
+ * 2. If InnerTube returns captions → server fetches timedtext XML → returns segments
+ * 3. If server can get caption URLs but timedtext fetch fails → returns URLs for client-side fetch
+ * 4. If all server strategies fail → returns clientFetch signal for browser-based approach
  */
 
 const INNERTUBE_API_URL =
@@ -89,7 +98,6 @@ interface CaptionTrack {
 
 /**
  * Parse transcript XML — supports both srv3 format and classic format.
- * Exactly matches youtube-transcript npm library parsing.
  */
 function parseTranscriptXml(xml: string): TranscriptItem[] {
   const results: TranscriptItem[] = [];
@@ -100,14 +108,12 @@ function parseTranscriptXml(xml: string): TranscriptItem[] {
   while ((match = pRegex.exec(xml)) !== null) {
     const startMs = parseInt(match[1], 10);
     const inner = match[3];
-    // Extract text from <s> tags
     let text = "";
     const sRegex = /<s[^>]*>([^<]*)<\/s>/g;
     let sMatch;
     while ((sMatch = sRegex.exec(inner)) !== null) {
       text += sMatch[1];
     }
-    // Fallback: strip all tags
     if (!text) {
       text = inner.replace(/<[^>]+>/g, "");
     }
@@ -132,21 +138,44 @@ function parseTranscriptXml(xml: string): TranscriptItem[] {
   return results;
 }
 
+/** Pick the best English caption track from a list */
+function pickBestTrack(tracks: CaptionTrack[]): CaptionTrack {
+  return (
+    tracks.find(
+      (t) => t.languageCode.startsWith("en") && t.kind !== "asr"
+    ) ||
+    tracks.find(
+      (t) => t.languageCode.startsWith("en") && t.kind === "asr"
+    ) ||
+    tracks.find((t) => t.languageCode.startsWith("en")) ||
+    tracks[0]
+  );
+}
+
 /**
- * Strategy 1: InnerTube ANDROID client API
- * This is the primary approach used by youtube-transcript npm.
- * Uses ANDROID client context which returns full player data including captions.
+ * Call InnerTube ANDROID client to get caption track URLs.
+ * Forwards the real client IP via X-Forwarded-For to help bypass datacenter IP blocks.
  */
-async function fetchViaInnerTube(
-  videoId: string
-): Promise<{ items: TranscriptItem[]; title: string } | null> {
+async function getInnerTubeData(
+  videoId: string,
+  clientIp?: string
+): Promise<{
+  title: string;
+  captionTracks: CaptionTrack[];
+} | null> {
   try {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      "User-Agent": INNERTUBE_USER_AGENT,
+    };
+    // Forward the real client IP — YouTube may use this instead of the server IP
+    if (clientIp) {
+      headers["X-Forwarded-For"] = clientIp;
+    }
+
     const resp = await fetch(INNERTUBE_API_URL, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "User-Agent": INNERTUBE_USER_AGENT,
-      },
+      headers,
       body: JSON.stringify({
         context: {
           client: {
@@ -180,19 +209,22 @@ async function fetchViaInnerTube(
       `[${videoId}] InnerTube: ${captionTracks.length} tracks, first: ${captionTracks[0].languageCode} (${captionTracks[0].kind || "manual"})`
     );
 
-    // Pick best track (prefer English manual, then English ASR, then first)
-    const track =
-      captionTracks.find(
-        (t) => t.languageCode.startsWith("en") && t.kind !== "asr"
-      ) ||
-      captionTracks.find(
-        (t) => t.languageCode.startsWith("en") && t.kind === "asr"
-      ) ||
-      captionTracks.find((t) => t.languageCode.startsWith("en")) ||
-      captionTracks[0];
+    return { title, captionTracks };
+  } catch (e) {
+    console.error(`[${videoId}] InnerTube error:`, e);
+    return null;
+  }
+}
 
-    // Fetch the transcript XML
-    const txResp = await fetch(track.baseUrl, {
+/**
+ * Fetch and parse timedtext XML from a caption track URL.
+ */
+async function fetchTimedtext(
+  videoId: string,
+  baseUrl: string
+): Promise<TranscriptItem[] | null> {
+  try {
+    const txResp = await fetch(baseUrl, {
       headers: { "User-Agent": WEB_USER_AGENT },
     });
 
@@ -211,60 +243,43 @@ async function fetchViaInnerTube(
 
     const items = parseTranscriptXml(xml);
     console.log(`[${videoId}] Parsed ${items.length} transcript items`);
-
-    return items.length > 0 ? { items, title } : null;
+    return items.length > 0 ? items : null;
   } catch (e) {
-    console.error(`[${videoId}] InnerTube error:`, e);
+    console.error(`[${videoId}] Timedtext error:`, e);
     return null;
   }
 }
 
 /**
- * Strategy 2: Web page scraping fallback
- * Scrapes ytInitialPlayerResponse from the YouTube watch page.
+ * Strategy 2: Web page scraping fallback.
+ * Returns caption tracks (not full transcript) so client can fetch if server timedtext fails.
  */
-async function fetchViaWebPage(
+async function getWebPageCaptionTracks(
   videoId: string
-): Promise<{ items: TranscriptItem[]; title: string } | null> {
+): Promise<{ title: string; captionTracks: CaptionTrack[] } | null> {
   try {
-    const resp = await fetch(
-      `https://www.youtube.com/watch?v=${videoId}`,
-      {
-        headers: {
-          "User-Agent": WEB_USER_AGENT,
-          "Accept-Language": "en-US,en;q=0.9",
-          Cookie:
-            "SOCS=CAESEwgDEgk2ODE4NTkxNjQaAmVuIAEaBgiA_LyaBg; CONSENT=YES+cb.20210328-17-p0.en+FX+299",
-        },
-      }
-    );
+    const resp = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
+      headers: {
+        "User-Agent": WEB_USER_AGENT,
+        "Accept-Language": "en-US,en;q=0.9",
+        Cookie:
+          "SOCS=CAESEwgDEgk2ODE4NTkxNjQaAmVuIAEaBgiA_LyaBg; CONSENT=YES+cb.20210328-17-p0.en+FX+299",
+      },
+    });
 
-    if (!resp.ok) {
-      console.log(`[${videoId}] Web page returned ${resp.status}`);
-      return null;
-    }
+    if (!resp.ok) return null;
 
     const html = await resp.text();
-    console.log(`[${videoId}] Web page HTML length: ${html.length}`);
+    if (html.includes('class="g-recaptcha"')) return null;
 
-    if (html.includes('class="g-recaptcha"')) {
-      console.log(`[${videoId}] Web page: CAPTCHA detected`);
-      return null;
-    }
-
-    // Extract title
     const titleMatch = html.match(/<title>([^<]*)<\/title>/);
     const title = titleMatch
       ? titleMatch[1].replace(" - YouTube", "").trim()
       : "YouTube Video";
 
-    // Parse ytInitialPlayerResponse
     const startToken = "var ytInitialPlayerResponse = ";
     const startIndex = html.indexOf(startToken);
-    if (startIndex === -1) {
-      console.log(`[${videoId}] Web page: no ytInitialPlayerResponse`);
-      return null;
-    }
+    if (startIndex === -1) return null;
 
     const jsonStart = startIndex + startToken.length;
     let depth = 0;
@@ -280,49 +295,16 @@ async function fetchViaWebPage(
       }
     }
 
-    if (jsonEnd === -1) {
-      console.log(`[${videoId}] Web page: couldn't parse player response JSON`);
-      return null;
-    }
+    if (jsonEnd === -1) return null;
 
     const playerResponse = JSON.parse(html.slice(jsonStart, jsonEnd));
     const captionTracks: CaptionTrack[] | undefined =
       playerResponse?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
 
-    if (!Array.isArray(captionTracks) || captionTracks.length === 0) {
-      console.log(`[${videoId}] Web page: no caption tracks in player response`);
-      return null;
-    }
+    if (!Array.isArray(captionTracks) || captionTracks.length === 0) return null;
 
-    console.log(`[${videoId}] Web page: ${captionTracks.length} caption tracks`);
-
-    // Pick best track
-    const track =
-      captionTracks.find(
-        (t) => t.languageCode.startsWith("en") && t.kind !== "asr"
-      ) ||
-      captionTracks.find((t) => t.languageCode.startsWith("en")) ||
-      captionTracks[0];
-
-    const txResp = await fetch(track.baseUrl, {
-      headers: { "User-Agent": WEB_USER_AGENT },
-    });
-
-    if (!txResp.ok) {
-      console.log(`[${videoId}] Web page timedtext returned ${txResp.status}`);
-      return null;
-    }
-
-    const xml = await txResp.text();
-    if (!xml || xml.length < 50) {
-      console.log(`[${videoId}] Web page timedtext empty`);
-      return null;
-    }
-
-    const items = parseTranscriptXml(xml);
-    return items.length > 0 ? { items, title } : null;
-  } catch (e) {
-    console.error(`[${videoId}] Web page error:`, e);
+    return { title, captionTracks };
+  } catch {
     return null;
   }
 }
@@ -348,40 +330,72 @@ export async function POST(req: Request) {
     );
   }
 
-  // Strategy 1: InnerTube ANDROID client (primary — same as youtube-transcript npm)
-  console.log(`[${videoId}] Starting transcript fetch...`);
-  let result = await fetchViaInnerTube(videoId);
+  // Extract client IP for forwarding to YouTube
+  const clientIp =
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    req.headers.get("x-real-ip") ||
+    undefined;
+  console.log(`[${videoId}] Starting transcript fetch (client IP: ${clientIp || "unknown"})...`);
 
-  // Strategy 2: Web page scraping (fallback)
-  if (!result) {
+  // Strategy 1: InnerTube ANDROID client
+  let trackData = await getInnerTubeData(videoId, clientIp);
+
+  // Strategy 2: Web page scraping fallback
+  if (!trackData) {
     console.log(`[${videoId}] InnerTube failed, trying web page fallback...`);
-    result = await fetchViaWebPage(videoId);
+    trackData = await getWebPageCaptionTracks(videoId);
   }
 
-  if (!result || result.items.length === 0) {
-    return NextResponse.json(
-      {
-        error:
-          "Could not fetch captions for this video. Make sure the video has auto-generated or manual subtitles enabled.",
-      },
-      { status: 404 }
+  // If we have caption tracks, try to fetch the transcript server-side
+  if (trackData && trackData.captionTracks.length > 0) {
+    const track = pickBestTrack(trackData.captionTracks);
+
+    // Try server-side timedtext fetch
+    const items = await fetchTimedtext(videoId, track.baseUrl);
+
+    if (items && items.length > 0) {
+      // Full success — return complete transcript
+      console.log(
+        `[${videoId}] Server-side success! ${items.length} items, title: "${trackData.title}"`
+      );
+      const segments = groupIntoSegments(items);
+      const lastSeg = segments[segments.length - 1];
+      const estMinutes = Math.ceil((lastSeg?.time || 0) / 60);
+
+      return NextResponse.json({
+        videoId,
+        title: trackData.title,
+        speaker: "Unknown",
+        date: new Date().toISOString().slice(0, 10),
+        duration: `${estMinutes}m`,
+        segments,
+      });
+    }
+
+    // Server got caption URLs but timedtext fetch failed (IP blocked for content)
+    // Return the signed URL so the CLIENT browser can fetch it (timedtext has CORS!)
+    console.log(
+      `[${videoId}] Server timedtext blocked — returning URL for client-side fetch`
     );
+    return NextResponse.json({
+      clientFetch: true,
+      videoId,
+      title: trackData.title,
+      captionUrl: track.baseUrl,
+    });
   }
 
-  console.log(
-    `[${videoId}] Success! ${result.items.length} items, title: "${result.title}"`
+  // Total server failure — tell client to try its own approach
+  console.log(`[${videoId}] All server strategies failed — signaling client fallback`);
+  return NextResponse.json(
+    {
+      clientFetch: true,
+      videoId,
+      title: "YouTube Video",
+      captionUrl: null,
+      error:
+        "Server couldn't access captions. Your browser will attempt to load them directly.",
+    },
+    { status: 200 }
   );
-
-  const segments = groupIntoSegments(result.items);
-  const lastSeg = segments[segments.length - 1];
-  const estMinutes = Math.ceil((lastSeg?.time || 0) / 60);
-
-  return NextResponse.json({
-    videoId,
-    title: result.title,
-    speaker: "Unknown",
-    date: new Date().toISOString().slice(0, 10),
-    duration: `${estMinutes}m`,
-    segments,
-  });
 }
