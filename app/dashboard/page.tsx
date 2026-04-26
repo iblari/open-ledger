@@ -2194,7 +2194,7 @@ function App(){
                         })()}
                         {/* Bottom row: avg + years */}
                         <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?9:10,color:T.mute,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                          <span>avg {fmt(actualAvg,metric.u)}</span>
+                          <span>{showModeled?<>avg {fmt(actualAvg,metric.u)} · <span style={{color:T.accent,fontWeight:600}}>{fmt(modeledAvg,metric.u)}</span></>:<>avg {fmt(actualAvg,metric.u)}</>}</span>
                           <span style={{color:a.color,fontWeight:600}}>{a.years}</span>
                         </div>
                         {/* Shock badge */}
