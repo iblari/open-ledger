@@ -2271,18 +2271,24 @@ function App(){
                     const mArrow=modeledImproved?"▲":"▼";
                     const mArrowColor=modeledImproved?"#16a34a":"#dc2626";
 
+                    // Compute averages for table row
+                    const tActualAvg=pts.length>0?pts.reduce((s,d)=>s+d.v,0)/pts.length:0;
+                    const tModeledAvg=scenPts.length>0?scenPts.reduce((s,d)=>s+d.v,0)/scenPts.length:0;
+                    const showMod=hasModeled&&Math.abs(modeledEnd-actualEnd)>0.01;
+
                     return <div key={id} style={{display:"flex",alignItems:"center",gap:6,marginBottom:5,padding:"3px 0",borderBottom:i<AID.length-1?`1px solid ${T.rule}22`:"none"}}>
                       <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:a.color,fontWeight:600,width:52}}>{a.name}</span>
                       <div style={{flex:1,display:"flex",alignItems:"center",gap:4,fontFamily:"'DM Sans',sans-serif",fontSize:10}}>
                         <span style={{color:T.mute}}>{fmt(actualStart,metric.u)}</span>
                         <span style={{color:T.mute,fontSize:8}}>→</span>
                         <span style={{color:T.ink,fontWeight:600}}>{fmt(actualEnd,metric.u)}</span>
+                        <span style={{color:T.mute,fontSize:8,marginLeft:2}}>avg {fmt(tActualAvg,metric.u)}{showMod&&<> · <span style={{color:T.accent,fontWeight:600}}>{fmt(tModeledAvg,metric.u)}</span></>}</span>
                       </div>
-                      <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:600,color:arrowColor,width:hasModeled&&Math.abs(modeledEnd-actualEnd)>0.01?80:56,textAlign:"right"}}>
-                        {arrow}{Math.abs(actualPct).toFixed(0)}%{hasModeled&&Math.abs(modeledEnd-actualEnd)>0.01&&<span style={{fontSize:8,fontWeight:400,color:T.mute,marginLeft:3}}>actual</span>}
+                      <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:600,color:arrowColor,width:showMod?80:56,textAlign:"right"}}>
+                        {arrow}{Math.abs(actualPct).toFixed(0)}%{showMod&&<span style={{fontSize:8,fontWeight:400,color:T.mute,marginLeft:3}}>actual</span>}
                       </span>
                       {/* Modeled delta inline — proper green/red colors */}
-                      {hasModeled&&Math.abs(modeledEnd-actualEnd)>0.01&&(
+                      {showMod&&(
                         <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,fontWeight:600,color:mArrowColor,width:80,textAlign:"right",borderLeft:`1px dashed ${T.rule}`,paddingLeft:8}}>
                           {mArrow}{Math.abs(modeledPct).toFixed(0)}% <span style={{fontSize:8,fontWeight:400,color:T.mute}}>modeled</span>
                         </span>
