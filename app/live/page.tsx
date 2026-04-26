@@ -267,6 +267,9 @@ export default function LiveFactCheckPage() {
   const demoAbortRef = useRef(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const demoStartTime = useRef(0);
+  const shownSegmentsRef = useRef<Set<number>>(new Set());
+  const demoSpeechRef = useRef<DemoSpeech | null>(null);
+  const videoTimeRef = useRef(0);
 
   /* ── YouTube seek via postMessage ── */
   const seekVideo = useCallback((seconds: number) => {
@@ -399,9 +402,85 @@ export default function LiveFactCheckPage() {
     setTimeout(() => startMicListening(), 1000);
   }, [startMicListening]);
 
-  /* ── Demo mode — claims trickle in naturally ── */
+  /* ── Listen for YouTube player time updates via postMessage ── */
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (typeof event.data !== "string") return;
+      try {
+        const data = JSON.parse(event.data);
+        if (data.event === "infoDelivery" && data.info?.currentTime != null) {
+          videoTimeRef.current = data.info.currentTime;
+        }
+      } catch {}
+    };
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, []);
+
+  /* ── Trigger claims based on video playback position ── */
+  useEffect(() => {
+    if (!isDemo || !isPlaying) return;
+    const speech = demoSpeechRef.current;
+    if (!speech) return;
+
+    const CLAIM_DELAY = 4; // seconds after segment timestamp to show claim
+
+    const interval = setInterval(() => {
+      if (demoAbortRef.current) return;
+      const vt = videoTimeRef.current;
+
+      // Update transcript — show text for the latest segment we've reached
+      let latestSegIdx = -1;
+      for (let i = speech.segments.length - 1; i >= 0; i--) {
+        if (vt >= speech.segments[i].time) { latestSegIdx = i; break; }
+      }
+      if (latestSegIdx >= 0) {
+        const recentSegs = speech.segments
+          .filter((_, i) => i <= latestSegIdx)
+          .slice(-3)
+          .map(s => s.text);
+        setLiveTranscript(recentSegs.join(" "));
+      }
+
+      // Check each segment — show claims CLAIM_DELAY seconds after the segment time
+      for (let si = 0; si < speech.segments.length; si++) {
+        const segment = speech.segments[si];
+        if (shownSegmentsRef.current.has(si)) continue;
+        if (!segment.claims || segment.claims.length === 0) {
+          // Mark no-claim segments as shown when we pass them
+          if (vt >= segment.time) shownSegmentsRef.current.add(si);
+          continue;
+        }
+        // Show claims CLAIM_DELAY seconds after the claim was spoken
+        if (vt >= segment.time + CLAIM_DELAY) {
+          shownSegmentsRef.current.add(si);
+          // Add all claims from this segment
+          const newClaims: Claim[] = segment.claims.map((c, ci) => ({
+            ...c,
+            timestamp: new Date().toISOString(),
+            id: `claim-${si}-${ci}-${Date.now()}`,
+            videoTime: segment.time,
+          }));
+          const ids = new Set(newClaims.map(c => c.id));
+          setNewClaimIds(ids);
+          setClaims(prev => [...newClaims, ...prev]);
+        }
+      }
+
+      // If all segments shown, trigger summary
+      const allShown = speech.segments.every((_, i) => shownSegmentsRef.current.has(i));
+      if (allShown && vt >= speech.segments[speech.segments.length - 1].time) {
+        setShowSummary(true);
+      }
+    }, 500); // poll every 500ms
+
+    return () => clearInterval(interval);
+  }, [isDemo, isPlaying]);
+
+  /* ── Demo mode — video-time-synced ── */
   const startDemo = useCallback(async () => {
     demoAbortRef.current = false;
+    shownSegmentsRef.current = new Set();
     setIsDemo(true);
     setIsPlaying(true);
     setClaims([]);
@@ -409,94 +488,29 @@ export default function LiveFactCheckPage() {
     setShowSummary(false);
     bufferRef.current = "";
     contextRef.current = "";
+    videoTimeRef.current = 0;
 
     try {
       const res = await fetch("/speeches/sotu-2024.json");
       const speech: DemoSpeech = await res.json();
+      demoSpeechRef.current = speech;
       setVideoId(speech.videoId);
       setTitle(`DEMO — ${speech.title}, ${speech.date}`);
       demoStartTime.current = Date.now();
 
-      for (let si = 0; si < speech.segments.length; si++) {
-        const segment = speech.segments[si];
-        if (demoAbortRef.current) break;
-
-        const hasClaims = segment.claims && segment.claims.length > 0;
-
-        // Add text to transcript
-        setLiveTranscript(prev => prev + " " + segment.text);
-        bufferRef.current += " " + segment.text;
-
-        // Wait for segment — fast-forward through non-claim segments
-        const playDelay = hasClaims ? 4000 : 1200;
-        await new Promise(r => setTimeout(r, playDelay));
-        if (demoAbortRef.current) break;
-
-        // Try API first (only for segments with claims, skip API for empty ones)
-        let foundClaims: Claim[] = [];
-
-        if (hasClaims) {
-          const text = bufferRef.current.trim();
-          if (text.length >= 30) {
-            bufferRef.current = "";
-            try {
-              const fcRes = await fetch("/api/live-fact-check", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ text, context: contextRef.current }),
-              });
-              const data = await fcRes.json();
-              contextRef.current = (contextRef.current + " " + text).slice(-500);
-              if (data.claims?.length > 0) {
-                foundClaims = data.claims.map((c: Claim) => ({
-                  ...c,
-                  videoTime: segment.time,
-                }));
-              }
-            } catch {}
+      // Start listening to YouTube player time updates
+      // The iframe will send infoDelivery events once we post "listening"
+      const waitForIframe = () => {
+        setTimeout(() => {
+          if (iframeRef.current?.contentWindow) {
+            iframeRef.current.contentWindow.postMessage(
+              JSON.stringify({ event: "listening" }),
+              "*"
+            );
           }
-        }
-
-        // Fallback: use pre-computed claims, with staggered timing
-        if (foundClaims.length === 0 && hasClaims) {
-          for (let ci = 0; ci < segment.claims!.length; ci++) {
-            if (demoAbortRef.current) break;
-            const c = segment.claims![ci];
-            const newClaim: Claim = {
-              ...c,
-              timestamp: new Date().toISOString(),
-              id: `claim-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-              videoTime: segment.time,
-            };
-
-            setNewClaimIds(new Set([newClaim.id]));
-            setClaims(prev => [newClaim, ...prev]);
-
-            // Stagger multiple claims from same segment
-            if (ci < segment.claims!.length - 1) {
-              await new Promise(r => setTimeout(r, 1500));
-            }
-          }
-        } else if (foundClaims.length > 0) {
-          // Stagger API claims too
-          for (let ci = 0; ci < foundClaims.length; ci++) {
-            if (demoAbortRef.current) break;
-            setNewClaimIds(new Set([foundClaims[ci].id]));
-            setClaims(prev => [foundClaims[ci], ...prev]);
-            if (ci < foundClaims.length - 1) {
-              await new Promise(r => setTimeout(r, 1500));
-            }
-          }
-        }
-
-        // Gap between segments — shorter for non-claim segments
-        const gapDelay = hasClaims ? 2500 : 800;
-        await new Promise(r => setTimeout(r, gapDelay));
-      }
-
-      if (!demoAbortRef.current) {
-        setShowSummary(true);
-      }
+        }, 2000);
+      };
+      waitForIframe();
     } catch (e) {
       console.error("Demo error:", e);
     }
@@ -508,6 +522,8 @@ export default function LiveFactCheckPage() {
     setIsPlaying(false);
     setIsDemo(false);
     stopMicListening();
+    shownSegmentsRef.current = new Set();
+    demoSpeechRef.current = null;
     if (claims.length > 0) setShowSummary(true);
   }, [claims.length, stopMicListening]);
 
