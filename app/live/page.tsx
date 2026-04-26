@@ -554,35 +554,31 @@ export default function LiveFactCheckPage() {
     if (claims.length > 0) setShowSummary(true);
   }, [claims.length, stopMicListening]);
 
-  /* ── Manual "Fact Check This" — grabs last ~30s of context ── */
+  /* ── Manual "Fact Check This" — grabs recent transcript ── */
   const manualFactCheck = useCallback(async () => {
     setIsManualChecking(true);
 
-    // Gather recent transcript text
-    let recentText = "";
-    let videoTime = 0;
+    // Use whatever transcript is currently on screen
+    const recentText = liveTranscript.split(" ").slice(-80).join(" ").trim();
 
-    if (isDemo && demoSpeech) {
-      // In demo mode: get segments near current video time
-      let vt = (Date.now() - demoStartTime.current) / 1000;
-      if (ytPlayerRef.current?.getCurrentTime) {
-        try { vt = ytPlayerRef.current.getCurrentTime(); } catch {}
-      }
-      videoTime = Math.floor(vt);
-
-      // Grab segments from the last ~40 seconds
-      const windowStart = vt - 40;
-      recentText = demoSpeech.segments
-        .filter(s => s.time >= windowStart && s.time <= vt)
-        .map(s => s.text)
-        .join(" ");
-    } else {
-      // Live mode: use the transcript buffer
-      recentText = liveTranscript.split(" ").slice(-80).join(" ");
-      videoTime = Math.floor((Date.now() - demoStartTime.current) / 1000);
+    // Get video time for the card timestamp
+    let videoTime = Math.floor((Date.now() - demoStartTime.current) / 1000);
+    if (ytPlayerRef.current?.getCurrentTime) {
+      try { videoTime = Math.floor(ytPlayerRef.current.getCurrentTime()); } catch {}
     }
 
-    if (recentText.trim().length < 20) {
+    if (recentText.length < 20) {
+      // Nothing to check yet — show a hint
+      const hint: Claim = {
+        quote: "No transcript available yet",
+        rating: "UNVERIFIABLE",
+        actual: "Wait for the transcript to build up, then try again.",
+        explanation: "The fact-checker needs at least a few sentences of speech to analyze.",
+        videoTime, timestamp: new Date().toISOString(),
+        id: `manual-hint-${Date.now()}`,
+      };
+      setNewClaimIds(new Set([hint.id]));
+      setClaims(prev => [hint, ...prev]);
       setIsManualChecking(false);
       return;
     }
@@ -628,7 +624,7 @@ export default function LiveFactCheckPage() {
     }
 
     setIsManualChecking(false);
-  }, [isDemo, demoSpeech, liveTranscript]);
+  }, [liveTranscript]);
 
   /* ── Share ── */
   const shareResults = useCallback(() => {
