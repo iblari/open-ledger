@@ -269,6 +269,7 @@ export default function LiveFactCheckPage() {
   const [manualResult, setManualResult] = useState<Claim[] | null>(null);
   const [newClaimIds, setNewClaimIds] = useState<Set<string>>(new Set());
   const [urlInput, setUrlInput] = useState("");
+  const [urlLoading, setUrlLoading] = useState(false);
   const [urlError, setUrlError] = useState("");
 
   const [demoSpeech, setDemoSpeech] = useState<DemoSpeech | null>(null);
@@ -280,6 +281,8 @@ export default function LiveFactCheckPage() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const demoStartTime = useRef(0);
   const shownSegmentsRef = useRef<Set<number>>(new Set());
+  const lastAutoCheckTime = useRef(0);
+  const autoCheckBuffer = useRef("");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const ytPlayerRef = useRef<any>(null);
 
@@ -461,6 +464,16 @@ export default function LiveFactCheckPage() {
     if (!isDemo || !isPlaying || !demoSpeech) return;
 
     const CLAIM_DELAY = 4;
+    const AUTO_CHECK_INTERVAL = 15; // seconds between AI fact-checks for URL videos
+
+    // Detect if this is a URL-pasted video (no pre-loaded claims on any segment)
+    const hasPreloadedClaims = demoSpeech.segments.some(
+      s => s.claims && s.claims.length > 0
+    );
+
+    // Reset auto-check state on start
+    lastAutoCheckTime.current = 0;
+    autoCheckBuffer.current = "";
 
     const interval = setInterval(() => {
       if (demoAbortRef.current) return;
@@ -488,20 +501,65 @@ export default function LiveFactCheckPage() {
       for (let si = 0; si < demoSpeech.segments.length; si++) {
         const seg = demoSpeech.segments[si];
         if (shownSegmentsRef.current.has(si)) continue;
-        if (!seg.claims || seg.claims.length === 0) {
-          if (vt >= seg.time) shownSegmentsRef.current.add(si);
-          continue;
-        }
-        if (vt >= seg.time + CLAIM_DELAY) {
+        if (vt < seg.time) continue;
+
+        if (hasPreloadedClaims) {
+          // Pre-loaded demo: show claims from the JSON data
+          if (!seg.claims || seg.claims.length === 0) {
+            shownSegmentsRef.current.add(si);
+            continue;
+          }
+          if (vt >= seg.time + CLAIM_DELAY) {
+            shownSegmentsRef.current.add(si);
+            const newClaims: Claim[] = seg.claims.map((c, ci) => ({
+              ...c,
+              timestamp: new Date().toISOString(),
+              id: `claim-${si}-${ci}-${Date.now()}`,
+              videoTime: seg.time,
+            }));
+            setNewClaimIds(new Set(newClaims.map(c => c.id)));
+            setClaims(prev => [...newClaims, ...prev]);
+          }
+        } else {
+          // URL-pasted video: buffer text for AI fact-checking
           shownSegmentsRef.current.add(si);
-          const newClaims: Claim[] = seg.claims.map((c, ci) => ({
-            ...c,
-            timestamp: new Date().toISOString(),
-            id: `claim-${si}-${ci}-${Date.now()}`,
-            videoTime: seg.time,
-          }));
-          setNewClaimIds(new Set(newClaims.map(c => c.id)));
-          setClaims(prev => [...newClaims, ...prev]);
+          autoCheckBuffer.current += " " + seg.text;
+        }
+      }
+
+      // Auto fact-check: send buffered text to Claude every ~15 seconds
+      if (!hasPreloadedClaims && vt - lastAutoCheckTime.current >= AUTO_CHECK_INTERVAL) {
+        const textToCheck = autoCheckBuffer.current.trim();
+        if (textToCheck.length >= 30) {
+          lastAutoCheckTime.current = vt;
+          const capturedText = textToCheck;
+          const capturedTime = Math.floor(vt);
+          autoCheckBuffer.current = "";
+
+          // Fire-and-forget async call to Claude
+          fetch("/api/live-fact-check", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              text: capturedText,
+              context: contextRef.current,
+            }),
+          })
+            .then(r => r.json())
+            .then(data => {
+              contextRef.current = (contextRef.current + " " + capturedText).slice(-500);
+              if (data.claims?.length > 0) {
+                const enriched: Claim[] = data.claims.map((c: Claim) => ({
+                  ...c,
+                  videoTime: capturedTime,
+                  timestamp: new Date().toISOString(),
+                  id: `ai-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+                }));
+                setNewClaimIds(new Set(enriched.map(c => c.id)));
+                setClaims(prev => [...enriched, ...prev]);
+              }
+            })
+            .catch(e => console.error("Auto fact-check error:", e));
         }
       }
 
@@ -542,33 +600,60 @@ export default function LiveFactCheckPage() {
     }
   }, []);
 
-  /* ── Start from URL — extract video ID and start a live session ── */
-  const startFromUrl = useCallback((url: string) => {
+  /* ── Start from URL — fetch transcript then reuse demo machinery ── */
+  const startFromUrl = useCallback(async (url: string) => {
     setUrlError("");
+    setUrlLoading(true);
+    try {
+      const res = await fetch("/api/fetch-transcript", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setUrlError(data.error || "Failed to fetch transcript");
+        setUrlLoading(false);
+        return;
+      }
 
-    // Extract video ID client-side — no server call needed
-    const patterns = [
-      /[?&]v=([A-Za-z0-9_-]{11})/,
-      /youtu\.be\/([A-Za-z0-9_-]{11})/,
-      /\/embed\/([A-Za-z0-9_-]{11})/,
-      /\/live\/([A-Za-z0-9_-]{11})/,
-    ];
-    let vid: string | null = null;
-    for (const p of patterns) {
-      const m = url.match(p);
-      if (m) { vid = m[1]; break; }
+      // Build a DemoSpeech with empty claims — AI will fact-check in real-time
+      const speech: DemoSpeech = {
+        title: data.title || "YouTube Video",
+        speaker: data.speaker || "Unknown",
+        date: data.date || new Date().toISOString().slice(0, 10),
+        videoId: data.videoId,
+        duration: data.duration || "?",
+        segments: (data.segments || []).map((s: { time: number; text: string }) => ({
+          time: s.time,
+          text: s.text,
+          claims: [], // no pre-loaded claims — Claude will analyze in real-time
+        })),
+      };
+
+      // Start in demo mode (transcript-driven, not mic-driven)
+      demoAbortRef.current = false;
+      shownSegmentsRef.current = new Set();
+      setIsDemo(true);
+      setIsPlaying(true);
+      setClaims([]);
+      setLiveTranscript("");
+      setShowSummary(false);
+      setDemoSpeech(null);
+      bufferRef.current = "";
+      contextRef.current = "";
+      setVideoId(speech.videoId);
+      setTitle(speech.title);
+      demoStartTime.current = Date.now();
+      setDemoSpeech(speech);
+      setUrlInput("");
+    } catch (e) {
+      console.error("URL fetch error:", e);
+      setUrlError("Network error — could not reach the server.");
+    } finally {
+      setUrlLoading(false);
     }
-    if (!vid && /^[A-Za-z0-9_-]{11}$/.test(url.trim())) vid = url.trim();
-
-    if (!vid) {
-      setUrlError("Could not find a YouTube video ID in that URL. Try pasting a full YouTube link.");
-      return;
-    }
-
-    // Reuse the live session flow — mic listens, Claude fact-checks in real-time
-    setUrlInput("");
-    startLive(vid, "Live Fact-Check");
-  }, [startLive]);
+  }, []);
 
   /* ── Stop ── */
   const stopSession = useCallback(() => {
@@ -783,17 +868,21 @@ export default function LiveFactCheckPage() {
                 />
                 <button
                   onClick={() => urlInput.trim() && startFromUrl(urlInput.trim())}
-                  disabled={!urlInput.trim()}
+                  disabled={urlLoading || !urlInput.trim()}
                   style={{
-                    background: T.accent, color: "#fff",
+                    background: urlLoading ? T.rule : T.accent, color: "#fff",
                     border: "none", borderRadius: 8, padding: "10px 20px",
                     fontFamily: "'DM Sans',sans-serif", fontSize: 13, fontWeight: 700,
-                    cursor: !urlInput.trim() ? "default" : "pointer",
-                    opacity: !urlInput.trim() ? 0.6 : 1,
+                    cursor: urlLoading || !urlInput.trim() ? "default" : "pointer",
+                    opacity: urlLoading || !urlInput.trim() ? 0.6 : 1,
                     whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 6,
                   }}
                 >
-                  ▶ Watch &amp; Fact-Check
+                  {urlLoading ? (
+                    <><span style={{ animation: "pulse 1s infinite" }}>⏳</span> Fetching transcript…</>
+                  ) : (
+                    <>▶ Watch &amp; Fact-Check</>
+                  )}
                 </button>
               </div>
               {urlError && (
@@ -809,7 +898,7 @@ export default function LiveFactCheckPage() {
                 fontFamily: "'DM Sans',sans-serif", fontSize: 10, color: T.mute, marginTop: 8,
                 lineHeight: 1.5,
               }}>
-                Paste any YouTube video. The AI listens via your mic and fact-checks economic claims in real-time using Claude.
+                Paste any YouTube video with captions. The AI reads the transcript and fact-checks economic claims in real-time using Claude — no microphone needed.
               </div>
             </div>
 
