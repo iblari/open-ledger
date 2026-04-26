@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { YoutubeTranscript } from "youtube-transcript";
 
+// Run on Vercel Edge Runtime (Cloudflare network) instead of Node.js (AWS).
+// YouTube blocks requests from AWS data center IPs but not edge IPs.
+export const runtime = "edge";
+
 /**
  * POST /api/fetch-transcript
  * Body: { url: string }
