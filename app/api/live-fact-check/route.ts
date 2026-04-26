@@ -32,7 +32,9 @@ export async function POST(req: Request) {
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        // CHANGED: was "claude-sonnet-4-20250514" (404s — model snapshot no longer served).
+        // Haiku 4.5 is fast + cheap for real-time fact-checking at this call frequency.
+        model: "claude-haiku-4-5-20251001",
         max_tokens: 1500,
         system: `You are a real-time economic fact-checker for Vote Unbiased (voteunbiased.org). You receive ~15-second chunks of a live political speech transcript.
 
@@ -69,7 +71,16 @@ No claims found: {"claims":[]}`,
     if (!response.ok) {
       const err = await response.text();
       console.error("Anthropic API error:", response.status, err);
-      return NextResponse.json({ claims: [] });
+      // CHANGED: surface the upstream error to the frontend so it can show a real message
+      // instead of pretending no claims were found.
+      return NextResponse.json(
+        {
+          error: `Anthropic API error ${response.status}`,
+          detail: err.slice(0, 500),
+          claims: [],
+        },
+        { status: 200 }
+      );
     }
 
     const data = await response.json();
@@ -93,6 +104,14 @@ No claims found: {"claims":[]}`,
     return NextResponse.json({ claims });
   } catch (e) {
     console.error("Fact-check error:", e);
-    return NextResponse.json({ claims: [] });
+    // CHANGED: surface the error so the UI can show why nothing came back.
+    return NextResponse.json(
+      {
+        error: "Fact-check route exception",
+        detail: e instanceof Error ? e.message : String(e),
+        claims: [],
+      },
+      { status: 200 }
+    );
   }
 }
