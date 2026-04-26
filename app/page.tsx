@@ -177,6 +177,16 @@ function Nav({ mob }: { mob: boolean }) {
 
         {/* CTA */}
         <div style={{ marginLeft: "auto", display: "flex", gap: 10, alignItems: "center" }}>
+          <Link href="/live" style={{
+            display: "inline-flex", alignItems: "center", gap: 6,
+            padding: mob ? "8px 12px" : "10px 14px",
+            borderRadius: 4, fontSize: 13, fontWeight: 600,
+            background: "transparent", color: "#dc2626", border: `1px solid #dc262640`,
+            textDecoration: "none", transition: "all 0.15s",
+          }}>
+            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#dc2626", animation: "pulse 2s infinite" }} />
+            {mob ? "Live" : "Live Fact-Check"}
+          </Link>
           <Link href="/dashboard" style={{
             display: "inline-flex", alignItems: "center", gap: 8,
             padding: mob ? "8px 14px" : "10px 16px",

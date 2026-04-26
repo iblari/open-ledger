@@ -1,0 +1,25 @@
+{
+  "status": "off",
+  "title": "",
+  "source": "youtube",
+  "videoId": "",
+  "startedAt": "",
+  "upcoming": [
+    {
+      "title": "Congressional Budget Hearing",
+      "date": "2026-05-05T14:00:00Z",
+      "source": "cspan"
+    }
+  ],
+  "recent": [
+    {
+      "title": "State of the Union 2024",
+      "videoId": "cOAxMx0sHdw",
+      "duration": "72m",
+      "claims": 14,
+      "scores": {"true": 7, "mostly_true": 3, "misleading": 2, "false": 1, "unverifiable": 1},
+      "date": "2024-03-07",
+      "isDemo": true
+    }
+  ]
+}
