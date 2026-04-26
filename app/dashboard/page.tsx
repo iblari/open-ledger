@@ -1541,6 +1541,7 @@ function App(){
                   <th style={{textAlign:"center",padding:"8px 10px",fontSize:10,fontWeight:700,color:T.mute}}>Inherited</th>
                   <th style={{textAlign:"center",padding:"8px 4px",fontSize:10,color:T.rule}}></th>
                   <th style={{textAlign:"center",padding:"8px 10px",fontSize:10,fontWeight:700,color:T.mute}}>Left At</th>
+                  <th style={{textAlign:"center",padding:"8px 10px",fontSize:10,fontWeight:700,color:T.mute}}>Avg</th>
                   <th style={{textAlign:"right",padding:"8px 14px",fontSize:10,fontWeight:700,color:T.mute}}>% Change</th>
                 </tr>
               </thead>
@@ -1555,6 +1556,7 @@ function App(){
                   const maintained=Math.abs(pctChg)<5;
                   const verdict=maintained?"Maintained":improved?"Improved":"Declined";
                   const verdictColor=maintained?T.gold:improved?"#16a34a":"#dc2626";
+                  const termAvg=pts.reduce((s,d)=>s+d.v,0)/pts.length;
                   return <tr key={id} style={{borderBottom:`1px solid ${T.rule}22`}}>
                     <td style={{padding:"8px 14px",display:"flex",alignItems:"center",gap:6}}>
                       <span style={{width:8,height:8,borderRadius:2,background:a.color,flexShrink:0}}/>
@@ -1563,6 +1565,7 @@ function App(){
                     <td style={{textAlign:"center",padding:"8px 10px",fontFamily:"'DM Sans',sans-serif",fontSize:11,color:T.sub}}>{fmt(start,m.u)}</td>
                     <td style={{textAlign:"center",padding:"8px 2px",color:T.rule,fontSize:10}}>→</td>
                     <td style={{textAlign:"center",padding:"8px 10px",fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:600,color:T.ink}}>{fmt(end,m.u)}</td>
+                    <td style={{textAlign:"center",padding:"8px 10px",fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:500,color:T.sub}}>{fmt(termAvg,m.u)}</td>
                     <td style={{textAlign:"right",padding:"8px 14px"}}>
                       <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:600,color:verdictColor}}>
                         {maintained?"—":improved?"▲":"▼"}{Math.abs(pctChg).toFixed(1)}%
@@ -2232,69 +2235,86 @@ function App(){
                 )}
 
                 {/* ── Inherited vs Left Behind (selected metric only, scorecard style) ── */}
-                <div style={{...sty.card,padding:"12px 14px",marginBottom:24,order:4}}>
-                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:700,marginBottom:2,color:T.ink}}>
-                    {metric.l} {activeScenario!=="baseline"&&<span style={{fontSize:11,fontWeight:400,color:T.accent}}>— {SCENARIOS[activeScenario].shortLabel}</span>}
-                  </div>
-                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8,flexWrap:"wrap",gap:4}}>
-                    <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,color:T.mute,textTransform:"uppercase",letterSpacing:0.5}}>
-                      Inherited → Exit → {activeScenario!=="baseline"?"Actual · Modeled":"Change"}
-                    </span>
+                <div style={{...sty.card,marginBottom:24,order:4,overflow:"hidden"}}>
+                  <div style={{padding:"10px 14px 6px",borderBottom:`1px solid ${T.rule}`,display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:4}}>
+                    <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:1.5,color:T.mute}}>
+                      Term Trajectory — Inherited vs Left Behind {activeScenario!=="baseline"&&<span style={{color:T.accent,fontWeight:600,textTransform:"none",letterSpacing:0}}>— {SCENARIOS[activeScenario].shortLabel}</span>}
+                    </div>
                     <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,color:T.mute}}>
                       <span style={{color:"#16a34a",fontWeight:700}}>▲</span> improved · <span style={{color:"#dc2626",fontWeight:700}}>▼</span> worsened{metric.inv?" (lower = better)":""}
                     </span>
                   </div>
-                  {AID.map((id,i)=>{
-                    const a=ADMINS[id];
-                    const pts=baselineData.filter(d=>d.a===id);
-                    if(pts.length<1)return null;
+                  <table style={{width:"100%",borderCollapse:"collapse",fontFamily:"'DM Sans',sans-serif",fontSize:12}}>
+                    <thead>
+                      <tr style={{borderBottom:`1px solid ${T.rule}`}}>
+                        <th style={{textAlign:"left",padding:"8px 14px",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:0.5,color:T.mute}}>President</th>
+                        <th style={{textAlign:"center",padding:"8px 10px",fontSize:10,fontWeight:700,color:T.mute}}>Inherited</th>
+                        <th style={{textAlign:"center",padding:"8px 4px",fontSize:10,color:T.rule}}></th>
+                        <th style={{textAlign:"center",padding:"8px 10px",fontSize:10,fontWeight:700,color:T.mute}}>Left At</th>
+                        <th style={{textAlign:"center",padding:"8px 10px",fontSize:10,fontWeight:700,color:T.mute}}>Avg</th>
+                        {activeScenario!=="baseline"&&<th style={{textAlign:"center",padding:"8px 10px",fontSize:10,fontWeight:700,color:T.accent}}>Modeled Avg</th>}
+                        <th style={{textAlign:"right",padding:"8px 14px",fontSize:10,fontWeight:700,color:T.mute}}>% Change</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {AID.map((id,i)=>{
+                        const a=ADMINS[id];
+                        const pts=baselineData.filter(d=>d.a===id);
+                        if(pts.length<1)return null;
 
-                    const actualStart=inheritedStart(scenarioMetric,id);
-                    const actualEnd=pts[pts.length-1].v;
-                    const actualPct=actualStart!==0?((actualEnd-actualStart)/Math.abs(actualStart))*100:0;
-                    const actualImproved=metric.inv?actualEnd<actualStart:actualEnd>actualStart;
-                    const arrow=actualImproved?"▲":"▼";
-                    const arrowColor=actualImproved?"#16a34a":"#dc2626";
+                        const actualStart=inheritedStart(scenarioMetric,id);
+                        const actualEnd=pts[pts.length-1].v;
+                        const actualPct=actualStart!==0?((actualEnd-actualStart)/Math.abs(actualStart))*100:0;
+                        const actualImproved=metric.inv?actualEnd<actualStart:actualEnd>actualStart;
+                        const maintained=Math.abs(actualPct)<5;
+                        const verdict=maintained?"Maintained":actualImproved?"Improved":"Declined";
+                        const verdictColor=maintained?T.gold:actualImproved?"#16a34a":"#dc2626";
 
-                    // Modeled values
-                    const scenPts=scenarioData.filter(d=>d.a===id);
-                    const hasModeled=activeScenario!=="baseline"&&scenPts.some(d=>d.estimated);
-                    const modeledEnd=scenPts.length>0?scenPts[scenPts.length-1].v:actualEnd;
-                    const ai=AID.indexOf(id);
-                    let modeledStart=actualStart;
-                    if(ai>0&&activeScenario!=="baseline"){
-                      const prevScen=scenarioData.filter(d=>d.a===AID[ai-1]);
-                      if(prevScen.length>0)modeledStart=prevScen[prevScen.length-1].v;
-                    }
-                    const modeledPct=modeledStart!==0?((modeledEnd-modeledStart)/Math.abs(modeledStart))*100:0;
-                    const modeledImproved=metric.inv?modeledEnd<modeledStart:modeledEnd>modeledStart;
-                    const mArrow=modeledImproved?"▲":"▼";
-                    const mArrowColor=modeledImproved?"#16a34a":"#dc2626";
+                        // Modeled values
+                        const scenPts=scenarioData.filter(d=>d.a===id);
+                        const hasModeled=activeScenario!=="baseline"&&scenPts.some(d=>d.estimated);
+                        const modeledEnd=scenPts.length>0?scenPts[scenPts.length-1].v:actualEnd;
+                        const ai=AID.indexOf(id);
+                        let modeledStart=actualStart;
+                        if(ai>0&&activeScenario!=="baseline"){
+                          const prevScen=scenarioData.filter(d=>d.a===AID[ai-1]);
+                          if(prevScen.length>0)modeledStart=prevScen[prevScen.length-1].v;
+                        }
+                        const modeledPct=modeledStart!==0?((modeledEnd-modeledStart)/Math.abs(modeledStart))*100:0;
+                        const modeledImproved=metric.inv?modeledEnd<modeledStart:modeledEnd>modeledStart;
+                        const mArrow=modeledImproved?"▲":"▼";
+                        const mArrowColor=modeledImproved?"#16a34a":"#dc2626";
 
-                    // Compute averages for table row
-                    const tActualAvg=pts.length>0?pts.reduce((s,d)=>s+d.v,0)/pts.length:0;
-                    const tModeledAvg=scenPts.length>0?scenPts.reduce((s,d)=>s+d.v,0)/scenPts.length:0;
-                    const showMod=hasModeled&&Math.abs(modeledEnd-actualEnd)>0.01;
+                        // Averages
+                        const tActualAvg=pts.reduce((s,d)=>s+d.v,0)/pts.length;
+                        const tModeledAvg=scenPts.length>0?scenPts.reduce((s,d)=>s+d.v,0)/scenPts.length:tActualAvg;
+                        const showMod=hasModeled&&Math.abs(modeledEnd-actualEnd)>0.01;
 
-                    return <div key={id} style={{display:"flex",alignItems:"center",gap:6,marginBottom:5,padding:"3px 0",borderBottom:i<AID.length-1?`1px solid ${T.rule}22`:"none"}}>
-                      <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:a.color,fontWeight:600,width:52}}>{a.name}</span>
-                      <div style={{flex:1,display:"flex",alignItems:"center",gap:4,fontFamily:"'DM Sans',sans-serif",fontSize:10}}>
-                        <span style={{color:T.mute}}>{fmt(actualStart,metric.u)}</span>
-                        <span style={{color:T.mute,fontSize:8}}>→</span>
-                        <span style={{color:T.ink,fontWeight:600}}>{fmt(actualEnd,metric.u)}</span>
-                        <span style={{color:T.mute,fontSize:8,marginLeft:2}}>avg {fmt(tActualAvg,metric.u)}{showMod&&<> · <span style={{color:T.accent,fontWeight:600}}>{fmt(tModeledAvg,metric.u)}</span></>}</span>
-                      </div>
-                      <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:600,color:arrowColor,width:showMod?80:56,textAlign:"right"}}>
-                        {arrow}{Math.abs(actualPct).toFixed(0)}%{showMod&&<span style={{fontSize:8,fontWeight:400,color:T.mute,marginLeft:3}}>actual</span>}
-                      </span>
-                      {/* Modeled delta inline — proper green/red colors */}
-                      {showMod&&(
-                        <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,fontWeight:600,color:mArrowColor,width:80,textAlign:"right",borderLeft:`1px dashed ${T.rule}`,paddingLeft:8}}>
-                          {mArrow}{Math.abs(modeledPct).toFixed(0)}% <span style={{fontSize:8,fontWeight:400,color:T.mute}}>modeled</span>
-                        </span>
-                      )}
-                    </div>;
-                  })}
+                        return <tr key={id} style={{borderBottom:`1px solid ${T.rule}22`}}>
+                          <td style={{padding:"8px 14px",display:"flex",alignItems:"center",gap:6}}>
+                            <span style={{width:8,height:8,borderRadius:2,background:a.color,flexShrink:0}}/>
+                            <span style={{fontWeight:700,color:a.color}}>{a.name}</span>
+                          </td>
+                          <td style={{textAlign:"center",padding:"8px 10px",fontFamily:"'DM Sans',sans-serif",fontSize:11,color:T.sub}}>{fmt(actualStart,metric.u)}</td>
+                          <td style={{textAlign:"center",padding:"8px 2px",color:T.rule,fontSize:10}}>→</td>
+                          <td style={{textAlign:"center",padding:"8px 10px",fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:600,color:T.ink}}>{fmt(actualEnd,metric.u)}</td>
+                          <td style={{textAlign:"center",padding:"8px 10px",fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:500,color:T.sub}}>{fmt(tActualAvg,metric.u)}</td>
+                          {activeScenario!=="baseline"&&<td style={{textAlign:"center",padding:"8px 10px",fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:600,color:showMod?T.accent:T.sub}}>{showMod?fmt(tModeledAvg,metric.u):fmt(tActualAvg,metric.u)}</td>}
+                          <td style={{textAlign:"right",padding:"8px 14px"}}>
+                            <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:600,color:verdictColor}}>
+                              {maintained?"—":actualImproved?"▲":"▼"}{Math.abs(actualPct).toFixed(1)}%
+                            </span>
+                            <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,color:verdictColor,marginLeft:5,fontWeight:600}}>{verdict}</span>
+                            {showMod&&(
+                              <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,fontWeight:600,color:mArrowColor,marginLeft:8,borderLeft:`1px dashed ${T.rule}`,paddingLeft:8}}>
+                                {mArrow}{Math.abs(modeledPct).toFixed(0)}% <span style={{fontSize:8,fontWeight:400,color:T.mute}}>modeled</span>
+                              </span>
+                            )}
+                          </td>
+                        </tr>;
+                      })}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             );
