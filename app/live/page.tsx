@@ -55,9 +55,15 @@ interface LiveConfig {
   videoId: string;
   startedAt: string;
   upcoming: { title: string; date: string; source: string }[];
+  demos?: {
+    title: string; speaker: string; file: string; duration: string;
+    claims: number; date: string;
+    scores: Record<string, number>;
+  }[];
   recent: {
     title: string; videoId: string; duration: string;
     claims: number; date: string; isDemo?: boolean;
+    demoFile?: string;
     scores: Record<string, number>;
   }[];
 }
@@ -400,7 +406,7 @@ export default function LiveFactCheckPage() {
   }, [startMicListening]);
 
   /* ── Demo mode — sequential loop with real video timestamps ── */
-  const startDemo = useCallback(async () => {
+  const startDemo = useCallback(async (speechFile?: string) => {
     demoAbortRef.current = false;
     setIsDemo(true);
     setIsPlaying(true);
@@ -410,8 +416,9 @@ export default function LiveFactCheckPage() {
     bufferRef.current = "";
     contextRef.current = "";
 
+    const file = speechFile || "sotu-2024.json";
     try {
-      const res = await fetch("/speeches/sotu-2024.json");
+      const res = await fetch(`/speeches/${file}`);
       const speech: DemoSpeech = await res.json();
       setVideoId(speech.videoId);
       setTitle(`DEMO — ${speech.title}, ${speech.date}`);
@@ -624,35 +631,59 @@ export default function LiveFactCheckPage() {
               display: "grid", gridTemplateColumns: mob ? "1fr" : "1fr 1fr", gap: 16,
               maxWidth: 800, margin: "0 auto",
             }}>
-              {/* Demo Card */}
-              <div style={{
-                background: T.card, border: `1px solid ${T.rule}`, borderRadius: 12,
-                padding: mob ? 16 : 20, gridColumn: mob ? "1" : "1 / -1",
-              }}>
-                <div style={{
-                  fontFamily: "'DM Sans',sans-serif", fontSize: 10, fontWeight: 700,
-                  textTransform: "uppercase", letterSpacing: 1.5, color: T.gold, marginBottom: 10,
-                }}>Try Demo Mode</div>
-                <div style={{
-                  fontFamily: "'Source Serif 4',serif", fontSize: mob ? 16 : 18, fontWeight: 700,
-                  color: T.ink, marginBottom: 6,
-                }}>State of the Union 2024</div>
-                <p style={{
-                  fontFamily: "'DM Sans',sans-serif", fontSize: 12, color: T.sub, marginBottom: 14, lineHeight: 1.5,
-                }}>
-                  Experience the fact-checker with a recorded speech. Economic claims are verified in real-time as the transcript plays.
-                </p>
-                <button
-                  onClick={startDemo}
-                  style={{
-                    background: T.ink, color: "#fff", border: "none", borderRadius: 8,
-                    padding: "10px 22px", fontFamily: "'DM Sans',sans-serif", fontSize: 13,
-                    fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 8,
-                  }}
-                >
-                  ▶ Watch Demo
-                </button>
-              </div>
+              {/* Demo Cards — one per speech */}
+              {(config?.demos || [
+                { title: "Trump Address to Congress 2025", speaker: "Donald Trump", file: "trump-congress-2025.json", duration: "99m", claims: 20, scores: { true: 0, mostly_true: 4, misleading: 7, false: 6, unverifiable: 1 }, date: "2025-03-04" },
+                { title: "State of the Union 2024", speaker: "Joe Biden", file: "sotu-2024.json", duration: "72m", claims: 27, scores: { true: 10, mostly_true: 10, misleading: 4, false: 1, unverifiable: 2 }, date: "2024-03-07" },
+              ]).map((demo, i) => {
+                const trueish = (demo.scores.true || 0) + (demo.scores.mostly_true || 0);
+                const accuracy = demo.claims > 0 ? Math.round((trueish / demo.claims) * 100) : 0;
+                return (
+                  <div key={i} style={{
+                    background: T.card, border: `1px solid ${T.rule}`, borderRadius: 12,
+                    padding: mob ? 16 : 20,
+                  }}>
+                    <div style={{
+                      fontFamily: "'DM Sans',sans-serif", fontSize: 10, fontWeight: 700,
+                      textTransform: "uppercase", letterSpacing: 1.5, color: T.gold, marginBottom: 10,
+                    }}>Demo — {demo.speaker}</div>
+                    <div style={{
+                      fontFamily: "'Source Serif 4',serif", fontSize: mob ? 15 : 17, fontWeight: 700,
+                      color: T.ink, marginBottom: 4,
+                    }}>{demo.title}</div>
+                    <div style={{
+                      fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: T.mute, marginBottom: 10,
+                    }}>{demo.duration} · {demo.claims} claims · {accuracy}% accuracy</div>
+                    <div style={{
+                      display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12,
+                    }}>
+                      {Object.entries(RATING_COLORS).map(([rating, colors]) => {
+                        const key = rating.toLowerCase().replace(/ /g, "_");
+                        const count = (demo.scores as Record<string, number>)[key] || 0;
+                        if (count === 0) return null;
+                        return (
+                          <span key={rating} style={{
+                            fontSize: 9, fontWeight: 600, display: "flex", alignItems: "center", gap: 3,
+                          }}>
+                            <span style={{ width: 6, height: 6, borderRadius: 2, background: colors.bg }} />
+                            <span style={{ color: T.mute }}>{count}</span>
+                          </span>
+                        );
+                      })}
+                    </div>
+                    <button
+                      onClick={() => startDemo(demo.file)}
+                      style={{
+                        background: T.ink, color: "#fff", border: "none", borderRadius: 8,
+                        padding: "10px 22px", fontFamily: "'DM Sans',sans-serif", fontSize: 13,
+                        fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 8,
+                      }}
+                    >
+                      ▶ Watch Demo
+                    </button>
+                  </div>
+                );
+              })}
 
               {/* Recent */}
               {config?.recent && config.recent.length > 0 && (
@@ -670,7 +701,7 @@ export default function LiveFactCheckPage() {
                     }}>
                       <button
                         onClick={() => {
-                          if (r.isDemo) { startDemo(); }
+                          if (r.isDemo) { startDemo(r.demoFile); }
                           else { startLive(r.videoId, r.title); }
                         }}
                         style={{
