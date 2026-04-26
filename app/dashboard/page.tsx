@@ -1433,6 +1433,13 @@ function App(){
           {/* ─── Reorder wrapper: on mobile chart first, then cards ─── */}
           <div style={{display:"flex",flexDirection:"column"}}>
 
+          {/* Arrow legend */}
+          <div style={{order:mob?2:1,display:"flex",alignItems:"center",justifyContent:"flex-end",gap:mob?10:14,marginBottom:mob?6:8,fontFamily:"'DM Sans',sans-serif",fontSize:mob?9:11,color:T.mute}}>
+            <span><span style={{color:"#16a34a",fontWeight:700}}>▲</span> improved</span>
+            <span><span style={{color:"#dc2626",fontWeight:700}}>▼</span> worsened</span>
+            {m.inv&&<span style={{fontSize:mob?8:9,opacity:0.7}}>(lower = better)</span>}
+          </div>
+
           {/* Summary cards */}
           <div className="ol-grid-summary" style={{display:"grid",gridTemplateColumns:mob?"repeat(2,1fr)":`repeat(${Math.min(sel.length+1,6)},1fr)`,gap:mob?8:10,marginBottom:mob?12:20,order:mob?2:1}}>
             {sel.map((id,idx)=>{const s=sums[id];if(!s)return null;const a=ADMINS[id];
@@ -2132,6 +2139,13 @@ function App(){
                       </div>
                     )}
                   </div>
+                </div>
+
+                {/* Arrow legend — sits above president cards */}
+                <div style={{order:mob?2:1,display:"flex",alignItems:"center",justifyContent:"flex-end",gap:mob?10:14,marginBottom:mob?6:8,fontFamily:"'DM Sans',sans-serif",fontSize:mob?9:11,color:T.mute}}>
+                  <span><span style={{color:"#16a34a",fontWeight:700}}>▲</span> improved</span>
+                  <span><span style={{color:"#dc2626",fontWeight:700}}>▼</span> worsened</span>
+                  {metric.inv&&<span style={{fontSize:mob?8:9,opacity:0.7}}>(lower = better)</span>}
                 </div>
 
                 {/* President impact cards — above chart on desktop, below on mobile */}
