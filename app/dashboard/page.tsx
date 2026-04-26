@@ -2053,9 +2053,9 @@ function App(){
               :null;
 
             return (
-              <div>
-                {/* Chart first (matches Data tab order) */}
-                <div style={{...sty.card,padding:mob?"12px 8px 8px":"20px 16px 10px",marginBottom:mob?12:12}}>
+              <div style={{display:"flex",flexDirection:"column"}}>
+                {/* Chart — first on mobile, second on desktop (matches Data tab) */}
+                <div style={{...sty.card,padding:mob?"12px 8px 8px":"20px 16px 10px",marginBottom:mob?12:12,order:mob?1:2}}>
                   <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:700,color:T.ink,marginBottom:4}}>
                     {metric.l} <span style={{fontWeight:400,color:T.mute}}>({metric.s})</span>
                   </div>
@@ -2134,8 +2134,8 @@ function App(){
                   </div>
                 </div>
 
-                {/* President impact cards — below chart (matches Data tab order) */}
-                <div style={{display:"grid",gridTemplateColumns:mob?"repeat(2,1fr)":"repeat(5,1fr)",gap:mob?8:8,marginBottom:mob?12:20}}>
+                {/* President impact cards — above chart on desktop, below on mobile */}
+                <div style={{display:"grid",gridTemplateColumns:mob?"repeat(2,1fr)":`repeat(${Math.min(presCards.length+1,6)},1fr)`,gap:mob?8:8,marginBottom:mob?12:20,order:mob?2:1}}>
                   {presCards.map((pc,idx)=>{
                     if(!pc)return null;
                     const {id,a,actualStart,actualEnd,actualPct,actualImproved,modeledEnd,modeledPct,modeledImproved,hasModeled,diff:pDiff}=pc;
@@ -2209,13 +2209,13 @@ function App(){
 
                 {/* Shock years highlight */}
                 {activeScenario!=="baseline"&&scenario.shockYears.length>0&&(
-                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:T.mute,marginBottom:16}}>
+                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:T.mute,marginBottom:16,order:3}}>
                     Shock years replaced: {scenario.shockYears.join(", ")} · Trend fitted from: {scenario.trendYears.join(", ")}
                   </div>
                 )}
 
                 {/* ── Inherited vs Left Behind (selected metric only, scorecard style) ── */}
-                <div style={{...sty.card,padding:"12px 14px",marginBottom:24}}>
+                <div style={{...sty.card,padding:"12px 14px",marginBottom:24,order:4}}>
                   <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:700,marginBottom:2,color:T.ink}}>
                     {metric.l} {activeScenario!=="baseline"&&<span style={{fontSize:11,fontWeight:400,color:T.accent}}>— {SCENARIOS[activeScenario].shortLabel}</span>}
                   </div>
