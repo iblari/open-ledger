@@ -267,16 +267,32 @@ export default function LiveFactCheckPage() {
   const [showSummary, setShowSummary] = useState(false);
   const [newClaimIds, setNewClaimIds] = useState<Set<string>>(new Set());
 
+  const [demoSpeech, setDemoSpeech] = useState<DemoSpeech | null>(null);
+
   const bufferRef = useRef("");
   const contextRef = useRef("");
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const demoAbortRef = useRef(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const demoStartTime = useRef(0);
+  const shownSegmentsRef = useRef<Set<number>>(new Set());
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const ytPlayerRef = useRef<any>(null);
 
-  /* ── YouTube seek via postMessage ── */
+  /* ── Load YouTube IFrame API once ── */
+  useEffect(() => {
+    if (typeof window !== "undefined" && !(window as Record<string, unknown>).YT) {
+      const tag = document.createElement("script");
+      tag.src = "https://www.youtube.com/iframe_api";
+      document.head.appendChild(tag);
+    }
+  }, []);
+
+  /* ── YouTube seek — prefer YT API, fallback to postMessage ── */
   const seekVideo = useCallback((seconds: number) => {
-    if (iframeRef.current?.contentWindow) {
+    if (ytPlayerRef.current?.seekTo) {
+      ytPlayerRef.current.seekTo(seconds, true);
+    } else if (iframeRef.current?.contentWindow) {
       iframeRef.current.contentWindow.postMessage(
         JSON.stringify({ event: "command", func: "seekTo", args: [seconds, true] }),
         "*"
@@ -405,14 +421,106 @@ export default function LiveFactCheckPage() {
     setTimeout(() => startMicListening(), 1000);
   }, [startMicListening]);
 
-  /* ── Demo mode — sequential loop with real video timestamps ── */
+  /* ── Initialize YT Player when demo video loads ── */
+  useEffect(() => {
+    if (!isDemo || !isPlaying || !videoId) return;
+
+    const initPlayer = () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const YT = (window as any).YT;
+      if (!YT?.Player) {
+        setTimeout(initPlayer, 500);
+        return;
+      }
+      if (ytPlayerRef.current?.destroy) {
+        try { ytPlayerRef.current.destroy(); } catch {}
+      }
+      ytPlayerRef.current = new YT.Player("yt-player-div", {
+        videoId,
+        playerVars: { autoplay: 1, rel: 0 },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        events: { onReady: (e: any) => { e.target.playVideo(); } },
+      });
+    };
+
+    setTimeout(initPlayer, 300);
+    return () => {
+      if (ytPlayerRef.current?.destroy) {
+        try { ytPlayerRef.current.destroy(); } catch {}
+        ytPlayerRef.current = null;
+      }
+    };
+  }, [isDemo, isPlaying, videoId]);
+
+  /* ── Poll video time → drive transcript + claims ── */
+  useEffect(() => {
+    if (!isDemo || !isPlaying || !demoSpeech) return;
+
+    const CLAIM_DELAY = 4;
+
+    const interval = setInterval(() => {
+      if (demoAbortRef.current) return;
+
+      // Get current video time — YT API preferred, wall-clock fallback
+      let vt = (Date.now() - demoStartTime.current) / 1000;
+      if (ytPlayerRef.current?.getCurrentTime) {
+        try { vt = ytPlayerRef.current.getCurrentTime(); } catch {}
+      }
+
+      // Update transcript with recent segments
+      let latestIdx = -1;
+      for (let i = demoSpeech.segments.length - 1; i >= 0; i--) {
+        if (vt >= demoSpeech.segments[i].time) { latestIdx = i; break; }
+      }
+      if (latestIdx >= 0) {
+        const recent = demoSpeech.segments
+          .filter((_, i) => i <= latestIdx)
+          .slice(-3)
+          .map(s => s.text);
+        setLiveTranscript(recent.join(" "));
+      }
+
+      // Show claims when video reaches each segment + delay
+      for (let si = 0; si < demoSpeech.segments.length; si++) {
+        const seg = demoSpeech.segments[si];
+        if (shownSegmentsRef.current.has(si)) continue;
+        if (!seg.claims || seg.claims.length === 0) {
+          if (vt >= seg.time) shownSegmentsRef.current.add(si);
+          continue;
+        }
+        if (vt >= seg.time + CLAIM_DELAY) {
+          shownSegmentsRef.current.add(si);
+          const newClaims: Claim[] = seg.claims.map((c, ci) => ({
+            ...c,
+            timestamp: new Date().toISOString(),
+            id: `claim-${si}-${ci}-${Date.now()}`,
+            videoTime: seg.time,
+          }));
+          setNewClaimIds(new Set(newClaims.map(c => c.id)));
+          setClaims(prev => [...newClaims, ...prev]);
+        }
+      }
+
+      // End check
+      const last = demoSpeech.segments[demoSpeech.segments.length - 1];
+      if (shownSegmentsRef.current.size === demoSpeech.segments.length && vt >= last.time + 10) {
+        setShowSummary(true);
+      }
+    }, 800);
+
+    return () => clearInterval(interval);
+  }, [isDemo, isPlaying, demoSpeech]);
+
+  /* ── Start demo — loads speech data into state ── */
   const startDemo = useCallback(async (speechFile?: string) => {
     demoAbortRef.current = false;
+    shownSegmentsRef.current = new Set();
     setIsDemo(true);
     setIsPlaying(true);
     setClaims([]);
     setLiveTranscript("");
     setShowSummary(false);
+    setDemoSpeech(null);
     bufferRef.current = "";
     contextRef.current = "";
 
@@ -423,59 +531,8 @@ export default function LiveFactCheckPage() {
       setVideoId(speech.videoId);
       setTitle(`DEMO — ${speech.title}, ${speech.date}`);
       demoStartTime.current = Date.now();
-
-      // Seek video to start
-      setTimeout(() => {
-        if (iframeRef.current?.contentWindow) {
-          iframeRef.current.contentWindow.postMessage(
-            JSON.stringify({ event: "command", func: "seekTo", args: [0, true] }),
-            "*"
-          );
-        }
-      }, 2000);
-
-      for (let si = 0; si < speech.segments.length; si++) {
-        if (demoAbortRef.current) break;
-        const segment = speech.segments[si];
-        const hasClaims = segment.claims && segment.claims.length > 0;
-
-        // Show transcript text
-        setLiveTranscript(prev => {
-          const words = (prev + " " + segment.text).split(" ");
-          return words.slice(-50).join(" ");
-        });
-
-        // Wait — fast-forward through non-claim segments, pause on claim segments
-        const delay = hasClaims ? 4000 : 1500;
-        await new Promise(r => setTimeout(r, delay));
-        if (demoAbortRef.current) break;
-
-        // Show pre-computed claims with stagger
-        if (hasClaims) {
-          for (let ci = 0; ci < segment.claims!.length; ci++) {
-            if (demoAbortRef.current) break;
-            const c = segment.claims![ci];
-            const newClaim: Claim = {
-              ...c,
-              timestamp: new Date().toISOString(),
-              id: `claim-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-              videoTime: segment.time,
-            };
-            setNewClaimIds(new Set([newClaim.id]));
-            setClaims(prev => [newClaim, ...prev]);
-
-            if (ci < segment.claims!.length - 1) {
-              await new Promise(r => setTimeout(r, 1200));
-            }
-          }
-          // Pause after claims to let user read
-          await new Promise(r => setTimeout(r, 2000));
-        }
-      }
-
-      if (!demoAbortRef.current) {
-        setShowSummary(true);
-      }
+      // Setting state triggers the polling effect above
+      setDemoSpeech(speech);
     } catch (e) {
       console.error("Demo error:", e);
     }
@@ -486,7 +543,13 @@ export default function LiveFactCheckPage() {
     demoAbortRef.current = true;
     setIsPlaying(false);
     setIsDemo(false);
+    setDemoSpeech(null);
+    shownSegmentsRef.current = new Set();
     stopMicListening();
+    if (ytPlayerRef.current?.destroy) {
+      try { ytPlayerRef.current.destroy(); } catch {}
+      ytPlayerRef.current = null;
+    }
     if (claims.length > 0) setShowSummary(true);
   }, [claims.length, stopMicListening]);
 
@@ -811,7 +874,12 @@ export default function LiveFactCheckPage() {
                 position: "relative", width: "100%", aspectRatio: "16/9",
                 background: "#000",
               }}>
-                {videoId ? (
+                {videoId && isDemo ? (
+                  <div
+                    id="yt-player-div"
+                    style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}
+                  />
+                ) : videoId ? (
                   <iframe
                     ref={iframeRef}
                     id="yt-player"
