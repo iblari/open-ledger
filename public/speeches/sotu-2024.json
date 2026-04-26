@@ -182,6 +182,156 @@
       "time": 195,
       "text": "We have invested more in America than any president in history. We are seeing the results. Factories are being built, roads and bridges are being fixed, and people are going back to work.",
       "claims": []
+    },
+    {
+      "time": 210,
+      "text": "We capped the cost of insulin at 35 dollars a month for seniors on Medicare. Before, they were paying as much as 400 dollars a month. Now we need to cap costs for everyone, not just seniors.",
+      "claims": [
+        {
+          "quote": "They were paying as much as 400 dollars a month",
+          "rating": "TRUE",
+          "actual": "HHS: Average insulin list price was $300–$400/month before caps. Some formulations exceeded $500/month.",
+          "explanation": "Confirmed — insulin prices were frequently in the $300–$400 range."
+        }
+      ]
+    },
+    {
+      "time": 225,
+      "text": "The Inflation Reduction Act is also the most significant climate legislation in the history of the world. It provides tax credits for families to buy electric vehicles, put solar panels on their homes, and save on energy costs.",
+      "claims": [
+        {
+          "quote": "The most significant climate legislation in the history of the world",
+          "rating": "MOSTLY TRUE",
+          "actual": "CBO/IEA: The IRA allocates ~$369B for climate and energy provisions, the largest single climate investment by any nation.",
+          "explanation": "Largest single-law climate investment, though EU collectively spends more."
+        }
+      ]
+    },
+    {
+      "time": 240,
+      "text": "We have created 800,000 manufacturing jobs since I took office. More than any president in decades. Semiconductor factories are being built right here in America for the first time in a generation.",
+      "claims": [
+        {
+          "quote": "We have created 800,000 manufacturing jobs since I took office",
+          "rating": "MOSTLY TRUE",
+          "actual": "BLS: ~790K manufacturing jobs added Jan 2021–Mar 2024, though many were recovering pre-COVID levels.",
+          "explanation": "Number is close to accurate, but includes pandemic recovery jobs."
+        }
+      ]
+    },
+    {
+      "time": 255,
+      "text": "The Bipartisan Infrastructure Law has already funded over 40,000 projects in communities across the country. Every state in the union is seeing the benefits. And we are just getting started.",
+      "claims": [
+        {
+          "quote": "Funded over 40,000 projects",
+          "rating": "TRUE",
+          "actual": "White House/DOT: Over 40,000 infrastructure projects funded or announced as of early 2024.",
+          "explanation": "Confirmed by federal infrastructure tracking data."
+        }
+      ]
+    },
+    {
+      "time": 270,
+      "text": "The racial wealth gap is at its lowest level in 20 years. Black unemployment hit a record low during my administration. Hispanic unemployment has also reached historic lows.",
+      "claims": [
+        {
+          "quote": "Black unemployment hit a record low during my administration",
+          "rating": "TRUE",
+          "actual": "BLS: Black unemployment rate fell to 4.7% in April 2023, the lowest on record since BLS began tracking in 1972.",
+          "explanation": "Confirmed — historic low for Black unemployment."
+        },
+        {
+          "quote": "Hispanic unemployment has also reached historic lows",
+          "rating": "TRUE",
+          "actual": "BLS: Hispanic unemployment fell to 3.9% in September 2022, a record low.",
+          "explanation": "Confirmed by BLS historical data."
+        }
+      ]
+    },
+    {
+      "time": 285,
+      "text": "We are making prescription drugs more affordable. Medicare will be able to negotiate prices for some of the most expensive drugs. Seniors will pay no more than 2,000 dollars a year for prescription drugs.",
+      "claims": [
+        {
+          "quote": "Seniors will pay no more than 2,000 dollars a year for prescription drugs",
+          "rating": "TRUE",
+          "actual": "CMS: The Inflation Reduction Act caps Medicare Part D out-of-pocket costs at $2,000/year starting 2025.",
+          "explanation": "Confirmed — $2,000 annual cap takes effect in 2025."
+        }
+      ]
+    },
+    {
+      "time": 300,
+      "text": "And by the way, the federal debt went up by 25 percent under the previous administration. 25 percent in four years. He added more to the national debt than any president in a single term in American history.",
+      "claims": [
+        {
+          "quote": "The federal debt went up by 25 percent under the previous administration",
+          "rating": "MOSTLY TRUE",
+          "actual": "Treasury: Federal debt rose from $19.9T to $27.7T under Trump (FY2017–FY2021), about 39%. The 25% figure may exclude COVID relief.",
+          "explanation": "Debt increase was closer to 39% total, though ~25% excluding COVID relief."
+        },
+        {
+          "quote": "He added more to the national debt than any president in a single term",
+          "rating": "MISLEADING",
+          "actual": "Treasury: Trump added ~$7.8T in debt. In nominal dollars this is high, but much was bipartisan COVID spending. As % of GDP, WWII-era spending was higher.",
+          "explanation": "Largest in nominal dollars, but context of COVID is essential."
+        }
+      ]
+    },
+    {
+      "time": 315,
+      "text": "My administration has overseen the strongest job creation in American history. More people are working today than at any time in the history of this country. The economy is growing and wages are rising.",
+      "claims": [
+        {
+          "quote": "More people are working today than at any time in the history of this country",
+          "rating": "TRUE",
+          "actual": "BLS: Total nonfarm employment reached 157.5M in early 2024, surpassing the pre-pandemic peak of 152.4M.",
+          "explanation": "Confirmed — total employment hit new records."
+        }
+      ]
+    },
+    {
+      "time": 330,
+      "text": "America's economy grew at a rate of 3.1 percent last year. That is the fastest growth among all major economies. Faster than China. Faster than Europe. Faster than Japan.",
+      "claims": [
+        {
+          "quote": "Faster than China",
+          "rating": "FALSE",
+          "actual": "IMF/World Bank: China's GDP grew 5.2% in 2023 vs. U.S. at 2.5%. China grew significantly faster.",
+          "explanation": "China's growth rate was more than double the U.S. rate in 2023."
+        },
+        {
+          "quote": "Faster than Europe. Faster than Japan",
+          "rating": "TRUE",
+          "actual": "IMF: Eurozone grew 0.4% and Japan grew 1.9% in 2023, both below U.S. growth of 2.5%.",
+          "explanation": "Confirmed — U.S. outpaced both Europe and Japan in 2023."
+        }
+      ]
+    },
+    {
+      "time": 345,
+      "text": "The Affordable Care Act has been the law of the land for 14 years now. More than 100 million Americans can no longer be denied health insurance because of pre-existing conditions.",
+      "claims": [
+        {
+          "quote": "More than 100 million Americans can no longer be denied health insurance because of pre-existing conditions",
+          "rating": "TRUE",
+          "actual": "HHS: An estimated 133 million Americans have pre-existing conditions that could have led to denial of coverage before the ACA.",
+          "explanation": "HHS estimates confirm over 100 million with pre-existing conditions."
+        }
+      ]
+    },
+    {
+      "time": 360,
+      "text": "We have invested more in research and development than any point in over 50 years. The CHIPS Act is bringing semiconductor manufacturing back to America. We are making things in America again.",
+      "claims": [
+        {
+          "quote": "We have invested more in research and development than any point in over 50 years",
+          "rating": "MOSTLY TRUE",
+          "actual": "NSF/AAAS: Federal R&D spending as a share of GDP is rising but still below 1960s-era peaks. Total (public + private) R&D is at record highs in nominal dollars.",
+          "explanation": "True in nominal dollars, but as % of GDP, 1960s spending was higher."
+        }
+      ]
     }
   ]
 }
