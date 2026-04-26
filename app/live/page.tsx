@@ -41,10 +41,15 @@ interface LiveConfig {
   }[];
 }
 
+interface DemoSegment {
+  time: number; text: string;
+  claims?: { quote: string; rating: string; actual: string; explanation: string }[];
+}
+
 interface DemoSpeech {
   title: string; speaker: string; date: string;
   videoId: string; duration: string;
-  segments: { time: number; text: string }[];
+  segments: DemoSegment[];
 }
 
 /* ── Responsive hook ──────────────────────────────────────────── */
@@ -320,8 +325,10 @@ export default function LiveFactCheckPage() {
         await new Promise(r => setTimeout(r, 2500));
         if (demoAbortRef.current) break;
 
-        // Process the buffer
+        // Try API first, fall back to pre-computed claims
         const text = bufferRef.current.trim();
+        let foundClaims: Claim[] = [];
+
         if (text.length >= 30) {
           bufferRef.current = "";
           try {
@@ -333,11 +340,24 @@ export default function LiveFactCheckPage() {
             const data = await fcRes.json();
             contextRef.current = (contextRef.current + " " + text).slice(-500);
             if (data.claims?.length > 0) {
-              const ids = new Set(data.claims.map((c: Claim) => c.id));
-              setNewClaimIds(ids);
-              setClaims(prev => [...data.claims, ...prev]);
+              foundClaims = data.claims;
             }
           } catch {}
+        }
+
+        // Fallback: use pre-computed claims from the speech file
+        if (foundClaims.length === 0 && segment.claims && segment.claims.length > 0) {
+          foundClaims = segment.claims.map(c => ({
+            ...c,
+            timestamp: new Date().toISOString(),
+            id: `claim-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          }));
+        }
+
+        if (foundClaims.length > 0) {
+          const ids = new Set(foundClaims.map((c: Claim) => c.id));
+          setNewClaimIds(ids);
+          setClaims(prev => [...foundClaims, ...prev]);
         }
 
         // Wait between segments

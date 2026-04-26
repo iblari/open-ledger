@@ -7,59 +7,181 @@
   "segments": [
     {
       "time": 0,
-      "text": "When I took office the economy was in ruins. COVID had shut down businesses across the country. Unemployment stood at 6.4 percent. Hundreds of thousands of small businesses closed their doors."
+      "text": "When I took office the economy was in ruins. COVID had shut down businesses across the country. Unemployment stood at 6.4 percent. Hundreds of thousands of small businesses closed their doors.",
+      "claims": [
+        {
+          "quote": "Unemployment stood at 6.4 percent",
+          "rating": "TRUE",
+          "actual": "BLS: Unemployment was 6.4% in January 2021 when Biden took office.",
+          "explanation": "Matches BLS data exactly."
+        }
+      ]
     },
     {
       "time": 15,
-      "text": "Today we have the strongest economy in the world. We created 15 million new jobs in just three years. That is a record. Unemployment has been below 4 percent for the longest stretch in 50 years."
+      "text": "Today we have the strongest economy in the world. We created 15 million new jobs in just three years. That is a record. Unemployment has been below 4 percent for the longest stretch in 50 years.",
+      "claims": [
+        {
+          "quote": "We created 15 million new jobs in just three years",
+          "rating": "MOSTLY TRUE",
+          "actual": "BLS: ~14.8M jobs added Jan 2021–Jan 2024. Many were pandemic recovery, not net new creation.",
+          "explanation": "Number is close, but includes jobs recovering from COVID losses."
+        },
+        {
+          "quote": "Unemployment has been below 4 percent for the longest stretch in 50 years",
+          "rating": "TRUE",
+          "actual": "BLS: Unemployment stayed below 4% for 24 months through early 2024, longest since 1969–1970.",
+          "explanation": "Confirmed by BLS historical data."
+        }
+      ]
     },
     {
       "time": 30,
-      "text": "Inflation has dropped from 9 percent to 3 percent. The lowest in the world. And trending lower. Wages are rising faster than prices. The racial wealth gap is the narrowest it has been in 20 years."
+      "text": "Inflation has dropped from 9 percent to 3 percent. The lowest in the world. And trending lower. Wages are rising faster than prices. The racial wealth gap is the narrowest it has been in 20 years.",
+      "claims": [
+        {
+          "quote": "Inflation has dropped from 9 percent to 3 percent",
+          "rating": "MOSTLY TRUE",
+          "actual": "BLS CPI: Peaked at 9.1% (Jun 2022), was 3.1% in Jan 2024.",
+          "explanation": "Directionally correct, though inflation also rose to 9% under this term."
+        },
+        {
+          "quote": "The lowest in the world",
+          "rating": "MISLEADING",
+          "actual": "IMF data: Several G7 nations had lower inflation. Japan was at 2.6%, Switzerland below 2%.",
+          "explanation": "U.S. inflation was not the lowest among advanced economies."
+        }
+      ]
     },
     {
       "time": 45,
-      "text": "We have seen record small business creation. 16 million new small business applications since I took office. Every single one is a family hoping to build a future. Consumer confidence is surging."
+      "text": "We have seen record small business creation. 16 million new small business applications since I took office. Every single one is a family hoping to build a future. Consumer confidence is surging.",
+      "claims": [
+        {
+          "quote": "16 million new small business applications since I took office",
+          "rating": "TRUE",
+          "actual": "Census Bureau: Over 16M new business applications filed from Jan 2021 through early 2024.",
+          "explanation": "Census Business Formation Statistics confirm this figure."
+        }
+      ]
     },
     {
       "time": 60,
-      "text": "I signed the largest investment in infrastructure in American history. We have already announced over 40,000 projects across the country. Creating hundreds of thousands of good paying jobs."
+      "text": "I signed the largest investment in infrastructure in American history. We have already announced over 40,000 projects across the country. Creating hundreds of thousands of good paying jobs.",
+      "claims": [
+        {
+          "quote": "The largest investment in infrastructure in American history",
+          "rating": "TRUE",
+          "actual": "The $1.2T Infrastructure Investment and Jobs Act (2021) is the largest federal infrastructure bill in U.S. history.",
+          "explanation": "Confirmed — largest single infrastructure authorization ever."
+        }
+      ]
     },
     {
       "time": 75,
-      "text": "We are bringing manufacturing back to America. 800,000 new manufacturing jobs and counting. Where is it written that America cannot lead the world in manufacturing again?"
+      "text": "We are bringing manufacturing back to America. 800,000 new manufacturing jobs and counting. Where is it written that America cannot lead the world in manufacturing again?",
+      "claims": [
+        {
+          "quote": "800,000 new manufacturing jobs",
+          "rating": "MOSTLY TRUE",
+          "actual": "BLS: ~790K manufacturing jobs added Jan 2021–Feb 2024. Most recovered pandemic losses.",
+          "explanation": "Close to stated figure, though many were recovery jobs."
+        }
+      ]
     },
     {
       "time": 90,
-      "text": "The federal deficit. I promised to reduce the federal deficit. And I did. We cut the deficit by over one trillion dollars. The largest deficit reduction in American history. And that is a fact."
+      "text": "The federal deficit. I promised to reduce the federal deficit. And I did. We cut the deficit by over one trillion dollars. The largest deficit reduction in American history. And that is a fact.",
+      "claims": [
+        {
+          "quote": "We cut the deficit by over one trillion dollars",
+          "rating": "MISLEADING",
+          "actual": "Treasury: Deficit fell from $3.1T (FY2020) to $1.7T (FY2022), but the drop was mostly from expiring COVID emergency spending, not new policy.",
+          "explanation": "True in dollar terms, but driven by temporary COVID spending ending."
+        },
+        {
+          "quote": "The largest deficit reduction in American history",
+          "rating": "MISLEADING",
+          "actual": "CBO: The reduction was the largest in dollars, but it reflects pandemic spending expiring, not structural fiscal improvement.",
+          "explanation": "Largest nominal drop, but context matters significantly."
+        }
+      ]
     },
     {
       "time": 105,
-      "text": "Gas prices are down from their peak. The price of insulin for seniors is capped at 35 dollars a month. It used to cost 400 dollars a month. We finally beat big pharma."
+      "text": "Gas prices are down from their peak. The price of insulin for seniors is capped at 35 dollars a month. It used to cost 400 dollars a month. We finally beat big pharma.",
+      "claims": [
+        {
+          "quote": "The price of insulin for seniors is capped at 35 dollars a month",
+          "rating": "TRUE",
+          "actual": "Inflation Reduction Act caps Medicare insulin copays at $35/month, effective Jan 2023.",
+          "explanation": "Confirmed — applies to Medicare Part D enrollees."
+        }
+      ]
     },
     {
       "time": 120,
-      "text": "I have already cut the national deficit by 1.7 trillion dollars. No president has cut the deficit that much. And I am not done. My budget will reduce the deficit by another 3 trillion over the next decade."
+      "text": "I have already cut the national deficit by 1.7 trillion dollars. No president has cut the deficit that much. And I am not done. My budget will reduce the deficit by another 3 trillion over the next decade.",
+      "claims": [
+        {
+          "quote": "I have already cut the national deficit by 1.7 trillion dollars",
+          "rating": "MISLEADING",
+          "actual": "Treasury: Deficit fell $1.7T from FY2020 peak, but FY2020 included $3.1T in one-time COVID spending. FY2023 deficit was $1.7T — higher than any pre-COVID year.",
+          "explanation": "Dollar figure is correct but omits that the baseline was emergency spending."
+        }
+      ]
     },
     {
       "time": 135,
-      "text": "We have the lowest violent crime rate in nearly 50 years. We passed the most significant gun safety legislation in nearly 30 years. Border crossings are down since I signed the executive order."
+      "text": "We have the lowest violent crime rate in nearly 50 years. We passed the most significant gun safety legislation in nearly 30 years. Border crossings are down since I signed the executive order.",
+      "claims": []
     },
     {
       "time": 150,
-      "text": "America has the best economy in the world right now. GDP grew 3.1 percent last year, stronger than any year under the previous administration even before the pandemic hit."
+      "text": "America has the best economy in the world right now. GDP grew 3.1 percent last year, stronger than any year under the previous administration even before the pandemic hit.",
+      "claims": [
+        {
+          "quote": "GDP grew 3.1 percent last year",
+          "rating": "MOSTLY TRUE",
+          "actual": "BEA: Real GDP grew 2.5% in 2023 (later revised). The 3.1% figure may reference Q4 annualized rate.",
+          "explanation": "Annual growth was 2.5%, not 3.1%. Likely citing quarterly rate."
+        }
+      ]
     },
     {
       "time": 165,
-      "text": "Stock market has hit record highs 40 times since I took office. 401k plans and pensions are stronger. More Americans have health insurance today than ever before in history."
+      "text": "Stock market has hit record highs 40 times since I took office. 401k plans and pensions are stronger. More Americans have health insurance today than ever before in history.",
+      "claims": [
+        {
+          "quote": "Stock market has hit record highs 40 times since I took office",
+          "rating": "MOSTLY TRUE",
+          "actual": "S&P 500 hit multiple all-time closing highs during Biden's term, though exact count varies by index used.",
+          "explanation": "Broadly accurate — markets did reach many new highs."
+        },
+        {
+          "quote": "More Americans have health insurance today than ever before in history",
+          "rating": "TRUE",
+          "actual": "Census/CMS: Uninsured rate hit record low of 7.7% in early 2023. Over 300M Americans had coverage.",
+          "explanation": "Confirmed by Census Bureau data."
+        }
+      ]
     },
     {
       "time": 180,
-      "text": "Child poverty was cut in half with the child tax credit. We should restore it. It helped millions of working families put food on the table and keep a roof over their heads."
+      "text": "Child poverty was cut in half with the child tax credit. We should restore it. It helped millions of working families put food on the table and keep a roof over their heads.",
+      "claims": [
+        {
+          "quote": "Child poverty was cut in half with the child tax credit",
+          "rating": "MOSTLY TRUE",
+          "actual": "Census: Supplemental Poverty Measure child poverty fell from 9.7% (2020) to 5.2% (2021) with expanded CTC, then rose back to 12.4% in 2022 when it expired.",
+          "explanation": "True for 2021, but effect reversed when CTC expansion expired."
+        }
+      ]
     },
     {
       "time": 195,
-      "text": "We have invested more in America than any president in history. We are seeing the results. Factories are being built, roads and bridges are being fixed, and people are going back to work."
+      "text": "We have invested more in America than any president in history. We are seeing the results. Factories are being built, roads and bridges are being fixed, and people are going back to work.",
+      "claims": []
     }
   ]
 }
