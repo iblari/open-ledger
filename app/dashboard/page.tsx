@@ -1434,7 +1434,7 @@ function App(){
           <div style={{display:"flex",flexDirection:"column"}}>
 
           {/* Summary cards */}
-          <div className="ol-grid-summary" style={{display:"grid",gridTemplateColumns:mob?"repeat(2,1fr)":`repeat(${Math.min(sel.length,5)},1fr)`,gap:mob?8:10,marginBottom:mob?12:20,order:mob?2:1}}>
+          <div className="ol-grid-summary" style={{display:"grid",gridTemplateColumns:mob?"repeat(2,1fr)":`repeat(${Math.min(sel.length+1,6)},1fr)`,gap:mob?8:10,marginBottom:mob?12:20,order:mob?2:1}}>
             {sel.map((id,idx)=>{const s=sums[id];if(!s)return null;const a=ADMINS[id];
               const pts=m.d.filter(d=>d.a===id);if(pts.length<1)return null;
               const start=inheritedStart(am,id),end=pts[pts.length-1].v;
@@ -1460,21 +1460,21 @@ function App(){
                 </div>
               </div>;
             })}
-            {mob&&<a href={`/live-benchmark?metric=${am}`} className={`stagger-${sel.length+1}`} style={{
+            <a href={`/live-benchmark?metric=${am}`} className={`hover-lift stagger-${sel.length+1}`} style={{
               background:T.accent,border:`1px solid ${T.accent}`,borderRadius:4,
-              padding:"10px 12px",textDecoration:"none",color:"#fff",cursor:"pointer",
+              padding:mob?"10px 12px":"16px 18px",textDecoration:"none",color:"#fff",cursor:"pointer",
               display:"flex",flexDirection:"column",justifyContent:"space-between",minHeight:0
             }}>
               <div style={{display:"flex",alignItems:"center",gap:5}}>
                 <span style={{width:6,height:6,borderRadius:"50%",background:"#fff",animation:"pulse 2s ease-in-out infinite"}}/>
-                <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:1.2}}>Live · Trump II</span>
+                <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?9:10,fontWeight:700,textTransform:"uppercase",letterSpacing:1.2}}>Live · Trump II</span>
               </div>
-              <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:500,color:"rgba(255,255,255,0.88)",margin:"6px 0"}}>Current term, updated daily</div>
+              <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?11:12,fontWeight:500,color:"rgba(255,255,255,0.88)",margin:"6px 0"}}>Current term, updated daily</div>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,fontWeight:700}}>See live data</span>
+                <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?10:11,fontWeight:700}}>See live data</span>
                 <span style={{fontSize:12}}>→</span>
               </div>
-            </a>}
+            </a>
           </div>
 
           {/* Chart */}
