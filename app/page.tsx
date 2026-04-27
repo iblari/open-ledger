@@ -759,34 +759,115 @@ function SourcesSection({ mob, med }: { mob: boolean; med: boolean }) {
   );
 }
 
-/* ── State Atlas Teaser ── */
-function AtlasTeaser({ mob }: { mob: boolean }) {
+/* ── Coming Soon — Two-card layout ── */
+function ComingSoonSection({ mob, med }: { mob: boolean; med: boolean }) {
+  // Deterministic cartogram opacities (avoid hydration mismatch with Math.random)
+  const cartogramOpacities = [
+    0.18, 0.55, 0.32, 0.7, 0.22, 0.48, 0.65, 0.14, 0.58, 0.4,
+    0.25, 0.72, 0.35, 0.5, 0.15, 0.62, 0.3, 0.68, 0.42, 0.2,
+    0.56, 0.38, 0.75, 0.28, 0.6, 0.17, 0.52, 0.44, 0.66, 0.33,
+    0.7, 0.24, 0.58, 0.36, 0.48, 0.13, 0.64, 0.42, 0.54, 0.29,
+    0.72, 0.19, 0.46, 0.61, 0.37, 0.55, 0.23, 0.68, 0.31, 0.5,
+  ];
+  // Deterministic waveform bar heights
+  const waveformHeights = [
+    18, 32, 24, 42, 36, 28, 48, 38, 22, 44, 30, 50, 34, 26, 46,
+    40, 20, 52, 36, 28, 44, 32, 54, 38, 24, 48, 34, 42, 26, 50,
+  ];
+
+  const dotStyle = (color: string): React.CSSProperties => ({
+    width: 8, height: 8, borderRadius: "50%", background: color, display: "inline-block", marginRight: 8,
+  });
+  const labelStyle: React.CSSProperties = {
+    fontFamily: SANS, fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase",
+    color: C.sub, fontWeight: 500, display: "flex", alignItems: "center",
+  };
+  const cardStyle: React.CSSProperties = {
+    background: C.card, border: `1px solid ${C.rule}`, borderRadius: 6,
+    padding: mob ? "28px 24px" : "36px 32px", display: "flex", flexDirection: "column",
+  };
+
   return (
     <section style={{ padding: mob ? "48px 0" : "72px 0", borderBottom: `1px solid ${C.rule}` }}>
       <div style={{ maxWidth: 1280, margin: "0 auto", padding: mob ? "0 20px" : "0 32px", textAlign: "center" }}>
-        <div style={{ fontFamily: SANS, fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: C.sub, fontWeight: 500, marginBottom: 12 }}>Coming Soon</div>
-        <h2 style={{ fontFamily: SERIF, fontSize: mob ? 32 : 44, lineHeight: 1.05, letterSpacing: "-0.022em", fontWeight: 400, margin: "0 auto", maxWidth: 600 }}>
-          Fifty states.<br />One square <em style={{ fontStyle: "italic", color: C.accent }}>each.</em>
+        <div style={{ fontFamily: SANS, fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: C.sub, fontWeight: 500, marginBottom: 16 }}>Coming Soon</div>
+        <h2 style={{ fontFamily: SERIF, fontSize: mob ? 32 : 48, lineHeight: 1.05, letterSpacing: "-0.022em", fontWeight: 400, margin: "0 auto 16px", maxWidth: 700 }}>
+          Two new ways to <em style={{ fontStyle: "italic", color: C.accent }}>see the data.</em>
         </h2>
-        <p style={{ fontSize: 17, color: C.sub, maxWidth: "56ch", lineHeight: 1.5, margin: "20px auto 0" }}>
-          National averages hide everything interesting. The State Atlas will let you explore
-          every state, every year since 2015, on the metrics that actually move families —
-          sorted so the outliers are visible at a glance.
+        <p style={{ fontSize: 17, color: C.sub, maxWidth: "56ch", lineHeight: 1.5, margin: "0 auto 40px" }}>
+          National averages and quarterly snapshots only get you so far.
+          We&apos;re building two complements: one for the map, one for the moment.
         </p>
+
         <div style={{
-          margin: "32px auto 0", padding: "40px 32px", background: C.paper,
-          border: `1px solid ${C.rule}`, borderRadius: 4, maxWidth: 600,
-          display: "flex", flexDirection: "column", alignItems: "center", gap: 12,
+          display: "grid",
+          gridTemplateColumns: med ? "1fr" : "1fr 1fr",
+          gap: mob ? 20 : 24,
+          textAlign: "left",
         }}>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(10, 1fr)", gap: 3 }}>
-            {Array.from({ length: 50 }).map((_, i) => (
-              <div key={i} style={{
-                width: mob ? 16 : 20, height: mob ? 16 : 20, borderRadius: 2,
-                background: `rgba(13,115,119,${0.1 + Math.random() * 0.6})`,
-              }} />
-            ))}
+          {/* ── State Atlas card ── */}
+          <div style={cardStyle}>
+            <div style={{ ...labelStyle, marginBottom: 16 }}>
+              <span style={dotStyle(C.improveStrong)} />THE STATE ATLAS
+            </div>
+            <h3 style={{ fontFamily: SERIF, fontSize: mob ? 26 : 32, lineHeight: 1.1, fontWeight: 700, margin: "0 0 12px" }}>
+              Fifty states.<br />One square <em style={{ fontStyle: "italic", color: C.accent, fontWeight: 400 }}>each.</em>
+            </h3>
+            <p style={{ fontSize: 15, color: C.sub, lineHeight: 1.55, margin: "0 0 24px", maxWidth: "48ch" }}>
+              National averages hide everything interesting. Explore every state,
+              every year since 2015, on the metrics that actually move families —
+              sorted so the outliers are visible at a glance.
+            </p>
+            <div style={{
+              padding: "32px 24px", background: C.paper, border: `1px solid ${C.rule}`,
+              borderRadius: 4, display: "flex", flexDirection: "column", alignItems: "center", gap: 12, marginTop: "auto",
+            }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(10, 1fr)", gap: 3 }}>
+                {cartogramOpacities.map((op, i) => (
+                  <div key={i} style={{
+                    width: mob ? 16 : 20, height: mob ? 16 : 20, borderRadius: 2,
+                    background: `rgba(13,115,119,${op})`,
+                  }} />
+                ))}
+              </div>
+              <div style={{ fontFamily: SANS, fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: C.mute, marginTop: 4 }}>
+                Interactive cartogram
+              </div>
+            </div>
+            <div style={{ fontFamily: SANS, fontSize: 13, color: C.mute, marginTop: 16 }}>Q2 &middot; 2026</div>
           </div>
-          <div style={{ fontSize: 13, color: C.mute, marginTop: 8 }}>Interactive cartogram — coming soon</div>
+
+          {/* ── Live Broadcast card ── */}
+          <div style={cardStyle}>
+            <div style={{ ...labelStyle, marginBottom: 16 }}>
+              <span style={dotStyle(C.accent)} />LIVE BROADCAST
+            </div>
+            <h3 style={{ fontFamily: SERIF, fontSize: mob ? 26 : 32, lineHeight: 1.1, fontWeight: 700, margin: "0 0 12px" }}>
+              Watch politicians.<br />Check the <em style={{ fontStyle: "italic", color: C.accent, fontWeight: 400 }}>numbers.</em>
+            </h3>
+            <p style={{ fontSize: 15, color: C.sub, lineHeight: 1.55, margin: "0 0 24px", maxWidth: "48ch" }}>
+              Live Stream press briefings, hearings and addresses with AI fact-checking
+              running alongside the video. Every economic claim verified against official
+              data — BLS, BEA, Census, Fed, etc — in real time.
+            </p>
+            <div style={{
+              padding: "32px 24px", background: C.paper, border: `1px solid ${C.rule}`,
+              borderRadius: 4, display: "flex", flexDirection: "column", alignItems: "center", gap: 12, marginTop: "auto",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 2, height: 56 }}>
+                {waveformHeights.map((h, i) => (
+                  <div key={i} style={{
+                    width: mob ? 3 : 4, height: h, borderRadius: 2,
+                    background: `rgba(184,55,45,${0.3 + (h / 54) * 0.5})`,
+                  }} />
+                ))}
+              </div>
+              <div style={{ fontFamily: SANS, fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: C.mute, marginTop: 4 }}>
+                Real-time fact-check feed
+              </div>
+            </div>
+            <div style={{ fontFamily: SANS, fontSize: 13, color: C.mute, marginTop: 16 }}>Q2 &middot; 2026</div>
+          </div>
         </div>
       </div>
     </section>
@@ -948,7 +1029,7 @@ export default function LandingPage() {
       <Hero mob={mob} med={med} />
       <ScorecardSection mob={mob} med={med} />
       <DeepDiveSection mob={mob} med={med} />
-      <AtlasTeaser mob={mob} />
+      <ComingSoonSection mob={mob} med={med} />
       <PrinciplesSection mob={mob} med={med} />
       <SourcesSection mob={mob} med={med} />
       <CTASection mob={mob} med={med} />
