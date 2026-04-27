@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
 
-// Run on Vercel Edge Runtime (Cloudflare network) instead of Node.js (AWS).
-export const runtime = "edge";
-// Try multiple regions — YouTube may block some Cloudflare POPs but not others
-export const preferredRegion = ["cdg1", "hnd1", "sfo1", "gru1", "iad1"];
+// Use Node.js runtime (default Vercel serverless)
 
 /**
  * POST /api/fetch-transcript
