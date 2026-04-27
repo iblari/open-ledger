@@ -759,6 +759,45 @@ function SourcesSection({ mob, med }: { mob: boolean; med: boolean }) {
   );
 }
 
+/* ── Animated Waveform ── */
+function AnimatedWaveform({ mob }: { mob: boolean }) {
+  const BAR_COUNT = 30;
+  const [heights, setHeights] = useState<number[]>(() =>
+    Array.from({ length: BAR_COUNT }, (_, i) => 18 + ((i * 37 + 13) % 36))
+  );
+
+  useEffect(() => {
+    let frame: number;
+    let t = 0;
+    const animate = () => {
+      t += 1;
+      setHeights(prev =>
+        prev.map((_, i) => {
+          // Combine two sine waves at different frequencies for organic motion
+          const wave1 = Math.sin((t * 0.08) + (i * 0.45)) * 18;
+          const wave2 = Math.sin((t * 0.05) + (i * 0.7) + 2) * 10;
+          return Math.max(6, Math.min(54, 28 + wave1 + wave2));
+        })
+      );
+      frame = requestAnimationFrame(animate);
+    };
+    frame = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 2, height: 56 }}>
+      {heights.map((h, i) => (
+        <div key={i} style={{
+          width: mob ? 3 : 4, height: h, borderRadius: 2,
+          background: `rgba(184,55,45,${0.3 + (h / 54) * 0.5})`,
+          transition: "height 0.08s linear",
+        }} />
+      ))}
+    </div>
+  );
+}
+
 /* ── Coming Soon — Two-card layout ── */
 function ComingSoonSection({ mob, med }: { mob: boolean; med: boolean }) {
   // Deterministic cartogram opacities (avoid hydration mismatch with Math.random)
@@ -768,11 +807,6 @@ function ComingSoonSection({ mob, med }: { mob: boolean; med: boolean }) {
     0.56, 0.38, 0.75, 0.28, 0.6, 0.17, 0.52, 0.44, 0.66, 0.33,
     0.7, 0.24, 0.58, 0.36, 0.48, 0.13, 0.64, 0.42, 0.54, 0.29,
     0.72, 0.19, 0.46, 0.61, 0.37, 0.55, 0.23, 0.68, 0.31, 0.5,
-  ];
-  // Deterministic waveform bar heights
-  const waveformHeights = [
-    18, 32, 24, 42, 36, 28, 48, 38, 22, 44, 30, 50, 34, 26, 46,
-    40, 20, 52, 36, 28, 44, 32, 54, 38, 24, 48, 34, 42, 26, 50,
   ];
 
   const dotStyle = (color: string): React.CSSProperties => ({
@@ -854,14 +888,7 @@ function ComingSoonSection({ mob, med }: { mob: boolean; med: boolean }) {
               padding: "32px 24px", background: C.paper, border: `1px solid ${C.rule}`,
               borderRadius: 4, display: "flex", flexDirection: "column", alignItems: "center", gap: 12, marginTop: "auto",
             }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 2, height: 56 }}>
-                {waveformHeights.map((h, i) => (
-                  <div key={i} style={{
-                    width: mob ? 3 : 4, height: h, borderRadius: 2,
-                    background: `rgba(184,55,45,${0.3 + (h / 54) * 0.5})`,
-                  }} />
-                ))}
-              </div>
+              <AnimatedWaveform mob={mob} />
               <div style={{ fontFamily: SANS, fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: C.mute, marginTop: 4 }}>
                 Real-time fact-check feed
               </div>
