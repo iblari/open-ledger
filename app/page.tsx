@@ -185,7 +185,7 @@ function Nav({ mob }: { mob: boolean }) {
             textDecoration: "none", transition: "all 0.15s",
           }}>
             <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#dc2626", animation: "pulse 2s infinite" }} />
-            {mob ? "Live" : "Live Fact-Check"}
+            {mob ? "Live" : "Live Broadcast"}
           </Link>
           <Link href="/dashboard" style={{
             display: "inline-flex", alignItems: "center", gap: 8,
