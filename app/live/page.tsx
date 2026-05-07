@@ -42,6 +42,7 @@ interface Claim {
   id: string;
   quote: string;
   rating: string;
+  confidence?: number; // 0-100
   actual: string;
   explanation: string;
   timestamp: string;
@@ -114,12 +115,22 @@ function FactCard({ claim, isNew, onSeek }: { claim: Claim; isNew: boolean; onSe
       }}
       onClick={() => setExpanded(!expanded)}
     >
-      {/* Header: rating badge + video timestamp */}
+      {/* Header: rating badge + confidence + video timestamp */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-        <span style={{
-          padding: "2px 8px", borderRadius: 4, fontSize: 10, fontWeight: 700,
-          background: rc.bg, color: rc.text, letterSpacing: 0.5,
-        }}>{claim.rating}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{
+            padding: "2px 8px", borderRadius: 4, fontSize: 10, fontWeight: 700,
+            background: rc.bg, color: rc.text, letterSpacing: 0.5,
+          }}>{claim.rating}</span>
+          {claim.confidence != null && (
+            <span style={{
+              fontSize: 9, fontWeight: 600, color: T.mute,
+              fontFamily: "'DM Sans',sans-serif",
+            }} title="AI confidence in this rating">
+              {claim.confidence}% conf.
+            </span>
+          )}
+        </div>
         {claim.videoTime != null && claim.videoTime > 0 ? (
           <button
             onClick={(e) => { e.stopPropagation(); onSeek?.(claim.videoTime!); }}
@@ -148,9 +159,9 @@ function FactCard({ claim, isNew, onSeek }: { claim: Claim; isNew: boolean; onSe
         &ldquo;{claim.quote}&rdquo;
       </div>
 
-      {/* Actual data */}
+      {/* Actual data + source citation */}
       <div style={{ fontSize: 11, color: T.sub, marginBottom: 4, lineHeight: 1.5 }}>
-        <strong>Actual:</strong> {claim.actual}
+        <strong style={{ color: T.ink }}>Data:</strong> {claim.actual}
       </div>
 
       {/* Explanation */}
@@ -262,8 +273,6 @@ export default function LiveFactCheckPage() {
   const [title, setTitle] = useState("");
   const [claims, setClaims] = useState<Claim[]>([]);
   const [liveTranscript, setLiveTranscript] = useState("");
-  const [isListening, setIsListening] = useState(false);
-  const [micError, setMicError] = useState("");
   const [showSummary, setShowSummary] = useState(false);
   const [isManualChecking, setIsManualChecking] = useState(false);
   const [manualResult, setManualResult] = useState<Claim[] | null>(null);
@@ -274,9 +283,7 @@ export default function LiveFactCheckPage() {
 
   const [demoSpeech, setDemoSpeech] = useState<DemoSpeech | null>(null);
 
-  const bufferRef = useRef("");
   const contextRef = useRef("");
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
   const demoAbortRef = useRef(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const demoStartTime = useRef(0);
@@ -322,98 +329,8 @@ export default function LiveFactCheckPage() {
     return () => clearTimeout(timer);
   }, [newClaimIds]);
 
-  /* ── Fact-check buffer processor ── */
-  const processBuffer = useCallback(async () => {
-    const text = bufferRef.current.trim();
-    if (text.length < 30) return;
-    bufferRef.current = "";
 
-    try {
-      const res = await fetch("/api/live-fact-check", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, context: contextRef.current }),
-      });
-      const data = await res.json();
-      contextRef.current = (contextRef.current + " " + text).slice(-500);
-
-      if (data.claims?.length > 0) {
-        const elapsed = Math.floor((Date.now() - demoStartTime.current) / 1000);
-        const enriched = data.claims.map((c: Claim) => ({ ...c, videoTime: elapsed }));
-        const ids = new Set(enriched.map((c: Claim) => c.id));
-        setNewClaimIds(ids);
-        setClaims(prev => [...enriched, ...prev]);
-      }
-    } catch (e) {
-      console.error("Fact-check error:", e);
-    }
-  }, []);
-
-  /* ── 15-second buffer interval ── */
-  useEffect(() => {
-    if (!isPlaying || isDemo) return;
-    const interval = setInterval(processBuffer, 15000);
-    return () => clearInterval(interval);
-  }, [isPlaying, isDemo, processBuffer]);
-
-  /* ── Web Speech API ── */
-  const startMicListening = useCallback(() => {
-    const SR = (window as unknown as { SpeechRecognition?: typeof SpeechRecognition; webkitSpeechRecognition?: typeof SpeechRecognition }).SpeechRecognition
-      || (window as unknown as { webkitSpeechRecognition?: typeof SpeechRecognition }).webkitSpeechRecognition;
-    if (!SR) {
-      setMicError("Your browser does not support speech recognition. Try Chrome.");
-      return;
-    }
-
-    const recognition = new SR();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = "en-US";
-
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
-      let finalText = "";
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        if (event.results[i].isFinal) {
-          finalText += event.results[i][0].transcript;
-        }
-      }
-      if (finalText) {
-        bufferRef.current += " " + finalText;
-        setLiveTranscript(prev => prev + " " + finalText);
-      }
-    };
-
-    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-      if (event.error === "not-allowed") {
-        setMicError("Microphone access denied. Please allow mic access and try again.");
-      }
-    };
-
-    recognition.onend = () => {
-      if (isPlaying) {
-        try { recognition.start(); } catch {}
-      }
-    };
-
-    try {
-      recognition.start();
-      recognitionRef.current = recognition;
-      setIsListening(true);
-      setMicError("");
-    } catch {
-      setMicError("Could not start speech recognition.");
-    }
-  }, [isPlaying]);
-
-  const stopMicListening = useCallback(() => {
-    if (recognitionRef.current) {
-      recognitionRef.current.abort();
-      recognitionRef.current = null;
-    }
-    setIsListening(false);
-  }, []);
-
-  /* ── Start live broadcast ── */
+  /* ── Start live broadcast (transcript-driven, no mic) ── */
   const startLive = useCallback((vid: string, broadcastTitle: string) => {
     setVideoId(vid);
     setTitle(broadcastTitle);
@@ -422,11 +339,10 @@ export default function LiveFactCheckPage() {
     setClaims([]);
     setLiveTranscript("");
     setShowSummary(false);
-    bufferRef.current = "";
+
     contextRef.current = "";
     demoStartTime.current = Date.now();
-    setTimeout(() => startMicListening(), 1000);
-  }, [startMicListening]);
+  }, []);
 
   /* ── Initialize YT Player when demo video loads ── */
   useEffect(() => {
@@ -583,7 +499,7 @@ export default function LiveFactCheckPage() {
     setLiveTranscript("");
     setShowSummary(false);
     setDemoSpeech(null);
-    bufferRef.current = "";
+
     contextRef.current = "";
 
     const file = speechFile || "sotu-2024.json";
@@ -772,7 +688,7 @@ export default function LiveFactCheckPage() {
       setLiveTranscript("");
       setShowSummary(false);
       setDemoSpeech(null);
-      bufferRef.current = "";
+  
       contextRef.current = "";
       setVideoId(speech.videoId);
       setTitle(speech.title);
@@ -795,13 +711,12 @@ export default function LiveFactCheckPage() {
     setDemoSpeech(null);
     setManualResult(null);
     shownSegmentsRef.current = new Set();
-    stopMicListening();
     if (ytPlayerRef.current?.destroy) {
       try { ytPlayerRef.current.destroy(); } catch {}
       ytPlayerRef.current = null;
     }
     if (claims.length > 0) setShowSummary(true);
-  }, [claims.length, stopMicListening]);
+  }, [claims.length]);
 
   /* ── Manual "Fact Check This" — grabs recent transcript ── */
   const manualFactCheck = useCallback(async () => {
@@ -946,43 +861,252 @@ export default function LiveFactCheckPage() {
 
       <div style={{ maxWidth: 1400, margin: "0 auto", padding: mob ? "16px" : "24px 32px" }}>
 
-        {/* ── Idle State: not playing ── */}
+        {/* ── Idle State: broadcast-centric ── */}
         {!isPlaying && !showSummary && (
           <div>
             {/* Hero */}
-            <div style={{ textAlign: "center", marginBottom: mob ? 24 : 40, padding: mob ? "16px 0" : "32px 0" }}>
+            <div style={{ textAlign: "center", marginBottom: mob ? 20 : 36, padding: mob ? "20px 0 8px" : "36px 0 12px" }}>
               <div style={{
-                display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 12,
-                background: T.accent + "12", padding: "6px 16px", borderRadius: 20,
-                fontFamily: "'DM Sans',sans-serif", fontSize: 12, fontWeight: 700, color: T.accent,
+                fontFamily: "'DM Sans',sans-serif", fontSize: 11, fontWeight: 700,
+                textTransform: "uppercase", letterSpacing: 2, color: T.mute, marginBottom: 12,
               }}>
-                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#dc2626" }} />
-                LIVE FACT-CHECK
+                VOTE UNBIASED
               </div>
               <h1 style={{
-                fontFamily: "'Source Serif 4',serif", fontSize: mob ? 28 : 44, fontWeight: 900,
-                color: T.ink, marginBottom: 12, lineHeight: 1.15,
+                fontFamily: "'Source Serif 4',serif", fontSize: mob ? 26 : 42, fontWeight: 900,
+                color: T.ink, marginBottom: 10, lineHeight: 1.15,
               }}>
-                Watch. Listen. Verify.
+                A new way to watch the news.
               </h1>
               <p style={{
-                fontFamily: "'DM Sans',sans-serif", fontSize: mob ? 14 : 16, color: T.sub,
-                maxWidth: 520, margin: "0 auto", lineHeight: 1.6,
+                fontFamily: "'DM Sans',sans-serif", fontSize: mob ? 13 : 15, color: T.sub,
+                maxWidth: 540, margin: "0 auto", lineHeight: 1.7,
               }}>
-                Watch political speeches with real-time AI fact-checking. Every economic claim verified against official data from BLS, BEA, Treasury, and FRED.
+                Watch live press conferences and political speeches with real-time AI fact-checking.
+                Every economic claim verified against official data — automatically.
               </p>
             </div>
 
-            {/* ── Paste a YouTube URL ── */}
-            <div style={{
-              maxWidth: 600, margin: "0 auto 24px", padding: mob ? "16px" : "20px 24px",
-              background: T.card, border: `1px solid ${T.rule}`, borderRadius: 12,
-            }}>
+            {/* ── LIVE NOW — prominent card when a broadcast is active ── */}
+            {config?.status === "live" && config.videoId && (
+              <div style={{
+                maxWidth: 700, margin: "0 auto 28px",
+                background: `linear-gradient(135deg, ${T.ink} 0%, #2d2520 100%)`,
+                borderRadius: 16, padding: mob ? 20 : 28, color: "#fff",
+                position: "relative", overflow: "hidden",
+              }}>
+                {/* Subtle glow */}
+                <div style={{
+                  position: "absolute", top: -40, right: -40, width: 160, height: 160,
+                  background: "radial-gradient(circle, rgba(220,38,38,0.15) 0%, transparent 70%)",
+                  borderRadius: "50%",
+                }} />
+                <div style={{ position: "relative" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+                    <span style={{
+                      width: 10, height: 10, borderRadius: "50%", background: "#dc2626",
+                      animation: "pulse 2s infinite", boxShadow: "0 0 8px rgba(220,38,38,0.5)",
+                    }} />
+                    <span style={{
+                      fontFamily: "'DM Sans',sans-serif", fontSize: 12, fontWeight: 800,
+                      textTransform: "uppercase", letterSpacing: 2, color: "#dc2626",
+                    }}>LIVE NOW</span>
+                    {config.startedAt && (
+                      <span style={{
+                        fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: "#9a9490",
+                        marginLeft: "auto",
+                      }}>{timeAgo(config.startedAt)}</span>
+                    )}
+                  </div>
+                  <div style={{
+                    fontFamily: "'Source Serif 4',serif", fontSize: mob ? 20 : 26, fontWeight: 700,
+                    marginBottom: 6, lineHeight: 1.2,
+                  }}>{config.title}</div>
+                  <div style={{
+                    fontFamily: "'DM Sans',sans-serif", fontSize: 12, color: "#b8b0a8",
+                    marginBottom: 20,
+                  }}>{config.source === "youtube" ? "YouTube" : config.source} broadcast</div>
+                  <button
+                    onClick={() => startLive(config.videoId, config.title)}
+                    style={{
+                      background: "#dc2626", color: "#fff", border: "none", borderRadius: 10,
+                      padding: "14px 32px", fontFamily: "'DM Sans',sans-serif", fontSize: 15,
+                      fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 10,
+                      boxShadow: "0 4px 16px rgba(220,38,38,0.3)",
+                    }}
+                  >
+                    <span style={{ fontSize: 18 }}>&#9654;</span> Watch with AI Fact-Check
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ── Nothing live — editorial message ── */}
+            {(!config || config.status !== "live") && (
+              <div style={{
+                maxWidth: 700, margin: "0 auto 28px", textAlign: "center",
+                background: T.card, border: `1px solid ${T.rule}`, borderRadius: 14,
+                padding: mob ? "20px 16px" : "28px 32px",
+              }}>
+                <div style={{
+                  fontFamily: "'DM Sans',sans-serif", fontSize: 11, fontWeight: 700,
+                  textTransform: "uppercase", letterSpacing: 1.5, color: T.mute, marginBottom: 8,
+                }}>No live broadcast right now</div>
+                <div style={{
+                  fontFamily: "'Source Serif 4',serif", fontSize: mob ? 16 : 20, fontWeight: 700,
+                  color: T.ink, marginBottom: 8, lineHeight: 1.3,
+                }}>
+                  Watch a past speech from the archive below,<br />or analyze any YouTube video.
+                </div>
+
+                {/* Upcoming schedule */}
+                {config?.upcoming && config.upcoming.length > 0 && (
+                  <div style={{
+                    marginTop: 16, padding: "12px 16px", background: T.paper,
+                    borderRadius: 8, border: `1px solid ${T.rule}`,
+                    display: "inline-flex", flexDirection: "column", gap: 6,
+                  }}>
+                    <div style={{
+                      fontFamily: "'DM Sans',sans-serif", fontSize: 10, fontWeight: 700,
+                      textTransform: "uppercase", letterSpacing: 1.5, color: T.sub,
+                    }}>NEXT BROADCAST</div>
+                    {config.upcoming.slice(0, 2).map((u, i) => (
+                      <div key={i} style={{
+                        fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: T.ink,
+                        display: "flex", alignItems: "center", gap: 8,
+                      }}>
+                        <span style={{ color: T.accent, fontWeight: 700, fontSize: 11 }}>{formatTime(u.date)}</span>
+                        <span style={{ color: T.mute }}>—</span>
+                        <span style={{ fontWeight: 600 }}>{u.title}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── Speech Archive ── */}
+            <div style={{ maxWidth: 900, margin: "0 auto 28px" }}>
               <div style={{
                 fontFamily: "'DM Sans',sans-serif", fontSize: 11, fontWeight: 700,
-                textTransform: "uppercase", letterSpacing: 1.2, color: T.sub, marginBottom: 10,
+                textTransform: "uppercase", letterSpacing: 2, color: T.sub, marginBottom: 14,
+                paddingLeft: 4,
               }}>
-                Fact-Check Any YouTube Video
+                SPEECH ARCHIVE
+              </div>
+              <div style={{
+                display: "grid", gridTemplateColumns: mob ? "1fr" : "1fr 1fr", gap: 14,
+              }}>
+                {(config?.demos || [
+                  { title: "Trump Address to Congress 2025", speaker: "Donald Trump", file: "trump-congress-2025.json", duration: "99m", claims: 20, scores: { true: 0, mostly_true: 4, misleading: 7, false: 6, unverifiable: 1 }, date: "2025-03-04" },
+                  { title: "State of the Union 2024", speaker: "Joe Biden", file: "sotu-2024.json", duration: "72m", claims: 27, scores: { true: 10, mostly_true: 10, misleading: 4, false: 1, unverifiable: 2 }, date: "2024-03-07" },
+                ]).map((demo, i) => {
+                  const trueish = (demo.scores.true || 0) + (demo.scores.mostly_true || 0);
+                  const falseish = (demo.scores.false || 0) + (demo.scores.misleading || 0);
+                  const accuracy = demo.claims > 0 ? Math.round((trueish / demo.claims) * 100) : 0;
+                  const accColor = accuracy >= 60 ? "#0d7377" : accuracy >= 40 ? "#ca8a04" : "#c2410c";
+
+                  return (
+                    <div key={i} style={{
+                      background: T.card, border: `1px solid ${T.rule}`, borderRadius: 12,
+                      padding: mob ? 16 : 20, display: "flex", flexDirection: "column",
+                      transition: "box-shadow 0.2s",
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.boxShadow = "0 2px 12px rgba(0,0,0,0.06)")}
+                    onMouseLeave={e => (e.currentTarget.style.boxShadow = "none")}
+                    >
+                      {/* Top row: speaker + date */}
+                      <div style={{
+                        display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10,
+                      }}>
+                        <span style={{
+                          fontFamily: "'DM Sans',sans-serif", fontSize: 10, fontWeight: 700,
+                          textTransform: "uppercase", letterSpacing: 1.5, color: T.mute,
+                        }}>{demo.speaker}</span>
+                        <span style={{
+                          fontFamily: "'DM Sans',sans-serif", fontSize: 10, color: T.mute,
+                        }}>{new Date(demo.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+                      </div>
+
+                      {/* Title */}
+                      <div style={{
+                        fontFamily: "'Source Serif 4',serif", fontSize: mob ? 16 : 18, fontWeight: 700,
+                        color: T.ink, marginBottom: 12, lineHeight: 1.3,
+                      }}>{demo.title}</div>
+
+                      {/* Accuracy bar */}
+                      <div style={{ marginBottom: 12 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                          <div style={{
+                            flex: 1, height: 6, background: T.rule, borderRadius: 3, overflow: "hidden",
+                          }}>
+                            <div style={{
+                              width: `${accuracy}%`, height: "100%", borderRadius: 3, background: accColor,
+                              transition: "width 0.5s ease",
+                            }} />
+                          </div>
+                          <span style={{
+                            fontFamily: "'DM Sans',sans-serif", fontSize: 14, fontWeight: 800, color: accColor,
+                            minWidth: 36, textAlign: "right",
+                          }}>{accuracy}%</span>
+                        </div>
+                        <div style={{
+                          fontFamily: "'DM Sans',sans-serif", fontSize: 10, color: T.mute,
+                        }}>Accuracy — {demo.claims} claims analyzed</div>
+                      </div>
+
+                      {/* Rating breakdown */}
+                      <div style={{
+                        display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14,
+                        padding: "8px 10px", background: T.paper, borderRadius: 6,
+                      }}>
+                        {[
+                          { label: "True", count: (demo.scores.true || 0) + (demo.scores.mostly_true || 0), color: "#0d7377" },
+                          { label: "Misleading", count: demo.scores.misleading || 0, color: "#ca8a04" },
+                          { label: "False", count: demo.scores.false || 0, color: "#c2410c" },
+                        ].map(({ label, count, color }) => count > 0 ? (
+                          <span key={label} style={{
+                            fontFamily: "'DM Sans',sans-serif", fontSize: 11, fontWeight: 600,
+                            display: "flex", alignItems: "center", gap: 4,
+                          }}>
+                            <span style={{ width: 8, height: 8, borderRadius: 2, background: color }} />
+                            <span style={{ color: T.sub }}>{count} {label}</span>
+                          </span>
+                        ) : null)}
+                      </div>
+
+                      {/* Meta + watch button */}
+                      <div style={{ marginTop: "auto", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <span style={{
+                          fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: T.mute,
+                        }}>{demo.duration}</span>
+                        <button
+                          onClick={() => startDemo(demo.file)}
+                          style={{
+                            background: T.ink, color: "#fff", border: "none", borderRadius: 8,
+                            padding: "9px 20px", fontFamily: "'DM Sans',sans-serif", fontSize: 12,
+                            fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6,
+                          }}
+                        >
+                          <span style={{ fontSize: 11 }}>&#9654;</span> Watch &amp; Fact-Check
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* ── Analyze Any Speech (secondary) ── */}
+            <div style={{
+              maxWidth: 600, margin: "0 auto 24px", padding: mob ? "16px" : "18px 24px",
+              background: T.card, border: `1px solid ${T.rule}`, borderRadius: 10,
+            }}>
+              <div style={{
+                fontFamily: "'DM Sans',sans-serif", fontSize: 10, fontWeight: 700,
+                textTransform: "uppercase", letterSpacing: 1.5, color: T.mute, marginBottom: 10,
+              }}>
+                ANALYZE ANY SPEECH
               </div>
               <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
                 <input
@@ -992,9 +1116,9 @@ export default function LiveFactCheckPage() {
                   onKeyDown={e => { if (e.key === "Enter" && urlInput.trim()) startFromUrl(urlInput.trim()); }}
                   placeholder="Paste a YouTube URL…"
                   style={{
-                    flex: 1, padding: "10px 14px", borderRadius: 8,
+                    flex: 1, padding: "9px 14px", borderRadius: 8,
                     border: `1px solid ${urlError ? "#dc2626" : T.rule}`,
-                    fontFamily: "'DM Sans',sans-serif", fontSize: 14, color: T.ink,
+                    fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: T.ink,
                     background: T.paper, outline: "none",
                   }}
                 />
@@ -1002,18 +1126,18 @@ export default function LiveFactCheckPage() {
                   onClick={() => urlInput.trim() && startFromUrl(urlInput.trim())}
                   disabled={urlLoading || !urlInput.trim()}
                   style={{
-                    background: urlLoading ? T.rule : T.accent, color: "#fff",
-                    border: "none", borderRadius: 8, padding: "10px 20px",
-                    fontFamily: "'DM Sans',sans-serif", fontSize: 13, fontWeight: 700,
+                    background: urlLoading ? T.rule : T.ink, color: "#fff",
+                    border: "none", borderRadius: 8, padding: "9px 18px",
+                    fontFamily: "'DM Sans',sans-serif", fontSize: 12, fontWeight: 700,
                     cursor: urlLoading || !urlInput.trim() ? "default" : "pointer",
                     opacity: urlLoading || !urlInput.trim() ? 0.6 : 1,
                     whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 6,
                   }}
                 >
                   {urlLoading ? (
-                    <><span style={{ animation: "pulse 1s infinite" }}>⏳</span> Fetching transcript…</>
+                    <><span style={{ animation: "pulse 1s infinite" }}>&#8987;</span> Loading…</>
                   ) : (
-                    <>▶ Watch &amp; Fact-Check</>
+                    <>&#9654; Analyze</>
                   )}
                 </button>
               </div>
@@ -1030,193 +1154,36 @@ export default function LiveFactCheckPage() {
                 fontFamily: "'DM Sans',sans-serif", fontSize: 10, color: T.mute, marginTop: 8,
                 lineHeight: 1.5,
               }}>
-                Paste any YouTube video with captions. The AI reads the transcript and fact-checks economic claims in real-time using Claude — no microphone needed.
+                Paste any YouTube video with captions — the AI reads the transcript and fact-checks economic claims as the speech plays.
               </div>
             </div>
 
-            {/* Live Now Card */}
-            {config?.status === "live" && config.videoId && (
+            {/* ── Editorial explanation ── */}
+            <div style={{
+              maxWidth: 600, margin: "0 auto", textAlign: "center",
+              fontFamily: "'DM Sans',sans-serif", padding: "16px 0 0",
+            }}>
               <div style={{
-                background: T.card, border: `2px solid ${T.accent}`, borderRadius: 12,
-                padding: mob ? 16 : 24, marginBottom: 20, maxWidth: 600, margin: "0 auto 20px",
+                fontSize: 10, fontWeight: 700, textTransform: "uppercase",
+                letterSpacing: 2, color: T.mute, marginBottom: 12,
+              }}>HOW IT WORKS</div>
+              <div style={{
+                display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: mob ? 12 : 24,
               }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                  <span style={{
-                    width: 8, height: 8, borderRadius: "50%", background: "#dc2626",
-                    animation: "pulse 2s infinite",
-                  }} />
-                  <span style={{
-                    fontFamily: "'DM Sans',sans-serif", fontSize: 11, fontWeight: 700,
-                    textTransform: "uppercase", letterSpacing: 1.2, color: "#dc2626",
-                  }}>LIVE NOW</span>
-                </div>
-                <div style={{
-                  fontFamily: "'Source Serif 4',serif", fontSize: mob ? 18 : 22, fontWeight: 700,
-                  color: T.ink, marginBottom: 6,
-                }}>{config.title}</div>
-                <div style={{
-                  fontFamily: "'DM Sans',sans-serif", fontSize: 12, color: T.mute, marginBottom: 16,
-                }}>{config.startedAt ? timeAgo(config.startedAt) : ""}</div>
-                <button
-                  onClick={() => startLive(config.videoId, config.title)}
-                  style={{
-                    background: T.accent, color: "#fff", border: "none", borderRadius: 8,
-                    padding: "12px 28px", fontFamily: "'DM Sans',sans-serif", fontSize: 14,
-                    fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 8,
-                  }}
-                >
-                  ▶ Watch &amp; Fact-Check
-                </button>
-              </div>
-            )}
-
-            {/* Recent + Upcoming + Demo */}
-            <div style={{
-              display: "grid", gridTemplateColumns: mob ? "1fr" : "1fr 1fr", gap: 16,
-              maxWidth: 800, margin: "0 auto",
-            }}>
-              {/* Demo Cards — one per speech */}
-              {(config?.demos || [
-                { title: "Trump Address to Congress 2025", speaker: "Donald Trump", file: "trump-congress-2025.json", duration: "99m", claims: 20, scores: { true: 0, mostly_true: 4, misleading: 7, false: 6, unverifiable: 1 }, date: "2025-03-04" },
-                { title: "State of the Union 2024", speaker: "Joe Biden", file: "sotu-2024.json", duration: "72m", claims: 27, scores: { true: 10, mostly_true: 10, misleading: 4, false: 1, unverifiable: 2 }, date: "2024-03-07" },
-              ]).map((demo, i) => {
-                const trueish = (demo.scores.true || 0) + (demo.scores.mostly_true || 0);
-                const accuracy = demo.claims > 0 ? Math.round((trueish / demo.claims) * 100) : 0;
-                return (
-                  <div key={i} style={{
-                    background: T.card, border: `1px solid ${T.rule}`, borderRadius: 12,
-                    padding: mob ? 16 : 20,
-                  }}>
-                    <div style={{
-                      fontFamily: "'DM Sans',sans-serif", fontSize: 10, fontWeight: 700,
-                      textTransform: "uppercase", letterSpacing: 1.5, color: T.gold, marginBottom: 10,
-                    }}>Demo — {demo.speaker}</div>
-                    <div style={{
-                      fontFamily: "'Source Serif 4',serif", fontSize: mob ? 15 : 17, fontWeight: 700,
-                      color: T.ink, marginBottom: 4,
-                    }}>{demo.title}</div>
-                    <div style={{
-                      fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: T.mute, marginBottom: 10,
-                    }}>{demo.duration} · {demo.claims} claims · {accuracy}% accuracy</div>
-                    <div style={{
-                      display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12,
-                    }}>
-                      {Object.entries(RATING_COLORS).map(([rating, colors]) => {
-                        const key = rating.toLowerCase().replace(/ /g, "_");
-                        const count = (demo.scores as Record<string, number>)[key] || 0;
-                        if (count === 0) return null;
-                        return (
-                          <span key={rating} style={{
-                            fontSize: 9, fontWeight: 600, display: "flex", alignItems: "center", gap: 3,
-                          }}>
-                            <span style={{ width: 6, height: 6, borderRadius: 2, background: colors.bg }} />
-                            <span style={{ color: T.mute }}>{count}</span>
-                          </span>
-                        );
-                      })}
-                    </div>
-                    <button
-                      onClick={() => startDemo(demo.file)}
-                      style={{
-                        background: T.ink, color: "#fff", border: "none", borderRadius: 8,
-                        padding: "10px 22px", fontFamily: "'DM Sans',sans-serif", fontSize: 13,
-                        fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 8,
-                      }}
-                    >
-                      ▶ Watch Demo
-                    </button>
-                  </div>
-                );
-              })}
-
-              {/* Recent */}
-              {config?.recent && config.recent.length > 0 && (
-                <div style={{
-                  background: T.card, border: `1px solid ${T.rule}`, borderRadius: 12,
-                  padding: mob ? 16 : 20,
-                }}>
-                  <div style={{
-                    fontFamily: "'DM Sans',sans-serif", fontSize: 10, fontWeight: 700,
-                    textTransform: "uppercase", letterSpacing: 1.5, color: T.mute, marginBottom: 10,
-                  }}>Recent Broadcasts</div>
-                  {config.recent.map((r, i) => (
-                    <div key={i} style={{
-                      padding: "8px 0", borderBottom: i < config.recent.length - 1 ? `1px solid ${T.rule}22` : "none",
-                    }}>
-                      <button
-                        onClick={() => {
-                          if (r.isDemo) { startDemo(r.demoFile); }
-                          else { startLive(r.videoId, r.title); }
-                        }}
-                        style={{
-                          background: "none", border: "none", cursor: "pointer", textAlign: "left",
-                          display: "flex", alignItems: "center", gap: 8, width: "100%", padding: 0,
-                        }}
-                      >
-                        <span style={{ fontSize: 14, color: T.accent }}>▶</span>
-                        <div>
-                          <div style={{
-                            fontFamily: "'DM Sans',sans-serif", fontSize: 13, fontWeight: 600, color: T.ink,
-                          }}>{r.title} <span style={{ fontWeight: 400, color: T.mute }}>({r.duration})</span></div>
-                          <div style={{
-                            fontFamily: "'DM Sans',sans-serif", fontSize: 10, color: T.mute, marginTop: 2,
-                          }}>
-                            {r.claims} claims checked · {r.scores.true || 0} True · {r.scores.false || 0} False
-                          </div>
-                        </div>
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Upcoming */}
-              {config?.upcoming && config.upcoming.length > 0 && (
-                <div style={{
-                  background: T.card, border: `1px solid ${T.rule}`, borderRadius: 12,
-                  padding: mob ? 16 : 20,
-                }}>
-                  <div style={{
-                    fontFamily: "'DM Sans',sans-serif", fontSize: 10, fontWeight: 700,
-                    textTransform: "uppercase", letterSpacing: 1.5, color: T.mute, marginBottom: 10,
-                  }}>Upcoming</div>
-                  {config.upcoming.map((u, i) => (
-                    <div key={i} style={{
-                      display: "flex", alignItems: "center", gap: 8, padding: "8px 0",
-                      borderBottom: i < config.upcoming.length - 1 ? `1px solid ${T.rule}22` : "none",
-                    }}>
-                      <span style={{ fontSize: 12, color: T.mute }}>🕐</span>
-                      <div>
-                        <div style={{
-                          fontFamily: "'DM Sans',sans-serif", fontSize: 13, fontWeight: 600, color: T.ink,
-                        }}>{u.title}</div>
-                        <div style={{
-                          fontFamily: "'DM Sans',sans-serif", fontSize: 10, color: T.mute, marginTop: 2,
-                        }}>{formatTime(u.date)}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* How It Works */}
-            <div style={{
-              maxWidth: 600, margin: "32px auto 0", textAlign: "center",
-              fontFamily: "'DM Sans',sans-serif", fontSize: 12, color: T.mute, lineHeight: 1.8,
-            }}>
-              <div style={{ fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: 1, marginBottom: 8, color: T.sub }}>
-                How It Works
-              </div>
-              <div style={{ display: "flex", justifyContent: "center", gap: mob ? 16 : 32, flexWrap: "wrap" }}>
                 {[
-                  ["📺", "Watch any broadcast"],
-                  ["🎙️", "AI listens in real-time"],
-                  ["📊", "Claims checked vs. official data"],
-                ].map(([icon, label], i) => (
-                  <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-                    <span style={{ fontSize: 24 }}>{icon}</span>
-                    <span style={{ fontSize: 11 }}>{label}</span>
+                  { num: "1", title: "Tune in", desc: "Watch live White House press conferences and political speeches right here." },
+                  { num: "2", title: "AI reads along", desc: "The transcript is analyzed in real-time, identifying every economic claim." },
+                  { num: "3", title: "Data checks in", desc: "Claims are verified against BLS, BEA, Treasury, and FRED — with sources." },
+                ].map((step) => (
+                  <div key={step.num}>
+                    <div style={{
+                      width: 28, height: 28, borderRadius: "50%", background: T.ink, color: "#fff",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontFamily: "'Source Serif 4',serif", fontSize: 13, fontWeight: 700,
+                      margin: "0 auto 8px",
+                    }}>{step.num}</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: T.ink, marginBottom: 4 }}>{step.title}</div>
+                    <div style={{ fontSize: 11, color: T.mute, lineHeight: 1.5 }}>{step.desc}</div>
                   </div>
                 ))}
               </div>
@@ -1334,35 +1301,9 @@ export default function LiveFactCheckPage() {
                   )}
                 </button>
 
-                {!isDemo && (
-                  <div style={{
-                    display: "flex", alignItems: "center", gap: 6,
-                    fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: T.mute,
-                  }}>
-                    <span style={{
-                      width: 6, height: 6, borderRadius: "50%",
-                      background: isListening ? "#16a34a" : T.rule,
-                      animation: isListening ? "pulse 2s infinite" : "none",
-                    }} />
-                    {isListening ? "Mic active — listening" : "Mic off"}
-                    {!isListening && (
-                      <button
-                        onClick={startMicListening}
-                        style={{
-                          background: "none", border: `1px solid ${T.rule}`, borderRadius: 4,
-                          padding: "3px 8px", fontSize: 10, fontWeight: 600, color: T.sub,
-                          cursor: "pointer", fontFamily: "'DM Sans',sans-serif",
-                        }}
-                      >
-                        Enable Mic
-                      </button>
-                    )}
-                  </div>
-                )}
-
                 {isDemo && (
                   <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: T.gold, fontWeight: 600 }}>
-                    Playing pre-loaded transcript...
+                    AI analyzing transcript...
                   </span>
                 )}
               </div>
@@ -1439,26 +1380,6 @@ export default function LiveFactCheckPage() {
                 </div>
               )}
 
-              {/* Mic hint for live (non-demo) */}
-              {!isDemo && !isListening && !micError && (
-                <div style={{
-                  marginTop: 8, padding: "8px 14px", background: T.highlight,
-                  border: "1px solid #f5deb3", borderRadius: 6,
-                  fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: "#78716c", lineHeight: 1.5,
-                }}>
-                  💡 <strong>Tip:</strong> Turn up your speakers and click &ldquo;Enable Mic&rdquo; above. We use your microphone to hear what&apos;s being said — nothing is recorded or stored.
-                </div>
-              )}
-
-              {micError && (
-                <div style={{
-                  marginTop: 8, padding: "8px 14px", background: "#fef2f2",
-                  border: "1px solid #fecaca", borderRadius: 6,
-                  fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: "#991b1b",
-                }}>
-                  {micError}
-                </div>
-              )}
 
               {/* Mobile summary */}
               {mob && claims.length > 0 && (

@@ -32,10 +32,8 @@ export async function POST(req: Request) {
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        // CHANGED: was "claude-sonnet-4-20250514" (404s — model snapshot no longer served).
-        // Haiku 4.5 is fast + cheap for real-time fact-checking at this call frequency.
         model: "claude-haiku-4-5-20251001",
-        max_tokens: 1500,
+        max_tokens: 2000,
         system: `You are a real-time economic fact-checker for Vote Unbiased (voteunbiased.org). You receive ~15-second chunks of a live political speech transcript.
 
 TASK: Identify any FACTUAL ECONOMIC CLAIMS and fact-check them.
@@ -45,18 +43,25 @@ Only flag claims that reference specific economic data: jobs numbers, GDP growth
 For each claim found:
 - Extract the exact quote (short, just the claim portion)
 - Rate it: TRUE | MOSTLY TRUE | MISLEADING | FALSE | UNVERIFIABLE
-- Provide the actual data with source (BEA, BLS, Treasury, CBO, FRED)
+- Confidence: 0-100 how confident you are in this rating
+- Provide the actual data citing the SPECIFIC dataset (not just the agency):
+  - BLS: cite the series (e.g. "BLS CES, Total Nonfarm, seasonally adjusted" or "BLS CPI-U, All Items")
+  - BEA: cite the table (e.g. "BEA NIPA Table 1.1.1, Real GDP")
+  - Treasury: cite the dataset (e.g. "Treasury Monthly Statement, Oct 2024")
+  - FRED: cite the series ID (e.g. "FRED series UNRATE" or "FRED series CPIAUCSL")
+  - CBO: cite the report (e.g. "CBO Budget Outlook, Feb 2025")
 - One-sentence explanation
 
 RULES:
 - Skip opinions, promises, predictions, and policy arguments — only fact-check verifiable economic statements
 - Be nonpartisan — apply the same standard regardless of party or speaker
-- Keep explanations under 25 words — this is real-time
+- Keep explanations under 30 words — this is real-time
 - If no economic claims exist in this chunk, return an empty array
 - Be precise with numbers. If they said "15 million jobs" and the real number is 15.6 million, that's MOSTLY TRUE, not FALSE
+- Include the specific time period of data you're referencing (e.g. "as of Jan 2025" or "FY2024")
 
 Respond ONLY in valid JSON (no markdown fences):
-{"claims":[{"quote":"exact words","rating":"TRUE","actual":"real data + source","explanation":"short explanation"}]}
+{"claims":[{"quote":"exact words","rating":"TRUE","confidence":85,"actual":"real data with specific dataset citation + time period","explanation":"short explanation"}]}
 
 No claims found: {"claims":[]}`,
         messages: [
