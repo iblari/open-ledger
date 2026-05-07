@@ -560,7 +560,7 @@ export default function LiveBenchmark() {
           <div className="bench-fade">
 
             {/* ── MOBILE: compact metric dropdown ── */}
-            {mob && (<>
+            {mob && (
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
                 <button onClick={() => setSheetOpen(true)} style={{
                   flex: 1, display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -572,17 +572,7 @@ export default function LiveBenchmark() {
                   <span style={{ fontSize: 10, color: C.mute, marginLeft: 6, flexShrink: 0 }}>▾</span>
                 </button>
               </div>
-
-              {/* Shared compact picker */}
-              <CompactPicker
-                open={sheetOpen}
-                onClose={() => setSheetOpen(false)}
-                title="Select Metric"
-                options={pickerOptions}
-                value={metric}
-                onSelect={(v) => { setMetric(v); setHighlighted(new Set()); }}
-              />
-            </>)}
+            )}
 
             {/* ── DESKTOP: Category Tabs + Metric Pills ── */}
             {!mob && (<>
@@ -907,6 +897,18 @@ export default function LiveBenchmark() {
           </div>
         )}
       </div>
+
+      {/* CompactPicker rendered outside bench-fade to avoid transform breaking position:fixed */}
+      {mob && data && (
+        <CompactPicker
+          open={sheetOpen}
+          onClose={() => setSheetOpen(false)}
+          title="Select Metric"
+          options={pickerOptions}
+          value={metric}
+          onSelect={(v) => { setMetric(v); setHighlighted(new Set()); }}
+        />
+      )}
 
     </div>
   );

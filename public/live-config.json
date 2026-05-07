@@ -1,0 +1,56 @@
+{
+  "status": "off",
+  "title": "",
+  "source": "youtube",
+  "videoId": "",
+  "startedAt": "",
+  "upcoming": [
+    {
+      "title": "Congressional Budget Hearing",
+      "date": "2026-05-05T14:00:00Z",
+      "source": "cspan"
+    }
+  ],
+  "demos": [
+    {
+      "title": "Trump Address to Congress 2025",
+      "speaker": "Donald Trump",
+      "file": "trump-congress-2025.json",
+      "duration": "99m",
+      "claims": 20,
+      "scores": {"true": 0, "mostly_true": 4, "misleading": 7, "false": 6, "unverifiable": 1},
+      "date": "2025-03-04"
+    },
+    {
+      "title": "State of the Union 2024",
+      "speaker": "Joe Biden",
+      "file": "sotu-2024.json",
+      "duration": "72m",
+      "claims": 27,
+      "scores": {"true": 10, "mostly_true": 10, "misleading": 4, "false": 1, "unverifiable": 2},
+      "date": "2024-03-07"
+    }
+  ],
+  "recent": [
+    {
+      "title": "Trump Address to Congress 2025",
+      "videoId": "QpH2KQ8mHjg",
+      "duration": "99m",
+      "claims": 20,
+      "scores": {"true": 0, "mostly_true": 4, "misleading": 7, "false": 6, "unverifiable": 1},
+      "date": "2025-03-04",
+      "isDemo": true,
+      "demoFile": "trump-congress-2025.json"
+    },
+    {
+      "title": "State of the Union 2024",
+      "videoId": "cplSUhU2avc",
+      "duration": "72m",
+      "claims": 27,
+      "scores": {"true": 10, "mostly_true": 10, "misleading": 4, "false": 1, "unverifiable": 2},
+      "date": "2024-03-07",
+      "isDemo": true,
+      "demoFile": "sotu-2024.json"
+    }
+  ]
+}
