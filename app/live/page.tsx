@@ -314,13 +314,90 @@ export default function LiveFactCheckPage() {
     }
   }, []);
 
-  /* ── Load config on mount ── */
+  /* ── Load config on mount — check live-feed API first, fall back to static JSON ── */
   useEffect(() => {
-    fetch("/live-config.json")
-      .then(r => r.json())
-      .then(setConfig)
-      .catch(() => {});
+    async function loadConfig() {
+      try {
+        // Check if there's a live broadcast via the API
+        const feedResp = await fetch("/api/live-feed");
+        if (feedResp.ok) {
+          const feed = await feedResp.json();
+          if (feed.state?.status === "live" && feed.state.videoId) {
+            // Live broadcast active — build config from API state
+            setConfig({
+              status: "live",
+              title: feed.state.title,
+              source: feed.state.source || "youtube",
+              videoId: feed.state.videoId,
+              startedAt: feed.state.startedAt,
+              upcoming: [],
+              recent: [],
+            });
+            return;
+          }
+        }
+      } catch {
+        // API not available — fall through to static config
+      }
+      // Fall back to static config file
+      try {
+        const resp = await fetch("/live-config.json");
+        const data = await resp.json();
+        setConfig(data);
+      } catch {}
+    }
+    loadConfig();
   }, []);
+
+  /* ── Poll live-feed API during live broadcasts (not demos) ── */
+  const lastPollTime = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!isPlaying || isDemo) return;
+
+    const poll = async () => {
+      try {
+        const url = lastPollTime.current
+          ? `/api/live-feed?since=${encodeURIComponent(lastPollTime.current)}`
+          : "/api/live-feed";
+        const resp = await fetch(url);
+        if (!resp.ok) return;
+        const feed = await resp.json();
+
+        // Update transcript
+        if (feed.transcript) {
+          setLiveTranscript(feed.transcript);
+        }
+
+        // Append new claims
+        if (feed.claims?.length > 0) {
+          const ids = new Set(feed.claims.map((c: Claim) => c.id));
+          setNewClaimIds(ids);
+          setClaims(prev => {
+            // Deduplicate by id
+            const existingIds = new Set(prev.map(c => c.id));
+            const brandNew = feed.claims.filter((c: Claim) => !existingIds.has(c.id));
+            return [...brandNew, ...prev];
+          });
+          // Track the latest timestamp for next poll
+          lastPollTime.current = feed.claims[0].timestamp;
+        }
+
+        // Check if broadcast ended
+        if (feed.state?.status === "off") {
+          setShowSummary(true);
+          setIsPlaying(false);
+        }
+      } catch (e) {
+        console.error("Live feed poll error:", e);
+      }
+    };
+
+    const interval = setInterval(poll, 3000);
+    // Initial poll immediately
+    poll();
+    return () => clearInterval(interval);
+  }, [isPlaying, isDemo]);
 
   /* ── Animate new claims ── */
   useEffect(() => {
