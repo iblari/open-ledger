@@ -152,8 +152,8 @@ const dgWs = new WebSocket(dgUrl, {
   headers: { Authorization: `Token ${DEEPGRAM_KEY}` },
 });
 
-let startTime = Date.now();
-let transcriptBuffer = "";
+let startTime = Date.now(); // kept only for duration display on shutdown
+let transcriptBuffer = []; // array of { transcript, words, receivedAt }
 let lastIngestTime = Date.now();
 const INGEST_INTERVAL = 15000; // 15 seconds
 let totalClaims = 0;
@@ -171,21 +171,48 @@ dgWs.on("message", async (data) => {
     const msg = JSON.parse(data.toString());
     if (msg.type === "Results" && msg.channel?.alternatives?.[0]) {
       const transcript = msg.channel.alternatives[0].transcript;
+      const words = msg.channel.alternatives[0].words || [];
       if (transcript) {
-        transcriptBuffer += " " + transcript;
+        transcriptBuffer.push({ transcript, words, receivedAt: Date.now() });
         // Print transcript in real-time
         process.stdout.write(`   📝 ${transcript}\n`);
 
         // Send to server every ~15 seconds
         const now = Date.now();
-        if (now - lastIngestTime >= INGEST_INTERVAL && transcriptBuffer.trim().length >= 30) {
+        const totalText = transcriptBuffer.map(e => e.transcript).join(" ").trim();
+        if (now - lastIngestTime >= INGEST_INTERVAL && totalText.length >= 30) {
           lastIngestTime = now;
-          const chunk = transcriptBuffer.trim();
-          transcriptBuffer = "";
-          const videoTime = Math.floor((now - startTime) / 1000);
+          const entries = transcriptBuffer;
+          transcriptBuffer = [];
+
+          // Flatten all word-level timestamps from Deepgram
+          const allWords = entries.flatMap(e => e.words);
+
+          // Skip if no word-level timestamps available
+          if (allWords.length === 0) {
+            console.log("   ⚠️  No word timestamps — skipping chunk");
+            return;
+          }
+
+          const chunkStartTime = allWords[0].start;
+          const chunkEndTime = allWords[allWords.length - 1].end;
+          const videoTime = chunkStartTime; // Deepgram-reported, not wall-clock
+          const chunk = entries.map(e => e.transcript).join(" ").trim();
 
           // Fire and forget — don't block the transcript flow
-          adminCall("/api/admin/ingest", { text: chunk, videoTime })
+          adminCall("/api/admin/ingest", {
+            text: chunk,
+            videoTime,
+            chunkStartTime,
+            chunkEndTime,
+            words: allWords.map(w => ({
+              word: w.word,
+              start: w.start,
+              end: w.end,
+              confidence: w.confidence,
+              punctuated_word: w.punctuated_word,
+            })),
+          })
             .then((resp) => {
               if (resp.claims?.length > 0) {
                 totalClaims += resp.claims.length;
@@ -194,7 +221,7 @@ dgWs.on("message", async (data) => {
                     c.rating === "MOSTLY TRUE" ? "🟢" :
                     c.rating === "MISLEADING" ? "🟡" :
                     c.rating === "FALSE" ? "🔴" : "⚪";
-                  console.log(`\n   ${emoji} ${c.rating}: "${c.quote}"`);
+                  console.log(`\n   ${emoji} ${c.rating} @${Number(c.videoTime).toFixed(1)}s: "${c.quote}"`);
                   console.log(`      Data: ${c.actual}`);
                 }
                 console.log(`   [${totalClaims} total claims]\n`);
@@ -256,13 +283,30 @@ ffmpeg.on("close", (code) => {
 async function shutdown() {
   console.log("\n\n⏹️  Stopping broadcast...");
 
-  // Send any remaining transcript
-  if (transcriptBuffer.trim().length >= 30) {
-    const videoTime = Math.floor((Date.now() - startTime) / 1000);
-    await adminCall("/api/admin/ingest", {
-      text: transcriptBuffer.trim(),
-      videoTime,
-    }).catch(() => {});
+  // Send any remaining transcript using Deepgram word-level timestamps
+  if (transcriptBuffer.length > 0) {
+    const entries = transcriptBuffer;
+    transcriptBuffer = [];
+    const chunk = entries.map(e => e.transcript).join(" ").trim();
+    const allWords = entries.flatMap(e => e.words);
+
+    if (chunk.length >= 30 && allWords.length > 0) {
+      const chunkStartTime = allWords[0].start;
+      const chunkEndTime = allWords[allWords.length - 1].end;
+      await adminCall("/api/admin/ingest", {
+        text: chunk,
+        videoTime: chunkStartTime,
+        chunkStartTime,
+        chunkEndTime,
+        words: allWords.map(w => ({
+          word: w.word,
+          start: w.start,
+          end: w.end,
+          confidence: w.confidence,
+          punctuated_word: w.punctuated_word,
+        })),
+      }).catch(() => {});
+    }
   }
 
   // Set site to off

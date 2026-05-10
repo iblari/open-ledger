@@ -26,6 +26,11 @@ export interface LiveClaim {
   explanation: string;
   videoTime: number;
   timestamp: string;
+  // New: word-level timestamp metadata
+  videoTimeSource?: "word_match" | "chunk_start" | "fallback";
+  transcriptConfidence?: number;
+  chunkStartTime?: number;
+  chunkEndTime?: number;
 }
 
 // ── Upstash REST helpers ──────────────────────────────────────────
@@ -149,4 +154,24 @@ export async function getLiveTranscript(): Promise<string> {
     raw = mem.get(LIVE_TRANSCRIPT_KEY);
   }
   return raw || "";
+}
+
+// ── Debug timing ─────────────────────────────────────────────────
+
+const DEBUG_TIMING_KEY = "live:debug:timing";
+
+/** Append a debug timing record (most recent 50, expires after 1 hour) */
+export async function appendDebugTiming(record: Record<string, unknown>): Promise<void> {
+  const json = JSON.stringify({ ...record, _ts: new Date().toISOString() });
+  if (hasUpstash()) {
+    // LPUSH + LTRIM to keep 50 + EXPIRE 3600
+    await upstashCmd("LPUSH", DEBUG_TIMING_KEY, json);
+    await upstashCmd("LTRIM", DEBUG_TIMING_KEY, 0, 49);
+    await upstashCmd("EXPIRE", DEBUG_TIMING_KEY, 3600);
+  } else {
+    const existing = mem.get(DEBUG_TIMING_KEY);
+    const list: string[] = existing ? JSON.parse(existing) : [];
+    list.unshift(json);
+    mem.set(DEBUG_TIMING_KEY, JSON.stringify(list.slice(0, 50)));
+  }
 }

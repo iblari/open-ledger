@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   appendLiveClaims,
+  appendDebugTiming,
   setLiveTranscript,
   type LiveClaim,
 } from "@/lib/live-kv";
@@ -8,16 +9,99 @@ import {
 /**
  * POST /api/admin/ingest
  *
- * Receives transcript text from the local broadcast CLI script,
- * fact-checks it via Claude, and stores the results for live viewers.
+ * Receives transcript text + word-level timestamps from the local broadcast
+ * CLI script, fact-checks it via Claude, and stores the results for live viewers.
  *
- * Body: { text: string, videoTime?: number }
- *   - text: ~15 seconds of transcript text
- *   - videoTime: seconds into the broadcast (for seeking)
+ * Body: {
+ *   text: string,
+ *   videoTime?: number,           // chunk-level start (Deepgram seconds)
+ *   chunkStartTime?: number,      // first word start
+ *   chunkEndTime?: number,        // last word end
+ *   words?: WordTiming[]          // per-word timestamps from Deepgram
+ * }
  *
  * Protected by ADMIN_KEY.
  */
+
+// ── Types ──────────────────────────────────────────────────────────
+
+interface WordTiming {
+  word: string;
+  start: number;
+  end: number;
+  confidence: number;
+  punctuated_word?: string;
+}
+
+// ── Helpers ────────────────────────────────────────────────────────
+
+/**
+ * Given a quote from Claude's fact-check and the full word-level timing array,
+ * find the best matching start time using sliding window fuzzy matching.
+ *
+ * Returns { videoTime, source, matchRate }
+ */
+function findQuoteStartTime(
+  quote: string,
+  words: WordTiming[],
+  chunkStartTime: number
+): { videoTime: number; source: "word_match" | "chunk_start"; matchRate: number } {
+  if (!words || words.length === 0) {
+    return { videoTime: chunkStartTime, source: "chunk_start", matchRate: 0 };
+  }
+
+  // Normalize quote into comparable tokens
+  const quoteTokens = quote
+    .toLowerCase()
+    .replace(/[^\w\s]/g, "")
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (quoteTokens.length === 0) {
+    return { videoTime: chunkStartTime, source: "chunk_start", matchRate: 0 };
+  }
+
+  // Normalize word array tokens for comparison
+  const wordTokens = words.map((w) =>
+    w.word.toLowerCase().replace(/[^\w]/g, "")
+  );
+
+  let bestScore = 0;
+  let bestIdx = 0;
+
+  // Slide a window of quoteTokens.length across the word array
+  const windowSize = quoteTokens.length;
+  for (let i = 0; i <= wordTokens.length - windowSize; i++) {
+    let matches = 0;
+    for (let j = 0; j < windowSize; j++) {
+      if (wordTokens[i + j] === quoteTokens[j]) {
+        matches++;
+      }
+    }
+    const score = matches / windowSize;
+    if (score > bestScore) {
+      bestScore = score;
+      bestIdx = i;
+    }
+  }
+
+  // Require at least 50% match rate to trust the word-level time
+  if (bestScore >= 0.5) {
+    return {
+      videoTime: words[bestIdx].start,
+      source: "word_match",
+      matchRate: bestScore,
+    };
+  }
+
+  return { videoTime: chunkStartTime, source: "chunk_start", matchRate: bestScore };
+}
+
+// ── Route handler ──────────────────────────────────────────────────
+
 export async function POST(req: Request) {
+  const ingestStart = Date.now();
+
   // Auth
   const adminKey = process.env.ADMIN_KEY;
   if (!adminKey) {
@@ -31,7 +115,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let body: { text?: string; videoTime?: number };
+  let body: {
+    text?: string;
+    videoTime?: number;
+    chunkStartTime?: number;
+    chunkEndTime?: number;
+    words?: WordTiming[];
+  };
   try {
     body = await req.json();
   } catch {
@@ -39,7 +129,9 @@ export async function POST(req: Request) {
   }
 
   const text = (body.text || "").trim();
-  const videoTime = body.videoTime || 0;
+  const chunkStartTime = body.chunkStartTime ?? body.videoTime ?? 0;
+  const chunkEndTime = body.chunkEndTime ?? chunkStartTime;
+  const words = body.words || [];
 
   if (!text || text.length < 20) {
     return NextResponse.json({ skipped: true, reason: "text too short" });
@@ -58,6 +150,8 @@ export async function POST(req: Request) {
   }
 
   try {
+    const claudeStart = Date.now();
+
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -75,7 +169,7 @@ TASK: Identify any FACTUAL ECONOMIC CLAIMS and fact-check them.
 Only flag claims that reference specific economic data: jobs numbers, GDP growth, unemployment rate, inflation, wages, debt, deficit, trade balance, stock market, gas prices, interest rates, poverty rate, taxes, government spending.
 
 For each claim found:
-- Extract the exact quote (short, just the claim portion)
+- Extract the EXACT quote — copy the speaker's words verbatim from the transcript. Do not paraphrase.
 - Rate it: TRUE | MOSTLY TRUE | MISLEADING | FALSE | UNVERIFIABLE
 - Confidence: 0-100 how confident you are in this rating
 - Provide the actual data citing the SPECIFIC dataset:
@@ -93,19 +187,22 @@ RULES:
 - If no economic claims exist in this chunk, return an empty array
 - Be precise with numbers
 - Include the specific time period of data you're referencing
+- IMPORTANT: The "quote" field MUST be copied verbatim from the transcript text — do not rephrase or summarize
 
 Respond ONLY in valid JSON (no markdown fences):
-{"claims":[{"quote":"exact words","rating":"TRUE","confidence":85,"actual":"data with dataset citation","explanation":"short explanation"}]}
+{"claims":[{"quote":"exact words from transcript","rating":"TRUE","confidence":85,"actual":"data with dataset citation","explanation":"short explanation"}]}
 
 No claims found: {"claims":[]}`,
         messages: [
           {
             role: "user",
-            content: `Live broadcast transcript chunk (at ${Math.floor(videoTime / 60)}:${String(Math.floor(videoTime % 60)).padStart(2, "0")}):\n"${text}"`,
+            content: `Live broadcast transcript chunk (${chunkStartTime.toFixed(1)}s–${chunkEndTime.toFixed(1)}s):\n"${text}"`,
           },
         ],
       }),
     });
+
+    const claudeMs = Date.now() - claudeStart;
 
     if (!response.ok) {
       const err = await response.text();
@@ -126,19 +223,67 @@ No claims found: {"claims":[]}`,
     const parsed = JSON.parse(cleaned);
 
     if (parsed.claims?.length > 0) {
+      // Resolve per-claim timestamps via word-level matching
       const claims: LiveClaim[] = parsed.claims.map(
-        (c: { quote: string; rating: string; confidence?: number; actual: string; explanation: string }) => ({
-          ...c,
-          videoTime,
-          timestamp: new Date().toISOString(),
-          id: `live-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-        })
+        (c: { quote: string; rating: string; confidence?: number; actual: string; explanation: string }) => {
+          const { videoTime, source, matchRate } = findQuoteStartTime(
+            c.quote,
+            words,
+            chunkStartTime
+          );
+
+          return {
+            ...c,
+            videoTime,
+            videoTimeSource: source,
+            transcriptConfidence: Math.round(matchRate * 100),
+            chunkStartTime,
+            chunkEndTime,
+            timestamp: new Date().toISOString(),
+            id: `live-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          };
+        }
       );
 
       await appendLiveClaims(claims);
+
+      // Structured observability log
+      const totalMs = Date.now() - ingestStart;
       console.log(
-        `[ingest] ${claims.length} claims found at ${videoTime}s`
+        JSON.stringify({
+          event: "ingest_complete",
+          claimCount: claims.length,
+          chunkStartTime,
+          chunkEndTime,
+          wordCount: words.length,
+          claudeMs,
+          totalMs,
+          claims: claims.map((c) => ({
+            rating: c.rating,
+            videoTime: c.videoTime,
+            videoTimeSource: c.videoTimeSource,
+            matchRate: c.transcriptConfidence,
+          })),
+        })
       );
+
+      // Debug timing record to Redis (non-blocking)
+      appendDebugTiming({
+        event: "ingest",
+        claimCount: claims.length,
+        chunkStartTime,
+        chunkEndTime,
+        wordCount: words.length,
+        claudeMs,
+        totalMs,
+        perClaim: claims.map((c) => ({
+          videoTime: c.videoTime,
+          source: c.videoTimeSource,
+          matchRate: c.transcriptConfidence,
+          quote: c.quote.slice(0, 60),
+        })),
+      }).catch(() => {});
+
       return NextResponse.json({ claims });
     }
 
