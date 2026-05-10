@@ -1,0 +1,20 @@
+{
+  "trump-congress-2025": {
+    "youtubeId": "QpH2KQ8mHjg",
+    "offset": 1269.4,
+    "matchedText": "Thank you very much. Thank you very much. It's a great honor.",
+    "confidence": 0.98,
+    "detectedAt": "2026-05-10T14:45:00.000Z",
+    "notes": "WSJ livestream with ~21 minutes of pre-show coverage before Trump speaks. Video total: 7435s (2h 3m 55s). Speech is 99 minutes. Pre-roll includes WSJ commentary, arrivals, and ceremony.",
+    "method": "yt-dlp audio extraction + Deepgram nova-2 word-level timestamps, cross-validated with YouTube auto-captions (srv3 format)"
+  },
+  "sotu-2024": {
+    "youtubeId": "cplSUhU2avc",
+    "offset": 4.8,
+    "matchedText": "Good evening. Good evening. If I were smart, I go home now.",
+    "confidence": 0.99,
+    "detectedAt": "2026-05-10T14:45:00.000Z",
+    "notes": "Video titled 'Full Speech' — starts almost immediately with Biden speaking. Very short intro (~5s of applause/silence before first words). Video total: 5240s (87m 20s).",
+    "method": "yt-dlp audio extraction + Deepgram nova-2 word-level timestamps"
+  }
+}
