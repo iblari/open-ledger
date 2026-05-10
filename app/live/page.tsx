@@ -286,12 +286,12 @@ export default function LiveFactCheckPage() {
   const contextRef = useRef("");
   const demoAbortRef = useRef(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const demoStartTime = useRef(0);
   const shownSegmentsRef = useRef<Set<number>>(new Set());
   const lastAutoCheckTime = useRef(0);
   const autoCheckBuffer = useRef("");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const ytPlayerRef = useRef<any>(null);
+  const playerStateRef = useRef<number | null>(null);
 
   /* ── Load YouTube IFrame API once ── */
   useEffect(() => {
@@ -418,7 +418,7 @@ export default function LiveFactCheckPage() {
     setShowSummary(false);
 
     contextRef.current = "";
-    demoStartTime.current = Date.now();
+
   }, []);
 
   /* ── Initialize YT Player when demo video loads ── */
@@ -439,7 +439,11 @@ export default function LiveFactCheckPage() {
         videoId,
         playerVars: { autoplay: 1, rel: 0 },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        events: { onReady: (e: any) => { e.target.playVideo(); } },
+        events: {
+          onReady: (e: any) => { e.target.playVideo(); },
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          onStateChange: (e: any) => { playerStateRef.current = e.data; },
+        },
       });
     };
 
@@ -449,6 +453,7 @@ export default function LiveFactCheckPage() {
         try { ytPlayerRef.current.destroy(); } catch {}
         ytPlayerRef.current = null;
       }
+      playerStateRef.current = null;
     };
   }, [isDemo, isPlaying, videoId]);
 
@@ -471,11 +476,19 @@ export default function LiveFactCheckPage() {
     const interval = setInterval(() => {
       if (demoAbortRef.current) return;
 
-      // Get current video time — YT API preferred, wall-clock fallback
-      let vt = (Date.now() - demoStartTime.current) / 1000;
-      if (ytPlayerRef.current?.getCurrentTime) {
-        try { vt = ytPlayerRef.current.getCurrentTime(); } catch {}
+      // Skip tick if player is not in PLAYING state (paused, buffering, ended)
+      const PLAYING = 1;
+      if (playerStateRef.current !== null && playerStateRef.current !== PLAYING) return;
+
+      // Get current video time — only from the real player, no wall-clock fallback
+      if (!ytPlayerRef.current?.getCurrentTime) return;
+      let vt: number;
+      try {
+        vt = ytPlayerRef.current.getCurrentTime();
+      } catch {
+        return;
       }
+      if (typeof vt !== "number" || isNaN(vt)) return;
 
       // Update transcript with recent segments
       let latestIdx = -1;
@@ -585,7 +598,7 @@ export default function LiveFactCheckPage() {
       const speech: DemoSpeech = await res.json();
       setVideoId(speech.videoId);
       setTitle(`DEMO — ${speech.title}, ${speech.date}`);
-      demoStartTime.current = Date.now();
+  
       // Setting state triggers the polling effect above
       setDemoSpeech(speech);
     } catch (e) {
@@ -769,7 +782,7 @@ export default function LiveFactCheckPage() {
       contextRef.current = "";
       setVideoId(speech.videoId);
       setTitle(speech.title);
-      demoStartTime.current = Date.now();
+  
       setDemoSpeech(speech);
       setUrlInput("");
     } catch (e) {
@@ -802,7 +815,7 @@ export default function LiveFactCheckPage() {
 
     const recentText = liveTranscript.split(" ").slice(-80).join(" ").trim();
 
-    let videoTime = Math.floor((Date.now() - demoStartTime.current) / 1000);
+    let videoTime = 0;
     if (ytPlayerRef.current?.getCurrentTime) {
       try { videoTime = Math.floor(ytPlayerRef.current.getCurrentTime()); } catch {}
     }

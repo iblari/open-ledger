@@ -6,17 +6,17 @@
   "duration": "99 minutes",
   "segments": [
     {
-      "time": 5,
+      "time": 1274,
       "text": "Thank you very much. This is a great honor. We've accomplished more in 43 days than most administrations accomplish in four years, maybe even eight years.",
       "claims": []
     },
     {
-      "time": 180,
+      "time": 1449,
       "text": "America is back, open for business, and stronger than ever before. We will very quickly make America greater than ever before.",
       "claims": []
     },
     {
-      "time": 480,
+      "time": 1749,
       "text": "When I took office, we inherited a mess. We inherited an economic catastrophe and an inflation nightmare.",
       "claims": [
         {
@@ -28,7 +28,7 @@
       ]
     },
     {
-      "time": 600,
+      "time": 1869,
       "text": "We suffered the worst inflation in 48 years, but perhaps even in the history of our country. Americans saw their grocery bills skyrocket and everything go through the roof.",
       "claims": [
         {
@@ -40,7 +40,7 @@
       ]
     },
     {
-      "time": 720,
+      "time": 1989,
       "text": "Joe Biden, especially, let the price of eggs get out of control. Everyone knows it. Under my leadership, we will bring the price of eggs and everything else back down.",
       "claims": [
         {
@@ -52,7 +52,7 @@
       ]
     },
     {
-      "time": 900,
+      "time": 2169,
       "text": "We have more liquid gold under our feet than any nation on earth, and by far. We are going to use it. Drill, baby, drill.",
       "claims": [
         {
@@ -64,7 +64,7 @@
       ]
     },
     {
-      "time": 1020,
+      "time": 2289,
       "text": "The previous administration closed more than 100 power plants. They were shutting down our energy. We are now opening them back up.",
       "claims": [
         {
@@ -76,7 +76,7 @@
       ]
     },
     {
-      "time": 1200,
+      "time": 2469,
       "text": "We are taking on waste, fraud, and abuse in the federal government. We found hundreds of billions of dollars of fraud. DOGE is doing an incredible job saving taxpayer money.",
       "claims": [
         {
@@ -88,7 +88,7 @@
       ]
     },
     {
-      "time": 1500,
+      "time": 2769,
       "text": "DOGE found that we were paying $8 billion a year for buildings that are mostly empty. Government employees will come back to work or they will be dismissed.",
       "claims": [
         {
@@ -100,7 +100,7 @@
       ]
     },
     {
-      "time": 1920,
+      "time": 3189,
       "text": "On April 2nd, reciprocal tariffs kick in. We will take in trillions and trillions of dollars that create jobs like we have never seen before.",
       "claims": [
         {
@@ -112,7 +112,7 @@
       ]
     },
     {
-      "time": 2040,
+      "time": 3309,
       "text": "I did it with China, and nobody thought that was possible. We took in hundreds of billions of dollars from China. They paid dearly, not us.",
       "claims": [
         {
@@ -124,7 +124,7 @@
       ]
     },
     {
-      "time": 2280,
+      "time": 3549,
       "text": "Auto plants are opening up all over the place. They're coming back to Michigan, they're coming back to South Carolina, Ohio, and many other states.",
       "claims": [
         {
@@ -136,7 +136,7 @@
       ]
     },
     {
-      "time": 2520,
+      "time": 3789,
       "text": "Before the end of my first full business day, we secured nearly $3 trillion of new investments in the United States. SoftBank committed $200 billion. Apple committed $500 billion. TSMC is investing $165 billion.",
       "claims": [
         {
@@ -154,7 +154,7 @@
       ]
     },
     {
-      "time": 2760,
+      "time": 4029,
       "text": "We're going to have no tax on tips, no tax on overtime, and no tax on Social Security. People on Social Security have been treated very unfairly.",
       "claims": [
         {
@@ -166,12 +166,12 @@
       ]
     },
     {
-      "time": 3120,
+      "time": 4389,
       "text": "I brought back the TikTok ban, saved it, and now we're going to get a deal where the United States gets 50 percent of TikTok.",
       "claims": []
     },
     {
-      "time": 3360,
+      "time": 4629,
       "text": "The previous administration spent perhaps $350 billion on Ukraine, like taking candy from a baby. And we never got a thank you.",
       "claims": [
         {
@@ -183,7 +183,7 @@
       ]
     },
     {
-      "time": 3600,
+      "time": 4869,
       "text": "I ended the last administration's insane electric vehicle mandate. You can buy any car you want. You can buy a gasoline-powered car, a hybrid, electric, anything.",
       "claims": [
         {
@@ -195,7 +195,7 @@
       ]
     },
     {
-      "time": 3840,
+      "time": 5109,
       "text": "I always said the stock market is the ultimate report card. And our stock market since Election Day has been doing very well. Trillions of dollars of wealth created.",
       "claims": [
         {
@@ -207,7 +207,7 @@
       ]
     },
     {
-      "time": 4200,
+      "time": 5469,
       "text": "Gas prices are coming down and coming down rapidly. In some states, you can already buy gas for under two dollars a gallon.",
       "claims": [
         {
@@ -219,7 +219,7 @@
       ]
     },
     {
-      "time": 4800,
+      "time": 6069,
       "text": "We are going to make the Trump tax cuts permanent. If we don't, you will have the biggest tax increase in the history of our country.",
       "claims": [
         {
@@ -231,14 +231,19 @@
       ]
     },
     {
-      "time": 5400,
+      "time": 6669,
       "text": "We will rebuild our military, take care of our veterans, and always put America first. We are respected again all over the world.",
       "claims": []
     },
     {
-      "time": 5700,
+      "time": 6969,
       "text": "Our country is going to be bigger, better, and stronger than ever before. The best is yet to come. God bless you, and God bless America.",
       "claims": []
     }
-  ]
+  ],
+  "_metadata": {
+    "prerollOffsetApplied": 1269.4,
+    "appliedAt": "2026-05-10T14:50:26.628Z",
+    "originalFirstSegmentTime": 5
+  }
 }
