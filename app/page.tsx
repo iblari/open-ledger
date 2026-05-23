@@ -71,42 +71,180 @@ const METRIC_ORDER = ["gdp", "unemployment", "inflation", "sp500", "debt_gdp", "
 /* ─────────────────────────────────────────────
    HEATMAP HELPERS
 ───────────────────────────────────────────── */
-function computeHeatmap() {
-  const out: Record<string, Record<string, { start: number; end: number; pctChange: number; improved: boolean }>> = {};
+
+// Per-cell summary. `pctChange` is the legacy raw % change (kept for DeepDive
+// compatibility); the other fields back the per-metric display modes.
+type Cell = {
+  start: number;
+  end: number;
+  startYear: number;
+  endYear: number;
+  years: number;
+  pctChange: number;                  // (end - start) / |start| * 100 — legacy, kept for DeepDive
+  ppChange: number;                   // end - start (in the metric's own units)
+  annualizedNominal: number | null;   // %/yr — null if start <= 0 or end <= 0
+  annualizedReal: number | null;      // %/yr — same caveat + CPI deflator applied
+  avgInflation: number | null;        // %/yr — only populated for the inflation metric
+  improved: boolean;
+};
+
+// Build a CPI index anchored at 1.0 in the year *before* the first inflation
+// data point. cpi[Y] = price level at end of year Y relative to that anchor.
+function buildCPIIndex(): Record<number, number> {
+  const idx: Record<number, number> = {};
+  const infl = [...METRICS.inflation.d].sort((a, b) => a.y - b.y);
+  if (infl.length === 0) return idx;
+  idx[infl[0].y - 1] = 1.0;
+  let c = 1.0;
+  for (const pt of infl) {
+    c *= 1 + pt.v / 100;
+    idx[pt.y] = c;
+  }
+  return idx;
+}
+
+function computeHeatmap(): Record<string, Record<string, Cell>> {
+  const out: Record<string, Record<string, Cell>> = {};
+  const cpi = buildCPIIndex();
+
   for (const [mk, m] of Object.entries(METRICS)) {
     out[mk] = {};
     for (let ai = 0; ai < AID.length; ai++) {
       const id = AID[ai];
-      const pts = m.d.filter(d => d.a === id);
+      const pts = m.d.filter(d => d.a === id).sort((a, b) => a.y - b.y);
       if (pts.length < 1) continue;
 
-      // Inherited baseline: use last value of previous admin, or own first value for Clinton
+      // Inherited baseline: previous admin's last value (and year), or own first for Clinton.
       let start: number;
+      let startYear: number;
       if (ai > 0) {
-        const prevPts = m.d.filter(d => d.a === AID[ai - 1]);
-        start = prevPts.length > 0 ? prevPts[prevPts.length - 1].v : pts[0].v;
+        const prevPts = m.d.filter(d => d.a === AID[ai - 1]).sort((a, b) => a.y - b.y);
+        if (prevPts.length > 0) {
+          start = prevPts[prevPts.length - 1].v;
+          startYear = prevPts[prevPts.length - 1].y;
+        } else {
+          start = pts[0].v;
+          startYear = pts[0].y;
+        }
       } else {
         start = pts[0].v;
+        startYear = pts[0].y;
       }
       const end = pts[pts.length - 1].v;
+      const endYear = pts[pts.length - 1].y;
+      const years = Math.max(endYear - startYear, 1);
+
       const pctChange = ((end - start) / Math.abs(start || 1)) * 100;
+      const ppChange = end - start;
+
+      // Annualized only defined when both endpoints are positive (no logs of zero/negatives).
+      let annualizedNominal: number | null = null;
+      if (start > 0 && end > 0) {
+        annualizedNominal = (Math.pow(end / start, 1 / years) - 1) * 100;
+      }
+      let annualizedReal: number | null = null;
+      if (start > 0 && end > 0 && cpi[startYear] !== undefined && cpi[endYear] !== undefined) {
+        const realEnd = end * (cpi[startYear] / cpi[endYear]);
+        annualizedReal = (Math.pow(realEnd / start, 1 / years) - 1) * 100;
+      }
+
+      // Arithmetic mean of yearly inflation rates — close enough to geometric for these
+      // magnitudes and reads more cleanly than a compounded number.
+      let avgInflation: number | null = null;
+      if (mk === "inflation") {
+        avgInflation = pts.reduce((s, p) => s + p.v, 0) / pts.length;
+      }
+
       const improved = m.inv ? end < start : end > start;
-      out[mk][id] = { start, end, pctChange, improved };
+      out[mk][id] = {
+        start, end, startYear, endYear, years,
+        pctChange, ppChange, annualizedNominal, annualizedReal, avgInflation,
+        improved,
+      };
     }
   }
   return out;
 }
 
+/* ─────────────────────────────────────────────
+   DISPLAY MODES — how each metric is rendered
+───────────────────────────────────────────── */
+
+type DisplayMode = "per_metric" | "raw_pct";
+type DollarMode = "real" | "nominal";
+type DisplayUnit = "pp" | "pct_yr" | "pct_avg" | "pct";
+
+type MetricDisplay = { perMetricUnit: DisplayUnit; dollarAware: boolean };
+
+// Default representation per metric in "per-metric" mode. Rates → pp change (avoids
+// "% of a %" confusion and divide-by-near-zero artifacts); levels → annualized growth
+// (compounding-aware, fair across tenure lengths); inflation → average annual rate
+// (more meaningful than start→end change of a flow variable).
+const METRIC_DISPLAY: Record<string, MetricDisplay> = {
+  gdp:           { perMetricUnit: "pp",      dollarAware: false },
+  unemployment:  { perMetricUnit: "pp",      dollarAware: false },
+  inflation:     { perMetricUnit: "pct_avg", dollarAware: false },
+  sp500:         { perMetricUnit: "pct_yr",  dollarAware: true  },
+  debt_gdp:      { perMetricUnit: "pp",      dollarAware: false },
+  median_income: { perMetricUnit: "pct_yr",  dollarAware: true  },
+};
+
+function getDisplayedChange(
+  c: Cell, mk: string, mode: DisplayMode, dollarMode: DollarMode
+): { value: number | null; unit: DisplayUnit; improved: boolean } {
+  if (mode === "raw_pct") {
+    return { value: c.pctChange, unit: "pct", improved: c.improved };
+  }
+  const cfg = METRIC_DISPLAY[mk];
+  const inv = METRICS[mk].inv;
+  if (cfg.perMetricUnit === "pp") {
+    return { value: c.ppChange, unit: "pp", improved: inv ? c.ppChange < 0 : c.ppChange > 0 };
+  }
+  if (cfg.perMetricUnit === "pct_avg") {
+    // Inflation row: "improved" = at or below the Fed's 2% target.
+    if (c.avgInflation === null) return { value: null, unit: "pct_avg", improved: false };
+    return { value: c.avgInflation, unit: "pct_avg", improved: c.avgInflation <= 2 };
+  }
+  if (cfg.perMetricUnit === "pct_yr") {
+    const v = dollarMode === "real" ? c.annualizedReal : c.annualizedNominal;
+    if (v === null) return { value: null, unit: "pct_yr", improved: false };
+    return { value: v, unit: "pct_yr", improved: inv ? v < 0 : v > 0 };
+  }
+  return { value: c.pctChange, unit: "pct", improved: c.improved };
+}
+
+// Normalized 0..1 magnitude for color intensity, calibrated per unit so a "big"
+// move in each unit reads roughly the same visual weight.
+function colorMagnitude(value: number, unit: DisplayUnit): number {
+  switch (unit) {
+    case "pp":      return Math.min(Math.abs(value) / 10, 1);     // 10 pp saturates
+    case "pct_yr":  return Math.min(Math.abs(value) / 10, 1);     // 10%/yr saturates
+    case "pct_avg": return Math.min(Math.abs(value - 2) / 4, 1);  // ±4pp from 2% target saturates
+    case "pct":     return Math.min(Math.abs(value) / 50, 1);     // existing legacy threshold
+  }
+}
+
+function formatDisplayedChange(value: number | null, unit: DisplayUnit): string {
+  if (value === null || !isFinite(value)) return "—";
+  const sign = value >= 0 ? "+" : "";
+  switch (unit) {
+    case "pp":      return `${sign}${value.toFixed(1)} pp`;
+    case "pct_yr":  return `${sign}${value.toFixed(1)}%/yr`;
+    case "pct_avg": return `${value.toFixed(1)}% avg`;
+    case "pct":     return `${sign}${value.toFixed(1)}%`;
+  }
+}
+
+// Existing cellColor kept for backward-compat (DeepDive section still calls it directly).
 function cellColor(c: { improved: boolean; pctChange: number } | undefined) {
   if (!c) return { bg: C.paper, text: C.mute };
-  const mag = Math.min(Math.abs(c.pctChange) / 50, 1);
-  if (c.improved) {
-    const alpha = 0.15 + mag * 0.65;
-    return { bg: `rgba(13,115,119,${alpha})`, text: alpha > 0.45 ? "#fff" : C.ink };
-  } else {
-    const alpha = 0.15 + mag * 0.65;
-    return { bg: `rgba(194,65,12,${alpha})`, text: alpha > 0.45 ? "#fff" : C.ink };
-  }
+  return cellColorFromMag(Math.min(Math.abs(c.pctChange) / 50, 1), c.improved);
+}
+
+function cellColorFromMag(magNorm: number, improved: boolean) {
+  const alpha = 0.15 + magNorm * 0.65;
+  if (improved) return { bg: `rgba(13,115,119,${alpha})`, text: alpha > 0.45 ? "#fff" : C.ink };
+  return { bg: `rgba(194,65,12,${alpha})`, text: alpha > 0.45 ? "#fff" : C.ink };
 }
 
 function fmt(v: number, u: string) {
@@ -331,12 +469,86 @@ function Hero({ mob, med }: { mob: boolean; med: boolean }) {
   );
 }
 
+// Small segmented pill toggle used in the scorecard header.
+function PillToggle<T extends string>({ label, options, value, onChange, disabled = false }: {
+  label: string;
+  options: { value: T; label: string }[];
+  value: T;
+  onChange: (v: T) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div style={{
+      display: "inline-flex", alignItems: "center", gap: 8,
+      opacity: disabled ? 0.4 : 1,
+      pointerEvents: disabled ? "none" : "auto",
+    }}>
+      <span style={{
+        fontSize: 10, color: C.sub, letterSpacing: "0.08em",
+        textTransform: "uppercase", fontWeight: 500, fontFamily: SANS,
+      }}>{label}</span>
+      <div style={{
+        display: "inline-flex", border: `1px solid ${C.rule}`,
+        borderRadius: 3, background: C.card, padding: 2,
+      }}>
+        {options.map(opt => {
+          const active = opt.value === value;
+          return (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => onChange(opt.value)}
+              aria-pressed={active}
+              style={{
+                fontSize: 11, padding: "3px 10px", border: "none", cursor: "pointer",
+                borderRadius: 2,
+                background: active ? C.ink : "transparent",
+                color: active ? C.bg : C.sub,
+                fontWeight: active ? 600 : 500,
+                fontFamily: SANS, transition: "all 0.12s",
+              }}
+            >
+              {opt.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 /* ── Scorecard Heatmap ── */
-function HeatCell({ id, mk, c, mob, metricLabel, unit, flipBelow = false }: { id: string; mk: string; c: { start: number; end: number; pctChange: number; improved: boolean } | undefined; mob: boolean; metricLabel: string; unit: string; flipBelow?: boolean }) {
+function HeatCell({
+  id, mk, c, mob, metricLabel, unit, flipBelow = false,
+  displayMode = "per_metric", dollarMode = "real",
+}: {
+  id: string; mk: string; c: Cell | undefined; mob: boolean;
+  metricLabel: string; unit: string; flipBelow?: boolean;
+  displayMode?: DisplayMode; dollarMode?: DollarMode;
+}) {
   const [hov, setHov] = useState(false);
-  const st = cellColor(c);
-  const pct = c ? `${c.pctChange >= 0 ? "+" : ""}${c.pctChange.toFixed(1)}%` : "—";
   const admin = ADMINS[id as keyof typeof ADMINS];
+
+  const disp = c ? getDisplayedChange(c, mk, displayMode, dollarMode) : null;
+  const st = disp && disp.value !== null
+    ? cellColorFromMag(colorMagnitude(disp.value, disp.unit), disp.improved)
+    : { bg: C.paper, text: C.mute };
+  const headline = disp ? formatDisplayedChange(disp.value, disp.unit) : "—";
+
+  // Tooltip footnote: when in per-metric mode, show the raw % for transparency
+  // (so the reader can see what the alternative framing produces).
+  const showRawNote = displayMode === "per_metric" && c
+    && disp && disp.unit !== "pct"
+    && isFinite(c.pctChange) && Math.abs(c.pctChange) < 100000;
+  const rawNote = showRawNote && c
+    ? `raw % change: ${c.pctChange >= 0 ? "+" : ""}${c.pctChange.toFixed(1)}%`
+    : null;
+
+  // Annualized values get a small "(real)" / "(nominal)" qualifier in the tooltip.
+  const dollarQualifier = displayMode === "per_metric"
+    && disp && disp.unit === "pct_yr"
+    ? (dollarMode === "real" ? " (real)" : " (nominal)")
+    : "";
 
   return (
     <Link
@@ -355,7 +567,7 @@ function HeatCell({ id, mk, c, mob, metricLabel, unit, flipBelow = false }: { id
         zIndex: hov ? 10 : 1,
       }}
     >
-      <span style={{ fontFamily: SERIF, fontSize: mob ? 13 : 15, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{pct}</span>
+      <span style={{ fontFamily: SERIF, fontSize: mob ? 13 : 15, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{headline}</span>
       {!mob && c && (
         <span style={{ fontSize: 9, letterSpacing: "0.04em", opacity: 0.75, fontVariantNumeric: "tabular-nums" }}>
           {fmt(c.start, unit)} → {fmt(c.end, unit)}
@@ -383,8 +595,13 @@ function HeatCell({ id, mk, c, mob, metricLabel, unit, flipBelow = false }: { id
           </div>
           <div style={{
             fontFamily: SERIF, fontSize: 16, fontWeight: 700, marginTop: 4,
-            color: c.improved ? "#8ee3e6" : "#fed7aa",
-          }}>{pct}</div>
+            color: disp && disp.improved ? "#8ee3e6" : "#fed7aa",
+          }}>{headline}<span style={{ fontSize: 11, fontWeight: 400, opacity: 0.7 }}>{dollarQualifier}</span></div>
+          {rawNote && (
+            <div style={{ fontSize: 10, opacity: 0.45, marginTop: 2, fontVariantNumeric: "tabular-nums" }}>
+              {rawNote}
+            </div>
+          )}
           <div style={{ fontSize: 10, opacity: 0.5, marginTop: 4 }}>Click to explore →</div>
           {/* Arrow — points down at the cell when tooltip is above, up at the cell when below */}
           <div style={{
@@ -404,6 +621,8 @@ function HeatCell({ id, mk, c, mob, metricLabel, unit, flipBelow = false }: { id
 
 function ScorecardSection({ mob, med }: { mob: boolean; med: boolean }) {
   const heat = useMemo(() => computeHeatmap(), []);
+  const [displayMode, setDisplayMode] = useState<DisplayMode>("per_metric");
+  const [dollarMode, setDollarMode] = useState<DollarMode>("real");
 
   return (
     <section id="scorecard" style={{ padding: mob ? "48px 0" : "72px 0", borderBottom: `1px solid ${C.rule}` }}>
@@ -418,10 +637,11 @@ function ScorecardSection({ mob, med }: { mob: boolean; med: boolean }) {
           </div>
           <div>
             <p style={{ fontSize: 17, color: C.sub, maxWidth: "56ch", lineHeight: 1.5 }}>
-              Each cell shows the percent change in that metric across the administration&rsquo;s tenure.
-              Greens mean the number moved in the conventionally-preferred direction;
-              oranges mean it moved away. <strong style={{ color: C.ink }}>We make no claim that the president
-              caused the change</strong> — that&rsquo;s your job.
+              Each cell shows how that metric moved across the administration&rsquo;s tenure, in
+              the unit that best fits the metric &mdash; percentage points for rates, annualized
+              for prices and income, average for inflation. Greens mean the number moved in the
+              conventionally-preferred direction; oranges mean it moved away. <strong style={{ color: C.ink }}>We make no claim that
+              the president caused the change</strong> &mdash; that&rsquo;s your job.
             </p>
             <Link href="/dashboard" style={{
               marginTop: 12, display: "inline-flex", alignItems: "center", gap: 8,
@@ -440,6 +660,33 @@ function ScorecardSection({ mob, med }: { mob: boolean; med: boolean }) {
           </div>
         )}
         <div style={{ background: C.card, border: `1px solid ${C.rule}`, borderRadius: 4, overflow: "hidden", overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+          {/* Display-mode toggles */}
+          <div style={{
+            display: "flex", justifyContent: "flex-end", alignItems: "center",
+            gap: mob ? 12 : 20, padding: mob ? "10px 12px" : "10px 16px",
+            background: C.paper, borderBottom: `1px solid ${C.rule}`,
+            flexWrap: "wrap", minWidth: mob ? 800 : undefined,
+          }}>
+            <PillToggle<DisplayMode>
+              label="Display"
+              value={displayMode}
+              onChange={setDisplayMode}
+              options={[
+                { value: "per_metric", label: "Per-metric" },
+                { value: "raw_pct",    label: "Raw %" },
+              ]}
+            />
+            <PillToggle<DollarMode>
+              label="$ values"
+              value={dollarMode}
+              onChange={setDollarMode}
+              disabled={displayMode === "raw_pct"}
+              options={[
+                { value: "real",    label: "Real" },
+                { value: "nominal", label: "Nominal" },
+              ]}
+            />
+          </div>
           {/* Header row */}
           <div style={{
             display: "grid",
@@ -484,7 +731,9 @@ function ScorecardSection({ mob, med }: { mob: boolean; med: boolean }) {
                   <span style={{ fontWeight: 600, color: C.ink, fontSize: 13 }}>{m.l}</span>
                 </div>
                 {AID.map(id => (
-                  <HeatCell key={id} id={id} mk={mk} c={heat[mk]?.[id]} mob={mob} metricLabel={m.l} unit={m.u} flipBelow={flipBelow} />
+                  <HeatCell key={id} id={id} mk={mk} c={heat[mk]?.[id]} mob={mob}
+                    metricLabel={m.l} unit={m.u} flipBelow={flipBelow}
+                    displayMode={displayMode} dollarMode={dollarMode} />
                 ))}
                 {/* Trump II — live CTA cell */}
                 <Link href="/live-benchmark" style={{
@@ -512,7 +761,11 @@ function ScorecardSection({ mob, med }: { mob: boolean; med: boolean }) {
             padding: "14px 20px", background: C.paper, borderTop: `1px solid ${C.rule}`,
             fontSize: 11, color: C.sub, letterSpacing: "0.04em", flexWrap: "wrap", gap: 12,
           }}>
-            <span>Each cell = percent change from inherited value to last year of administration.</span>
+            <span>
+              {displayMode === "per_metric"
+                ? <>Per-metric view: pp change for rates, {dollarMode} annualized for prices/income, average for inflation.</>
+                : <>Raw % change from inherited value to last year of administration.</>}
+            </span>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span>Worsened</span>
               <div style={{ display: "flex", border: `1px solid ${C.rule}`, borderRadius: 3, overflow: "hidden" }}>
