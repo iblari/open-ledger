@@ -1173,7 +1173,7 @@ function App(){
                 <div key={id} style={{flex:mob?1:yrs,display:"flex",flexDirection:"column",gap:mob?4:6,minWidth:0}}>
                   <div style={{width:"100%",height:4,background:a.color,borderRadius:1}}/>
                   <div style={{display:"flex",flexDirection:"column",gap:1,paddingLeft:2,overflow:"hidden"}}>
-                    <span style={{fontFamily:ESERIF,fontSize:mob?11:13,fontWeight:500,color:a.color,letterSpacing:"-0.01em",lineHeight:1.1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{a.name}</span>
+                    <span style={{fontFamily:ESERIF,fontSize:mob?10:13,fontWeight:500,color:a.color,letterSpacing:"-0.015em",lineHeight:1.1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{a.name}</span>
                     {!mob && (
                       <span style={{fontFamily:ESANS,fontSize:9,color:EC.mute,letterSpacing:"0.04em",lineHeight:1.1,whiteSpace:"nowrap"}}>{a.full}</span>
                     )}
@@ -1189,8 +1189,10 @@ function App(){
                 background:`repeating-linear-gradient(-45deg, #c1272d, #c1272d 3px, rgba(193,39,45,0.35) 3px, rgba(193,39,45,0.35) 6px)`,
               }}/>
               <div style={{display:"flex",flexDirection:"column",gap:1,paddingLeft:2,overflow:"hidden"}}>
-                <span style={{fontFamily:ESERIF,fontSize:mob?11:13,fontWeight:500,color:"#c1272d",letterSpacing:"-0.01em",lineHeight:1.1,whiteSpace:"nowrap",display:"inline-flex",alignItems:"center",gap:mob?4:5}}>
-                  <span style={{width:mob?5:6,height:mob?5:6,borderRadius:"50%",background:"#c1272d",animation:"pulse 2s infinite",flexShrink:0}}/>
+                <span style={{fontFamily:ESERIF,fontSize:mob?10:13,fontWeight:500,color:"#c1272d",letterSpacing:"-0.015em",lineHeight:1.1,whiteSpace:"nowrap",display:"inline-flex",alignItems:"center",gap:mob?3:5,overflow:"hidden",textOverflow:"ellipsis"}}>
+                  {/* Drop the pulse dot on mobile — the striped bar above
+                      already signals "in progress", and the dot eats label space. */}
+                  {!mob && <span style={{width:6,height:6,borderRadius:"50%",background:"#c1272d",animation:"pulse 2s infinite",flexShrink:0}}/>}
                   Trump II
                 </span>
                 {!mob && (
