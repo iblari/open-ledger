@@ -878,7 +878,11 @@ function DeepDiveSection({ mob, med }: { mob: boolean; med: boolean }) {
                 const a = ADMINS[id];
                 const c = heat[mk]?.[id];
                 if (!c) return null;
-                const up = METRICS[mk].inv ? c.end < c.start : c.end > c.start;
+                // Use the same per-metric framing as Section 01 (real dollars for $/idx
+                // metrics). No toggle here — the deep dive is focused, the per-metric
+                // unit is in the value itself ("+1.8 pp" / "+10.5%/yr" / "4.9% avg").
+                const disp = getDisplayedChange(c, mk, "per_metric", "real");
+                const headline = formatDisplayedChange(disp.value, disp.unit);
                 return (
                   <div key={id} style={{
                     display: "grid", gridTemplateColumns: "auto 1fr auto", gap: 12,
@@ -893,9 +897,9 @@ function DeepDiveSection({ mob, med }: { mob: boolean; med: boolean }) {
                     <div style={{ textAlign: "right" }}>
                       <div style={{
                         fontFamily: SERIF, fontSize: 17, fontVariantNumeric: "tabular-nums", fontWeight: 500,
-                        color: up ? C.improveStrong : C.declineStrong,
+                        color: disp.improved ? C.improveStrong : C.declineStrong,
                       }}>
-                        {c.pctChange >= 0 ? "+" : ""}{c.pctChange.toFixed(1)}%
+                        {headline}
                       </div>
                       <div style={{ fontSize: 10, color: C.mute, fontVariantNumeric: "tabular-nums" }}>
                         {fmt(c.start, m.u)} → {fmt(c.end, m.u)}
@@ -904,6 +908,15 @@ function DeepDiveSection({ mob, med }: { mob: boolean; med: boolean }) {
                   </div>
                 );
               })}
+            </div>
+
+            <div style={{
+              fontSize: 10, color: C.mute, letterSpacing: "0.04em", lineHeight: 1.5,
+              padding: "0 2px", marginTop: -6,
+            }}>
+              {METRIC_DISPLAY[mk]?.perMetricUnit === "pp" && <>Showing percentage-point (pp) change across each tenure.</>}
+              {METRIC_DISPLAY[mk]?.perMetricUnit === "pct_yr" && <>Showing real annualized growth (CPI-adjusted) per year.</>}
+              {METRIC_DISPLAY[mk]?.perMetricUnit === "pct_avg" && <>Showing average annual inflation during each tenure.</>}
             </div>
 
             <Link href="/dashboard" style={{
