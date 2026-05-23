@@ -790,8 +790,13 @@ function DashHeatCell({
   const admin = ADMINS[aid];
 
   const disp = resolveDashDisplay(c, mk, displayMode, dollarMode);
+  const cfgD = METRIC_DISPLAY_DASHBOARD[mk];
   const mag = disp.value !== null
-    ? colorMagnitude(disp.value, disp.unit, { avgScale: AVG_SCALE_BY_METRIC[mk] })
+    ? colorMagnitude(disp.value, disp.unit, {
+        avgScale: AVG_SCALE_BY_METRIC[mk],
+        pctAvgTarget: cfgD?.pctAvgTarget,
+        pctAvgRange:  cfgD?.pctAvgRange,
+      })
     : 0;
   const st = disp.value !== null
     ? cellColorFromMag(mag, disp.improved)

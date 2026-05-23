@@ -172,6 +172,14 @@ export type DisplayUnit =
 export type MetricDisplay = {
   perMetricUnit: DisplayUnit;
   dollarAware: boolean;
+  // For pct_avg only: the "target" value used to judge improvement and as the
+  // anchor for color magnitude. Defaults to 0 (signed: positive avg = improved
+  // for non-inverse metrics, negative = improved for inverse). Set explicitly
+  // for inflation (Fed 2% target).
+  pctAvgTarget?: number;
+  // For pct_avg only: how far from the target saturates the color. Defaults
+  // to 2. Set wider (e.g., 4) when the metric varies more widely from target.
+  pctAvgRange?: number;
 };
 
 // Default representation per metric in "per-metric" mode. Rates → pp
@@ -184,7 +192,7 @@ export type MetricDisplay = {
 export const METRIC_DISPLAY_LANDING: Record<string, MetricDisplay> = {
   gdp:           { perMetricUnit: "pp",      dollarAware: false },
   unemployment:  { perMetricUnit: "pp",      dollarAware: false },
-  inflation:     { perMetricUnit: "pct_avg", dollarAware: false },
+  inflation:     { perMetricUnit: "pct_avg", dollarAware: false, pctAvgTarget: 2, pctAvgRange: 4 },
   sp500:         { perMetricUnit: "pct_yr",  dollarAware: true  },
   debt_gdp:      { perMetricUnit: "pp",      dollarAware: false },
   median_income: { perMetricUnit: "pct_yr",  dollarAware: true  },
@@ -218,9 +226,9 @@ export const METRIC_DISPLAY_DASHBOARD: Record<string, MetricDisplay> = {
   lfpr:          { perMetricUnit: "pp",           dollarAware: false },
   jobs:          { perMetricUnit: "avg_per_year", dollarAware: false },
   mfg:           { perMetricUnit: "pp",           dollarAware: false },
-  inflation:     { perMetricUnit: "pct_avg",      dollarAware: false },
+  inflation:     { perMetricUnit: "pct_avg",      dollarAware: false, pctAvgTarget: 2, pctAvgRange: 4 },
   gas:           { perMetricUnit: "pct_yr",       dollarAware: true  },
-  wages:         { perMetricUnit: "pct_avg",      dollarAware: false },
+  wages:         { perMetricUnit: "pct_avg",      dollarAware: false }, // defaults: target=0, range=2 (positive real wage growth = improved)
   median_income: { perMetricUnit: "pct_yr",       dollarAware: true  },
   poverty:       { perMetricUnit: "pp",           dollarAware: false },
   inequality:    { perMetricUnit: "pp",           dollarAware: false },
@@ -261,9 +269,15 @@ export function getDisplayedChange(
     };
   }
   if (cfg.perMetricUnit === "pct_avg") {
-    // Inflation row: "improved" = at or below the Fed's 2% target.
-    if (c.avgInflation === null) return { value: null, unit: "pct_avg", improved: false };
-    return { value: c.avgInflation, unit: "pct_avg", improved: c.avgInflation <= 2 };
+    // Average annual rate during the tenure. avgValue is always populated;
+    // "improved" depends on whether the metric has a target (inflation = 2%
+    // Fed target) and whether lower or higher is better.
+    if (c.avgValue === undefined || c.avgValue === null || !isFinite(c.avgValue)) {
+      return { value: null, unit: "pct_avg", improved: false };
+    }
+    const target = cfg.pctAvgTarget ?? 0;
+    const improved = metricInverse ? c.avgValue <= target : c.avgValue >= target;
+    return { value: c.avgValue, unit: "pct_avg", improved };
   }
   if (cfg.perMetricUnit === "pct_yr") {
     const v = dollarMode === "real" ? c.annualizedReal : c.annualizedNominal;
@@ -324,14 +338,25 @@ export function formatDisplayedChange(
 ───────────────────────────────────────────── */
 
 // Per-unit color thresholds calibrated so a "big" move in each unit
-// reads with roughly equivalent visual weight. For avg_per_year the
-// caller must provide a unit-specific scale (since "big" varies wildly
-// between metrics — 2M jobs/yr vs $1000B deficit/yr vs 1%/yr wages).
-export function colorMagnitude(value: number, unit: DisplayUnit, hint?: { avgScale?: number }): number {
+// reads with roughly equivalent visual weight. The hint param carries
+// metric-specific scale info that isn't intrinsic to the unit:
+//   - avg_per_year: avgScale (max |avg| across admins for this metric)
+//   - pct_avg: target (anchor) + range (distance from target that saturates).
+//     Defaults to target=0, range=2 — overridden by metrics with known
+//     targets (inflation: target=2, range=4).
+export function colorMagnitude(
+  value: number,
+  unit: DisplayUnit,
+  hint?: { avgScale?: number; pctAvgTarget?: number; pctAvgRange?: number },
+): number {
   switch (unit) {
     case "pp":      return Math.min(Math.abs(value) / 10, 1);          // 10 pp saturates
     case "pct_yr":  return Math.min(Math.abs(value) / 10, 1);          // 10%/yr saturates
-    case "pct_avg": return Math.min(Math.abs(value - 2) / 4, 1);       // ±4pp from 2% target saturates
+    case "pct_avg": {
+      const target = hint?.pctAvgTarget ?? 0;
+      const range  = hint?.pctAvgRange ?? 2;
+      return Math.min(Math.abs(value - target) / range, 1);
+    }
     case "avg_per_year": {
       const scale = hint?.avgScale ?? 1;
       return Math.min(Math.abs(value) / scale, 1);
