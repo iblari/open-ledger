@@ -241,34 +241,7 @@ function fmt(v,u){
   if(u==="inc")return`$${(v/1000).toFixed(1)}K`;if(u==="cc")return v.toFixed(0);if(u==="mfg")return`${v.toFixed(1)}M`;if(u==="pp")return`$${v.toFixed(2)}`;return v.toLocaleString();
 }
 
-function scores(){
-  const sc={};for(const id of AID)sc[id]={r:{},p:0,details:{}};
-  for(const mk of MK){const m=M[mk];
-    const changes={};
-    for(const id of AID){
-      const pts=m.d.filter(d=>d.a===id);
-      if(pts.length<1)continue;
-      const start=inheritedStart(mk,id);const end=pts[pts.length-1].v;
-      const abs=end-start;
-      const pct=start!==0?((end-start)/Math.abs(start))*100:0;
-      // For inverse metrics (lower=better), improvement is negative change
-      const improved=m.inv?abs<0:abs>0;
-      const maintained=Math.abs(pct)<5; // <5% change = maintained
-      changes[id]={start,end,abs,pct,improved,maintained};
-    }
-    // Rank by % change - for inverse metrics, most negative = best; for normal, most positive = best
-    const sorted=Object.entries(changes).sort((a,b)=>{
-      return m.inv?(a[1].pct-b[1].pct):(b[1].pct-a[1].pct);
-    });
-    sorted.forEach(([id,data],i)=>{
-      const pts=AID.length-i;
-      sc[id].r[mk]={rank:i+1,p:pts,...data};
-      sc[id].p+=pts;
-      sc[id].details[mk]=data;
-    });
-  }
-  return sc;
-}
+// (Removed: scores() — only consumer was the deleted Scorecard tab.)
 
 function Tip({active,payload,label,unit}){
   if(!active||!payload?.length)return null;
@@ -731,7 +704,7 @@ function SpendTrendChart({ mob }: { mob?: boolean }) {
   );
 }
 
-const TABS_DESKTOP=[["dashboard","Data"],["scorecard","Scorecard"],["scenarios","Scenarios"],["abroad","Abroad"],["global","Global"]];
+const TABS_DESKTOP=[["dashboard","Data"],["scenarios","Scenarios"],["abroad","Abroad"],["global","Global"]];
 const TABS_MOBILE=[["dashboard","Data"],["scenarios","Scenarios"],["abroad","Abroad"],["global","Global"]];
 
 // Per-metric heatmap data, computed once at module-load. Uses the shared lib
@@ -984,9 +957,7 @@ function App(){
     o[id]={avg:p.reduce((s,x)=>s+x.v,0)/p.length,chg:p[p.length-1].v-p[0].v};}return o;},[am,sel]);
 
 
-  const sc=useMemo(()=>scores(),[]);
-  const ss=useMemo(()=>AID.slice().sort((a,b)=>sc[b].p-sc[a].p),[sc]);
-  const maxP=MK.length*AID.length;
+  // (Removed: sc/ss/maxP/scores() — Scorecard tab is gone.)
   const gmd=GLOBAL_METRICS[gm];
 
   const sty={
@@ -1809,90 +1780,10 @@ function App(){
           </div>)}
         </div>)}
 
-        {/* ═══ SCORECARD ═══ */}
-        {tab==="scorecard"&&(<div style={{animation:"fadeUp 0.4s ease"}}>
-          <h2 style={{fontSize:28,fontWeight:900,margin:"0 0 4px"}}>Who improved the most?</h2>
-          <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:T.sub,margin:"0 0 10px"}}>Ranked by % change from start to end of term — not averages. This measures who moved the needle, not who inherited the best numbers.</p>
-          <div style={{background:T.highlight,border:"1px solid #f5deb3",borderRadius:3,padding:"10px 14px",marginBottom:22}}>
-            <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,lineHeight:1.6,color:"#78716c"}}><strong style={{color:T.ink}}>↳ How scoring works: </strong>For each metric, presidents are ranked by % improvement (start → end of term). #1 gets 5 pts, #2 gets 4, etc. For metrics where lower is better (unemployment, inflation), a bigger decrease = better rank. Maintaining a strong inherited position (under 5% change) is noted but ranked below active improvement.</div>
-          </div>
-
-          {/* Composite Rankings */}
-          <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:32}}>
-            {ss.map((id,i)=>{const a=ADMINS[id];const s=sc[id];const medals=["1st","2nd","3rd","4th","5th"];
-              const pct=(s.p/maxP)*100;
-              // Count improvements, declines, maintained
-              const improved=Object.values(s.details).filter(d=>d.improved).length;
-              const maintained=Object.values(s.details).filter(d=>d.maintained).length;
-              const declined=Object.keys(s.details).length-improved-maintained;
-              return <div key={id} className="ol-score-card" style={{...sty.card,padding:"16px 20px",borderLeft:`4px solid ${a.color}`,display:"flex",alignItems:"center",gap:16}}>
-                <div className="ol-score-medal" style={{fontFamily:"'DM Sans',sans-serif",fontSize:28,fontWeight:600,color:i===0?T.accent:i<3?T.gold:T.mute,width:44,textAlign:"center"}}>{medals[i]}</div>
-                <div style={{flex:1}}>
-                  <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
-                    <span style={{fontSize:18,fontWeight:700,color:a.color}}>{a.name}</span>
-                    <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:T.mute}}>{a.full}</span>
-                    <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,padding:"2px 6px",borderRadius:2,background:a.party==="D"?"#dbeafe":"#fee2e2",color:a.party==="D"?"#2563eb":"#dc2626",fontWeight:700}}>{a.party}</span>
-                  </div>
-                  <div style={{width:"100%",height:6,borderRadius:3,background:T.paper,overflow:"hidden",marginBottom:5}}>
-                    <div style={{width:`${pct}%`,height:"100%",borderRadius:3,background:a.color,transition:"width 0.6s ease"}}/>
-                  </div>
-                  <div style={{display:"flex",gap:10,fontFamily:"'DM Sans',sans-serif",fontSize:11,flexWrap:"wrap"}}>
-                    <span style={{color:"#16a34a",fontWeight:700}}>▲ {improved} improved</span>
-                    <span style={{color:T.gold,fontWeight:600}}>— {maintained} maintained</span>
-                    <span style={{color:"#dc2626",fontWeight:600}}>▼ {declined} declined</span>
-                  </div>
-                </div>
-                <div className="ol-score-pts" style={{textAlign:"right"}}><div style={{fontSize:30,fontWeight:900,fontFamily:"'DM Sans',sans-serif",color:a.color}}>{s.p}</div><div style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,color:T.mute}}>of {maxP}</div></div>
-              </div>;
-            })}
-          </div>
-
-          {/* Metric-by-metric: Inherited → Exit → % Change */}
-          <h3 style={{fontSize:18,fontWeight:700,margin:"0 0 12px",borderBottom:`1px solid ${T.rule}`,paddingBottom:8}}>Metric by Metric: What They Inherited vs What They Left</h3>
-          <div className="ol-grid-metrics" style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:8,marginBottom:28}}>
-            {MK.map(mk=>{const mx=M[mk];
-              const ranked=AID.filter(id=>sc[id].r[mk]).sort((a,b)=>(sc[a].r[mk]?.rank||99)-(sc[b].r[mk]?.rank||99));
-              return <div key={mk} style={{...sty.card,padding:"12px 14px"}}>
-                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:700,marginBottom:2,color:T.ink}}>{mx.l}</div>
-                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,color:T.mute,marginBottom:8,textTransform:"uppercase",letterSpacing:0.5}}>Inherited → Exit → Change</div>
-                {ranked.map((id,i)=>{const a=ADMINS[id];const d=sc[id].details[mk];if(!d)return null;
-                  const arrow=d.improved?"▲":d.maintained?"—":"▼";
-                  const arrowColor=d.improved?"#16a34a":d.maintained?T.gold:"#dc2626";
-                  return <div key={id} style={{display:"flex",alignItems:"center",gap:6,marginBottom:5,padding:"3px 0",borderBottom:i<ranked.length-1?`1px solid ${T.rule}22`:"none"}}>
-                    <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,width:18,color:i===0?"#16a34a":i===1?T.gold:T.mute,fontWeight:i<=1?700:400}}>#{i+1}</span>
-                    <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:a.color,fontWeight:600,width:52}}>{a.name}</span>
-                    <div style={{flex:1,display:"flex",alignItems:"center",gap:4,fontFamily:"'DM Sans',sans-serif",fontSize:10}}>
-                      <span style={{color:T.mute}}>{fmt(d.start,mx.u)}</span>
-                      <span style={{color:T.mute,fontSize:8}}>→</span>
-                      <span style={{color:T.ink,fontWeight:600}}>{fmt(d.end,mx.u)}</span>
-                    </div>
-                    <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:600,color:arrowColor,width:56,textAlign:"right"}}>
-                      {arrow}{Math.abs(d.pct).toFixed(0)}%
-                    </span>
-                  </div>;
-                })}
-              </div>;
-            })}
-          </div>
-
-          {/* Inherited context */}
-          <h3 style={{fontSize:18,fontWeight:700,margin:"0 0 12px",borderBottom:`1px solid ${T.rule}`,paddingBottom:8}}>What They Inherited — Essential Context</h3>
-          <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:16}}>
-            {AID.map(id=>{const a=ADMINS[id];const c=INH[id];
-              return <div key={id} className="ol-inherited" style={{...sty.card,padding:"10px 14px",borderLeft:`3px solid ${a.color}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                <div><span style={{fontWeight:700,color:a.color}}>{a.name}</span><span style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:T.mute,marginLeft:8}}>{c.c}</span></div>
-                <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,padding:"3px 8px",borderRadius:2,background:T.paper,fontWeight:600,color:T.sub,whiteSpace:"nowrap"}}>{c.g}</span>
-              </div>;
-            })}
-          </div>
-
-          <FactsPanel facts={[
-            {t:"Why % change > averages",x:"Averages punish presidents who inherited crises. Obama's unemployment average was 7.5% but he improved it by 47% — more than Clinton's 42% improvement. % change captures the actual trajectory."},
-            {t:"The maintenance problem",x:"Trump inherited 3.7% unemployment (near historic lows). Maintaining that is genuinely hard — there's less room to improve. Under 5% change is scored as 'maintained' and noted, but ranked below active improvement."},
-            {t:"COVID distorts everything",x:"Trump's % change on most metrics is dominated by 2020 COVID collapse. Excluding 2020 would change his rankings dramatically. Biden's improvements are partly COVID rebound. Neither fully 'owns' these numbers."},
-            {t:"No single number tells the story",x:"% change is fairer than averages but still imperfect. A president who improved GDP from -2% to +2% (huge improvement) ranks the same as one who improved it from 2% to 6% (also huge, but from a stable base). Context always matters."},
-          ]} label="How to Read This"/>
-        </div>)}
+        {/* (Removed: Scorecard tab — composite ranking by % change was the
+            same misleading framing as the old +1800% display. Per-category
+            ranking under per-metric framing would need a separate design
+            pass; cut entirely for now per user request.) */}
 
         {/* ═══ ABROAD ═══ */}
         {tab==="abroad"&&(()=>{
