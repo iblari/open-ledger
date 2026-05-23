@@ -1158,79 +1158,39 @@ function App(){
         }
       `}</style>
 
-      {/* ── HEADER ── */}
-      <div style={sty.header} className="ol-header-wrap">
-        <div className="ol-header" style={{maxWidth:1080,margin:"0 auto"}}>
+      {/* ── HEADER ── compact nav bar (single row), data-focused */}
+      <div style={{...sty.header,padding:mob?"10px 0":"14px 0"}} className="ol-header-wrap">
+        <div className="ol-header" style={{maxWidth:1080,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between",gap:16}}>
           {/* Brand */}
-          <Link href="/" style={{display:"inline-flex",alignItems:"center",gap:14,marginBottom:mob?20:24,textDecoration:"none",cursor:"pointer"}}>
-            <div style={{display:"flex",gap:4}}>
-              <div style={{width:5,height:24,background:EC.accent,borderRadius:1}}/>
-              <div style={{width:5,height:24,background:EC.accent,borderRadius:1,opacity:0.55}}/>
-              <div style={{width:5,height:24,background:EC.accent,borderRadius:1,opacity:0.28}}/>
+          <Link href="/" style={{display:"inline-flex",alignItems:"center",gap:12,textDecoration:"none",cursor:"pointer"}}>
+            <div style={{display:"flex",gap:3}}>
+              <div style={{width:4,height:18,background:EC.accent,borderRadius:1}}/>
+              <div style={{width:4,height:18,background:EC.accent,borderRadius:1,opacity:0.55}}/>
+              <div style={{width:4,height:18,background:EC.accent,borderRadius:1,opacity:0.28}}/>
             </div>
-            <span style={{fontFamily:ESANS,fontSize:11,fontWeight:500,letterSpacing:"0.32em",textTransform:"uppercase",color:EC.mute}}>Open Ledger</span>
+            <span style={{fontFamily:ESANS,fontSize:11,fontWeight:500,letterSpacing:"0.28em",textTransform:"uppercase",color:EC.ink}}>Open Ledger</span>
+            {!mob && (
+              <span style={{fontFamily:ESANS,fontSize:10,color:EC.mute,letterSpacing:"0.04em",marginLeft:6,paddingLeft:12,borderLeft:`1px solid ${EC.rule}`}}>
+                19 indicators · 5 administrations · 32 years
+              </span>
+            )}
           </Link>
 
-          {/* Editorial headline — serif with italic accent */}
-          <h1 style={{
-            fontFamily:ESERIF,
-            fontSize:mob?34:56,
-            fontWeight:400,
-            margin:0,
-            lineHeight:1.02,
-            letterSpacing:"-0.025em",
-            maxWidth:880,
-            color:EC.ink,
-          }}>
-            The economy under every president, <em style={{fontStyle:"italic",color:EC.accent,fontWeight:400}}>in data.</em>
-          </h1>
-
-          {/* Stat strip — serif numerals + small caps labels */}
-          <div style={{
-            marginTop:mob?20:26,
-            display:"flex",alignItems:"baseline",gap:mob?14:24,flexWrap:"wrap",
-            fontFamily:ESANS,fontSize:11,fontWeight:500,letterSpacing:"0.13em",
-            textTransform:"uppercase",color:EC.sub,
-          }}>
-            <span style={{display:"inline-flex",alignItems:"baseline",gap:8}}>
-              <strong style={{fontFamily:ESERIF,fontSize:mob?22:26,fontWeight:500,fontStyle:"italic",color:EC.ink,letterSpacing:"-0.02em",textTransform:"none"}}>19</strong>
-              <span>indicators</span>
-            </span>
-            <span style={{width:3,height:3,background:EC.mute,borderRadius:"50%",alignSelf:"center"}}/>
-            <span style={{display:"inline-flex",alignItems:"baseline",gap:8}}>
-              <strong style={{fontFamily:ESERIF,fontSize:mob?22:26,fontWeight:500,fontStyle:"italic",color:EC.ink,letterSpacing:"-0.02em",textTransform:"none"}}>5</strong>
-              <span>administrations</span>
-            </span>
-            <span style={{width:3,height:3,background:EC.mute,borderRadius:"50%",alignSelf:"center"}}/>
-            <span style={{display:"inline-flex",alignItems:"baseline",gap:8}}>
-              <strong style={{fontFamily:ESERIF,fontSize:mob?22:26,fontWeight:500,fontStyle:"italic",color:EC.ink,letterSpacing:"-0.02em",textTransform:"none"}}>32</strong>
-              <span>years</span>
-            </span>
-            <span style={{width:3,height:3,background:EC.mute,borderRadius:"50%",alignSelf:"center"}}/>
-            <span style={{color:EC.accent,fontWeight:500}}>You interpret</span>
-          </div>
-
-          {/* Presidential timeline bar — visual signature for the 32-year span */}
-          <div style={{marginTop:mob?22:30,paddingTop:18,borderTop:`1px solid ${EC.rule}`}}>
-            <div style={{display:"flex",alignItems:"stretch",gap:3}}>
-              {AID.map(id=>{
-                const a=ADMINS[id];
-                const parts=a.full.split("–"); // en-dash
-                const ys=parseInt(parts[0])||0;
-                const ye=parseInt(parts[1])||2025;
-                const yrs=Math.max(ye-ys,1);
-                return (
-                  <div key={id} style={{flex:yrs,display:"flex",flexDirection:"column",gap:6}}>
-                    <div style={{width:"100%",height:4,background:a.color,borderRadius:1}}/>
-                    <div style={{display:"flex",flexDirection:"column",gap:1,paddingLeft:2}}>
-                      <span style={{fontFamily:ESERIF,fontSize:mob?11:13,fontWeight:500,color:a.color,letterSpacing:"-0.01em",lineHeight:1.1}}>{a.name}</span>
-                      <span style={{fontFamily:ESANS,fontSize:9,color:EC.mute,letterSpacing:"0.04em",lineHeight:1.1}}>{a.full}</span>
-                    </div>
-                  </div>
-                );
-              })}
+          {/* Right — quick affordances */}
+          {!mob && (
+            <div style={{display:"flex",alignItems:"center",gap:18,fontFamily:ESANS,fontSize:11}}>
+              <a href="/" style={{color:EC.sub,textDecoration:"none",letterSpacing:"0.04em"}}>
+                Vote Unbiased ↗
+              </a>
+              <a href="/live" style={{
+                display:"inline-flex",alignItems:"center",gap:6,
+                color:EC.accent,textDecoration:"none",fontWeight:500,letterSpacing:"0.02em",
+              }}>
+                <span style={{width:6,height:6,borderRadius:"50%",background:EC.accent,animation:"pulse 2s infinite"}}/>
+                Live Broadcast
+              </a>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
