@@ -744,6 +744,18 @@ function resolveDashDisplay(c: MetricCell, mk: string, mode: DisplayMode, dm: Do
   return getDisplayedChange(c, mk, mode, dm, METRIC_DISPLAY_DASHBOARD, M[mk].inv);
 }
 
+// First metric rendered in the heatmap (top of the first non-empty
+// category). Used by DashHeatCell to flip its tooltip below the cell
+// for the topmost row, where overflow clipping would hide a tooltip
+// positioned above.
+const FIRST_METRIC_KEY: string | undefined = (() => {
+  for (const catKey of Object.keys(CATS)) {
+    const first = MK.find(k => M[k].cat === catKey);
+    if (first) return first;
+  }
+  return undefined;
+})();
+
 // Per-metric color-scale max for the avg_per_year unit. Different metrics
 // have wildly different "big" magnitudes (2M jobs/yr vs $1000B deficit/yr),
 // so we normalize against each metric's own historical max within this dataset.
@@ -758,6 +770,119 @@ const AVG_SCALE_BY_METRIC: Record<string, number> = (() => {
   }
   return out;
 })();
+
+// Per-cell heatmap cell with hover scale + rich tooltip, matching the
+// landing page's HeatCell behavior. Tooltip flips below for the top
+// metric (Real GDP) since the container clips vertical overflow.
+function DashHeatCell({
+  c, mk, aid, displayMode, dollarMode, flipBelow = false, onClick,
+}: {
+  c: MetricCell;
+  mk: string;
+  aid: string;
+  displayMode: DisplayMode;
+  dollarMode: DollarMode;
+  flipBelow?: boolean;
+  onClick: () => void;
+}) {
+  const [hov, setHov] = useState(false);
+  const mx = M[mk];
+  const admin = ADMINS[aid];
+
+  const disp = resolveDashDisplay(c, mk, displayMode, dollarMode);
+  const mag = disp.value !== null
+    ? colorMagnitude(disp.value, disp.unit, { avgScale: AVG_SCALE_BY_METRIC[mk] })
+    : 0;
+  const st = disp.value !== null
+    ? cellColorFromMag(mag, disp.improved)
+    : { bg: EC.paper, text: EC.mute };
+  const headline = formatDisplayedChange(disp.value, disp.unit, false, { metricUnit: mx.u });
+  const tooltipHeadline = formatDisplayedChange(disp.value, disp.unit, true, { metricUnit: mx.u });
+  const dollarQualifier = displayMode === "per_metric" && disp.unit === "pct_yr"
+    ? (dollarMode === "real" ? " (real)" : " (nominal)")
+    : "";
+  const showRawNote = displayMode === "per_metric"
+    && disp.unit !== "pct"
+    && isFinite(c.pctChange)
+    && Math.abs(c.pctChange) < 100000;
+  const rawNote = showRawNote
+    ? `raw % change: ${c.pctChange >= 0 ? "+" : ""}${c.pctChange.toFixed(1)}%`
+    : null;
+
+  return (
+    <div
+      onClick={onClick}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        position: "relative",
+        margin: 4, height: 54, borderRadius: 3,
+        display: "grid", placeItems: "center", padding: "4px 6px",
+        background: st.bg, color: st.text, textAlign: "center",
+        fontVariantNumeric: "tabular-nums",
+        cursor: "pointer",
+        transition: "transform 0.18s ease, box-shadow 0.18s ease",
+        transform: hov ? "scale(1.08)" : "scale(1)",
+        boxShadow: hov ? "0 4px 20px rgba(0,0,0,0.18)" : "none",
+        zIndex: hov ? 10 : 1,
+      }}
+    >
+      <span style={{ fontFamily: ESERIF, fontSize: 16, fontWeight: 600, lineHeight: 1.05, letterSpacing: "-0.01em" }}>{headline}</span>
+      <span style={{ fontSize: 10, opacity: 0.78, lineHeight: 1.1, letterSpacing: "0.02em", fontFamily: ESANS, marginTop: 1, fontWeight: 500 }}>
+        {fmt(c.start, mx.u)} → {fmt(c.end, mx.u)}
+      </span>
+
+      {/* Tooltip — flips below for the top row because the heatmap container
+          uses overflowX:auto which forces overflow-y to clip per CSS spec. */}
+      {hov && (
+        <div style={{
+          position: "absolute",
+          ...(flipBelow
+            ? { top: "calc(100% + 10px)" }
+            : { bottom: "calc(100% + 10px)" }),
+          left: "50%", transform: "translateX(-50%)",
+          background: EC.ink, color: "#fff", padding: "10px 14px", borderRadius: 6,
+          fontSize: 12, lineHeight: 1.5, whiteSpace: "nowrap", pointerEvents: "none",
+          boxShadow: "0 8px 30px rgba(0,0,0,0.25)", zIndex: 100,
+          minWidth: 200, textAlign: "center", fontFamily: ESANS,
+        }}>
+          <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>
+            {mx.l} under {admin.name}
+          </div>
+          <div style={{ fontVariantNumeric: "tabular-nums" }}>
+            <span style={{ opacity: 0.7 }}>{fmt(c.start, mx.u)}</span>
+            <span style={{ margin: "0 6px", opacity: 0.5 }}>→</span>
+            <span>{fmt(c.end, mx.u)}</span>
+          </div>
+          <div style={{
+            fontFamily: ESERIF, fontSize: 16, fontWeight: 600, marginTop: 4,
+            color: disp.improved ? "#8ee3e6" : "#fed7aa",
+            letterSpacing: "-0.01em",
+          }}>
+            {tooltipHeadline}
+            <span style={{ fontSize: 11, fontWeight: 400, opacity: 0.7 }}>{dollarQualifier}</span>
+          </div>
+          {rawNote && (
+            <div style={{ fontSize: 10, opacity: 0.45, marginTop: 2, fontVariantNumeric: "tabular-nums" }}>
+              {rawNote}
+            </div>
+          )}
+          <div style={{ fontSize: 10, opacity: 0.5, marginTop: 4 }}>Click to explore →</div>
+          {/* Arrow */}
+          <div style={{
+            position: "absolute",
+            ...(flipBelow
+              ? { top: -6, borderBottom: `6px solid ${EC.ink}` }
+              : { bottom: -6, borderTop: `6px solid ${EC.ink}` }),
+            left: "50%", transform: "translateX(-50%)",
+            width: 0, height: 0,
+            borderLeft: "6px solid transparent", borderRight: "6px solid transparent",
+          }} />
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function DashboardPage() {
   return <Suspense><App /></Suspense>;
@@ -939,31 +1064,8 @@ function App(){
           box-shadow: 0 12px 24px rgba(0,0,0,0.08);
         }
 
-        /* Editorial heatmap row — calm at rest, clearly clickable on hover.
-           The chevron is always faintly visible so the click affordance is
-           discoverable even before hovering, and brightens + nudges right
-           on hover. The whole row gets a subtle warm tint and each cell
-           lifts a hair so the row reads as one interactive unit. */
-        .editorial-row { transition: background 0.18s ease; }
-        .editorial-row:hover { background: rgba(184, 55, 45, 0.045); }
-        .editorial-row .editorial-row-chevron {
-          opacity: 0.32;
-          transform: translateX(0);
-          transition: opacity 0.18s ease, transform 0.18s ease, color 0.18s ease;
-          color: #5c5856;
-        }
-        .editorial-row:hover .editorial-row-chevron {
-          opacity: 1;
-          transform: translateX(3px);
-          color: #b8372d;
-        }
-        .editorial-row .editorial-cell {
-          transition: transform 0.18s ease, box-shadow 0.18s ease;
-        }
-        .editorial-row:hover .editorial-cell {
-          transform: translateY(-1px);
-          box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
-        }
+        /* (Per-cell hover with tooltip is handled in JS via the DashHeatCell
+           component — matches the landing page heatmap behavior.) */
         
         /* Insight callout pulse */
         .insight-pulse {
@@ -1306,48 +1408,37 @@ function App(){
                     }}>{catLabel as string}</div>
                     {catMetrics.map((mk)=>{
                       const mx=M[mk];
+                      // Flip tooltip below the cell ONLY for the very first metric
+                      // (top of the heatmap). Every other row has enough room above.
+                      const flipBelow = mk === FIRST_METRIC_KEY;
                       return (
                         <div
                           key={mk}
-                          className="editorial-row"
-                          onClick={()=>{setAm(mk);setDetail(mk);setOpenFacts(false);}}
                           style={{
                             display:"grid",
                             gridTemplateColumns:mob?"160px repeat(5, 1fr)":"200px repeat(5, 1fr)",
                             alignItems:"center",borderTop:`1px solid ${EC.rule}`,
-                            fontSize:13,minWidth:mob?780:undefined,cursor:"pointer",
+                            fontSize:13,minWidth:mob?780:undefined,
                           }}
                         >
-                          <div style={{padding:"10px 18px",display:"flex",alignItems:"center",gap:8}}>
-                            <div style={{display:"flex",flexDirection:"column",gap:1,flex:1,minWidth:0}}>
-                              <span style={{fontWeight:500,color:EC.ink,fontSize:13,fontFamily:ESANS}}>{mx.l}</span>
-                              <span style={{fontSize:10,color:EC.mute,letterSpacing:"0.03em",fontFamily:ESANS}}>{mx.s}</span>
-                            </div>
-                            <span className="editorial-row-chevron" aria-hidden="true" style={{fontSize:16,fontWeight:300,lineHeight:1,flexShrink:0}}>›</span>
+                          <div style={{padding:"10px 18px",display:"flex",flexDirection:"column",gap:1}}>
+                            <span style={{fontWeight:500,color:EC.ink,fontSize:13,fontFamily:ESANS}}>{mx.l}</span>
+                            <span style={{fontSize:10,color:EC.mute,letterSpacing:"0.03em",fontFamily:ESANS}}>{mx.s}</span>
                           </div>
                           {AID.map(id=>{
                             const c=HEAT_DATA[mk]?.[id];
                             if(!c)return <div key={id}/>;
-                            const disp=resolveDashDisplay(c,mk,displayMode,dollarMode);
-                            const mag=disp.value!==null
-                              ? colorMagnitude(disp.value,disp.unit,{avgScale:AVG_SCALE_BY_METRIC[mk]})
-                              : 0;
-                            const st=disp.value!==null
-                              ? cellColorFromMag(mag,disp.improved)
-                              : {bg:EC.paper,text:EC.mute};
-                            const headline=formatDisplayedChange(disp.value,disp.unit,false,{metricUnit:mx.u});
                             return (
-                              <div key={id} className="editorial-cell" style={{
-                                margin:4,height:54,borderRadius:3,
-                                display:"grid",placeItems:"center",padding:"4px 6px",
-                                background:st.bg,color:st.text,textAlign:"center",
-                                fontVariantNumeric:"tabular-nums",
-                              }}>
-                                <span style={{fontFamily:ESERIF,fontSize:16,fontWeight:600,lineHeight:1.05,letterSpacing:"-0.01em"}}>{headline}</span>
-                                <span style={{fontSize:10,opacity:0.78,lineHeight:1.1,letterSpacing:"0.02em",fontFamily:ESANS,marginTop:1,fontWeight:500}}>
-                                  {fmt(c.start,mx.u)} → {fmt(c.end,mx.u)}
-                                </span>
-                              </div>
+                              <DashHeatCell
+                                key={id}
+                                c={c}
+                                mk={mk}
+                                aid={id}
+                                displayMode={displayMode}
+                                dollarMode={dollarMode}
+                                flipBelow={flipBelow}
+                                onClick={()=>{setAm(mk);setDetail(mk);setOpenFacts(false);}}
+                              />
                             );
                           })}
                         </div>
