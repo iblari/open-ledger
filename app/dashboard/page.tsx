@@ -1129,15 +1129,37 @@ function App(){
         }
       `}</style>
 
-      {/* ── HEADER ── presidential timeline strip (only). The colored bar
-          is the page's visual identity; navigation lives in the tabs row.
-          Trump II appears as a 6th segment with a live pulse — historical
-          admins 1993-2024 + current term 2025-. */}
-      <div style={{...sty.header,padding:mob?"12px 0 10px":"14px 0 12px"}} className="ol-header-wrap">
-        <Link href="/" aria-label="Back to Vote Unbiased" className="ol-header" style={{
-          maxWidth:1080,margin:"0 auto",display:"block",textDecoration:"none",cursor:"pointer",
+      {/* ── HEADER ── Vote Unbiased logo (left) + presidential timeline
+          strip (right). Trump II appears as the 6th segment with a live
+          pulse — historical admins 1993-2024 + current term 2025-. */}
+      <div style={{...sty.header,padding:mob?"10px 0":"12px 0"}} className="ol-header-wrap">
+        <div className="ol-header" style={{
+          maxWidth:1080,margin:"0 auto",
+          display:"flex",alignItems:"center",gap:mob?14:28,
         }}>
-          <div style={{display:"flex",alignItems:"stretch",gap:3}}>
+          {/* Brand — matches the landing page nav. Whole logo links home. */}
+          <Link href="/" aria-label="Vote Unbiased home" style={{
+            display:"flex",alignItems:"center",gap:10,
+            textDecoration:"none",cursor:"pointer",flexShrink:0,
+            fontFamily:ESERIF,fontSize:mob?16:20,fontWeight:600,letterSpacing:"-0.015em",
+            color:EC.ink,
+          }}>
+            <div style={{
+              width:mob?26:30,height:mob?26:30,borderRadius:"50%",
+              background:EC.ink,color:EC.bg,
+              display:"grid",placeItems:"center",
+              fontFamily:ESERIF,fontWeight:700,fontSize:mob?13:15,
+              flexShrink:0,
+            }}>V</div>
+            {!mob && (
+              <span style={{whiteSpace:"nowrap"}}>
+                Vote <em style={{fontStyle:"italic",color:EC.accent,fontWeight:500}}>Unbiased</em>
+              </span>
+            )}
+          </Link>
+
+          {/* Timeline strip — fills the remaining width. */}
+          <div style={{flex:1,display:"flex",alignItems:"stretch",gap:3,minWidth:0}}>
             {AID.map(id=>{
               const a=ADMINS[id];
               const parts=a.full.split("–");
@@ -1148,7 +1170,7 @@ function App(){
                 <div key={id} style={{flex:yrs,display:"flex",flexDirection:"column",gap:6,minWidth:0}}>
                   <div style={{width:"100%",height:4,background:a.color,borderRadius:1}}/>
                   <div style={{display:"flex",flexDirection:"column",gap:1,paddingLeft:2,overflow:"hidden"}}>
-                    <span style={{fontFamily:ESERIF,fontSize:mob?11:13,fontWeight:500,color:a.color,letterSpacing:"-0.01em",lineHeight:1.1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{a.name}</span>
+                    <span style={{fontFamily:ESERIF,fontSize:mob?10:13,fontWeight:500,color:a.color,letterSpacing:"-0.01em",lineHeight:1.1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{a.name}</span>
                     <span style={{fontFamily:ESANS,fontSize:9,color:EC.mute,letterSpacing:"0.04em",lineHeight:1.1,whiteSpace:"nowrap"}}>{a.full}</span>
                   </div>
                 </div>
@@ -1162,7 +1184,7 @@ function App(){
                 background:`repeating-linear-gradient(-45deg, #c1272d, #c1272d 3px, rgba(193,39,45,0.35) 3px, rgba(193,39,45,0.35) 6px)`,
               }}/>
               <div style={{display:"flex",flexDirection:"column",gap:1,paddingLeft:2,overflow:"hidden"}}>
-                <span style={{fontFamily:ESERIF,fontSize:mob?11:13,fontWeight:500,color:"#c1272d",letterSpacing:"-0.01em",lineHeight:1.1,whiteSpace:"nowrap",display:"inline-flex",alignItems:"center",gap:5}}>
+                <span style={{fontFamily:ESERIF,fontSize:mob?10:13,fontWeight:500,color:"#c1272d",letterSpacing:"-0.01em",lineHeight:1.1,whiteSpace:"nowrap",display:"inline-flex",alignItems:"center",gap:5}}>
                   <span style={{width:6,height:6,borderRadius:"50%",background:"#c1272d",animation:"pulse 2s infinite",flexShrink:0}}/>
                   Trump II
                 </span>
@@ -1170,7 +1192,7 @@ function App(){
               </div>
             </div>
           </div>
-        </Link>
+        </div>
       </div>
 
       {/* ── NAV ── */}
