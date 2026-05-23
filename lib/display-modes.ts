@@ -324,8 +324,11 @@ export function formatDisplayedChange(
       const u = hint?.metricUnit;
       // Dashboard unit conventions: M = millions of jobs, B = billions of dollars,
       // % = percent (annualized flow rate), inc = household income.
-      if (u === "M")  return `${sign}${value.toFixed(1)}M/yr avg`;
-      if (u === "B")  return `${sign}$${Math.round(value)}B/yr avg`;
+      // For dollar units the sign goes OUTSIDE the dollar sign: -$40B not $-40B.
+      const absVal = Math.abs(value);
+      const dollarSign = value < 0 ? "−" : "+"; // U+2212 minus, looks better than ASCII hyphen
+      if (u === "M")  return `${dollarSign}${absVal.toFixed(1)}M/yr avg`;
+      if (u === "B")  return `${dollarSign}$${Math.round(absVal)}B/yr avg`;
       if (u === "%")  return `${sign}${value.toFixed(1)}%/yr avg`;
       return `${sign}${value.toFixed(2)}/yr avg`;
     }
