@@ -1159,7 +1159,9 @@ function App(){
       `}</style>
 
       {/* ── HEADER ── presidential timeline strip (only). The colored bar
-          is the page's visual identity; navigation lives in the tabs row. */}
+          is the page's visual identity; navigation lives in the tabs row.
+          Trump II appears as a 6th segment with a live pulse — historical
+          admins 1993-2024 + current term 2025-. */}
       <div style={{...sty.header,padding:mob?"12px 0 10px":"14px 0 12px"}} className="ol-header-wrap">
         <Link href="/" aria-label="Back to Vote Unbiased" className="ol-header" style={{
           maxWidth:1080,margin:"0 auto",display:"block",textDecoration:"none",cursor:"pointer",
@@ -1181,6 +1183,21 @@ function App(){
                 </div>
               );
             })}
+            {/* Trump II — current term, no historical data yet. Striped bar
+                + inline pulse dot signal "in progress / live". */}
+            <div style={{flex:4,display:"flex",flexDirection:"column",gap:6,minWidth:0}}>
+              <div style={{
+                width:"100%",height:4,borderRadius:1,
+                background:`repeating-linear-gradient(-45deg, #c1272d, #c1272d 3px, rgba(193,39,45,0.35) 3px, rgba(193,39,45,0.35) 6px)`,
+              }}/>
+              <div style={{display:"flex",flexDirection:"column",gap:1,paddingLeft:2,overflow:"hidden"}}>
+                <span style={{fontFamily:ESERIF,fontSize:mob?11:13,fontWeight:500,color:"#c1272d",letterSpacing:"-0.01em",lineHeight:1.1,whiteSpace:"nowrap",display:"inline-flex",alignItems:"center",gap:5}}>
+                  <span style={{width:6,height:6,borderRadius:"50%",background:"#c1272d",animation:"pulse 2s infinite",flexShrink:0}}/>
+                  Trump II
+                </span>
+                <span style={{fontFamily:ESANS,fontSize:9,color:EC.mute,letterSpacing:"0.04em",lineHeight:1.1,whiteSpace:"nowrap"}}>2025&ndash;</span>
+              </div>
+            </div>
           </div>
         </Link>
       </div>
