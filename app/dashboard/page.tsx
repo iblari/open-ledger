@@ -938,6 +938,32 @@ function App(){
           transform: translateY(-3px);
           box-shadow: 0 12px 24px rgba(0,0,0,0.08);
         }
+
+        /* Editorial heatmap row — calm at rest, clearly clickable on hover.
+           The chevron is always faintly visible so the click affordance is
+           discoverable even before hovering, and brightens + nudges right
+           on hover. The whole row gets a subtle warm tint and each cell
+           lifts a hair so the row reads as one interactive unit. */
+        .editorial-row { transition: background 0.18s ease; }
+        .editorial-row:hover { background: rgba(184, 55, 45, 0.045); }
+        .editorial-row .editorial-row-chevron {
+          opacity: 0.32;
+          transform: translateX(0);
+          transition: opacity 0.18s ease, transform 0.18s ease, color 0.18s ease;
+          color: #5c5856;
+        }
+        .editorial-row:hover .editorial-row-chevron {
+          opacity: 1;
+          transform: translateX(3px);
+          color: #b8372d;
+        }
+        .editorial-row .editorial-cell {
+          transition: transform 0.18s ease, box-shadow 0.18s ease;
+        }
+        .editorial-row:hover .editorial-cell {
+          transform: translateY(-1px);
+          box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+        }
         
         /* Insight callout pulse */
         .insight-pulse {
@@ -1283,18 +1309,21 @@ function App(){
                       return (
                         <div
                           key={mk}
+                          className="editorial-row"
                           onClick={()=>{setAm(mk);setDetail(mk);setOpenFacts(false);}}
                           style={{
                             display:"grid",
                             gridTemplateColumns:mob?"160px repeat(5, 1fr)":"200px repeat(5, 1fr)",
                             alignItems:"center",borderTop:`1px solid ${EC.rule}`,
                             fontSize:13,minWidth:mob?780:undefined,cursor:"pointer",
-                            transition:"background 0.15s",
                           }}
                         >
-                          <div style={{padding:"10px 18px",display:"flex",flexDirection:"column",gap:1}}>
-                            <span style={{fontWeight:500,color:EC.ink,fontSize:13,fontFamily:ESANS}}>{mx.l}</span>
-                            <span style={{fontSize:10,color:EC.mute,letterSpacing:"0.03em",fontFamily:ESANS}}>{mx.s}</span>
+                          <div style={{padding:"10px 18px",display:"flex",alignItems:"center",gap:8}}>
+                            <div style={{display:"flex",flexDirection:"column",gap:1,flex:1,minWidth:0}}>
+                              <span style={{fontWeight:500,color:EC.ink,fontSize:13,fontFamily:ESANS}}>{mx.l}</span>
+                              <span style={{fontSize:10,color:EC.mute,letterSpacing:"0.03em",fontFamily:ESANS}}>{mx.s}</span>
+                            </div>
+                            <span className="editorial-row-chevron" aria-hidden="true" style={{fontSize:16,fontWeight:300,lineHeight:1,flexShrink:0}}>›</span>
                           </div>
                           {AID.map(id=>{
                             const c=HEAT_DATA[mk]?.[id];
@@ -1308,7 +1337,7 @@ function App(){
                               : {bg:EC.paper,text:EC.mute};
                             const headline=formatDisplayedChange(disp.value,disp.unit,false,{metricUnit:mx.u});
                             return (
-                              <div key={id} style={{
+                              <div key={id} className="editorial-cell" style={{
                                 margin:4,height:54,borderRadius:3,
                                 display:"grid",placeItems:"center",padding:"4px 6px",
                                 background:st.bg,color:st.text,textAlign:"center",
