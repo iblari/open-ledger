@@ -1169,13 +1169,11 @@ function App(){
               const ys=parseInt(parts[0])||0;
               const ye=parseInt(parts[1])||2025;
               const yrs=Math.max(ye-ys,1);
-              // Short name for mobile-only — keeps 4-flex segments legible.
-              const shortName = a.name === "Bush W." ? "Bush" : a.name;
               return (
-                <div key={id} style={{flex:yrs,display:"flex",flexDirection:"column",gap:mob?4:6,minWidth:0}}>
+                <div key={id} style={{flex:mob?1:yrs,display:"flex",flexDirection:"column",gap:mob?4:6,minWidth:0}}>
                   <div style={{width:"100%",height:4,background:a.color,borderRadius:1}}/>
                   <div style={{display:"flex",flexDirection:"column",gap:1,paddingLeft:2,overflow:"hidden"}}>
-                    <span style={{fontFamily:ESERIF,fontSize:mob?11:13,fontWeight:500,color:a.color,letterSpacing:"-0.01em",lineHeight:1.1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{mob ? shortName : a.name}</span>
+                    <span style={{fontFamily:ESERIF,fontSize:mob?11:13,fontWeight:500,color:a.color,letterSpacing:"-0.01em",lineHeight:1.1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{a.name}</span>
                     {!mob && (
                       <span style={{fontFamily:ESANS,fontSize:9,color:EC.mute,letterSpacing:"0.04em",lineHeight:1.1,whiteSpace:"nowrap"}}>{a.full}</span>
                     )}
@@ -1185,7 +1183,7 @@ function App(){
             })}
             {/* Trump II — current term, no historical data yet. Striped bar
                 + inline pulse dot signal "in progress / live". */}
-            <div style={{flex:4,display:"flex",flexDirection:"column",gap:mob?4:6,minWidth:0}}>
+            <div style={{flex:mob?1:4,display:"flex",flexDirection:"column",gap:mob?4:6,minWidth:0}}>
               <div style={{
                 width:"100%",height:4,borderRadius:1,
                 background:`repeating-linear-gradient(-45deg, #c1272d, #c1272d 3px, rgba(193,39,45,0.35) 3px, rgba(193,39,45,0.35) 6px)`,
@@ -1193,7 +1191,7 @@ function App(){
               <div style={{display:"flex",flexDirection:"column",gap:1,paddingLeft:2,overflow:"hidden"}}>
                 <span style={{fontFamily:ESERIF,fontSize:mob?11:13,fontWeight:500,color:"#c1272d",letterSpacing:"-0.01em",lineHeight:1.1,whiteSpace:"nowrap",display:"inline-flex",alignItems:"center",gap:mob?4:5}}>
                   <span style={{width:mob?5:6,height:mob?5:6,borderRadius:"50%",background:"#c1272d",animation:"pulse 2s infinite",flexShrink:0}}/>
-                  {mob ? "Trump 2" : "Trump II"}
+                  Trump II
                 </span>
                 {!mob && (
                   <span style={{fontFamily:ESANS,fontSize:9,color:EC.mute,letterSpacing:"0.04em",lineHeight:1.1,whiteSpace:"nowrap"}}>2025&ndash;</span>
@@ -1620,7 +1618,7 @@ function App(){
                 <span style={{color:"#15803d",fontWeight:600}}>{m.bench.good}</span>
                 <span style={{color:T.rule}}>|</span>
                 <span style={{width:6,height:6,borderRadius:"50%",background:"#dc2626",flexShrink:0}}/>
-                <span style={{color:"#991b1b",fontWeight:600}}>{m.bench.warn.length>20?m.bench.warn.slice(0,20)+"…":m.bench.warn}</span>
+                <span style={{color:"#991b1b",fontWeight:600}}>{m.bench.warn.split(". ")[0]}</span>
                 <span style={{flex:1}}/>
                 <button onClick={()=>{setFxOpen(!fxOpen);if(whyOpen)setWhyOpen(false);}} style={{
                   border:"none",background:"transparent",fontFamily:"'Source Serif 4',Georgia,serif",
