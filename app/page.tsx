@@ -332,7 +332,7 @@ function Hero({ mob, med }: { mob: boolean; med: boolean }) {
 }
 
 /* ── Scorecard Heatmap ── */
-function HeatCell({ id, mk, c, mob, metricLabel, unit }: { id: string; mk: string; c: { start: number; end: number; pctChange: number; improved: boolean } | undefined; mob: boolean; metricLabel: string; unit: string }) {
+function HeatCell({ id, mk, c, mob, metricLabel, unit, flipBelow = false }: { id: string; mk: string; c: { start: number; end: number; pctChange: number; improved: boolean } | undefined; mob: boolean; metricLabel: string; unit: string; flipBelow?: boolean }) {
   const [hov, setHov] = useState(false);
   const st = cellColor(c);
   const pct = c ? `${c.pctChange >= 0 ? "+" : ""}${c.pctChange.toFixed(1)}%` : "—";
@@ -361,10 +361,15 @@ function HeatCell({ id, mk, c, mob, metricLabel, unit }: { id: string; mk: strin
           {fmt(c.start, unit)} → {fmt(c.end, unit)}
         </span>
       )}
-      {/* Tooltip */}
+      {/* Tooltip — flips below for the top row because the scorecard container clips
+          vertical overflow (overflowX:auto forces overflow-y to behave non-visibly). */}
       {hov && !mob && c && (
         <div style={{
-          position: "absolute", bottom: "calc(100% + 10px)", left: "50%", transform: "translateX(-50%)",
+          position: "absolute",
+          ...(flipBelow
+            ? { top: "calc(100% + 10px)" }
+            : { bottom: "calc(100% + 10px)" }),
+          left: "50%", transform: "translateX(-50%)",
           background: C.ink, color: "#fff", padding: "10px 14px", borderRadius: 6,
           fontSize: 12, lineHeight: 1.5, whiteSpace: "nowrap", pointerEvents: "none",
           boxShadow: "0 8px 30px rgba(0,0,0,0.25)", zIndex: 100,
@@ -381,12 +386,15 @@ function HeatCell({ id, mk, c, mob, metricLabel, unit }: { id: string; mk: strin
             color: c.improved ? "#8ee3e6" : "#fed7aa",
           }}>{pct}</div>
           <div style={{ fontSize: 10, opacity: 0.5, marginTop: 4 }}>Click to explore →</div>
-          {/* Arrow */}
+          {/* Arrow — points down at the cell when tooltip is above, up at the cell when below */}
           <div style={{
-            position: "absolute", bottom: -6, left: "50%", transform: "translateX(-50%)",
+            position: "absolute",
+            ...(flipBelow
+              ? { top: -6, borderBottom: `6px solid ${C.ink}` }
+              : { bottom: -6, borderTop: `6px solid ${C.ink}` }),
+            left: "50%", transform: "translateX(-50%)",
             width: 0, height: 0,
             borderLeft: "6px solid transparent", borderRight: "6px solid transparent",
-            borderTop: `6px solid ${C.ink}`,
           }} />
         </div>
       )}
@@ -460,8 +468,10 @@ function ScorecardSection({ mob, med }: { mob: boolean; med: boolean }) {
           </div>
 
           {/* Data rows */}
-          {METRIC_ORDER.map(mk => {
+          {METRIC_ORDER.map((mk, rowIdx) => {
             const m = METRICS[mk];
+            // Top row's tooltip would otherwise be clipped by the container's overflow.
+            const flipBelow = rowIdx === 0;
             return (
               <div key={mk} style={{
                 display: "grid",
@@ -474,7 +484,7 @@ function ScorecardSection({ mob, med }: { mob: boolean; med: boolean }) {
                   <span style={{ fontWeight: 600, color: C.ink, fontSize: 13 }}>{m.l}</span>
                 </div>
                 {AID.map(id => (
-                  <HeatCell key={id} id={id} mk={mk} c={heat[mk]?.[id]} mob={mob} metricLabel={m.l} unit={m.u} />
+                  <HeatCell key={id} id={id} mk={mk} c={heat[mk]?.[id]} mob={mob} metricLabel={m.l} unit={m.u} flipBelow={flipBelow} />
                 ))}
                 {/* Trump II — live CTA cell */}
                 <Link href="/live-benchmark" style={{
