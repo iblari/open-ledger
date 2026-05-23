@@ -1,37 +1,20 @@
 "use client";
 import { useState, useMemo, useEffect, useRef } from "react";
 import {
-  BarChart, Bar, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid,
+  BarChart, Bar, Cell as RechartsCell, LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
 } from "recharts";
 import Link from "next/link";
 
-/* ─────────────────────────────────────────────
-   DESIGN TOKENS — matches editorial system
-───────────────────────────────────────────── */
-const C = {
-  bg: "#f8f5f0",
-  paper: "#f3ede5",
-  card: "#ffffff",
-  ink: "#1a1a1a",
-  sub: "#5c5856",
-  mute: "#9a9490",
-  rule: "#e2ded6",
-  accent: "#b8372d",
-  gold: "#a67c00",
-  blue: "#1d4ed8",
-  highlight: "#fef9e7",
-  improveStrong: "#0d7377",
-  improveMed: "#14a3a8",
-  improveLight: "#8ee3e6",
-  declineStrong: "#c2410c",
-  declineMed: "#ea580c",
-  declineLight: "#fed7aa",
-  neutral: "#d4cfc5",
-};
-
-const SERIF = "'Source Serif 4', Georgia, serif";
-const SANS = "'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif";
+// Design tokens + per-metric display helpers — shared with the dashboard.
+import { C, SERIF, SANS } from "@/lib/design-tokens";
+import {
+  type Cell, type DisplayMode, type DollarMode,
+  computeHeatmap, METRIC_DISPLAY_LANDING,
+  getDisplayedChange, formatDisplayedChange, colorMagnitude,
+  cellColor, cellColorFromMag,
+} from "@/lib/display-modes";
+import { PillToggle } from "@/components/PillToggle";
 
 /* ─────────────────────────────────────────────
    ADMINS & METRIC DATA — subset for heatmap
@@ -69,187 +52,17 @@ const METRICS: Record<string, MetricDef> = {
 const METRIC_ORDER = ["gdp", "unemployment", "inflation", "sp500", "debt_gdp", "median_income"];
 
 /* ─────────────────────────────────────────────
-   HEATMAP HELPERS
+   LOCAL HELPERS — heatmap is computed via lib/display-modes
 ───────────────────────────────────────────── */
 
-// Per-cell summary. `pctChange` is the legacy raw % change (kept for DeepDive
-// compatibility); the other fields back the per-metric display modes.
-type Cell = {
-  start: number;
-  end: number;
-  startYear: number;
-  endYear: number;
-  years: number;
-  pctChange: number;                  // (end - start) / |start| * 100 — legacy, kept for DeepDive
-  ppChange: number;                   // end - start (in the metric's own units)
-  annualizedNominal: number | null;   // %/yr — null if start <= 0 or end <= 0
-  annualizedReal: number | null;      // %/yr — same caveat + CPI deflator applied
-  avgInflation: number | null;        // %/yr — only populated for the inflation metric
-  improved: boolean;
-};
-
-// Build a CPI index anchored at 1.0 in the year *before* the first inflation
-// data point. cpi[Y] = price level at end of year Y relative to that anchor.
-function buildCPIIndex(): Record<number, number> {
-  const idx: Record<number, number> = {};
-  const infl = [...METRICS.inflation.d].sort((a, b) => a.y - b.y);
-  if (infl.length === 0) return idx;
-  idx[infl[0].y - 1] = 1.0;
-  let c = 1.0;
-  for (const pt of infl) {
-    c *= 1 + pt.v / 100;
-    idx[pt.y] = c;
-  }
-  return idx;
+// Bind the per-metric value resolver to this page's METRICS + METRIC_DISPLAY
+// once, so call sites can stay short.
+function resolveDisplay(c: Cell, mk: string, mode: DisplayMode, dollarMode: DollarMode) {
+  return getDisplayedChange(c, mk, mode, dollarMode, METRIC_DISPLAY_LANDING, METRICS[mk].inv);
 }
 
-function computeHeatmap(): Record<string, Record<string, Cell>> {
-  const out: Record<string, Record<string, Cell>> = {};
-  const cpi = buildCPIIndex();
-
-  for (const [mk, m] of Object.entries(METRICS)) {
-    out[mk] = {};
-    for (let ai = 0; ai < AID.length; ai++) {
-      const id = AID[ai];
-      const pts = m.d.filter(d => d.a === id).sort((a, b) => a.y - b.y);
-      if (pts.length < 1) continue;
-
-      // Inherited baseline: previous admin's last value (and year), or own first for Clinton.
-      let start: number;
-      let startYear: number;
-      if (ai > 0) {
-        const prevPts = m.d.filter(d => d.a === AID[ai - 1]).sort((a, b) => a.y - b.y);
-        if (prevPts.length > 0) {
-          start = prevPts[prevPts.length - 1].v;
-          startYear = prevPts[prevPts.length - 1].y;
-        } else {
-          start = pts[0].v;
-          startYear = pts[0].y;
-        }
-      } else {
-        start = pts[0].v;
-        startYear = pts[0].y;
-      }
-      const end = pts[pts.length - 1].v;
-      const endYear = pts[pts.length - 1].y;
-      const years = Math.max(endYear - startYear, 1);
-
-      const pctChange = ((end - start) / Math.abs(start || 1)) * 100;
-      const ppChange = end - start;
-
-      // Annualized only defined when both endpoints are positive (no logs of zero/negatives).
-      let annualizedNominal: number | null = null;
-      if (start > 0 && end > 0) {
-        annualizedNominal = (Math.pow(end / start, 1 / years) - 1) * 100;
-      }
-      let annualizedReal: number | null = null;
-      if (start > 0 && end > 0 && cpi[startYear] !== undefined && cpi[endYear] !== undefined) {
-        const realEnd = end * (cpi[startYear] / cpi[endYear]);
-        annualizedReal = (Math.pow(realEnd / start, 1 / years) - 1) * 100;
-      }
-
-      // Arithmetic mean of yearly inflation rates — close enough to geometric for these
-      // magnitudes and reads more cleanly than a compounded number.
-      let avgInflation: number | null = null;
-      if (mk === "inflation") {
-        avgInflation = pts.reduce((s, p) => s + p.v, 0) / pts.length;
-      }
-
-      const improved = m.inv ? end < start : end > start;
-      out[mk][id] = {
-        start, end, startYear, endYear, years,
-        pctChange, ppChange, annualizedNominal, annualizedReal, avgInflation,
-        improved,
-      };
-    }
-  }
-  return out;
-}
-
-/* ─────────────────────────────────────────────
-   DISPLAY MODES — how each metric is rendered
-───────────────────────────────────────────── */
-
-type DisplayMode = "per_metric" | "raw_pct";
-type DollarMode = "real" | "nominal";
-type DisplayUnit = "pp" | "pct_yr" | "pct_avg" | "pct";
-
-type MetricDisplay = { perMetricUnit: DisplayUnit; dollarAware: boolean };
-
-// Default representation per metric in "per-metric" mode. Rates → pp change (avoids
-// "% of a %" confusion and divide-by-near-zero artifacts); levels → annualized growth
-// (compounding-aware, fair across tenure lengths); inflation → average annual rate
-// (more meaningful than start→end change of a flow variable).
-const METRIC_DISPLAY: Record<string, MetricDisplay> = {
-  gdp:           { perMetricUnit: "pp",      dollarAware: false },
-  unemployment:  { perMetricUnit: "pp",      dollarAware: false },
-  inflation:     { perMetricUnit: "pct_avg", dollarAware: false },
-  sp500:         { perMetricUnit: "pct_yr",  dollarAware: true  },
-  debt_gdp:      { perMetricUnit: "pp",      dollarAware: false },
-  median_income: { perMetricUnit: "pct_yr",  dollarAware: true  },
-};
-
-function getDisplayedChange(
-  c: Cell, mk: string, mode: DisplayMode, dollarMode: DollarMode
-): { value: number | null; unit: DisplayUnit; improved: boolean } {
-  if (mode === "raw_pct") {
-    return { value: c.pctChange, unit: "pct", improved: c.improved };
-  }
-  const cfg = METRIC_DISPLAY[mk];
-  const inv = METRICS[mk].inv;
-  if (cfg.perMetricUnit === "pp") {
-    return { value: c.ppChange, unit: "pp", improved: inv ? c.ppChange < 0 : c.ppChange > 0 };
-  }
-  if (cfg.perMetricUnit === "pct_avg") {
-    // Inflation row: "improved" = at or below the Fed's 2% target.
-    if (c.avgInflation === null) return { value: null, unit: "pct_avg", improved: false };
-    return { value: c.avgInflation, unit: "pct_avg", improved: c.avgInflation <= 2 };
-  }
-  if (cfg.perMetricUnit === "pct_yr") {
-    const v = dollarMode === "real" ? c.annualizedReal : c.annualizedNominal;
-    if (v === null) return { value: null, unit: "pct_yr", improved: false };
-    return { value: v, unit: "pct_yr", improved: inv ? v < 0 : v > 0 };
-  }
-  return { value: c.pctChange, unit: "pct", improved: c.improved };
-}
-
-// Normalized 0..1 magnitude for color intensity, calibrated per unit so a "big"
-// move in each unit reads roughly the same visual weight.
-function colorMagnitude(value: number, unit: DisplayUnit): number {
-  switch (unit) {
-    case "pp":      return Math.min(Math.abs(value) / 10, 1);     // 10 pp saturates
-    case "pct_yr":  return Math.min(Math.abs(value) / 10, 1);     // 10%/yr saturates
-    case "pct_avg": return Math.min(Math.abs(value - 2) / 4, 1);  // ±4pp from 2% target saturates
-    case "pct":     return Math.min(Math.abs(value) / 50, 1);     // existing legacy threshold
-  }
-}
-
-function formatDisplayedChange(value: number | null, unit: DisplayUnit, verbose = false): string {
-  if (value === null || !isFinite(value)) return "—";
-  const sign = value >= 0 ? "+" : "";
-  switch (unit) {
-    case "pp":      return verbose
-      ? `${sign}${value.toFixed(1)} percentage points`
-      : `${sign}${value.toFixed(1)} pp`;
-    case "pct_yr":  return `${sign}${value.toFixed(1)}%/yr`;
-    case "pct_avg": return `${value.toFixed(1)}% avg`;
-    case "pct":     return `${sign}${value.toFixed(1)}%`;
-  }
-}
-
-// Existing cellColor kept for backward-compat (DeepDive section still calls it directly).
-function cellColor(c: { improved: boolean; pctChange: number } | undefined) {
-  if (!c) return { bg: C.paper, text: C.mute };
-  return cellColorFromMag(Math.min(Math.abs(c.pctChange) / 50, 1), c.improved);
-}
-
-function cellColorFromMag(magNorm: number, improved: boolean) {
-  const alpha = 0.15 + magNorm * 0.65;
-  if (improved) return { bg: `rgba(13,115,119,${alpha})`, text: alpha > 0.45 ? "#fff" : C.ink };
-  return { bg: `rgba(194,65,12,${alpha})`, text: alpha > 0.45 ? "#fff" : C.ink };
-}
-
-function fmt(v: number, u: string) {
+// Value formatter for start→end display. The landing page uses %, $K, idx.
+function fmt(v: number, u: string): string {
   if (u === "%") return v.toFixed(1) + "%";
   if (u === "$K") return "$" + v.toFixed(1) + "K";
   if (u === "idx") return v.toLocaleString();
@@ -369,7 +182,7 @@ function HeroViz({ mob }: { mob: boolean }) {
           />
           <Bar dataKey="v" radius={[2, 2, 0, 0]} animationDuration={1200}>
             {data.map((d, i) => (
-              <Cell key={i} fill={ADMINS[d.a]?.color || C.sub} />
+              <RechartsCell key={i} fill={ADMINS[d.a]?.color || C.sub} />
             ))}
           </Bar>
         </BarChart>
@@ -471,54 +284,6 @@ function Hero({ mob, med }: { mob: boolean; med: boolean }) {
   );
 }
 
-// Small segmented pill toggle used in the scorecard header.
-function PillToggle<T extends string>({ label, options, value, onChange, disabled = false }: {
-  label: string;
-  options: { value: T; label: string }[];
-  value: T;
-  onChange: (v: T) => void;
-  disabled?: boolean;
-}) {
-  return (
-    <div style={{
-      display: "inline-flex", alignItems: "center", gap: 8,
-      opacity: disabled ? 0.4 : 1,
-      pointerEvents: disabled ? "none" : "auto",
-    }}>
-      <span style={{
-        fontSize: 10, color: C.sub, letterSpacing: "0.08em",
-        textTransform: "uppercase", fontWeight: 500, fontFamily: SANS,
-      }}>{label}</span>
-      <div style={{
-        display: "inline-flex", border: `1px solid ${C.rule}`,
-        borderRadius: 3, background: C.card, padding: 2,
-      }}>
-        {options.map(opt => {
-          const active = opt.value === value;
-          return (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => onChange(opt.value)}
-              aria-pressed={active}
-              style={{
-                fontSize: 11, padding: "3px 10px", border: "none", cursor: "pointer",
-                borderRadius: 2,
-                background: active ? C.ink : "transparent",
-                color: active ? C.bg : C.sub,
-                fontWeight: active ? 600 : 500,
-                fontFamily: SANS, transition: "all 0.12s",
-              }}
-            >
-              {opt.label}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 /* ── Scorecard Heatmap ── */
 function HeatCell({
   id, mk, c, mob, metricLabel, unit, flipBelow = false,
@@ -531,7 +296,7 @@ function HeatCell({
   const [hov, setHov] = useState(false);
   const admin = ADMINS[id as keyof typeof ADMINS];
 
-  const disp = c ? getDisplayedChange(c, mk, displayMode, dollarMode) : null;
+  const disp = c ? resolveDisplay(c, mk, displayMode, dollarMode) : null;
   const st = disp && disp.value !== null
     ? cellColorFromMag(colorMagnitude(disp.value, disp.unit), disp.improved)
     : { bg: C.paper, text: C.mute };
@@ -625,7 +390,7 @@ function HeatCell({
 }
 
 function ScorecardSection({ mob, med }: { mob: boolean; med: boolean }) {
-  const heat = useMemo(() => computeHeatmap(), []);
+  const heat = useMemo(() => computeHeatmap(METRICS, AID), []);
   const [displayMode, setDisplayMode] = useState<DisplayMode>("per_metric");
   const [dollarMode, setDollarMode] = useState<DollarMode>("real");
 
@@ -791,7 +556,7 @@ function ScorecardSection({ mob, med }: { mob: boolean; med: boolean }) {
 function DeepDiveSection({ mob, med }: { mob: boolean; med: boolean }) {
   const [mk, setMk] = useState("gdp");
   const m = METRICS[mk];
-  const heat = useMemo(() => computeHeatmap(), []);
+  const heat = useMemo(() => computeHeatmap(METRICS, AID), []);
 
   return (
     <section id="data" style={{ padding: mob ? "48px 0" : "72px 0", borderBottom: `1px solid ${C.rule}` }}>
@@ -861,7 +626,7 @@ function DeepDiveSection({ mob, med }: { mob: boolean; med: boolean }) {
                 />
                 <Bar dataKey="v" radius={[2, 2, 0, 0]} animationDuration={800}>
                   {m.d.map((d, i) => (
-                    <Cell key={i} fill={ADMINS[d.a]?.color || C.sub} />
+                    <RechartsCell key={i} fill={ADMINS[d.a]?.color || C.sub} />
                   ))}
                 </Bar>
               </BarChart>
@@ -881,7 +646,7 @@ function DeepDiveSection({ mob, med }: { mob: boolean; med: boolean }) {
                 // Use the same per-metric framing as Section 01 (real dollars for $/idx
                 // metrics). No toggle here — the deep dive is focused, the per-metric
                 // unit is in the value itself ("+1.8 pp" / "+10.5%/yr" / "4.9% avg").
-                const disp = getDisplayedChange(c, mk, "per_metric", "real");
+                const disp = resolveDisplay(c, mk, "per_metric", "real");
                 const headline = formatDisplayedChange(disp.value, disp.unit);
                 return (
                   <div key={id} style={{
@@ -914,9 +679,9 @@ function DeepDiveSection({ mob, med }: { mob: boolean; med: boolean }) {
               fontSize: 10, color: C.mute, letterSpacing: "0.04em", lineHeight: 1.5,
               padding: "0 2px", marginTop: -6,
             }}>
-              {METRIC_DISPLAY[mk]?.perMetricUnit === "pp" && <>Showing percentage-point (pp) change across each tenure.</>}
-              {METRIC_DISPLAY[mk]?.perMetricUnit === "pct_yr" && <>Showing real annualized growth (CPI-adjusted) per year.</>}
-              {METRIC_DISPLAY[mk]?.perMetricUnit === "pct_avg" && <>Showing average annual inflation during each tenure.</>}
+              {METRIC_DISPLAY_LANDING[mk]?.perMetricUnit === "pp" && <>Showing percentage-point (pp) change across each tenure.</>}
+              {METRIC_DISPLAY_LANDING[mk]?.perMetricUnit === "pct_yr" && <>Showing real annualized growth (CPI-adjusted) per year.</>}
+              {METRIC_DISPLAY_LANDING[mk]?.perMetricUnit === "pct_avg" && <>Showing average annual inflation during each tenure.</>}
             </div>
 
             <Link href="/dashboard" style={{
