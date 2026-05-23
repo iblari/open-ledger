@@ -1689,24 +1689,24 @@ function App(){
           <div className="ol-grid-summary" style={{display:"grid",gridTemplateColumns:mob?"repeat(2,1fr)":`repeat(${Math.min(sel.length+1,6)},1fr)`,gap:mob?8:10,marginBottom:mob?12:20,order:mob?2:1}}>
             {sel.map((id,idx)=>{const s=sums[id];if(!s)return null;const a=ADMINS[id];
               const pts=m.d.filter(d=>d.a===id);if(pts.length<1)return null;
-              const start=inheritedStart(am,id),end=pts[pts.length-1].v;
-              const pct=start!==0?((end-start)/Math.abs(start))*100:0;
-              const imp=m.inv?pct<0:pct>0;const mnt=Math.abs(pct)<5;
-              const col=mnt?T.gold:imp?T.improve.strong:T.decline.strong;
+              const cell=HEAT_DATA[am]?.[id];
+              const disp=cell?resolveDashDisplay(cell,am,displayMode,dollarMode):null;
+              const headline=disp?formatDisplayedChange(disp.value,disp.unit,false,{metricUnit:m.u}):"—";
+              const headlineColor=disp&&disp.value!==null?(disp.improved?EC.improveStrong:EC.declineStrong):EC.mute;
               const sparkData=pts.map(p=>p.v);
               return <div key={id} className={`hover-lift stagger-${idx+1}`} style={{...sty.card,padding:mob?"10px 12px":"16px 18px",borderTop:`${mob?3:4}px solid ${a.color}`,position:"relative",overflow:"hidden"}}>
                 {!mob&&<div style={{position:"absolute",top:0,right:0,width:80,height:80,background:`linear-gradient(135deg, ${a.color}08 0%, transparent 70%)`,borderRadius:"0 0 0 80px"}}/>}
-                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?9:10,fontWeight:800,textTransform:"uppercase",letterSpacing:1,color:a.color,marginBottom:mob?4:6}}>{a.name}</div>
+                <div style={{fontFamily:ESANS,fontSize:mob?9:10,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.14em",color:a.color,marginBottom:mob?4:6}}>{a.name}</div>
                 <div style={{display:"flex",alignItems:"baseline",gap:mob?4:6,marginBottom:mob?3:4}}>
-                  <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?10:12,color:T.mute,fontVariantNumeric:"tabular-nums"}}>{fmt(start,m.u)}</span>
-                  <span style={{fontSize:mob?8:10,color:T.mute}}>→</span>
-                  <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?10:18,fontWeight:700,color:T.ink,fontVariantNumeric:"tabular-nums"}}>{fmt(end,m.u)}</span>
+                  <span style={{fontFamily:ESANS,fontSize:mob?10:12,color:EC.mute,fontVariantNumeric:"tabular-nums"}}>{fmt(cell?cell.start:0,m.u)}</span>
+                  <span style={{fontSize:mob?8:10,color:EC.mute}}>→</span>
+                  <span style={{fontFamily:ESANS,fontSize:mob?10:18,fontWeight:600,color:EC.ink,fontVariantNumeric:"tabular-nums"}}>{fmt(cell?cell.end:0,m.u)}</span>
                 </div>
                 <div style={{display:"flex",alignItems:"center",gap:mob?4:8,marginBottom:mob?4:6}}>
-                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?17:24,fontWeight:900,color:col,fontVariantNumeric:"tabular-nums"}}>{mnt?"—":imp?"▲":"▼"}{Math.abs(pct).toFixed(0)}%</div>
+                  <div style={{fontFamily:ESERIF,fontSize:mob?18:24,fontWeight:600,color:headlineColor,fontVariantNumeric:"tabular-nums",letterSpacing:"-0.015em",lineHeight:1.05}}>{headline}</div>
                   {!mob&&<Sparkline data={sparkData} color={a.color} width={50} height={20} />}
                 </div>
-                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?9:10,color:T.mute,display:"flex",justifyContent:"space-between"}}>
+                <div style={{fontFamily:ESANS,fontSize:mob?9:10,color:EC.mute,display:"flex",justifyContent:"space-between"}}>
                   <span>avg {fmt(s.avg,m.u)}</span>
                   <span style={{color:a.color,fontWeight:600}}>{a.years}</span>
                 </div>
@@ -1787,7 +1787,7 @@ function App(){
                   <th style={{textAlign:"center",padding:"8px 4px",fontSize:10,color:T.rule}}></th>
                   <th style={{textAlign:"center",padding:"8px 10px",fontSize:10,fontWeight:700,color:T.mute}}>Left At</th>
                   <th style={{textAlign:"center",padding:"8px 10px",fontSize:10,fontWeight:700,color:T.mute}}>Avg</th>
-                  <th style={{textAlign:"right",padding:"8px 14px",fontSize:10,fontWeight:700,color:T.mute}}>% Change</th>
+                  <th style={{textAlign:"right",padding:"8px 14px",fontSize:10,fontWeight:700,color:T.mute}}>Change</th>
                 </tr>
               </thead>
               <tbody>
@@ -1795,27 +1795,27 @@ function App(){
                   const pts=m.d.filter(d=>d.a===id);
                   if(pts.length<1)return null;
                   const a=ADMINS[id];
-                  const start=inheritedStart(am,id);const end=pts[pts.length-1].v;
-                  const pctChg=start!==0?((end-start)/Math.abs(start))*100:0;
-                  const improved=m.inv?pctChg<0:pctChg>0;
-                  const maintained=Math.abs(pctChg)<5;
-                  const verdict=maintained?"Maintained":improved?"Improved":"Declined";
-                  const verdictColor=maintained?T.gold:improved?"#16a34a":"#dc2626";
+                  const cell=HEAT_DATA[am]?.[id];
+                  if(!cell)return null;
+                  const disp=resolveDashDisplay(cell,am,displayMode,dollarMode);
+                  const headline=formatDisplayedChange(disp.value,disp.unit,false,{metricUnit:m.u});
+                  const verdict=disp.value===null?"—":disp.improved?"Improved":"Declined";
+                  const verdictColor=disp.value===null?EC.mute:disp.improved?EC.improveStrong:EC.declineStrong;
                   const termAvg=pts.reduce((s,d)=>s+d.v,0)/pts.length;
                   return <tr key={id} style={{borderBottom:`1px solid ${T.rule}22`}}>
                     <td style={{padding:"8px 14px",display:"flex",alignItems:"center",gap:6}}>
                       <span style={{width:8,height:8,borderRadius:2,background:a.color,flexShrink:0}}/>
-                      <span style={{fontWeight:700,color:a.color}}>{a.name}</span>
+                      <span style={{fontWeight:600,color:a.color,fontFamily:ESERIF,letterSpacing:"-0.01em"}}>{a.name}</span>
                     </td>
-                    <td style={{textAlign:"center",padding:"8px 10px",fontFamily:"'DM Sans',sans-serif",fontSize:11,color:T.sub}}>{fmt(start,m.u)}</td>
-                    <td style={{textAlign:"center",padding:"8px 2px",color:T.rule,fontSize:10}}>→</td>
-                    <td style={{textAlign:"center",padding:"8px 10px",fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:600,color:T.ink}}>{fmt(end,m.u)}</td>
-                    <td style={{textAlign:"center",padding:"8px 10px",fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:500,color:T.sub}}>{fmt(termAvg,m.u)}</td>
+                    <td style={{textAlign:"center",padding:"8px 10px",fontFamily:ESANS,fontSize:11,color:EC.sub,fontVariantNumeric:"tabular-nums"}}>{fmt(cell.start,m.u)}</td>
+                    <td style={{textAlign:"center",padding:"8px 2px",color:EC.rule,fontSize:10}}>→</td>
+                    <td style={{textAlign:"center",padding:"8px 10px",fontFamily:ESANS,fontSize:11,fontWeight:600,color:EC.ink,fontVariantNumeric:"tabular-nums"}}>{fmt(cell.end,m.u)}</td>
+                    <td style={{textAlign:"center",padding:"8px 10px",fontFamily:ESANS,fontSize:11,fontWeight:500,color:EC.sub,fontVariantNumeric:"tabular-nums"}}>{fmt(termAvg,m.u)}</td>
                     <td style={{textAlign:"right",padding:"8px 14px"}}>
-                      <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:600,color:verdictColor}}>
-                        {maintained?"—":improved?"▲":"▼"}{Math.abs(pctChg).toFixed(1)}%
+                      <span style={{fontFamily:ESERIF,fontSize:13,fontWeight:600,color:verdictColor,letterSpacing:"-0.01em",fontVariantNumeric:"tabular-nums"}}>
+                        {headline}
                       </span>
-                      <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,color:verdictColor,marginLeft:5,fontWeight:600}}>{verdict}</span>
+                      <span style={{fontFamily:ESANS,fontSize:9,color:verdictColor,marginLeft:6,fontWeight:600,letterSpacing:"0.04em",textTransform:"uppercase"}}>{verdict}</span>
                     </td>
                   </tr>;
                 })}
