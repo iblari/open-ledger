@@ -1028,20 +1028,76 @@ function App(){
       {/* ── HEADER ── */}
       <div style={sty.header} className="ol-header-wrap">
         <div className="ol-header" style={{maxWidth:1080,margin:"0 auto"}}>
-          <Link href="/" style={{display:"flex",alignItems:"center",gap:12,marginBottom:12,textDecoration:"none",cursor:"pointer"}}>
-            <div style={{display:"flex",gap:3}}>
-              <div style={{width:4,height:20,background:T.accent,borderRadius:1}}/>
-              <div style={{width:4,height:20,background:T.accent,borderRadius:1,opacity:0.6}}/>
-              <div style={{width:4,height:20,background:T.accent,borderRadius:1,opacity:0.3}}/>
+          {/* Brand */}
+          <Link href="/" style={{display:"inline-flex",alignItems:"center",gap:14,marginBottom:mob?20:24,textDecoration:"none",cursor:"pointer"}}>
+            <div style={{display:"flex",gap:4}}>
+              <div style={{width:5,height:24,background:EC.accent,borderRadius:1}}/>
+              <div style={{width:5,height:24,background:EC.accent,borderRadius:1,opacity:0.55}}/>
+              <div style={{width:5,height:24,background:EC.accent,borderRadius:1,opacity:0.28}}/>
             </div>
-            <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:800,letterSpacing:4,textTransform:"uppercase",color:T.mute}}>Open Ledger</span>
+            <span style={{fontFamily:ESANS,fontSize:11,fontWeight:500,letterSpacing:"0.32em",textTransform:"uppercase",color:EC.mute}}>Open Ledger</span>
           </Link>
-          <h1 style={{fontSize:mob?32:48,fontWeight:900,margin:0,lineHeight:1.05,letterSpacing:-2,maxWidth:700,color:T.ink}}>
-            The economy under<br/>every president, <span style={{color:T.accent}}>in data.</span>
+
+          {/* Editorial headline — serif with italic accent */}
+          <h1 style={{
+            fontFamily:ESERIF,
+            fontSize:mob?34:56,
+            fontWeight:400,
+            margin:0,
+            lineHeight:1.02,
+            letterSpacing:"-0.025em",
+            maxWidth:880,
+            color:EC.ink,
+          }}>
+            The economy under every president, <em style={{fontStyle:"italic",color:EC.accent,fontWeight:400}}>in data.</em>
           </h1>
-          <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:15,color:T.sub,margin:"14px 0 0",maxWidth:520,lineHeight:1.6}}>
-            19 economic indicators. 4 active conflicts. 5 administrations. 32 years. No editorial. No spin. <strong style={{color:T.ink}}>You interpret.</strong>
-          </p>
+
+          {/* Stat strip — serif numerals + small caps labels */}
+          <div style={{
+            marginTop:mob?20:26,
+            display:"flex",alignItems:"baseline",gap:mob?14:24,flexWrap:"wrap",
+            fontFamily:ESANS,fontSize:11,fontWeight:500,letterSpacing:"0.13em",
+            textTransform:"uppercase",color:EC.sub,
+          }}>
+            <span style={{display:"inline-flex",alignItems:"baseline",gap:8}}>
+              <strong style={{fontFamily:ESERIF,fontSize:mob?22:26,fontWeight:500,fontStyle:"italic",color:EC.ink,letterSpacing:"-0.02em",textTransform:"none"}}>19</strong>
+              <span>indicators</span>
+            </span>
+            <span style={{width:3,height:3,background:EC.mute,borderRadius:"50%",alignSelf:"center"}}/>
+            <span style={{display:"inline-flex",alignItems:"baseline",gap:8}}>
+              <strong style={{fontFamily:ESERIF,fontSize:mob?22:26,fontWeight:500,fontStyle:"italic",color:EC.ink,letterSpacing:"-0.02em",textTransform:"none"}}>5</strong>
+              <span>administrations</span>
+            </span>
+            <span style={{width:3,height:3,background:EC.mute,borderRadius:"50%",alignSelf:"center"}}/>
+            <span style={{display:"inline-flex",alignItems:"baseline",gap:8}}>
+              <strong style={{fontFamily:ESERIF,fontSize:mob?22:26,fontWeight:500,fontStyle:"italic",color:EC.ink,letterSpacing:"-0.02em",textTransform:"none"}}>32</strong>
+              <span>years</span>
+            </span>
+            <span style={{width:3,height:3,background:EC.mute,borderRadius:"50%",alignSelf:"center"}}/>
+            <span style={{color:EC.accent,fontWeight:500}}>You interpret</span>
+          </div>
+
+          {/* Presidential timeline bar — visual signature for the 32-year span */}
+          <div style={{marginTop:mob?22:30,paddingTop:18,borderTop:`1px solid ${EC.rule}`}}>
+            <div style={{display:"flex",alignItems:"stretch",gap:3}}>
+              {AID.map(id=>{
+                const a=ADMINS[id];
+                const parts=a.full.split("–"); // en-dash
+                const ys=parseInt(parts[0])||0;
+                const ye=parseInt(parts[1])||2025;
+                const yrs=Math.max(ye-ys,1);
+                return (
+                  <div key={id} style={{flex:yrs,display:"flex",flexDirection:"column",gap:6}}>
+                    <div style={{width:"100%",height:4,background:a.color,borderRadius:1}}/>
+                    <div style={{display:"flex",flexDirection:"column",gap:1,paddingLeft:2}}>
+                      <span style={{fontFamily:ESERIF,fontSize:mob?11:13,fontWeight:500,color:a.color,letterSpacing:"-0.01em",lineHeight:1.1}}>{a.name}</span>
+                      <span style={{fontFamily:ESANS,fontSize:9,color:EC.mute,letterSpacing:"0.04em",lineHeight:1.1}}>{a.full}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1073,26 +1129,7 @@ function App(){
 
           {/* ── OVERVIEW MODE ── */}
           {!detail&&(<div>
-            {/* Key Insights — softer editorial styling, copy regenerated under pp framing */}
-            {!mob && (
-            <div style={{background:EC.card,border:`1px solid ${EC.rule}`,borderLeft:`3px solid ${EC.accent}`,borderRadius:0,padding:"18px 22px",marginBottom:28}}>
-              <div style={{fontFamily:ESANS,fontSize:10,fontWeight:500,letterSpacing:"0.14em",textTransform:"uppercase",color:EC.sub,marginBottom:12}}>Worth knowing</div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:24,fontFamily:ESERIF,fontSize:14,lineHeight:1.55,color:EC.ink}}>
-                <p style={{margin:0}}>
-                  <strong style={{fontWeight:600}}>Clinton ran four straight budget surpluses</strong>
-                  <span style={{color:EC.sub}}> &mdash; the only president in this dataset to balance the books for a full term.</span>
-                </p>
-                <p style={{margin:0}}>
-                  <strong style={{fontWeight:600}}>Inequality kept rising under every administration</strong>
-                  <span style={{color:EC.sub}}> &mdash; the top 10% income share grew from 40.5% to 47.2% over 32 years, regardless of party.</span>
-                </p>
-                <p style={{margin:0}}>
-                  <strong style={{fontWeight:600}}>Obama inherited the deepest crisis</strong>
-                  <span style={{color:EC.sub}}> &mdash; unemployment of 9.3%, peaking at 9.6%. He brought it down 4.4 percentage points to 4.9%, the largest drop of any president here.</span>
-                </p>
-              </div>
-            </div>
-            )}
+            {/* (Removed: 'Worth knowing' insights callout — user prefers a cleaner top.) */}
             
             <div style={{marginBottom:20}}>
               <h2 style={{fontFamily:ESERIF,fontSize:mob?26:34,fontWeight:400,letterSpacing:"-0.02em",lineHeight:1.1,margin:"0 0 6px"}}>
@@ -1166,7 +1203,7 @@ function App(){
                               </div>
                               <div style={{display:"flex",alignItems:"center",gap:8}}>
                                 <Sparkline data={sparkData} color={ADMINS[selectedPres]?.color||EC.sub} width={50} height={22} />
-                                <div style={{background:st.bg,color:st.text,borderRadius:3,padding:"6px 10px",fontFamily:ESERIF,fontWeight:500,fontSize:13,minWidth:64,textAlign:"center",fontVariantNumeric:"tabular-nums",lineHeight:1.15}}>
+                                <div style={{background:st.bg,color:st.text,borderRadius:3,padding:"7px 11px",fontFamily:ESERIF,fontWeight:600,fontSize:15,minWidth:68,textAlign:"center",fontVariantNumeric:"tabular-nums",lineHeight:1.15,letterSpacing:"-0.01em"}}>
                                   {headline}
                                 </div>
                                 <span className="tap-chevron" style={{fontSize:18,color:EC.mute,fontWeight:300,marginLeft:2,lineHeight:1}}>›</span>
@@ -1272,13 +1309,13 @@ function App(){
                             const headline=formatDisplayedChange(disp.value,disp.unit,false,{metricUnit:mx.u});
                             return (
                               <div key={id} style={{
-                                margin:3,height:44,borderRadius:3,
-                                display:"grid",placeItems:"center",padding:"2px 4px",
+                                margin:4,height:54,borderRadius:3,
+                                display:"grid",placeItems:"center",padding:"4px 6px",
                                 background:st.bg,color:st.text,textAlign:"center",
                                 fontVariantNumeric:"tabular-nums",
                               }}>
-                                <span style={{fontFamily:ESERIF,fontSize:13,fontWeight:500,lineHeight:1.1}}>{headline}</span>
-                                <span style={{fontSize:9,opacity:0.7,lineHeight:1.1,letterSpacing:"0.02em",fontFamily:ESANS}}>
+                                <span style={{fontFamily:ESERIF,fontSize:16,fontWeight:600,lineHeight:1.05,letterSpacing:"-0.01em"}}>{headline}</span>
+                                <span style={{fontSize:10,opacity:0.78,lineHeight:1.1,letterSpacing:"0.02em",fontFamily:ESANS,marginTop:1,fontWeight:500}}>
                                   {fmt(c.start,mx.u)} → {fmt(c.end,mx.u)}
                                 </span>
                               </div>
