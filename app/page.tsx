@@ -224,11 +224,13 @@ function colorMagnitude(value: number, unit: DisplayUnit): number {
   }
 }
 
-function formatDisplayedChange(value: number | null, unit: DisplayUnit): string {
+function formatDisplayedChange(value: number | null, unit: DisplayUnit, verbose = false): string {
   if (value === null || !isFinite(value)) return "—";
   const sign = value >= 0 ? "+" : "";
   switch (unit) {
-    case "pp":      return `${sign}${value.toFixed(1)} pp`;
+    case "pp":      return verbose
+      ? `${sign}${value.toFixed(1)} percentage points`
+      : `${sign}${value.toFixed(1)} pp`;
     case "pct_yr":  return `${sign}${value.toFixed(1)}%/yr`;
     case "pct_avg": return `${value.toFixed(1)}% avg`;
     case "pct":     return `${sign}${value.toFixed(1)}%`;
@@ -533,7 +535,10 @@ function HeatCell({
   const st = disp && disp.value !== null
     ? cellColorFromMag(colorMagnitude(disp.value, disp.unit), disp.improved)
     : { bg: C.paper, text: C.mute };
+  // Compact form ("+1.8 pp") for the cell; verbose form ("+1.8 percentage points")
+  // for the tooltip so the abbreviation isn't unexplained on hover.
   const headline = disp ? formatDisplayedChange(disp.value, disp.unit) : "—";
+  const tooltipHeadline = disp ? formatDisplayedChange(disp.value, disp.unit, true) : "—";
 
   // Tooltip footnote: when in per-metric mode, show the raw % for transparency
   // (so the reader can see what the alternative framing produces).
@@ -596,7 +601,7 @@ function HeatCell({
           <div style={{
             fontFamily: SERIF, fontSize: 16, fontWeight: 700, marginTop: 4,
             color: disp && disp.improved ? "#8ee3e6" : "#fed7aa",
-          }}>{headline}<span style={{ fontSize: 11, fontWeight: 400, opacity: 0.7 }}>{dollarQualifier}</span></div>
+          }}>{tooltipHeadline}<span style={{ fontSize: 11, fontWeight: 400, opacity: 0.7 }}>{dollarQualifier}</span></div>
           {rawNote && (
             <div style={{ fontSize: 10, opacity: 0.45, marginTop: 2, fontVariantNumeric: "tabular-nums" }}>
               {rawNote}
@@ -763,7 +768,7 @@ function ScorecardSection({ mob, med }: { mob: boolean; med: boolean }) {
           }}>
             <span>
               {displayMode === "per_metric"
-                ? <>Per-metric view: pp change for rates, {dollarMode} annualized for prices/income, average for inflation.</>
+                ? <>Per-metric view: percentage-point (pp) change for rates, {dollarMode} annualized for prices/income, average for inflation.</>
                 : <>Raw % change from inherited value to last year of administration.</>}
             </span>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
