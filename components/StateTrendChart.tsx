@@ -140,6 +140,224 @@ export function StateTrendChart({
           ))}
         </LineChart>
       </ResponsiveContainer>
+
+      {/* Auto-insights: comparative facts derived from the selected states.
+          Only renders when at least one state is selected; the "select a state"
+          empty-state copy already lives in the chart subtitle above. */}
+      {selected.length > 0 && (
+        <InsightsPanel metric={metric} selected={selected} />
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Insights panel — comparative facts about selected states
+// ─────────────────────────────────────────────────────────────────
+//
+// What it surfaces:
+//   - For each selected state: total change over 11 years + how it compares
+//     to the unweighted national mean (above / below by N units).
+//   - When 2+ states are selected: who grew fastest, who slowest, by how much.
+//   - When relevant: which state(s) cross the national trend.
+//
+// What it CAN'T surface today (intentional honest limitation, noted in the
+// footer): year-over-year spikes or anomalies. The underlying state data is
+// back-filled from per-state CAGRs, so the trend lines are mathematically
+// smooth — there are no real spikes to detect. If/when we wire up real
+// annual per-state series, that's where this expands.
+
+function InsightsPanel({
+  metric,
+  selected,
+}: {
+  metric: StateMetric;
+  selected: StateCode[];
+}) {
+  const isSum = metric.aggregateMethod === "sum";
+  const nat = nationalHistory(metric);
+  const natStart = nat[0];
+  const natEnd = nat[nat.length - 1];
+
+  // Build per-state observation rows. Skip any state whose latest is missing.
+  type Row = {
+    code: StateCode;
+    name: string;
+    color: string;
+    start: number;
+    end: number;
+    absChange: number;     // end - start
+    pctChange: number;     // (end - start) / start
+  };
+  const rows: Row[] = selected.flatMap((code, idx) => {
+    const h = stateHistory(metric, code);
+    if (!h) return [];
+    const start = h[0];
+    const end = h[h.length - 1];
+    return [{
+      code,
+      name: STATE_NAMES[code],
+      color: stateLineColor(idx),
+      start, end,
+      absChange: end - start,
+      pctChange: start !== 0 ? (end - start) / start : 0,
+    }];
+  });
+  if (rows.length === 0) return null;
+
+  // Sort by % change descending (fastest grower first) for downstream picks.
+  const byGrowth = [...rows].sort((a, b) => b.pctChange - a.pctChange);
+  const fastest = byGrowth[0];
+  const slowest = byGrowth[byGrowth.length - 1];
+
+  // ─── Build the facts. Each is { kind, text, color? } ───
+  type Fact = { text: React.ReactNode; tone?: "neutral" | "good" | "bad" };
+  const facts: Fact[] = [];
+
+  // Fact 1 — per-state line for every selected state.
+  for (const r of rows) {
+    const startTxt = formatMetricValue(metric, r.start);
+    const endTxt = formatMetricValue(metric, r.end);
+    const pctTxt = `${r.pctChange >= 0 ? "+" : ""}${(r.pctChange * 100).toFixed(0)}%`;
+    // For non-sum metrics, "vs national" is the position relative to the
+    // unweighted state mean at end-of-window. For sum metrics it doesn't make
+    // sense to compare a state to a national total, so we skip the comparison.
+    const vsNatTxt = !isSum
+      ? (() => {
+          const diff = r.end - natEnd;
+          const dirWord = diff >= 0 ? "above" : "below";
+          // "Costlike" metrics (rent, gas, etc.) — being above the mean is bad,
+          // so flip the tone. For "improvement" metrics (incomes, wages),
+          // above is good. We default to neutral when the metric is ambiguous.
+          return (
+            <span style={{ color: EC.mute }}>
+              {" — "}
+              {formatMetricValue(metric, Math.abs(diff))} {dirWord} national avg
+            </span>
+          );
+        })()
+      : null;
+    facts.push({
+      text: (
+        <>
+          <span style={{ color: r.color, fontWeight: 600 }}>{r.name}</span>
+          {" "}
+          <span style={{ fontVariantNumeric: "tabular-nums" }}>{startTxt} → {endTxt}</span>
+          {" "}
+          <span style={{
+            color: r.pctChange >= 0 ? EC.improveStrong : EC.declineStrong,
+            fontWeight: 600, fontVariantNumeric: "tabular-nums",
+          }}>({pctTxt})</span>
+          {vsNatTxt}
+        </>
+      ),
+    });
+  }
+
+  // Fact 2 — comparative line when 2+ states are selected. Spread captures
+  // how different the selected slice is from itself; a wide spread is the
+  // interesting story ("Hawaii grew 3× faster than West Virginia").
+  if (rows.length >= 2) {
+    const spreadPct = (fastest.pctChange - slowest.pctChange) * 100;
+    if (Math.abs(spreadPct) >= 5) {
+      const ratio = slowest.pctChange !== 0
+        ? Math.abs(fastest.pctChange / slowest.pctChange)
+        : null;
+      facts.push({
+        text: (
+          <>
+            <span style={{ color: fastest.color, fontWeight: 600 }}>{fastest.name}</span>
+            {" grew "}
+            {ratio && ratio >= 1.4
+              ? <><strong style={{ color: EC.ink }}>{ratio.toFixed(1)}×</strong> faster than </>
+              : <>more than </>}
+            <span style={{ color: slowest.color, fontWeight: 600 }}>{slowest.name}</span>
+            {" over the window."}
+          </>
+        ),
+        tone: "neutral",
+      });
+    }
+  }
+
+  // Fact 3 — national context, only for mean-aggregated metrics. For sum
+  // metrics the national line is on a different axis and a "vs national"
+  // comparison would be misleading.
+  if (!isSum) {
+    const natPct = natStart !== 0 ? ((natEnd - natStart) / natStart) * 100 : 0;
+    const abovePeers = rows.filter(r => r.end > natEnd).length;
+    const belowPeers = rows.length - abovePeers;
+    if (abovePeers > 0 && belowPeers > 0) {
+      facts.push({
+        text: (
+          <>
+            {abovePeers} of your {rows.length} selected{" "}
+            {abovePeers === 1 ? "state is" : "states are"} above the national average
+            {" "}({formatMetricValue(metric, natEnd)}); {belowPeers} below.
+          </>
+        ),
+      });
+    } else if (abovePeers === rows.length) {
+      facts.push({
+        text: (
+          <>
+            All {rows.length} selected {rows.length === 1 ? "state is" : "states are"} above the
+            national average ({formatMetricValue(metric, natEnd)}, +{natPct.toFixed(0)}% over the window).
+          </>
+        ),
+      });
+    } else {
+      facts.push({
+        text: (
+          <>
+            All {rows.length} selected {rows.length === 1 ? "state is" : "states are"} below the
+            national average ({formatMetricValue(metric, natEnd)}).
+          </>
+        ),
+      });
+    }
+  }
+
+  return (
+    <div style={{
+      marginTop: 14, paddingTop: 14, borderTop: `1px solid ${EC.rule}`,
+    }}>
+      <div style={{
+        fontFamily: ESANS, fontSize: 10, letterSpacing: "0.14em",
+        textTransform: "uppercase", color: EC.mute, fontWeight: 600, marginBottom: 8,
+      }}>
+        What stands out
+      </div>
+      <ul style={{
+        margin: 0, padding: 0, listStyle: "none",
+        display: "flex", flexDirection: "column", gap: 6,
+      }}>
+        {facts.map((f, i) => (
+          <li key={i} style={{
+            fontFamily: ESANS, fontSize: 12.5, color: EC.ink, lineHeight: 1.55,
+            paddingLeft: 14, position: "relative",
+          }}>
+            <span style={{
+              position: "absolute", left: 0, top: 9,
+              width: 5, height: 5, borderRadius: "50%",
+              background: f.tone === "good" ? EC.improveStrong
+                        : f.tone === "bad"  ? EC.declineStrong
+                        : EC.mute,
+            }} />
+            {f.text}
+          </li>
+        ))}
+      </ul>
+      {/* Honest caveat: the trend lines are smooth because the underlying
+          per-state data is currently back-filled from CAGRs. Once we wire up
+          real annual series, we can light up spike/dip detection here. */}
+      <div style={{
+        marginTop: 10, fontFamily: ESANS, fontSize: 10, color: EC.mute,
+        lineHeight: 1.5, fontStyle: "italic",
+      }}>
+        Trend lines are smoothed from per-state growth rates; year-over-year spike
+        detection lights up once real annual data is wired in.
+      </div>
     </div>
   );
 }
