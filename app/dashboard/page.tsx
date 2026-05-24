@@ -1279,12 +1279,12 @@ function App(){
 
           {/* ── OVERVIEW MODE ── */}
           {!detail&&(<div>
-            {/* Auto-generated insights — computed from lib/metrics-data via
-                lib/insights detectors. Sits above the heatmap so anyone
-                landing on the dashboard immediately sees what's notable in
-                the data instead of having to interpret 19 metric cards
-                themselves. */}
-            <InsightsStrip mob={mob} limit={3} eyebrow="What's notable right now" />
+            {/* Auto-generated insights — desktop-only on the dashboard.
+                Mobile users get the same strip on the landing page; showing
+                it here too is redundant + competes with the heatmap for the
+                limited mobile screen. Logic still lives in lib/insights /
+                lib/insights-live so the landing render is unaffected. */}
+            {!mob && <InsightsStrip mob={mob} limit={3} eyebrow="What's notable right now" />}
 
             <div style={{marginBottom:20}}>
               <h2 style={{fontFamily:ESERIF,fontSize:mob?26:34,fontWeight:400,letterSpacing:"-0.02em",lineHeight:1.1,margin:"0 0 6px"}}>
