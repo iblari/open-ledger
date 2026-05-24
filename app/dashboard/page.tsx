@@ -1224,16 +1224,31 @@ function App(){
       {/* ── NAV ── */}
       <div style={sty.nav}>
         <div className="ol-nav-wrap" style={{maxWidth:1080,margin:"0 auto",padding:"0 24px",display:"flex",gap:0,overflowX:"auto"}}>
-          {(mob?TABS_MOBILE:TABS_DESKTOP).map(([k,l])=><button key={k} className="ol-nav-btn" onClick={()=>setTab(k)} style={{
-            padding:"13px 20px",border:"none",fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:600,whiteSpace:"nowrap",
-            background:"transparent",color:tab===k?T.ink:T.mute,
-            borderBottom:tab===k?`2px solid ${T.accent}`:"2px solid transparent",transition:"all 0.2s"
-          }}>{l}</button>)}
-          <a href="/live-benchmark" className="ol-nav-btn" style={{
-            padding:"13px 20px",fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:600,whiteSpace:"nowrap",
-            background:"transparent",color:T.accent,textDecoration:"none",display:"flex",alignItems:"center",gap:6,
-            borderBottom:"2px solid transparent",transition:"all 0.2s"
-          }}><span style={{width:6,height:6,borderRadius:"50%",background:T.accent,animation:"pulse 2s infinite"}}/>Live Benchmark</a>
+          {(mob?TABS_MOBILE:TABS_DESKTOP).map(([k,l])=>{
+            // Live Benchmark gets special "live" treatment — always red text,
+            // pulsing dot — so it visually pops from the static analytical
+            // tabs (Data / State Atlas / etc.) the same way the Live Broadcast
+            // link does. The underline still toggles with active state.
+            const isLive = k==="live_benchmark";
+            const active = tab===k;
+            return (
+              <button key={k} className="ol-nav-btn" onClick={()=>setTab(k)} style={{
+                padding:"13px 20px",border:"none",fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:isLive?700:600,whiteSpace:"nowrap",
+                background:"transparent",
+                color:isLive ? T.accent : (active?T.ink:T.mute),
+                borderBottom:active?`2px solid ${T.accent}`:"2px solid transparent",
+                transition:"all 0.2s",
+                display:isLive?"flex":undefined, alignItems:isLive?"center":undefined, gap:isLive?6:undefined,
+                cursor:"pointer",
+              }}>
+                {isLive && <span style={{width:6,height:6,borderRadius:"50%",background:T.accent,animation:"pulse 2s infinite",flexShrink:0}}/>}
+                {l}
+              </button>
+            );
+          })}
+          {/* (Removed: the standalone /live-benchmark anchor that used to
+              live here — now redundant with the live_benchmark tab above,
+              which inherits the same red-dot-with-pulse styling.) */}
           <a href="/live" className="ol-nav-btn" style={{
             padding:"13px 20px",fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:600,whiteSpace:"nowrap",
             background:"transparent",color:"#dc2626",textDecoration:"none",display:"flex",alignItems:"center",gap:6,
