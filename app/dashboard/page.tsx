@@ -705,8 +705,12 @@ function SpendTrendChart({ mob }: { mob?: boolean }) {
   );
 }
 
-const TABS_DESKTOP=[["dashboard","Data"],["state_atlas","State Atlas"],["scenarios","Scenarios"],["abroad","Abroad"],["global","Global"]];
-const TABS_MOBILE=[["dashboard","Data"],["state_atlas","State Atlas"],["scenarios","Scenarios"],["abroad","Abroad"],["global","Global"]];
+// Abroad tab hidden for now — needs improvement before re-exposing.
+// To restore: add ["abroad","Abroad"] back into both arrays. The tab's
+// implementation (state, render block at the "abroad" branch below) is
+// intentionally left in place so it just works when re-enabled.
+const TABS_DESKTOP=[["dashboard","Data"],["state_atlas","State Atlas"],["scenarios","Scenarios"],["global","Global"]];
+const TABS_MOBILE=[["dashboard","Data"],["state_atlas","State Atlas"],["scenarios","Scenarios"],["global","Global"]];
 
 // Per-metric heatmap data, computed once at module-load. Uses the shared lib
 // so the dashboard speaks the same data language as the landing page.
