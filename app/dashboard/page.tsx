@@ -1753,12 +1753,12 @@ function App(){
             <table style={{width:"100%",borderCollapse:"collapse",fontFamily:"'DM Sans',sans-serif",fontSize:12}}>
               <thead>
                 <tr style={{borderBottom:`1px solid ${T.rule}`}}>
-                  <th style={{textAlign:"left",padding:mob?"8px 8px":"8px 14px",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:0.5,color:T.mute}}>President</th>
-                  <th style={{textAlign:"center",padding:mob?"8px 4px":"8px 10px",fontSize:10,fontWeight:700,color:T.mute}}>{mob?"From":"Inherited"}</th>
-                  <th style={{textAlign:"center",padding:"8px 2px",fontSize:10,color:T.rule}}></th>
-                  <th style={{textAlign:"center",padding:mob?"8px 4px":"8px 10px",fontSize:10,fontWeight:700,color:T.mute}}>{mob?"To":"Left At"}</th>
-                  {!mob && <th style={{textAlign:"center",padding:"8px 10px",fontSize:10,fontWeight:700,color:T.mute}}>Avg</th>}
-                  <th style={{textAlign:"right",padding:mob?"8px 8px":"8px 14px",fontSize:10,fontWeight:700,color:T.mute}}>Change</th>
+                  <th style={{textAlign:"left",padding:mob?"8px 6px":"8px 14px",fontSize:mob?9:10,fontWeight:700,textTransform:"uppercase",letterSpacing:0.5,color:T.mute}}>President</th>
+                  <th style={{textAlign:"center",padding:mob?"8px 2px":"8px 10px",fontSize:mob?9:10,fontWeight:700,color:T.mute}}>{mob?"From":"Inherited"}</th>
+                  <th style={{textAlign:"center",padding:"8px 1px",fontSize:10,color:T.rule}}></th>
+                  <th style={{textAlign:"center",padding:mob?"8px 2px":"8px 10px",fontSize:mob?9:10,fontWeight:700,color:T.mute}}>{mob?"To":"Left At"}</th>
+                  <th style={{textAlign:"center",padding:mob?"8px 3px":"8px 10px",fontSize:mob?9:10,fontWeight:700,color:T.mute}}>Avg</th>
+                  <th style={{textAlign:"right",padding:mob?"8px 6px":"8px 14px",fontSize:mob?9:10,fontWeight:700,color:T.mute}}>Change</th>
                 </tr>
               </thead>
               <tbody>
@@ -1774,15 +1774,15 @@ function App(){
                   const verdictColor=disp.value===null?EC.mute:disp.improved?EC.improveStrong:EC.declineStrong;
                   const termAvg=pts.reduce((s,d)=>s+d.v,0)/pts.length;
                   return <tr key={id} style={{borderBottom:`1px solid ${T.rule}22`}}>
-                    <td style={{padding:mob?"8px 8px":"8px 14px",display:"flex",alignItems:"center",gap:6,minWidth:0}}>
-                      <span style={{width:8,height:8,borderRadius:2,background:a.color,flexShrink:0}}/>
-                      <span style={{fontWeight:600,color:a.color,fontFamily:ESERIF,letterSpacing:"-0.01em",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{a.name}</span>
+                    <td style={{padding:mob?"8px 6px":"8px 14px",display:"flex",alignItems:"center",gap:5,minWidth:0}}>
+                      <span style={{width:mob?6:8,height:mob?6:8,borderRadius:2,background:a.color,flexShrink:0}}/>
+                      <span style={{fontWeight:600,color:a.color,fontFamily:ESERIF,fontSize:mob?11:13,letterSpacing:"-0.01em",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{a.name}</span>
                     </td>
-                    <td style={{textAlign:"center",padding:mob?"8px 4px":"8px 10px",fontFamily:ESANS,fontSize:mob?10:11,color:EC.sub,fontVariantNumeric:"tabular-nums",whiteSpace:"nowrap"}}>{fmt(cell.start,m.u)}</td>
-                    <td style={{textAlign:"center",padding:"8px 2px",color:EC.rule,fontSize:10}}>→</td>
-                    <td style={{textAlign:"center",padding:mob?"8px 4px":"8px 10px",fontFamily:ESANS,fontSize:mob?10:11,fontWeight:600,color:EC.ink,fontVariantNumeric:"tabular-nums",whiteSpace:"nowrap"}}>{fmt(cell.end,m.u)}</td>
-                    {!mob && <td style={{textAlign:"center",padding:"8px 10px",fontFamily:ESANS,fontSize:11,fontWeight:500,color:EC.sub,fontVariantNumeric:"tabular-nums"}}>{fmt(termAvg,m.u)}</td>}
-                    <td style={{textAlign:"right",padding:mob?"8px 8px":"8px 14px",whiteSpace:"nowrap"}}>
+                    <td style={{textAlign:"center",padding:mob?"8px 2px":"8px 10px",fontFamily:ESANS,fontSize:mob?10:11,color:EC.sub,fontVariantNumeric:"tabular-nums",whiteSpace:"nowrap"}}>{fmt(cell.start,m.u)}</td>
+                    <td style={{textAlign:"center",padding:"8px 1px",color:EC.rule,fontSize:10}}>→</td>
+                    <td style={{textAlign:"center",padding:mob?"8px 2px":"8px 10px",fontFamily:ESANS,fontSize:mob?10:11,fontWeight:600,color:EC.ink,fontVariantNumeric:"tabular-nums",whiteSpace:"nowrap"}}>{fmt(cell.end,m.u)}</td>
+                    <td style={{textAlign:"center",padding:mob?"8px 3px":"8px 10px",fontFamily:ESANS,fontSize:mob?10:11,fontWeight:500,color:EC.sub,fontVariantNumeric:"tabular-nums",whiteSpace:"nowrap"}}>{fmt(termAvg,m.u)}</td>
+                    <td style={{textAlign:"right",padding:mob?"8px 6px":"8px 14px",whiteSpace:"nowrap"}}>
                       <span style={{fontFamily:ESERIF,fontSize:mob?12:13,fontWeight:600,color:verdictColor,letterSpacing:"-0.01em",fontVariantNumeric:"tabular-nums"}}>
                         {headline}
                       </span>
@@ -2414,16 +2414,16 @@ function App(){
                       Term Trajectory &mdash; Inherited vs Left Behind {activeScenario!=="baseline"&&<span style={{color:EC.accent,fontWeight:500,textTransform:"none",letterSpacing:0}}>&mdash; {SCENARIOS[activeScenario].shortLabel}</span>}
                     </div>
                   </div>
-                  <table style={{width:"100%",borderCollapse:"collapse",fontFamily:ESANS,fontSize:12}}>
+                  <table style={{width:"100%",borderCollapse:"collapse",fontFamily:ESANS,fontSize:mob?10:12}}>
                     <thead>
                       <tr style={{borderBottom:`1px solid ${EC.rule}`}}>
-                        <th style={{textAlign:"left",padding:mob?"8px 8px":"8px 14px",fontSize:10,fontWeight:500,textTransform:"uppercase",letterSpacing:"0.08em",color:EC.sub}}>President</th>
-                        <th style={{textAlign:"center",padding:mob?"8px 4px":"8px 10px",fontSize:10,fontWeight:500,textTransform:"uppercase",letterSpacing:"0.08em",color:EC.sub}}>{mob?"From":"Inherited"}</th>
-                        <th style={{textAlign:"center",padding:"8px 2px",fontSize:10,color:EC.rule}}></th>
-                        <th style={{textAlign:"center",padding:mob?"8px 4px":"8px 10px",fontSize:10,fontWeight:500,textTransform:"uppercase",letterSpacing:"0.08em",color:EC.sub}}>{mob?"To":"Left At"}</th>
-                        {!mob && <th style={{textAlign:"center",padding:"8px 10px",fontSize:10,fontWeight:500,textTransform:"uppercase",letterSpacing:"0.08em",color:EC.sub}}>Avg</th>}
-                        {!mob && activeScenario!=="baseline"&&<th style={{textAlign:"center",padding:"8px 10px",fontSize:10,fontWeight:500,textTransform:"uppercase",letterSpacing:"0.08em",color:EC.accent}}>Modeled Avg</th>}
-                        <th style={{textAlign:"right",padding:mob?"8px 8px":"8px 14px",fontSize:10,fontWeight:500,textTransform:"uppercase",letterSpacing:"0.08em",color:EC.sub}}>Change</th>
+                        <th style={{textAlign:"left",padding:mob?"8px 6px":"8px 14px",fontSize:mob?9:10,fontWeight:500,textTransform:"uppercase",letterSpacing:"0.06em",color:EC.sub}}>President</th>
+                        <th style={{textAlign:"center",padding:mob?"8px 2px":"8px 10px",fontSize:mob?9:10,fontWeight:500,textTransform:"uppercase",letterSpacing:"0.06em",color:EC.sub}}>{mob?"From":"Inherited"}</th>
+                        <th style={{textAlign:"center",padding:"8px 1px",fontSize:10,color:EC.rule}}></th>
+                        <th style={{textAlign:"center",padding:mob?"8px 2px":"8px 10px",fontSize:mob?9:10,fontWeight:500,textTransform:"uppercase",letterSpacing:"0.06em",color:EC.sub}}>{mob?"To":"Left At"}</th>
+                        <th style={{textAlign:"center",padding:mob?"8px 3px":"8px 10px",fontSize:mob?9:10,fontWeight:500,textTransform:"uppercase",letterSpacing:"0.06em",color:EC.sub}}>Avg</th>
+                        {activeScenario!=="baseline"&&<th style={{textAlign:"center",padding:mob?"8px 3px":"8px 10px",fontSize:mob?9:10,fontWeight:500,textTransform:"uppercase",letterSpacing:"0.06em",color:EC.accent}}>{mob?"Mod.":"Modeled Avg"}</th>}
+                        <th style={{textAlign:"right",padding:mob?"8px 6px":"8px 14px",fontSize:mob?9:10,fontWeight:500,textTransform:"uppercase",letterSpacing:"0.06em",color:EC.sub}}>Change</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -2470,24 +2470,34 @@ function App(){
                         const showMod=hasModeled&&Math.abs(modeledEnd-actualCell.end)>0.01;
 
                         return <tr key={id} style={{borderBottom:`1px solid ${EC.rule}55`}}>
-                          <td style={{padding:mob?"8px 8px":"8px 14px",display:"flex",alignItems:"center",gap:6,minWidth:0}}>
-                            <span style={{width:8,height:8,borderRadius:2,background:a.color,flexShrink:0}}/>
-                            <span style={{fontWeight:600,color:a.color,fontFamily:ESERIF,letterSpacing:"-0.01em",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{a.name}</span>
+                          <td style={{padding:mob?"8px 6px":"8px 14px",display:"flex",alignItems:"center",gap:5,minWidth:0}}>
+                            <span style={{width:mob?6:8,height:mob?6:8,borderRadius:2,background:a.color,flexShrink:0}}/>
+                            <span style={{fontWeight:600,color:a.color,fontFamily:ESERIF,fontSize:mob?11:13,letterSpacing:"-0.01em",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{a.name}</span>
                           </td>
-                          <td style={{textAlign:"center",padding:mob?"8px 4px":"8px 10px",fontFamily:ESANS,fontSize:mob?10:11,color:EC.sub,fontVariantNumeric:"tabular-nums",whiteSpace:"nowrap"}}>{fmt(actualCell.start,metric.u)}</td>
-                          <td style={{textAlign:"center",padding:"8px 2px",color:EC.rule,fontSize:10}}>→</td>
-                          <td style={{textAlign:"center",padding:mob?"8px 4px":"8px 10px",fontFamily:ESANS,fontSize:mob?10:11,fontWeight:600,color:EC.ink,fontVariantNumeric:"tabular-nums",whiteSpace:"nowrap"}}>{fmt(actualCell.end,metric.u)}</td>
-                          {!mob && <td style={{textAlign:"center",padding:"8px 10px",fontFamily:ESANS,fontSize:11,fontWeight:500,color:EC.sub,fontVariantNumeric:"tabular-nums"}}>{fmt(tActualAvg,metric.u)}</td>}
-                          {!mob && activeScenario!=="baseline"&&<td style={{textAlign:"center",padding:"8px 10px",fontFamily:ESANS,fontSize:11,fontWeight:600,color:showMod?EC.accent:EC.sub,fontVariantNumeric:"tabular-nums"}}>{showMod?fmt(scenAvg,metric.u):fmt(tActualAvg,metric.u)}</td>}
-                          <td style={{textAlign:"right",padding:mob?"8px 8px":"8px 14px",whiteSpace:"nowrap"}}>
-                            <span style={{fontFamily:ESERIF,fontSize:mob?12:13,fontWeight:600,color:verdictColor,letterSpacing:"-0.01em",fontVariantNumeric:"tabular-nums"}}>
-                              {actualHeadline}
-                            </span>
-                            {showMod&&!mob&&(
-                              <span style={{fontFamily:ESERIF,fontSize:12,fontWeight:600,color:modeledColor,marginLeft:8,borderLeft:`1px dashed ${EC.rule}`,paddingLeft:8,letterSpacing:"-0.01em",fontVariantNumeric:"tabular-nums",opacity:0.85}}>
-                                {modeledHeadline} <span style={{fontFamily:ESANS,fontSize:8,fontWeight:600,color:EC.accent,letterSpacing:"0.06em",textTransform:"uppercase",marginLeft:2}}>modeled</span>
+                          <td style={{textAlign:"center",padding:mob?"8px 2px":"8px 10px",fontFamily:ESANS,fontSize:mob?10:11,color:EC.sub,fontVariantNumeric:"tabular-nums",whiteSpace:"nowrap"}}>{fmt(actualCell.start,metric.u)}</td>
+                          <td style={{textAlign:"center",padding:"8px 1px",color:EC.rule,fontSize:10}}>→</td>
+                          <td style={{textAlign:"center",padding:mob?"8px 2px":"8px 10px",fontFamily:ESANS,fontSize:mob?10:11,fontWeight:600,color:EC.ink,fontVariantNumeric:"tabular-nums",whiteSpace:"nowrap"}}>{fmt(actualCell.end,metric.u)}</td>
+                          <td style={{textAlign:"center",padding:mob?"8px 3px":"8px 10px",fontFamily:ESANS,fontSize:mob?10:11,fontWeight:500,color:EC.sub,fontVariantNumeric:"tabular-nums",whiteSpace:"nowrap"}}>{fmt(tActualAvg,metric.u)}</td>
+                          {activeScenario!=="baseline"&&<td style={{textAlign:"center",padding:mob?"8px 3px":"8px 10px",fontFamily:ESANS,fontSize:mob?10:11,fontWeight:600,color:showMod?EC.accent:EC.sub,fontVariantNumeric:"tabular-nums",whiteSpace:"nowrap"}}>{showMod?fmt(scenAvg,metric.u):fmt(tActualAvg,metric.u)}</td>}
+                          <td style={{textAlign:"right",padding:mob?"8px 6px":"8px 14px",whiteSpace:"nowrap"}}>
+                            {/* On mobile, stack actual + modeled vertically so the
+                                "+1.4 pp / +0.9 pp model" pair fits in a narrow column. */}
+                            <div style={{display:"flex",flexDirection:mob?"column":"row",alignItems:mob?"flex-end":"center",gap:mob?2:0,justifyContent:"flex-end"}}>
+                              <span style={{fontFamily:ESERIF,fontSize:mob?11:13,fontWeight:600,color:verdictColor,letterSpacing:"-0.01em",fontVariantNumeric:"tabular-nums",lineHeight:1.1}}>
+                                {actualHeadline}
                               </span>
-                            )}
+                              {showMod&&(
+                                <span style={{
+                                  fontFamily:ESERIF,fontSize:mob?10:12,fontWeight:600,color:modeledColor,
+                                  marginLeft:mob?0:8,
+                                  borderLeft:mob?"none":`1px dashed ${EC.rule}`,
+                                  paddingLeft:mob?0:8,
+                                  letterSpacing:"-0.01em",fontVariantNumeric:"tabular-nums",opacity:0.85,lineHeight:1.1,
+                                }}>
+                                  {modeledHeadline} <span style={{fontFamily:ESANS,fontSize:mob?7:8,fontWeight:600,color:EC.accent,letterSpacing:"0.06em",textTransform:"uppercase",marginLeft:2}}>{mob?"mod":"modeled"}</span>
+                                </span>
+                              )}
+                            </div>
                           </td>
                         </tr>;
                       })}
