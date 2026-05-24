@@ -47,7 +47,27 @@ interface Claim {
   explanation: string;
   timestamp: string;
   videoTime?: number; // seconds into the video
+  // ── Data-layer integration (lib/live-verify) ──
+  // When the claim mentions one of our 6 anchored metrics, these are
+  // populated and the card renders a "See full data" link to the dashboard.
+  metricKey?: string | null;
+  year?: number | null;
+  admin?: string | null;
+  claimedValue?: number | null;
+  verifiedFromSource?: boolean;
+  groundTruth?: { value: number; year: number; metricKey: string; source: string };
 }
+
+// Display labels for the 6 anchored metrics, used on the "See full data" link.
+// Kept in sync with lib/metrics-data.ts METRICS_DATA[key].label.
+const METRIC_LABELS: Record<string, string> = {
+  gdp: "GDP Growth",
+  unemployment: "Unemployment",
+  inflation: "Inflation (CPI)",
+  sp500: "S&P 500",
+  debt_gdp: "Debt-to-GDP",
+  median_income: "Median Income",
+};
 
 interface LiveConfig {
   status: "live" | "off";
@@ -162,12 +182,46 @@ function FactCard({ claim, isNew, onSeek }: { claim: Claim; isNew: boolean; onSe
       {/* Actual data + source citation */}
       <div style={{ fontSize: 11, color: T.sub, marginBottom: 4, lineHeight: 1.5 }}>
         <strong style={{ color: T.ink }}>Data:</strong> {claim.actual}
+        {claim.verifiedFromSource && claim.groundTruth && (
+          <span style={{
+            display: "inline-flex", alignItems: "center", gap: 3,
+            marginLeft: 6, padding: "1px 6px", borderRadius: 3,
+            background: "#0d737715", color: "#0d7377",
+            fontSize: 9, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase",
+            fontFamily: "'DM Sans',sans-serif", verticalAlign: "middle",
+          }} title={`Cross-checked against Vote Unbiased's ${claim.groundTruth.source} data — not LLM memory`}>
+            ✓ Sourced
+          </span>
+        )}
       </div>
 
       {/* Explanation */}
       <div style={{ fontSize: 11, color: T.mute, lineHeight: 1.4 }}>
         {claim.explanation}
       </div>
+
+      {/* Data-layer deep link — when the claim maps to one of our 6 anchored
+          metrics, surface a link to the dashboard's detail view for that
+          metric + admin. This is the unique loop: live claim → sourced data
+          → full historical context on the dashboard. */}
+      {claim.metricKey && METRIC_LABELS[claim.metricKey] && (
+        <Link
+          href={`/dashboard?tab=data&metric=${claim.metricKey}${claim.admin ? `&admin=${claim.admin}` : ""}`}
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 4,
+            marginTop: 8, padding: "5px 10px",
+            background: T.paper, border: `1px solid ${T.rule}`, borderRadius: 4,
+            fontSize: 10, fontWeight: 600, color: T.ink,
+            fontFamily: "'DM Sans',sans-serif", textDecoration: "none",
+            transition: "all 0.15s",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = T.card; e.currentTarget.style.borderColor = T.blue; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = T.paper; e.currentTarget.style.borderColor = T.rule; }}
+        >
+          See full data: {METRIC_LABELS[claim.metricKey]} <span style={{ color: T.blue }}>→</span>
+        </Link>
+      )}
 
       {/* Expanded: source links */}
       {expanded && sources.length > 0 && (
@@ -350,7 +404,18 @@ export default function LiveFactCheckPage() {
   }, []);
 
   /* ── Poll live-feed API during live broadcasts (not demos) ── */
+  // lastPollTime tracks the newest claim timestamp we've already seen, so we
+  // can ask the feed for only claims newer than that. Previously this was
+  // set from feed.claims[0].timestamp which assumed newest-first ordering —
+  // if the server returns chronological order, that points to the OLDEST claim
+  // and we re-fetch the same claims forever. Now we always take the max.
   const lastPollTime = useRef<string | null>(null);
+  // Surfaces poll failures (network down, KV missing, etc.) to the user
+  // instead of silently logging to console. Audit finding #2 + #5.
+  const [pollError, setPollError] = useState<string | null>(null);
+  // Set of claim IDs we've already rendered — defensive dedup in case
+  // lastPollTime gets reset by a race condition (StrictMode etc).
+  const seenClaimIds = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (!isPlaying || isDemo) return;
@@ -361,26 +426,36 @@ export default function LiveFactCheckPage() {
           ? `/api/live-feed?since=${encodeURIComponent(lastPollTime.current)}`
           : "/api/live-feed";
         const resp = await fetch(url);
-        if (!resp.ok) return;
+        if (!resp.ok) {
+          setPollError(`Live feed error ${resp.status}`);
+          return;
+        }
         const feed = await resp.json();
+        // Clear stale error on a successful poll.
+        if (pollError) setPollError(null);
 
         // Update transcript
         if (feed.transcript) {
           setLiveTranscript(feed.transcript);
         }
 
-        // Append new claims
+        // Append new claims, deduped against both prior state and our
+        // running seen-set (cheap second line of defense vs race conditions).
         if (feed.claims?.length > 0) {
-          const ids = new Set(feed.claims.map((c: Claim) => c.id));
-          setNewClaimIds(ids);
-          setClaims(prev => {
-            // Deduplicate by id
-            const existingIds = new Set(prev.map(c => c.id));
-            const brandNew = feed.claims.filter((c: Claim) => !existingIds.has(c.id));
-            return [...brandNew, ...prev];
-          });
-          // Track the latest timestamp for next poll
-          lastPollTime.current = feed.claims[0].timestamp;
+          const brandNew: Claim[] = feed.claims.filter(
+            (c: Claim) => !seenClaimIds.current.has(c.id)
+          );
+          if (brandNew.length > 0) {
+            for (const c of brandNew) seenClaimIds.current.add(c.id);
+            setNewClaimIds(new Set(brandNew.map(c => c.id)));
+            setClaims(prev => [...brandNew, ...prev]);
+          }
+          // Take the MAX timestamp, not the first — server may return either order.
+          for (const c of feed.claims as Claim[]) {
+            if (!lastPollTime.current || c.timestamp > lastPollTime.current) {
+              lastPollTime.current = c.timestamp;
+            }
+          }
         }
 
         // Check if broadcast ended
@@ -390,6 +465,7 @@ export default function LiveFactCheckPage() {
         }
       } catch (e) {
         console.error("Live feed poll error:", e);
+        setPollError(e instanceof Error ? e.message : "Live feed unreachable");
       }
     };
 
@@ -397,7 +473,7 @@ export default function LiveFactCheckPage() {
     // Initial poll immediately
     poll();
     return () => clearInterval(interval);
-  }, [isPlaying, isDemo]);
+  }, [isPlaying, isDemo, pollError]);
 
   /* ── Animate new claims ── */
   useEffect(() => {
@@ -416,6 +492,14 @@ export default function LiveFactCheckPage() {
     setClaims([]);
     setLiveTranscript("");
     setShowSummary(false);
+    // Flush any stale claim IDs / poll cursor from a prior session — otherwise
+    // claims persisted in Upstash from a previous broadcast would surface as
+    // brand-new on the first poll (audit finding #4).
+    seenClaimIds.current = new Set();
+    // Set the poll cursor to "now" so we only pick up claims ingested AFTER
+    // this user pressed start, not whatever's stored from the last session.
+    lastPollTime.current = new Date().toISOString();
+    setPollError(null);
 
     contextRef.current = "";
     demoStartTime.current = Date.now();
@@ -541,6 +625,13 @@ export default function LiveFactCheckPage() {
             .then(r => r.json())
             .then(data => {
               contextRef.current = (contextRef.current + " " + capturedText).slice(-500);
+              // Surface upstream errors as a banner instead of silently
+              // failing — audit finding #3 (ANTHROPIC_API_KEY missing was
+              // invisible to demo users).
+              if (data.error) {
+                setPollError(`Fact-check unavailable: ${data.error}${data.detail ? ` (${data.detail.slice(0, 80)})` : ""}`);
+                return;
+              }
               if (data.claims?.length > 0) {
                 const enriched: Claim[] = data.claims.map((c: Claim) => ({
                   ...c,
@@ -552,7 +643,10 @@ export default function LiveFactCheckPage() {
                 setClaims(prev => [...enriched, ...prev]);
               }
             })
-            .catch(e => console.error("Auto fact-check error:", e));
+            .catch(e => {
+              console.error("Auto fact-check error:", e);
+              setPollError(e instanceof Error ? e.message : "Auto fact-check failed");
+            });
         }
       }
 
@@ -937,6 +1031,28 @@ export default function LiveFactCheckPage() {
       </nav>
 
       <div style={{ maxWidth: 1400, margin: "0 auto", padding: mob ? "16px" : "24px 32px" }}>
+
+        {/* Surfaces fact-check pipeline failures (missing API key, KV down,
+            poll errors) so the user can see why claims aren't appearing,
+            instead of staring at an empty list. Auto-clears on next successful
+            poll. */}
+        {pollError && (
+          <div style={{
+            background: "#fef2f2", border: `1px solid #fecaca`, borderLeft: `4px solid ${T.accent}`,
+            borderRadius: 4, padding: "10px 14px", marginBottom: 14,
+            display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12,
+            fontSize: 12, fontFamily: "'DM Sans',sans-serif",
+          }}>
+            <div>
+              <strong style={{ color: T.accent, marginRight: 6 }}>Fact-check unavailable</strong>
+              <span style={{ color: T.sub }}>{pollError}</span>
+            </div>
+            <button onClick={() => setPollError(null)} style={{
+              background: "none", border: "none", color: T.mute, cursor: "pointer",
+              fontSize: 18, lineHeight: 1, padding: "0 4px",
+            }} aria-label="Dismiss">×</button>
+          </div>
+        )}
 
         {/* ── Idle State: broadcast-centric ── */}
         {!isPlaying && !showSummary && (
