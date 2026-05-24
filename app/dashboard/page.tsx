@@ -1253,7 +1253,21 @@ function App(){
             padding:"13px 20px",fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:600,whiteSpace:"nowrap",
             background:"transparent",color:"#dc2626",textDecoration:"none",display:"flex",alignItems:"center",gap:6,
             borderBottom:"2px solid transparent",transition:"all 0.2s"
-          }}><span style={{width:6,height:6,borderRadius:"50%",background:"#dc2626",animation:"pulse 2s infinite"}}/>Live Broadcast</a>
+          }}>
+            <span style={{width:6,height:6,borderRadius:"50%",background:"#dc2626",animation:"pulse 2s infinite",flexShrink:0}}/>
+            Live Broadcast
+            {/* BETA badge — gold from the editorial palette so it reads as
+                'preview / not 100% ready' without competing with the red live
+                signal. Sits inside the anchor so clicking the badge also
+                follows the link. */}
+            <span style={{
+              fontFamily:"'DM Sans',sans-serif", fontSize:9, fontWeight:700,
+              letterSpacing:0.6, textTransform:"uppercase",
+              padding:"2px 5px", borderRadius:3, marginLeft:2,
+              background:"#a67c0014", color:"#a67c00",
+              border:"1px solid #a67c0040", lineHeight:1,
+            }}>Beta</span>
+          </a>
         </div>
       </div>
 
