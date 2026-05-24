@@ -901,9 +901,14 @@ function App(){
     const m = searchParams.get("metric");
     if (m && M[m]) { setAm(m); setDetail(m); }
     const t = searchParams.get("tab");
-    if (t && TABS.some(([k]) => k === t)) setTab(t);
+    // TABS_DESKTOP is the source of truth for valid tab keys. Previously this
+    // line referenced an undefined `TABS`, which threw ReferenceError every
+    // time someone hit /dashboard?tab=... — visible to users as 'This page
+    // couldn't load.' Validation is desktop-list-based because TABS_MOBILE is
+    // a subset.
+    if (t && TABS_DESKTOP.some(([k]) => k === t)) setTab(t);
     const a = searchParams.get("admin");
-    if (a && ADMINS[a]) setSelectedPres(a);
+    if (a && ADMINS[a as keyof typeof ADMINS]) setSelectedPres(a);
   }, [searchParams]);
 
   // Scroll to top when entering or leaving detail view

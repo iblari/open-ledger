@@ -339,7 +339,7 @@ function FactCard({ claim, isNew, onSeek }: { claim: Claim; isNew: boolean; onSe
           → full historical context on the dashboard. */}
       {claim.metricKey && METRIC_LABELS[claim.metricKey] && (
         <Link
-          href={`/dashboard?tab=data&metric=${claim.metricKey}${claim.admin ? `&admin=${claim.admin}` : ""}`}
+          href={`/dashboard?metric=${claim.metricKey}${claim.admin ? `&admin=${claim.admin}` : ""}`}
           onClick={(e) => e.stopPropagation()}
           style={{
             display: "inline-flex", alignItems: "center", gap: 4,

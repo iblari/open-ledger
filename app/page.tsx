@@ -563,7 +563,7 @@ function PresidentCard({
 }) {
   const [hov, setHov] = useState(false);
   return (
-    <Link href={`/dashboard?tab=data&metric=${metricKey}&admin=${id}`}
+    <Link href={`/dashboard?metric=${metricKey}&admin=${id}`}
           onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
           aria-label={`Open ${name} detail on dashboard`}
           style={{
