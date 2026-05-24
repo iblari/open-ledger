@@ -531,11 +531,15 @@ function ScorecardSection({ mob, med }: { mob: boolean; med: boolean }) {
             );
           })}
 
-          {/* Legend strip */}
+          {/* Legend strip — needs the same minWidth as the rows above so when
+              the user scrolls horizontally on mobile, the legend background
+              extends to the right edge of the table instead of cutting off
+              short and exposing whitespace beyond the visible viewport. */}
           <div style={{
             display: "flex", alignItems: "center", justifyContent: "space-between",
             padding: "14px 20px", background: C.paper, borderTop: `1px solid ${C.rule}`,
             fontSize: 11, color: C.sub, letterSpacing: "0.04em", flexWrap: "wrap", gap: 12,
+            minWidth: mob ? 800 : undefined,
           }}>
             <span>
               {displayMode === "per_metric"
