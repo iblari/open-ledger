@@ -15,6 +15,7 @@ import {
   cellColor, cellColorFromMag,
 } from "@/lib/display-modes";
 import { PillToggle } from "@/components/PillToggle";
+import { InsightsStrip } from "@/components/InsightsStrip";
 
 /* ─────────────────────────────────────────────
    ADMINS & METRIC DATA — subset for heatmap
@@ -1138,6 +1139,13 @@ export default function LandingPage() {
     <div style={{ background: C.bg, color: C.ink, fontFamily: SANS, fontSize: 15, lineHeight: 1.5, minHeight: "100vh" }}>
       <Nav mob={mob} />
       <Hero mob={mob} med={med} />
+      {/* Auto-generated insights strip — surfaces what's notable in the
+          current data so readers who don't want to scan the whole heatmap
+          still get a quick "what's happening." Pure-function logic in
+          lib/insights, no LLM, no API call, computed at render time. */}
+      <div style={{ maxWidth: 1280, margin: "0 auto", padding: mob ? "0 20px" : "0 32px", borderBottom: `1px solid ${C.rule}` }}>
+        <InsightsStrip mob={mob} limit={3} eyebrow="What's notable right now" />
+      </div>
       <ScorecardSection mob={mob} med={med} />
       <DeepDiveSection mob={mob} med={med} />
       <ComingSoonSection mob={mob} med={med} />
