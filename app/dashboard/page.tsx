@@ -25,6 +25,7 @@ import {
 } from "@/lib/display-modes";
 import { PillToggle } from "@/components/PillToggle";
 import { StateAtlas } from "@/components/StateAtlas";
+import LiveBenchmark from "@/components/LiveBenchmark";
 
 function useIsMobile() {
   const [w, setW] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
@@ -709,8 +710,8 @@ function SpendTrendChart({ mob }: { mob?: boolean }) {
 // To restore: add ["abroad","Abroad"] back into both arrays. The tab's
 // implementation (state, render block at the "abroad" branch below) is
 // intentionally left in place so it just works when re-enabled.
-const TABS_DESKTOP=[["dashboard","Data"],["state_atlas","State Atlas"],["scenarios","Scenarios"],["global","Global"]];
-const TABS_MOBILE=[["dashboard","Data"],["state_atlas","State Atlas"],["scenarios","Scenarios"],["global","Global"]];
+const TABS_DESKTOP=[["dashboard","Data"],["state_atlas","State Atlas"],["scenarios","Scenarios"],["live_benchmark","Live Benchmark"],["global","Global"]];
+const TABS_MOBILE=[["dashboard","Data"],["state_atlas","State Atlas"],["scenarios","Scenarios"],["live_benchmark","Live Benchmark"],["global","Global"]];
 
 // Per-metric heatmap data, computed once at module-load. Uses the shared lib
 // so the dashboard speaks the same data language as the landing page.
@@ -1842,6 +1843,12 @@ function App(){
           </div>
           <StateAtlas/>
         </div>)}
+
+        {/* ═══ LIVE BENCHMARK ═══
+            Used to live at /live-benchmark as a standalone page. Folded in as
+            a 5th tab to get header + navigation + design parity for free.
+            The component is the source of truth; /live-benchmark redirects here. */}
+        {tab==="live_benchmark"&&<LiveBenchmark/>}
 
         {/* ═══ ABROAD ═══ */}
         {tab==="abroad"&&(()=>{
