@@ -1222,7 +1222,7 @@ function App(){
             padding:"13px 20px",fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:600,whiteSpace:"nowrap",
             background:"transparent",color:"#dc2626",textDecoration:"none",display:"flex",alignItems:"center",gap:6,
             borderBottom:"2px solid transparent",transition:"all 0.2s"
-          }}><span style={{width:6,height:6,borderRadius:"50%",background:"#dc2626",animation:"pulse 2s infinite"}}/>Live Fact-Check</a>
+          }}><span style={{width:6,height:6,borderRadius:"50%",background:"#dc2626",animation:"pulse 2s infinite"}}/>Live Broadcast</a>
         </div>
       </div>
 
