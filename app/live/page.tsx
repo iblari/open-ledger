@@ -118,6 +118,107 @@ function fmtTime(sec: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
+/* ── Parse YouTube timedtext XML into 15-second segments ──────── */
+// Module-level so server-side prerender doesn't TDZ when other useCallbacks
+// (startDemo, startFromUrl) reference it.
+function parseTranscriptXml(xml: string): { time: number; text: string }[] {
+  const items: { startSec: number; text: string }[] = [];
+  const decode = (s: string) => s
+    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&apos;/g, "'")
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, h: string) => String.fromCodePoint(parseInt(h, 16)))
+    .replace(/&#(\d+);/g, (_, d: string) => String.fromCodePoint(parseInt(d, 10)))
+    .replace(/\n/g, " ").trim();
+
+  // srv3 format: <p t="ms" d="ms"><s>word</s>...</p>
+  const pRe = /<p\s+t="(\d+)"\s+d="(\d+)"[^>]*>([\s\S]*?)<\/p>/g;
+  let m;
+  while ((m = pRe.exec(xml)) !== null) {
+    const inner = m[3];
+    let text = "";
+    const sRe = /<s[^>]*>([^<]*)<\/s>/g;
+    let s;
+    while ((s = sRe.exec(inner)) !== null) text += s[1];
+    if (!text) text = inner.replace(/<[^>]+>/g, "");
+    text = decode(text).trim();
+    if (text) items.push({ startSec: parseInt(m[1], 10) / 1000, text });
+  }
+  if (items.length === 0) {
+    // Classic format: <text start="s" dur="s">content</text>
+    const tRe = /<text start="([^"]*)" dur="([^"]*)">([^<]*)<\/text>/g;
+    while ((m = tRe.exec(xml)) !== null) {
+      const text = decode(m[3]);
+      if (text) items.push({ startSec: parseFloat(m[1]), text });
+    }
+  }
+
+  // Group into 15-second segments
+  if (items.length === 0) return [];
+  const segments: { time: number; text: string }[] = [];
+  let winStart = Math.floor(items[0].startSec);
+  let buf: string[] = [];
+  for (const item of items) {
+    const sec = Math.floor(item.startSec);
+    if (sec - winStart >= 15 && buf.length > 0) {
+      segments.push({ time: winStart, text: buf.join(" ") });
+      buf = [];
+      winStart = sec;
+    }
+    if (item.text.trim()) buf.push(item.text.trim());
+  }
+  if (buf.length > 0) segments.push({ time: winStart, text: buf.join(" ") });
+  return segments;
+}
+
+/* ── Fuzzy-match a quote against YouTube captions ─────────────── */
+// Finds the time in captions where the quote most likely occurs.
+// Approach: sliding window across captions (~20s wide), compute word-overlap
+// (Jaccard) between window text and quote words; return window start time
+// of the best-overlap window above a confidence threshold.
+//
+// Demo claims have human-written paraphrases of the speech ("Auto plants are
+// opening up all over the place") while YouTube captions are verbatim and
+// often broken across multiple short lines. Word-overlap is robust to both
+// — we don't need exact substring match.
+export function findCaptionTimeForQuote(
+  quote: string,
+  captions: { time: number; text: string }[],
+  minOverlap = 0.5,
+): number | null {
+  if (!captions.length) return null;
+  // Normalize: lowercase, drop punctuation, drop short stopwords. "Stop"
+  // words filter raises signal because "the", "of", etc. appear everywhere
+  // and would inflate overlap on unrelated windows.
+  const STOPWORDS = new Set([
+    "the", "and", "of", "to", "a", "in", "is", "it", "you", "that", "we",
+    "for", "on", "are", "as", "with", "this", "be", "at", "have", "or", "not",
+    "but", "by", "from", "they", "an", "i", "my", "your", "their",
+  ]);
+  const tokens = (s: string) => s.toLowerCase()
+    .replace(/[^\w\s]/g, " ")
+    .split(/\s+/)
+    .filter(w => w.length > 2 && !STOPWORDS.has(w));
+
+  const qWords = tokens(quote);
+  if (qWords.length < 3) return null;
+  const qSet = new Set(qWords);
+
+  let best: { score: number; time: number | null } = { score: 0, time: null };
+  for (let i = 0; i < captions.length; i++) {
+    // Window: forward through captions until we cover ~20s of speech.
+    let windowText = "";
+    for (let j = i; j < captions.length && captions[j].time - captions[i].time < 20; j++) {
+      windowText += " " + captions[j].text;
+    }
+    const wSet = new Set(tokens(windowText));
+    let overlap = 0;
+    for (const w of qSet) if (wSet.has(w)) overlap++;
+    const score = overlap / qSet.size;
+    if (score > best.score) best = { score, time: captions[i].time };
+  }
+  return best.score >= minOverlap ? best.time : null;
+}
+
 /* ── Format a "starts in" countdown for scheduled broadcasts ──── */
 // Picks the right precision based on remaining time so the label feels right
 // at every scale — "in 3 days", "in 4h 12m", "in 14:32", "Live now".
@@ -373,6 +474,17 @@ export default function LiveFactCheckPage() {
   const [title, setTitle] = useState("");
   const [claims, setClaims] = useState<Claim[]>([]);
   const [liveTranscript, setLiveTranscript] = useState("");
+  // Real YouTube captions for the currently-loaded demo speech.
+  // Demo JSONs have paraphrased segment.text + approximate segment.time
+  // (hand-curated, often on round-minute marks), which means:
+  //   (a) the subtitle line below the video doesn't match what's spoken, and
+  //   (b) fact-check timestamps are off from where the words actually occur.
+  // When we have real captions we use them as the subtitle source AND we
+  // fuzzy-match each demo claim's quote against the captions to derive an
+  // accurate videoTime. If the fetch fails we fall back to the segment-
+  // based behavior gracefully (the demo still works, just less synced).
+  const [realCaptions, setRealCaptions] = useState<{ time: number; text: string }[] | null>(null);
+  const [captionsLoading, setCaptionsLoading] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
   const [isManualChecking, setIsManualChecking] = useState(false);
   const [manualResult, setManualResult] = useState<Claim[] | null>(null);
@@ -633,17 +745,31 @@ export default function LiveFactCheckPage() {
         try { vt = ytPlayerRef.current.getCurrentTime(); } catch {}
       }
 
-      // Update transcript with recent segments
-      let latestIdx = -1;
-      for (let i = demoSpeech.segments.length - 1; i >= 0; i--) {
-        if (vt >= demoSpeech.segments[i].time) { latestIdx = i; break; }
-      }
-      if (latestIdx >= 0) {
-        const recent = demoSpeech.segments
-          .filter((_, i) => i <= latestIdx)
-          .slice(-3)
-          .map(s => s.text);
-        setLiveTranscript(recent.join(" "));
+      // Update transcript. Prefer real YouTube captions (verbatim, synced)
+      // over the demo JSON's paraphrased segment.text — the segment text is
+      // a human-written summary, not what's actually spoken in the audio.
+      // Falls back to segment text if captions weren't fetched (offline, or
+      // YouTube returned no timedtext, or the speech is on a non-YouTube source).
+      if (realCaptions && realCaptions.length > 0) {
+        // Show the most recent ~60s of real captions, joined and truncated
+        // for display further down in the JSX (slice(-40) trim).
+        const recent = realCaptions
+          .filter(c => c.time <= vt && c.time >= vt - 60)
+          .map(c => c.text);
+        if (recent.length > 0) setLiveTranscript(recent.join(" "));
+      } else {
+        // Legacy fallback: segment-text-based subtitle.
+        let latestIdx = -1;
+        for (let i = demoSpeech.segments.length - 1; i >= 0; i--) {
+          if (vt >= demoSpeech.segments[i].time) { latestIdx = i; break; }
+        }
+        if (latestIdx >= 0) {
+          const recent = demoSpeech.segments
+            .filter((_, i) => i <= latestIdx)
+            .slice(-3)
+            .map(s => s.text);
+          setLiveTranscript(recent.join(" "));
+        }
       }
 
       // Show claims when video reaches each segment + delay
@@ -730,7 +856,7 @@ export default function LiveFactCheckPage() {
     }, 800);
 
     return () => clearInterval(interval);
-  }, [isDemo, isPlaying, demoSpeech]);
+  }, [isDemo, isPlaying, demoSpeech, realCaptions]);
 
   /* ── Start demo — loads speech data into state ── */
   const startDemo = useCallback(async (speechFile?: string) => {
@@ -744,6 +870,7 @@ export default function LiveFactCheckPage() {
     setDemoSpeech(null);
 
     contextRef.current = "";
+    setRealCaptions(null);
 
     const file = speechFile || "sotu-2024.json";
     try {
@@ -754,60 +881,67 @@ export default function LiveFactCheckPage() {
       demoStartTime.current = Date.now();
       // Setting state triggers the polling effect above
       setDemoSpeech(speech);
+
+      // Fire-and-forget: pull real YouTube captions, then re-time the demo's
+      // segments by fuzzy-matching each segment's first claim (or the segment
+      // text itself) against the captions. Once this lands:
+      //   - the subtitle line shows ACTUAL spoken words (not paraphrased)
+      //   - the fact card timestamps line up with where the words occur
+      // If it fails the demo still plays — just with the original approximate
+      // timestamps and paraphrased subtitle.
+      setCaptionsLoading(true);
+      fetch("/api/fetch-transcript", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: `https://www.youtube.com/watch?v=${speech.videoId}` }),
+      })
+        .then(r => r.json())
+        .then(async (data) => {
+          let captions: { time: number; text: string }[] | null = null;
+          if (Array.isArray(data.segments) && data.segments.length > 0) {
+            captions = data.segments;
+          } else if (data.clientFetch && data.captionUrl) {
+            // Server couldn't get the XML; try fetching the timedtext URL ourselves.
+            try {
+              const xmlResp = await fetch(data.captionUrl);
+              const xml = await xmlResp.text();
+              captions = parseTranscriptXml(xml);
+            } catch (e) {
+              console.warn("[demo] client-side timedtext fetch failed:", e);
+            }
+          }
+          if (!captions || captions.length === 0) {
+            console.warn("[demo] no captions available; subtitle and timing will be approximate");
+            return;
+          }
+
+          // Re-time each segment by matching its first-claim quote (most
+          // discriminating) against the captions. If no claim, fall back to
+          // matching the segment's own text.
+          const retimedSegments = speech.segments.map(seg => {
+            const probe = seg.claims?.[0]?.quote || seg.text;
+            const matched = findCaptionTimeForQuote(probe, captions!);
+            return matched != null ? { ...seg, time: matched } : seg;
+          });
+          // Re-sort by time so the firing loop's "skip if past" logic works.
+          retimedSegments.sort((a, b) => a.time - b.time);
+
+          setRealCaptions(captions);
+          setDemoSpeech({ ...speech, segments: retimedSegments });
+          const fixedCount = retimedSegments.filter((s, i) => s.time !== speech.segments[i]?.time).length;
+          console.log(`[demo] re-timed ${fixedCount}/${speech.segments.length} segments against real captions`);
+        })
+        .catch(e => console.warn("[demo] caption fetch failed; using approximate timing:", e))
+        .finally(() => setCaptionsLoading(false));
     } catch (e) {
       console.error("Demo error:", e);
     }
   }, []);
 
   /* ── Client-side XML transcript parser (mirrors server logic) ── */
-  const parseTranscriptXml = useCallback((xml: string): { time: number; text: string }[] => {
-    const items: { startSec: number; text: string }[] = [];
-    const decode = (s: string) => s
-      .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
-      .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&apos;/g, "'")
-      .replace(/&#x([0-9a-fA-F]+);/g, (_, h: string) => String.fromCodePoint(parseInt(h, 16)))
-      .replace(/&#(\d+);/g, (_, d: string) => String.fromCodePoint(parseInt(d, 10)))
-      .replace(/\n/g, " ").trim();
-
-    // srv3 format: <p t="ms" d="ms"><s>word</s>...</p>
-    const pRe = /<p\s+t="(\d+)"\s+d="(\d+)"[^>]*>([\s\S]*?)<\/p>/g;
-    let m;
-    while ((m = pRe.exec(xml)) !== null) {
-      const inner = m[3];
-      let text = "";
-      const sRe = /<s[^>]*>([^<]*)<\/s>/g;
-      let s;
-      while ((s = sRe.exec(inner)) !== null) text += s[1];
-      if (!text) text = inner.replace(/<[^>]+>/g, "");
-      text = decode(text).trim();
-      if (text) items.push({ startSec: parseInt(m[1], 10) / 1000, text });
-    }
-    if (items.length === 0) {
-      // Classic format: <text start="s" dur="s">content</text>
-      const tRe = /<text start="([^"]*)" dur="([^"]*)">([^<]*)<\/text>/g;
-      while ((m = tRe.exec(xml)) !== null) {
-        const text = decode(m[3]);
-        if (text) items.push({ startSec: parseFloat(m[1]), text });
-      }
-    }
-
-    // Group into 15-second segments
-    if (items.length === 0) return [];
-    const segments: { time: number; text: string }[] = [];
-    let winStart = Math.floor(items[0].startSec);
-    let buf: string[] = [];
-    for (const item of items) {
-      const sec = Math.floor(item.startSec);
-      if (sec - winStart >= 15 && buf.length > 0) {
-        segments.push({ time: winStart, text: buf.join(" ") });
-        buf = [];
-        winStart = sec;
-      }
-      if (item.text.trim()) buf.push(item.text.trim());
-    }
-    if (buf.length > 0) segments.push({ time: winStart, text: buf.join(" ") });
-    return segments;
-  }, []);
+  // parseTranscriptXml is now a module-level function (hoisted above the
+  // component) so startDemo can reference it without TDZ issues during
+  // server-side prerendering. Function lives further up in the file.
 
   /* ── Start from URL — fetch transcript then reuse demo machinery ── */
   const startFromUrl = useCallback(async (url: string) => {
@@ -944,7 +1078,7 @@ export default function LiveFactCheckPage() {
     } finally {
       setUrlLoading(false);
     }
-  }, [parseTranscriptXml]);
+  }, []);
 
   /* ── Stop ── */
   const stopSession = useCallback(() => {
@@ -952,6 +1086,8 @@ export default function LiveFactCheckPage() {
     setIsPlaying(false);
     setIsDemo(false);
     setDemoSpeech(null);
+    setRealCaptions(null);
+    setCaptionsLoading(false);
     setManualResult(null);
     shownSegmentsRef.current = new Set();
     if (ytPlayerRef.current?.destroy) {
@@ -1550,6 +1686,37 @@ export default function LiveFactCheckPage() {
                 <span style={{ fontWeight: 700 }}>{isDemo ? "DEMO" : "LIVE"}</span>
                 <span style={{ color: "#9a9490" }}>|</span>
                 <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title}</span>
+                {/* Caption sync indicator (demo only). 'Synced' = real
+                    YouTube captions loaded; subtitles + claim timestamps
+                    are aligned to actual audio. 'Approximate' = fallback to
+                    the demo JSON's hand-curated round-number timestamps. */}
+                {isDemo && (
+                  captionsLoading ? (
+                    <span style={{
+                      flexShrink: 0, fontSize: 9, color: "#9a9490",
+                      padding: "2px 6px", border: "1px solid #3a3a3a", borderRadius: 3,
+                      letterSpacing: 0.5, textTransform: "uppercase", fontWeight: 600,
+                    }} title="Fetching real YouTube captions to sync subtitle + fact-check timing">
+                      syncing…
+                    </span>
+                  ) : realCaptions ? (
+                    <span style={{
+                      flexShrink: 0, fontSize: 9, color: "#0d7377",
+                      padding: "2px 6px", background: "#0d737722", border: "1px solid #0d7377",
+                      borderRadius: 3, letterSpacing: 0.5, textTransform: "uppercase", fontWeight: 700,
+                    }} title="Subtitle text + fact-check timestamps aligned to real YouTube captions">
+                      ✓ synced
+                    </span>
+                  ) : (
+                    <span style={{
+                      flexShrink: 0, fontSize: 9, color: "#ca8a04",
+                      padding: "2px 6px", background: "#ca8a0422", border: "1px solid #ca8a04",
+                      borderRadius: 3, letterSpacing: 0.5, textTransform: "uppercase", fontWeight: 700,
+                    }} title="Could not fetch real captions — subtitle + timestamps are approximate">
+                      approx.
+                    </span>
+                  )
+                )}
                 <span style={{ color: "#9a9490", flexShrink: 0 }}>{claims.length} claims</span>
               </div>
 
