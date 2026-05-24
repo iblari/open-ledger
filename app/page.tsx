@@ -870,17 +870,8 @@ function AnimatedWaveform({ mob }: { mob: boolean }) {
   );
 }
 
-/* ── Coming Soon — Two-card layout ── */
+/* ── Coming Soon — single card (State Atlas shipped Q2 2026) ── */
 function ComingSoonSection({ mob, med }: { mob: boolean; med: boolean }) {
-  // Deterministic cartogram opacities (avoid hydration mismatch with Math.random)
-  const cartogramOpacities = [
-    0.18, 0.55, 0.32, 0.7, 0.22, 0.48, 0.65, 0.14, 0.58, 0.4,
-    0.25, 0.72, 0.35, 0.5, 0.15, 0.62, 0.3, 0.68, 0.42, 0.2,
-    0.56, 0.38, 0.75, 0.28, 0.6, 0.17, 0.52, 0.44, 0.66, 0.33,
-    0.7, 0.24, 0.58, 0.36, 0.48, 0.13, 0.64, 0.42, 0.54, 0.29,
-    0.72, 0.19, 0.46, 0.61, 0.37, 0.55, 0.23, 0.68, 0.31, 0.5,
-  ];
-
   const dotStyle = (color: string): React.CSSProperties => ({
     width: 8, height: 8, borderRadius: "50%", background: color, display: "inline-block", marginRight: 8,
   });
@@ -898,50 +889,17 @@ function ComingSoonSection({ mob, med }: { mob: boolean; med: boolean }) {
       <div style={{ maxWidth: 1280, margin: "0 auto", padding: mob ? "0 20px" : "0 32px", textAlign: "center" }}>
         <div style={{ fontFamily: SANS, fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: C.sub, fontWeight: 500, marginBottom: 16 }}>Coming Soon</div>
         <h2 style={{ fontFamily: SERIF, fontSize: mob ? 32 : 48, lineHeight: 1.05, letterSpacing: "-0.022em", fontWeight: 400, margin: "0 auto 16px", maxWidth: 700 }}>
-          Two new ways to <em style={{ fontStyle: "italic", color: C.accent }}>see the data.</em>
+          A new way to <em style={{ fontStyle: "italic", color: C.accent }}>see the data.</em>
         </h2>
         {/* Coming Soon intro paragraph removed per design — headline only. */}
 
         <div style={{
-          display: "grid",
-          gridTemplateColumns: med ? "1fr" : "1fr 1fr",
-          gap: mob ? 20 : 24,
-          textAlign: "left",
+          // Centered single card now that State Atlas has shipped. Capped width
+          // keeps the card from stretching uncomfortably wide on desktop.
+          display: "flex", justifyContent: "center", textAlign: "left",
         }}>
-          {/* ── State Atlas card ── */}
-          <div style={cardStyle}>
-            <div style={{ ...labelStyle, marginBottom: 16 }}>
-              <span style={dotStyle(C.improveStrong)} />THE STATE ATLAS
-            </div>
-            <h3 style={{ fontFamily: SERIF, fontSize: mob ? 26 : 32, lineHeight: 1.1, fontWeight: 700, margin: "0 0 12px" }}>
-              Fifty states.<br />One square <em style={{ fontStyle: "italic", color: C.accent, fontWeight: 400 }}>each.</em>
-            </h3>
-            <p style={{ fontSize: 15, color: C.sub, lineHeight: 1.55, margin: "0 0 24px", maxWidth: "48ch" }}>
-              National averages hide everything interesting. Explore every state,
-              every year since 2015, on the metrics that actually move families —
-              sorted so the outliers are visible at a glance.
-            </p>
-            <div style={{
-              padding: "32px 24px", background: C.paper, border: `1px solid ${C.rule}`,
-              borderRadius: 4, display: "flex", flexDirection: "column", alignItems: "center", gap: 12, marginTop: "auto",
-            }}>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(10, 1fr)", gap: 3 }}>
-                {cartogramOpacities.map((op, i) => (
-                  <div key={i} style={{
-                    width: mob ? 16 : 20, height: mob ? 16 : 20, borderRadius: 2,
-                    background: `rgba(13,115,119,${op})`,
-                  }} />
-                ))}
-              </div>
-              <div style={{ fontFamily: SANS, fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: C.mute, marginTop: 4 }}>
-                Interactive cartogram
-              </div>
-            </div>
-            <div style={{ fontFamily: SANS, fontSize: 13, color: C.mute, marginTop: 16 }}>Q2 &middot; 2026</div>
-          </div>
-
           {/* ── Live Broadcast card ── */}
-          <div style={cardStyle}>
+          <div style={{ ...cardStyle, maxWidth: 560, width: "100%" }}>
             <div style={{ ...labelStyle, marginBottom: 16 }}>
               <span style={dotStyle(C.accent)} />LIVE BROADCAST
             </div>
