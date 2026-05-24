@@ -52,7 +52,54 @@ export type StateMetric = {
   asOf: string;          // e.g., "Q3 2024" or "2024"
   costLike: boolean;     // true = higher value is "more expensive" (colors warm)
   latest: Partial<Record<StateCode, number>>;
+  // Approximate 10-year compound annual growth rate per state (2014→2024).
+  // Used by buildHistory() to back-fill an annual series from `latest`. A
+  // single default rate covers the median state; entries in stateOverrides
+  // refine where reality diverged meaningfully (hot housing markets, states
+  // that cut income tax, etc.). Phase B+ should swap these for real
+  // year-by-year published series.
+  cagr: { default: number; stateOverrides?: Partial<Record<StateCode, number>> };
 };
+
+// Years covered by historical data. Indexed 0..10 = 2014..2024.
+export const HISTORY_YEARS: number[] = Array.from({ length: 11 }, (_, i) => 2014 + i);
+
+// Back-fill an 11-element series (2014..2024) from a 2024 anchor using a CAGR.
+// values[i] = latest / (1+cagr)^(10-i). Returns plain number[] indexed by HISTORY_YEARS.
+export function buildHistory(latest: number, cagr: number): number[] {
+  const out: number[] = [];
+  for (let i = 0; i <= 10; i++) {
+    const yearsAgo = 10 - i;
+    out.push(latest / Math.pow(1 + cagr, yearsAgo));
+  }
+  return out;
+}
+
+// Compute a per-state 11-year history for a given metric using `latest` + cagr.
+export function stateHistory(m: StateMetric, code: StateCode): number[] | null {
+  const latest = m.latest[code];
+  if (latest === undefined) return null;
+  const cagr = m.cagr.stateOverrides?.[code] ?? m.cagr.default;
+  return buildHistory(latest, cagr);
+}
+
+// Unweighted national mean for each of the 11 years (used for the trend chart's
+// always-on national line). Computed lazily, cached per metric.
+const _nationalCache = new WeakMap<StateMetric, number[]>();
+export function nationalHistory(m: StateMetric): number[] {
+  const cached = _nationalCache.get(m);
+  if (cached) return cached;
+  const result: number[] = Array(11).fill(0);
+  const counts: number[] = Array(11).fill(0);
+  for (const code of Object.keys(m.latest) as StateCode[]) {
+    const hist = stateHistory(m, code);
+    if (!hist) continue;
+    for (let i = 0; i < 11; i++) { result[i] += hist[i]; counts[i] += 1; }
+  }
+  for (let i = 0; i < 11; i++) result[i] = counts[i] ? result[i] / counts[i] : 0;
+  _nationalCache.set(m, result);
+  return result;
+}
 
 export const STATE_METRICS: Record<string, StateMetric> = {
 
@@ -74,6 +121,15 @@ export const STATE_METRICS: Record<string, StateMetric> = {
       SC: 290, SD: 250, TN: 310, TX: 305, UT: 510, VT: 370, VA: 380, WA: 605,
       WV: 165, WI: 270, WY: 335,
     },
+    // National median home value rose ~6%/yr 2014-2024 (Zillow). Hot Sunbelt
+    // markets ran 8-10%; slow markets (Midwest, deep south) 3-4%.
+    cagr: { default: 0.06, stateOverrides: {
+      AZ: 0.09, CA: 0.06, CO: 0.07, FL: 0.09, GA: 0.07, ID: 0.10, ME: 0.08,
+      MT: 0.09, NV: 0.08, NH: 0.08, NC: 0.07, SC: 0.08, TN: 0.09, TX: 0.06,
+      UT: 0.09, VT: 0.06,
+      IL: 0.03, MS: 0.03, WV: 0.02, ND: 0.03, IA: 0.04, KS: 0.04, OK: 0.04,
+      DC: 0.04,
+    }},
   },
 
   electricity: {
@@ -95,6 +151,14 @@ export const STATE_METRICS: Record<string, StateMetric> = {
       TN: 12.0, TX: 14.5, UT: 11.2, VT: 21.0, VA: 14.8, WA: 11.0, WV: 14.5,
       WI: 16.5, WY: 11.0,
     },
+    // National residential electricity rose ~3%/yr 2014-2024 (EIA). New England
+    // and California ran 5-6%; coal-heavy + nuclear states held closer to 2%.
+    cagr: { default: 0.03, stateOverrides: {
+      CA: 0.06, MA: 0.06, CT: 0.05, RI: 0.05, NH: 0.05, ME: 0.05, VT: 0.04,
+      NY: 0.04, HI: 0.05,
+      WA: 0.02, OR: 0.02, ID: 0.02, KY: 0.02, WV: 0.02, ND: 0.02, NE: 0.02,
+      WY: 0.02,
+    }},
   },
 
   gas: {
@@ -116,6 +180,10 @@ export const STATE_METRICS: Record<string, StateMetric> = {
       TN: 2.95, TX: 2.85, UT: 3.20, VT: 3.30, VA: 3.05, WA: 4.10, WV: 3.10,
       WI: 3.05, WY: 3.10,
     },
+    // Gas is volatile but roughly flat ~0.5%/yr over 10 yrs nationally
+    // (2014 was high before the 2015 oil crash; 2022 spiked then settled).
+    // Per-state spread is narrow — a single default rate is fine for the trend.
+    cagr: { default: 0.005 },
   },
 
   rent: {
@@ -137,6 +205,14 @@ export const STATE_METRICS: Record<string, StateMetric> = {
       TN: 1810, TX: 1820, UT: 1830, VT: 1690, VA: 1900, WA: 2210, WV: 1090,
       WI: 1340, WY: 1380,
     },
+    // National median rent rose ~4%/yr 2014-2024 (Zillow ZORI). Sunbelt +
+    // Mountain West outpaced at 5-7%; rust belt and Appalachian states 2-3%.
+    cagr: { default: 0.04, stateOverrides: {
+      AZ: 0.07, FL: 0.07, GA: 0.05, ID: 0.07, NV: 0.06, NC: 0.06, SC: 0.06,
+      TN: 0.06, TX: 0.05, UT: 0.06, MT: 0.06, CO: 0.05,
+      IL: 0.02, IN: 0.03, OH: 0.03, MI: 0.03, MO: 0.03, MS: 0.02, WV: 0.02,
+      AR: 0.03, OK: 0.03, KY: 0.03,
+    }},
   },
 
   income_tax: {
@@ -158,6 +234,15 @@ export const STATE_METRICS: Record<string, StateMetric> = {
       TN: 0, TX: 0, UT: 4.55, VT: 8.75, VA: 5.75, WA: 0, WV: 5.12, WI: 7.65,
       WY: 0,
     },
+    // Income tax rates change slowly. National default: flat 0%/yr (most states
+    // unchanged). States that meaningfully cut rates 2014-2024 get a small
+    // positive cagr (back-fill shows higher 2014 baseline). Note: with cagr=0
+    // the historical series is flat at the 2024 value, which is honest for
+    // states that didn't change their rate.
+    cagr: { default: 0, stateOverrides: {
+      // States that cut rates significantly:
+      NC: 0.04, IA: 0.03, OH: 0.03, KY: 0.03, MO: 0.02, IN: 0.02, AZ: 0.07, ID: 0.02,
+    }},
   },
 
 };

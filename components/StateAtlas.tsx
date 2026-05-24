@@ -19,16 +19,21 @@ import type { Feature, FeatureCollection, Geometry } from "geojson";
 
 import { C as EC, SERIF as ESERIF, SANS as ESANS } from "@/lib/design-tokens";
 import { PillToggle } from "@/components/PillToggle";
+import { StateTrendChart, stateLineColor } from "@/components/StateTrendChart";
 import {
   STATE_METRICS,
   STATE_METRIC_ORDER,
+  STATE_NAMES,
   STATE_NAME_TO_CODE,
+  type StateCode,
   type StateMetric,
   metricMean,
   metricExtent,
   formatMetricValue,
   formatDeviation,
 } from "@/lib/state-data";
+
+const MAX_SELECTED = 5;
 
 type ViewMode = "latest" | "vs_avg";
 
@@ -69,10 +74,24 @@ export function StateAtlas() {
   const [topo, setTopo] = useState<unknown | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [tooltip, setTooltip] = useState<TooltipState>(null);
+  // Selected states (max 5) — drives the per-state lines in the trend chart
+  // and the thicker stroke on the map. Order preserved for stable colors.
+  const [selected, setSelected] = useState<StateCode[]>([]);
   const wrapRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
   const metric = STATE_METRICS[mk];
+
+  function toggleSelect(code: StateCode) {
+    setSelected(prev => {
+      if (prev.includes(code)) return prev.filter(c => c !== code);
+      if (prev.length >= MAX_SELECTED) return prev;
+      return [...prev, code];
+    });
+  }
+  function colorIndexFor(code: StateCode): number {
+    return selected.indexOf(code);
+  }
 
   // Fetch topojson once on mount. us-atlas is ~150KB; CDN cached forever.
   useEffect(() => {
@@ -99,7 +118,9 @@ export function StateAtlas() {
   // Memoize the path generator (depends only on projection — no inputs change).
   const pathFn = useMemo(() => geoPath(geoAlbersUsa().scale(1100).translate([450, 260])), []);
 
-  // Render / re-render the SVG paths whenever metric, view, or features change.
+  // Render / re-render the SVG paths whenever metric, view, features or
+  // selection changes. Selected states get a thicker colored stroke from the
+  // trend chart's palette — visually links the map to the lines below.
   useEffect(() => {
     if (!svgRef.current || features.length === 0) return;
     const svg = select(svgRef.current);
@@ -109,17 +130,25 @@ export function StateAtlas() {
     sel.enter()
       .append("path")
       .attr("class", "state")
-      .attr("stroke", "#fff")
-      .attr("stroke-width", 0.8)
       .attr("d", d => pathFn(d) || "")
+      .style("cursor", "pointer")
       .merge(sel as never)
       .attr("fill", d => {
         const code = STATE_NAME_TO_CODE[d.properties.name];
         const v = code ? metric.latest[code] : undefined;
         return colorFor(metric, v, view);
+      })
+      .attr("stroke", d => {
+        const code = STATE_NAME_TO_CODE[d.properties.name];
+        if (code && selected.includes(code)) return stateLineColor(selected.indexOf(code));
+        return "#fff";
+      })
+      .attr("stroke-width", d => {
+        const code = STATE_NAME_TO_CODE[d.properties.name];
+        return code && selected.includes(code) ? 2.5 : 0.8;
       });
     sel.exit().remove();
-  }, [features, metric, view, pathFn]);
+  }, [features, metric, view, pathFn, selected]);
 
   function handleEnter(e: React.MouseEvent<SVGPathElement>, d: Feature<Geometry, { name: string }>) {
     const code = STATE_NAME_TO_CODE[d.properties.name];
@@ -143,8 +172,8 @@ export function StateAtlas() {
     });
   }
 
-  // Attach pointer handlers via D3 — React doesn't bind to dynamically-added SVG
-  // paths cleanly. Re-attach whenever the data shape changes.
+  // Attach pointer + click handlers via D3 — React doesn't bind to dynamically-
+  // added SVG paths cleanly. Re-attach whenever the data shape changes.
   useEffect(() => {
     if (!svgRef.current) return;
     const svg = select(svgRef.current);
@@ -152,10 +181,15 @@ export function StateAtlas() {
       .on("mousemove", function (ev, d) {
         handleEnter(ev as unknown as React.MouseEvent<SVGPathElement>, d);
       })
-      .on("mouseleave", () => setTooltip(null));
-  }, [features, metric, view]);
+      .on("mouseleave", () => setTooltip(null))
+      .on("click", function (_ev, d) {
+        const code = STATE_NAME_TO_CODE[d.properties.name];
+        if (code) toggleSelect(code);
+      });
+  }, [features, metric, view, selected]);
 
   return (
+    <>
     <div style={{ background: EC.card, border: `1px solid ${EC.rule}`, borderRadius: 4, overflow: "hidden" }}>
       {/* Toggle bar — matches Data tab pattern */}
       <div style={{
@@ -253,6 +287,60 @@ export function StateAtlas() {
         </div>
       </div>
     </div>
+
+    {/* Trend chart + selected-state chips */}
+    <StateTrendChart metric={metric} selected={selected} />
+
+    {selected.length > 0 && (
+      <div style={{
+        display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8,
+        marginTop: 10, padding: "0 2px",
+      }}>
+        <span style={{
+          fontFamily: ESANS, fontSize: 10, color: EC.sub,
+          letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 500,
+        }}>
+          On chart
+        </span>
+        {selected.map((code) => {
+          const idx = colorIndexFor(code);
+          const color = stateLineColor(idx);
+          return (
+            <button key={code} onClick={() => toggleSelect(code)} style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              padding: "4px 10px", borderRadius: 3,
+              border: `1px solid ${color}`,
+              background: `${color}10`,
+              color: color,
+              fontFamily: ESANS, fontSize: 11, fontWeight: 500,
+              cursor: "pointer", letterSpacing: "-0.01em",
+            }} aria-label={`Remove ${STATE_NAMES[code]} from chart`}>
+              <span style={{ width: 8, height: 8, borderRadius: 2, background: color, display: "inline-block" }} />
+              {STATE_NAMES[code]}
+              <span style={{ fontSize: 13, fontWeight: 400, opacity: 0.7, marginLeft: 2 }}>×</span>
+            </button>
+          );
+        })}
+        <button onClick={() => setSelected([])} style={{
+          padding: "4px 10px", borderRadius: 3,
+          border: `1px dashed ${EC.rule}`, background: "transparent",
+          color: EC.sub, fontFamily: ESANS, fontSize: 11, fontWeight: 500,
+          cursor: "pointer", marginLeft: "auto",
+        }}>
+          Clear all
+        </button>
+      </div>
+    )}
+
+    {selected.length === 0 && (
+      <p style={{
+        fontFamily: ESANS, fontSize: 11, color: EC.mute,
+        marginTop: 10, padding: "0 2px", fontStyle: "italic",
+      }}>
+        Tip: click any state on the map to add its 10-year line to the chart. Up to {MAX_SELECTED} at a time.
+      </p>
+    )}
+    </>
   );
 }
 
