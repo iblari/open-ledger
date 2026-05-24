@@ -764,16 +764,48 @@ function PrinciplesSection({ mob, med }: { mob: boolean; med: boolean }) {
           {/* Principles intro paragraph removed per design — headline only. */}
         </div>
 
+        {/* Mobile: 3-up tile grid (matches the Sources section pattern) —
+            number + headline only, descriptions + footer links hidden so
+            three principles fit on one screen instead of three full scrolls.
+            Descriptions still discoverable via the title attribute (long-
+            press on touch). Desktop unchanged: full 3-up with descriptions
+            and footer links. */}
         <div style={{
-          display: "grid", gridTemplateColumns: med ? "1fr" : "repeat(3, 1fr)",
-          background: C.rule, border: `1px solid ${C.rule}`, borderRadius: 4, overflow: "hidden", gap: 1,
+          display: "grid",
+          gridTemplateColumns: mob ? "repeat(3, 1fr)" : (med ? "1fr" : "repeat(3, 1fr)"),
+          background: C.rule, border: `1px solid ${C.rule}`, borderRadius: 4,
+          overflow: "hidden", gap: 1,
         }}>
           {items.map(it => (
-            <div key={it.n} style={{ background: C.card, padding: mob ? "24px 20px" : "32px 28px", display: "flex", flexDirection: "column", gap: 14 }}>
-              <div style={{ fontFamily: SERIF, fontSize: 36, fontWeight: 400, color: C.accent, letterSpacing: "-0.02em", lineHeight: 1, fontStyle: "italic" }}>{it.n}</div>
-              <h3 style={{ fontFamily: SERIF, fontWeight: 500, fontSize: 22, lineHeight: 1.2, letterSpacing: "-0.01em", margin: 0 }}>{it.t}</h3>
-              <p style={{ fontSize: 13, color: C.sub, lineHeight: 1.6, margin: 0 }}>{it.p}</p>
-              <div style={{ marginTop: "auto", paddingTop: 14, borderTop: `1px solid ${C.rule}`, fontSize: 11, color: C.mute, letterSpacing: "0.08em", textTransform: "uppercase" }}>{it.r} ↗</div>
+            <div key={it.n}
+              title={mob ? `${it.t} — ${it.p}` : undefined}
+              style={{
+                background: C.card,
+                padding: mob ? "16px 10px" : "32px 28px",
+                display: "flex", flexDirection: "column",
+                gap: mob ? 6 : 14,
+                minWidth: 0,
+              }}>
+              <div style={{
+                fontFamily: SERIF,
+                fontSize: mob ? 24 : 36,
+                fontWeight: 400, color: C.accent, letterSpacing: "-0.02em",
+                lineHeight: 1, fontStyle: "italic",
+              }}>{it.n}</div>
+              <h3 style={{
+                fontFamily: SERIF, fontWeight: 500,
+                fontSize: mob ? 13 : 22,
+                lineHeight: 1.2, letterSpacing: "-0.01em", margin: 0,
+              }}>{it.t}</h3>
+              {!mob && (
+                <>
+                  <p style={{ fontSize: 13, color: C.sub, lineHeight: 1.6, margin: 0 }}>{it.p}</p>
+                  <div style={{
+                    marginTop: "auto", paddingTop: 14, borderTop: `1px solid ${C.rule}`,
+                    fontSize: 11, color: C.mute, letterSpacing: "0.08em", textTransform: "uppercase",
+                  }}>{it.r} ↗</div>
+                </>
+              )}
             </div>
           ))}
         </div>
