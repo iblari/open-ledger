@@ -373,5 +373,9 @@ function round(v: number, m: StateMetric): number {
     case "%":      return Math.round(v * 100) / 100;
     case "M":      return Math.round(v * 100) / 100;
     case "¢/gal":  return Math.round(v * 10) / 10;
+    case "yrs":    return Math.round(v * 10) / 10;
+    case "per100K":return Math.round(v * 10) / 10;
+    case "per1K":  return Math.round(v * 100) / 100;
+    case "±pp":    return Math.round(v * 10) / 10;
   }
 }

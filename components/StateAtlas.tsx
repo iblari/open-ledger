@@ -52,6 +52,20 @@ const DECLINE_RGB = "194, 65, 12";
 // which direction this state sits relative to its peers.
 function colorFor(m: StateMetric, v: number | undefined, view: ViewMode): string {
   if (v === undefined || !isFinite(v)) return EC.rule;
+
+  // Bipolar diverging palette for signed metrics like 2024 presidential margin.
+  // Center is always 0 (not the mean of the data); positive = red (Trump),
+  // negative = blue (Harris). Matches the conventional US election map.
+  if (m.unit === "±pp") {
+    const vals = Object.values(m.latest) as number[];
+    const maxAbs = Math.max(...vals.map(x => Math.abs(x)));
+    const t = maxAbs === 0 ? 0 : Math.abs(v) / maxAbs;
+    const alpha = 0.18 + t * 0.72;
+    const REP_RGB  = "184, 55, 45";   // EC.accent — red for Trump
+    const DEM_RGB  = "29, 78, 216";   // blue for Harris (matches Clinton/Biden chart color)
+    return `rgba(${v >= 0 ? REP_RGB : DEM_RGB}, ${alpha})`;
+  }
+
   if (view === "latest") {
     const [lo, hi] = metricExtent(m);
     const t = hi === lo ? 0.5 : (v - lo) / (hi - lo);
@@ -254,7 +268,9 @@ export function StateAtlas() {
         borderBottom: `1px solid ${EC.rule}`,
         display: "flex", flexDirection: "column", gap: 8,
       }}>
-        {(["cost", "tax", "demo"] as StateMetricCategory[]).map(cat => {
+        {/* Picker rows — categories render in the order listed here. Updated
+            with the Politics + Health + Crime categories added in lib/state-data. */}
+        {(["cost", "tax", "demo", "health", "politics", "crime"] as StateMetricCategory[]).map(cat => {
           const keys = metricsForCategory(cat);
           if (keys.length === 0) return null;
           return (

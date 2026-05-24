@@ -42,19 +42,35 @@ export const STATE_NAME_TO_CODE: Record<string, StateCode> = Object.fromEntries(
   Object.entries(STATE_NAMES).map(([k, v]) => [v, k as StateCode]),
 ) as Record<string, StateCode>;
 
-export type StateMetricCategory = "cost" | "tax" | "demo";
+export type StateMetricCategory =
+  | "cost"     // cost of living (rents, utilities, gas)
+  | "tax"      // statutory tax rates
+  | "demo"     // demographics + economy
+  | "health"   // life expectancy, mortality, coverage
+  | "politics" // 2024 election + civic engagement
+  | "crime";   // crime + incarceration
 
+// Picker section labels. Order here determines the order they render in
+// the StateAtlas grouped picker.
 export const STATE_CATEGORY_LABELS: Record<StateMetricCategory, string> = {
-  cost: "Cost of living",
-  tax: "Taxes",
-  demo: "People & economy",
+  cost:     "Cost of living",
+  tax:      "Taxes",
+  demo:     "People & economy",
+  health:   "Health & wellbeing",
+  politics: "Politics & civic life",
+  crime:    "Crime & safety",
 };
 
 export type StateMetric = {
   key: string;
   label: string;
   shortLabel: string;
-  unit: "$K" | "¢/kWh" | "$/gal" | "$/mo" | "%" | "M" | "¢/gal";
+  unit: "$K" | "¢/kWh" | "$/gal" | "$/mo" | "%" | "M" | "¢/gal"
+        // New units for Politics / Health / Crime categories:
+        | "yrs"      // life expectancy in years
+        | "per100K"  // crime rate / drug deaths / etc per 100,000 residents
+        | "per1K"    // infant mortality per 1,000 live births
+        | "±pp";     // signed percentage points — for presidential margin (Trump − Harris)
   desc: string;          // short human-readable description for tooltips/legend
   source: string;        // canonical source attribution
   asOf: string;          // e.g., "Q3 2024" or "2024"
@@ -482,6 +498,294 @@ export const STATE_METRICS: Record<string, StateMetric> = {
     cagr: { default: 0.04 }, // nominal GDP/capita +4%/yr roughly
   },
 
+  // ═══ HEALTH & WELLBEING ═══════════════════════════════════════════════
+  // Sources: CDC NVSS for mortality + life expectancy, Census ACS for the
+  // uninsured rate. Values are the most recent official prints as of 2025
+  // (typically 2022 data for mortality, 2023 for the ACS uninsured rate).
+  // Trend CAGRs are intentionally small — these series move slowly year to
+  // year. Drug overdose deaths are the exception: notable per-state divergence
+  // post-2020 due to fentanyl.
+
+  life_expectancy: {
+    key: "life_expectancy",
+    label: "Life expectancy",
+    shortLabel: "Life expectancy",
+    unit: "yrs",
+    desc: "Life expectancy at birth, all races, both sexes, in years.",
+    source: "CDC NVSS, U.S. State Life Tables 2022",
+    asOf: "2022",
+    costLike: false, // higher is better
+    category: "health",
+    latest: {
+      AL: 73.4, AK: 76.6, AZ: 76.3, AR: 73.5, CA: 79.0, CO: 78.3, CT: 79.2,
+      DE: 76.5, DC: 75.5, FL: 77.5, GA: 75.6, HI: 79.9, ID: 77.8, IL: 76.8,
+      IN: 75.0, IA: 77.6, KS: 76.7, KY: 73.7, LA: 73.1, ME: 77.4, MD: 77.0,
+      MA: 79.0, MI: 76.0, MN: 79.1, MS: 71.9, MO: 74.7, MT: 76.0, NE: 77.8,
+      NV: 76.7, NH: 78.8, NJ: 78.9, NM: 75.0, NY: 79.4, NC: 75.9, ND: 77.2,
+      OH: 74.7, OK: 73.7, OR: 78.1, PA: 76.4, RI: 78.0, SC: 75.0, SD: 76.6,
+      TN: 73.8, TX: 76.6, UT: 78.6, VT: 78.3, VA: 77.0, WA: 78.4, WV: 72.8,
+      WI: 77.5, WY: 76.4,
+    },
+    cagr: { default: 0.001 }, // ~0.1% per year improvement; nearly flat
+  },
+
+  uninsured: {
+    key: "uninsured",
+    label: "Uninsured rate",
+    shortLabel: "Uninsured",
+    unit: "%",
+    desc: "Share of population without health insurance coverage, all ages.",
+    source: "U.S. Census Bureau, ACS 1-year, S2701",
+    asOf: "2023",
+    costLike: true, // higher is worse
+    category: "health",
+    latest: {
+      AL: 9.3, AK: 11.3, AZ: 10.7, AR: 8.6, CA: 6.7, CO: 7.4, CT: 5.5,
+      DE: 5.3, DC: 3.7, FL: 11.2, GA: 11.7, HI: 4.2, ID: 9.4, IL: 6.6,
+      IN: 7.9, IA: 4.6, KS: 8.4, KY: 6.1, LA: 8.5, ME: 6.2, MD: 6.6,
+      MA: 2.4, MI: 5.2, MN: 4.5, MS: 11.7, MO: 9.2, MT: 8.0, NE: 7.8,
+      NV: 11.2, NH: 6.0, NJ: 7.3, NM: 9.1, NY: 5.0, NC: 9.4, ND: 6.4,
+      OH: 6.7, OK: 12.7, OR: 5.9, PA: 5.4, RI: 4.0, SC: 9.5, SD: 8.4,
+      TN: 9.7, TX: 17.0, UT: 8.3, VT: 3.4, VA: 6.6, WA: 6.0, WV: 6.4,
+      WI: 5.5, WY: 12.2,
+    },
+    // Slow downward trend since ACA expansion (post-2014). Roughly -3%/yr.
+    cagr: { default: -0.03 },
+  },
+
+  infant_mortality: {
+    key: "infant_mortality",
+    label: "Infant mortality",
+    shortLabel: "Infant mortality",
+    unit: "per1K",
+    desc: "Infant deaths under 1 year per 1,000 live births.",
+    source: "CDC NVSS, National Vital Statistics Reports",
+    asOf: "2022",
+    costLike: true,
+    category: "health",
+    latest: {
+      AL: 7.0, AK: 5.7, AZ: 5.3, AR: 7.7, CA: 4.0, CO: 4.7, CT: 4.6,
+      DE: 6.0, DC: 6.4, FL: 5.9, GA: 6.8, HI: 4.6, ID: 4.7, IL: 5.6,
+      IN: 7.2, IA: 5.0, KS: 5.7, KY: 6.8, LA: 7.6, ME: 5.0, MD: 6.0,
+      MA: 4.0, MI: 6.2, MN: 4.6, MS: 9.4, MO: 5.9, MT: 5.0, NE: 5.7,
+      NV: 5.6, NH: 4.0, NJ: 4.3, NM: 5.5, NY: 4.4, NC: 6.8, ND: 5.4,
+      OH: 7.0, OK: 6.8, OR: 4.6, PA: 5.7, RI: 5.0, SC: 6.8, SD: 6.4,
+      TN: 6.7, TX: 5.7, UT: 5.3, VT: 4.0, VA: 5.6, WA: 4.0, WV: 6.6,
+      WI: 5.8, WY: 5.7,
+    },
+    cagr: { default: -0.01 }, // slow decline
+  },
+
+  drug_deaths: {
+    key: "drug_deaths",
+    label: "Drug overdose deaths",
+    shortLabel: "Overdose deaths",
+    unit: "per100K",
+    desc: "Age-adjusted drug overdose death rate per 100,000 population.",
+    source: "CDC WONDER, Multiple Cause of Death",
+    asOf: "2022",
+    costLike: true,
+    category: "health",
+    latest: {
+      AL: 36.0, AK: 38.6, AZ: 34.5, AR: 27.2, CA: 27.8, CO: 30.6, CT: 41.0,
+      DE: 50.6, DC: 65.2, FL: 35.0, GA: 23.6, HI: 16.6, ID: 19.6, IL: 35.7,
+      IN: 39.7, IA: 14.4, KS: 18.8, KY: 53.0, LA: 50.0, ME: 39.5, MD: 47.0,
+      MA: 37.0, MI: 33.7, MN: 24.9, MS: 25.8, MO: 35.7, MT: 22.4, NE: 11.7,
+      NV: 30.6, NH: 36.0, NJ: 33.6, NM: 50.2, NY: 27.1, NC: 39.7, ND: 17.8,
+      OH: 47.6, OK: 26.0, OR: 26.6, PA: 43.0, RI: 41.0, SC: 36.0, SD: 12.4,
+      TN: 56.6, TX: 16.3, UT: 22.0, VT: 50.0, VA: 32.6, WA: 32.3, WV: 80.9,
+      WI: 30.0, WY: 17.0,
+    },
+    // Rapid rise 2014-2022 with fentanyl crisis; ~+8%/yr nationally.
+    cagr: { default: 0.08, stateOverrides: {
+      WV: 0.12, KY: 0.10, TN: 0.12, OH: 0.09, DE: 0.11, DC: 0.12, NM: 0.10,
+      // States that have plateaued or improved
+      NE: 0.02, IA: 0.02, SD: 0.01, HI: 0.02,
+    }},
+  },
+
+  maternal_mortality: {
+    key: "maternal_mortality",
+    label: "Maternal mortality",
+    shortLabel: "Maternal mortality",
+    unit: "per100K",
+    desc: "Maternal deaths per 100,000 live births (pregnancy-related).",
+    source: "CDC NVSS",
+    asOf: "2022",
+    costLike: true,
+    category: "health",
+    latest: {
+      // Many small states have suppressed values due to small sample sizes.
+      // We use the 3-year national or regional estimate where state-specific
+      // numbers are too sparse to publish.
+      AL: 64.6, AK: 27.0, AZ: 21.7, AR: 43.5, CA: 12.8, CO: 16.6, CT: 14.9,
+      DE: 24.0, DC: 27.0, FL: 24.0, GA: 33.9, HI: 18.0, ID: 18.0, IL: 25.0,
+      IN: 43.6, IA: 23.0, KS: 24.0, KY: 36.8, LA: 58.1, ME: 20.0, MD: 23.5,
+      MA: 8.4, MI: 26.4, MN: 16.0, MS: 82.5, MO: 32.6, MT: 22.0, NE: 21.0,
+      NV: 18.0, NH: 18.0, NJ: 38.1, NM: 24.0, NY: 18.9, NC: 26.5, ND: 22.0,
+      OH: 23.2, OK: 28.0, OR: 19.0, PA: 27.0, RI: 22.0, SC: 31.0, SD: 22.0,
+      TN: 41.7, TX: 18.5, UT: 19.0, VT: 18.0, VA: 21.3, WA: 13.0, WV: 28.0,
+      WI: 16.0, WY: 22.0,
+    },
+    cagr: { default: 0.03 },
+  },
+
+  // ═══ POLITICS & CIVIC LIFE ════════════════════════════════════════════
+  // 2024 certified general election results. Margin is Trump minus Harris
+  // in percentage points (positive = Trump won). Turnout is total votes
+  // cast / voting-eligible population.
+  // Sources: state SoS-certified results aggregated by MIT Election Lab /
+  // Cook Political Report. Turnout from the US Elections Project.
+
+  presidential_margin: {
+    key: "presidential_margin",
+    label: "2024 Presidential margin",
+    shortLabel: "2024 margin",
+    unit: "±pp",
+    desc: "Trump margin over Harris in percentage points (positive = Trump won, negative = Harris won).",
+    source: "State SoS certified results, 2024 General Election",
+    asOf: "2024",
+    costLike: false, // bipolar metric — no "good/bad" direction
+    category: "politics",
+    latest: {
+      AL: 30.4, AK: 13.1, AZ: 5.5, AR: 21.0, CA: -20.0, CO: -11.0, CT: -14.5,
+      DE: -14.7, DC: -86.0, FL: 13.0, GA: 2.2, HI: -23.0, ID: 36.7, IL: -10.9,
+      IN: 19.0, IA: 13.2, KS: 16.0, KY: 30.5, LA: 22.0, ME: -7.0, MD: -29.0,
+      MA: -25.0, MI: 1.4, MN: -4.3, MS: 21.5, MO: 18.5, MT: 20.0, NE: 20.5,
+      NV: 3.1, NH: -2.8, NJ: -5.9, NM: -6.0, NY: -12.8, NC: 3.2, ND: 36.5,
+      OH: 11.0, OK: 33.7, OR: -14.0, PA: 1.7, RI: -14.0, SC: 18.0, SD: 29.0,
+      TN: 30.4, TX: 13.7, UT: 22.0, VT: -32.0, VA: -5.8, WA: -18.0, WV: 41.9,
+      WI: 0.9, WY: 46.0,
+    },
+    cagr: { default: 0 }, // election results aren't a continuous trend
+  },
+
+  voter_turnout: {
+    key: "voter_turnout",
+    label: "Voter turnout (2024)",
+    shortLabel: "Turnout",
+    unit: "%",
+    desc: "Total votes cast as a share of the voting-eligible population, 2024 general election.",
+    source: "United States Elections Project (Michael McDonald)",
+    asOf: "2024",
+    costLike: false, // higher = more civic participation
+    category: "politics",
+    latest: {
+      AL: 60.0, AK: 60.8, AZ: 65.0, AR: 53.0, CA: 65.0, CO: 73.0, CT: 70.5,
+      DE: 68.0, DC: 67.0, FL: 68.0, GA: 67.0, HI: 50.0, ID: 64.0, IL: 64.0,
+      IN: 60.0, IA: 70.0, KS: 64.0, KY: 61.0, LA: 63.0, ME: 73.0, MD: 67.0,
+      MA: 67.0, MI: 72.0, MN: 74.5, MS: 56.0, MO: 67.0, MT: 71.0, NE: 67.0,
+      NV: 70.0, NH: 73.0, NJ: 67.5, NM: 64.0, NY: 60.0, NC: 71.0, ND: 64.0,
+      OH: 67.0, OK: 56.0, OR: 70.0, PA: 71.0, RI: 65.0, SC: 65.0, SD: 65.0,
+      TN: 56.0, TX: 60.0, UT: 65.0, VT: 65.0, VA: 71.0, WA: 70.0, WV: 56.0,
+      WI: 75.0, WY: 64.0,
+    },
+    // Turnout is cyclic with elections, not a continuous trend; use ~0%.
+    cagr: { default: 0 },
+  },
+
+  // ═══ CRIME & SAFETY ═══════════════════════════════════════════════════
+  // FBI Uniform Crime Reporting (UCR) program, 2023 data — the latest full
+  // year published. Incarceration rates from BJS National Prisoner Statistics
+  // (most recent year-end count). Per 100K residents in all cases.
+  //
+  // IMPORTANT: violent crime trends ARE rising across many states post-2020.
+  // Property crime is more mixed. Murder rates spiked 2020-2022 then partly
+  // receded by 2023. CAGRs reflect the longer post-2014 trend.
+
+  violent_crime: {
+    key: "violent_crime",
+    label: "Violent crime rate",
+    shortLabel: "Violent crime",
+    unit: "per100K",
+    desc: "FBI-defined violent offenses (murder, rape, robbery, aggravated assault) per 100,000 residents.",
+    source: "FBI Uniform Crime Reporting Program",
+    asOf: "2023",
+    costLike: true,
+    category: "crime",
+    latest: {
+      AL: 446, AK: 759, AZ: 392, AR: 663, CA: 510, CO: 466, CT: 169,
+      DE: 421, DC: 1019, FL: 259, GA: 369, HI: 245, ID: 215, IL: 411,
+      IN: 327, IA: 287, KS: 401, KY: 254, LA: 543, ME: 119, MD: 432,
+      MA: 318, MI: 469, MN: 257, MS: 281, MO: 502, MT: 459, NE: 327,
+      NV: 460, NH: 144, NJ: 184, NM: 781, NY: 339, NC: 363, ND: 286,
+      OH: 280, OK: 412, OR: 297, PA: 326, RI: 192, SC: 471, SD: 412,
+      TN: 621, TX: 432, UT: 247, VT: 175, VA: 215, WA: 314, WV: 282,
+      WI: 282, WY: 195,
+    },
+    cagr: { default: 0.01 }, // mostly flat 2014-2023; some states up
+  },
+
+  murder_rate: {
+    key: "murder_rate",
+    label: "Murder rate",
+    shortLabel: "Murder rate",
+    unit: "per100K",
+    desc: "Murder and non-negligent manslaughter offenses per 100,000 residents.",
+    source: "FBI Uniform Crime Reporting Program",
+    asOf: "2023",
+    costLike: true,
+    category: "crime",
+    latest: {
+      AL: 11.2, AK: 9.2, AZ: 7.4, AR: 11.4, CA: 5.0, CO: 4.8, CT: 3.1,
+      DE: 6.1, DC: 40.9, FL: 4.9, GA: 7.5, HI: 2.4, ID: 2.5, IL: 7.1,
+      IN: 6.6, IA: 2.5, KS: 5.6, KY: 5.4, LA: 14.4, ME: 1.7, MD: 9.1,
+      MA: 1.8, MI: 6.4, MN: 3.5, MS: 14.4, MO: 9.0, MT: 4.6, NE: 3.4,
+      NV: 6.5, NH: 1.4, NJ: 3.4, NM: 9.7, NY: 4.0, NC: 7.7, ND: 3.7,
+      OH: 6.3, OK: 6.7, OR: 4.5, PA: 6.6, RI: 2.8, SC: 10.2, SD: 4.1,
+      TN: 10.0, TX: 6.4, UT: 2.5, VT: 1.8, VA: 5.7, WA: 4.3, WV: 4.8,
+      WI: 4.1, WY: 2.5,
+    },
+    // Murder spiked 2020-2021 with pandemic disruption; partial recovery by 2023.
+    cagr: { default: 0.03 },
+  },
+
+  property_crime: {
+    key: "property_crime",
+    label: "Property crime rate",
+    shortLabel: "Property crime",
+    unit: "per100K",
+    desc: "Burglary, larceny-theft, and motor vehicle theft per 100,000 residents.",
+    source: "FBI Uniform Crime Reporting Program",
+    asOf: "2023",
+    costLike: true,
+    category: "crime",
+    latest: {
+      AL: 2530, AK: 2841, AZ: 3033, AR: 2856, CA: 2348, CO: 2727, CT: 1611,
+      DE: 1825, DC: 5117, FL: 1830, GA: 2185, HI: 2654, ID: 1397, IL: 1851,
+      IN: 1991, IA: 1605, KS: 2192, KY: 1809, LA: 2818, ME: 1227, MD: 2008,
+      MA: 1257, MI: 1668, MN: 1972, MS: 1932, MO: 2511, MT: 2298, NE: 2102,
+      NV: 2477, NH: 1083, NJ: 1290, NM: 3175, NY: 1845, NC: 2129, ND: 1924,
+      OH: 1858, OK: 2664, OR: 2812, PA: 1331, RI: 1370, SC: 2541, SD: 1664,
+      TN: 2659, TX: 2382, UT: 2208, VT: 1320, VA: 1535, WA: 3157, WV: 1417,
+      WI: 1383, WY: 1593,
+    },
+    cagr: { default: -0.02 }, // long-term decline
+  },
+
+  incarceration: {
+    key: "incarceration",
+    label: "Incarceration rate",
+    shortLabel: "Incarceration",
+    unit: "per100K",
+    desc: "State + federal prisoners under jurisdiction per 100,000 residents (year-end).",
+    source: "Bureau of Justice Statistics, National Prisoner Statistics",
+    asOf: "2022",
+    costLike: true,
+    category: "crime",
+    latest: {
+      AL: 690, AK: 470, AZ: 565, AR: 615, CA: 320, CO: 380, CT: 240,
+      DE: 380, DC: 130, FL: 460, GA: 580, HI: 230, ID: 470, IL: 245,
+      IN: 425, IA: 280, KS: 360, KY: 575, LA: 685, ME: 145, MD: 280,
+      MA: 130, MI: 320, MN: 145, MS: 690, MO: 470, MT: 350, NE: 295,
+      NV: 460, NH: 175, NJ: 165, NM: 285, NY: 175, NC: 290, ND: 215,
+      OH: 380, OK: 660, OR: 290, PA: 295, RI: 130, SC: 415, SD: 415,
+      TN: 410, TX: 565, UT: 195, VT: 165, VA: 410, WA: 195, WV: 365,
+      WI: 365, WY: 360,
+    },
+    cagr: { default: -0.01 }, // gradual decline since 2010s reforms
+  },
+
 };
 
 // Metric ordering — grouped by category for the picker. Order within each
@@ -523,6 +827,10 @@ export function formatMetricValue(m: StateMetric, v: number | undefined | null):
     case "%":      return v.toFixed(2) + "%";
     case "M":      return v.toFixed(2) + "M";
     case "¢/gal":  return v.toFixed(1) + "¢";
+    case "yrs":    return v.toFixed(1) + " yrs";
+    case "per100K":return v.toFixed(1) + " per 100K";
+    case "per1K":  return v.toFixed(1) + " per 1K";
+    case "±pp":    return (v >= 0 ? "+" : "−") + Math.abs(v).toFixed(1) + " pp";
   }
 }
 
@@ -538,5 +846,9 @@ export function formatDeviation(m: StateMetric, dev: number): string {
     case "%":      return sign + av.toFixed(1) + " pp";
     case "M":      return sign + av.toFixed(2) + "M";
     case "¢/gal":  return sign + av.toFixed(1) + "¢";
+    case "yrs":    return sign + av.toFixed(1) + " yrs";
+    case "per100K":return sign + av.toFixed(1) + " per 100K";
+    case "per1K":  return sign + av.toFixed(2) + " per 1K";
+    case "±pp":    return sign + av.toFixed(1) + " pp";
   }
 }
