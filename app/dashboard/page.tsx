@@ -888,12 +888,18 @@ function App(){
   const [displayMode,setDisplayMode]=useState<DisplayMode>("per_metric");
   const [dollarMode,setDollarMode]=useState<DollarMode>("real");
 
-  // Read metric from URL query param (e.g. /dashboard?metric=unemployment)
+  // Read metric / tab / admin from URL query params
+  // (e.g. /dashboard?tab=data&metric=unemployment&admin=obama).
+  // The admin param is set when the user clicks a president card on the
+  // landing page — we land on the metric's detail view with that admin
+  // highlighted in the per-administration side panel.
   useEffect(() => {
     const m = searchParams.get("metric");
     if (m && M[m]) { setAm(m); setDetail(m); }
     const t = searchParams.get("tab");
     if (t && TABS.some(([k]) => k === t)) setTab(t);
+    const a = searchParams.get("admin");
+    if (a && ADMINS[a]) setSelectedPres(a);
   }, [searchParams]);
 
   // Scroll to top when entering or leaving detail view

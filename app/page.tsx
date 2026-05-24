@@ -570,6 +570,61 @@ function ScorecardSection({ mob, med }: { mob: boolean; med: boolean }) {
   );
 }
 
+/* President card on Deep Dive side panel. Clicking it deep-links into the
+   dashboard's Data tab, in detail mode for the current metric, with the
+   clicked admin pre-selected in the side panel (?metric=<mk>&admin=<id>). */
+function PresidentCard({
+  id, name, full, color, metricKey, headline, improved, start, end,
+}: {
+  id: string; name: string; full: string; color: string;
+  metricKey: string; headline: string; improved: boolean;
+  start: string; end: string;
+}) {
+  const [hov, setHov] = useState(false);
+  return (
+    <Link href={`/dashboard?tab=data&metric=${metricKey}&admin=${id}`}
+          onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
+          aria-label={`Open ${name} detail on dashboard`}
+          style={{
+            display: "grid", gridTemplateColumns: "auto 1fr auto", gap: 12,
+            alignItems: "center", padding: "10px 12px",
+            background: hov ? C.paper : C.card,
+            border: `1px solid ${hov ? color : C.rule}`,
+            borderRadius: 3, fontSize: 13,
+            textDecoration: "none", color: "inherit",
+            cursor: "pointer",
+            transform: hov ? "translateX(2px)" : "translateX(0)",
+            boxShadow: hov ? `0 2px 8px -2px rgba(0,0,0,0.08)` : "none",
+            transition: "all 0.15s ease",
+          }}>
+      <div style={{ width: 6, height: 32, borderRadius: 2, background: color }} />
+      <div>
+        <div style={{ fontFamily: SERIF, fontWeight: 500, fontSize: 15, letterSpacing: "-0.01em", display: "flex", alignItems: "center", gap: 6 }}>
+          {name}
+          <span style={{
+            fontFamily: SANS, fontSize: 11, color: hov ? color : C.mute,
+            transition: "all 0.15s ease",
+            transform: hov ? "translateX(2px)" : "translateX(0)",
+            display: "inline-block",
+          }}>→</span>
+        </div>
+        <div style={{ fontSize: 10, color: C.mute, letterSpacing: "0.06em", textTransform: "uppercase" }}>{full}</div>
+      </div>
+      <div style={{ textAlign: "right" }}>
+        <div style={{
+          fontFamily: SERIF, fontSize: 17, fontVariantNumeric: "tabular-nums", fontWeight: 500,
+          color: improved ? C.improveStrong : C.declineStrong,
+        }}>
+          {headline}
+        </div>
+        <div style={{ fontSize: 10, color: C.mute, fontVariantNumeric: "tabular-nums" }}>
+          {start} → {end}
+        </div>
+      </div>
+    </Link>
+  );
+}
+
 /* ── Deep Dive ── */
 function DeepDiveSection({ mob, med }: { mob: boolean; med: boolean }) {
   const [mk, setMk] = useState("gdp");
@@ -669,28 +724,10 @@ function DeepDiveSection({ mob, med }: { mob: boolean; med: boolean }) {
                 const disp = resolveDisplay(c, mk, "per_metric", "real");
                 const headline = formatDisplayedChange(disp.value, disp.unit);
                 return (
-                  <div key={id} style={{
-                    display: "grid", gridTemplateColumns: "auto 1fr auto", gap: 12,
-                    alignItems: "center", padding: "10px 12px", background: C.card,
-                    border: `1px solid ${C.rule}`, borderRadius: 3, fontSize: 13,
-                  }}>
-                    <div style={{ width: 6, height: 32, borderRadius: 2, background: a.color }} />
-                    <div>
-                      <div style={{ fontFamily: SERIF, fontWeight: 500, fontSize: 15, letterSpacing: "-0.01em" }}>{a.name}</div>
-                      <div style={{ fontSize: 10, color: C.mute, letterSpacing: "0.06em", textTransform: "uppercase" }}>{a.full}</div>
-                    </div>
-                    <div style={{ textAlign: "right" }}>
-                      <div style={{
-                        fontFamily: SERIF, fontSize: 17, fontVariantNumeric: "tabular-nums", fontWeight: 500,
-                        color: disp.improved ? C.improveStrong : C.declineStrong,
-                      }}>
-                        {headline}
-                      </div>
-                      <div style={{ fontSize: 10, color: C.mute, fontVariantNumeric: "tabular-nums" }}>
-                        {fmt(c.start, m.u)} → {fmt(c.end, m.u)}
-                      </div>
-                    </div>
-                  </div>
+                  <PresidentCard key={id} id={id} name={a.name} full={a.full} color={a.color}
+                                 metricKey={mk} headline={headline}
+                                 improved={disp.improved}
+                                 start={fmt(c.start, m.u)} end={fmt(c.end, m.u)} />
                 );
               })}
             </div>
