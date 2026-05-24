@@ -273,7 +273,9 @@ export function generateLiveInsights(
   return [...best.values()].sort((a, b) => b.score - a.score).slice(0, limit);
 }
 
-/** Pretty "Last updated: 5 minutes ago" string. */
+/** Pretty "Last updated: 5 minutes ago" string. NOTE: this reflects when our
+ *  API cache was warmed, NOT when the FRED data was published. Use
+ *  latestDataDate() instead for any user-facing freshness signal. */
 export function timeAgo(iso: string): string {
   const then = new Date(iso).getTime();
   const ago = Date.now() - then;
@@ -284,4 +286,26 @@ export function timeAgo(iso: string): string {
   if (hrs < 24) return `${hrs}h ago`;
   const days = Math.floor(hrs / 24);
   return `${days}d ago`;
+}
+
+/** Find the most recent calendar date across ALL metrics' latest data points.
+ *  This is the meaningful "freshness" signal — it reflects how recent the
+ *  underlying FRED prints are, not when we last refreshed our cache.
+ *
+ *  Returns a Date object. Use fmtFreshness() below to format. */
+export function latestDataDate(payload: LiveBenchmarkPayload): Date | null {
+  let latest: Date | null = null;
+  for (const m of Object.values(payload.metrics)) {
+    const cur = m.series.find(s => s.current);
+    if (!cur || cur.data.length === 0) continue;
+    const lastPoint = cur.data[cur.data.length - 1];
+    const d = monthToDate(cur.id, lastPoint.month);
+    if (!latest || d > latest) latest = d;
+  }
+  return latest;
+}
+
+/** Format a Date as "Apr 2026" for the freshness badge. */
+export function fmtFreshness(d: Date): string {
+  return d.toLocaleString("en-US", { month: "short", year: "numeric" });
 }

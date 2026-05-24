@@ -21,7 +21,8 @@ import {
   type Insight, type InsightKind,
 } from "@/lib/insights";
 import {
-  generateLiveInsights, timeAgo, type LiveBenchmarkPayload,
+  generateLiveInsights, latestDataDate, fmtFreshness,
+  type LiveBenchmarkPayload,
 } from "@/lib/insights-live";
 
 interface Props {
@@ -52,10 +53,12 @@ export function InsightsStrip({ limit = 3, mob, eyebrow }: Props) {
   const staticInsights = useMemo(() => generateInsights({ limit }), [limit]);
   const staticAsOf = insightsAsOfYear();
 
-  // Live fetch state. lastUpdated lets us show "fresh as of 5 min ago"
-  // instead of the stale "AS OF 2024" annual label.
+  // Live fetch state. We track the latest DATA date (most recent FRED print
+  // across all metrics) rather than the cache-warming timestamp — the former
+  // is the meaningful freshness signal, the latter is misleading because it
+  // resets whenever Vercel rebuilds even if the underlying data is unchanged.
   const [liveInsights, setLiveInsights] = useState<Insight[] | null>(null);
-  const [lastUpdatedIso, setLastUpdatedIso] = useState<string | null>(null);
+  const [dataDate, setDataDate] = useState<Date | null>(null);
   const [, setFetchError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -68,7 +71,7 @@ export function InsightsStrip({ limit = 3, mob, eyebrow }: Props) {
         const live = generateLiveInsights(data, { limit });
         if (live.length > 0) {
           setLiveInsights(live);
-          setLastUpdatedIso(data.lastUpdated);
+          setDataDate(latestDataDate(data));
         }
       })
       .catch(e => { if (!cancelled) setFetchError(e.message); });
@@ -104,9 +107,13 @@ export function InsightsStrip({ limit = 3, mob, eyebrow }: Props) {
         <div style={{
           fontFamily: ESANS, fontSize: 10, color: isLive ? EC.improveStrong : EC.mute,
           letterSpacing: "0.06em", textTransform: "uppercase", fontWeight: isLive ? 600 : 500,
-        }} title={isLive ? "Pulled live from FRED via /api/benchmark-data" : "Computed from static fallback data"}>
-          {isLive && lastUpdatedIso
-            ? `Live · updated ${timeAgo(lastUpdatedIso)}`
+        }}
+        title={isLive
+          ? "Pulled live from FRED. Most macro data (CPI, unemployment, GDP) is published with a 4-6 week lag by BLS/BEA — this date is the most recent official print, not when our cache refreshed."
+          : "Showing static fallback — live FRED data couldn't be fetched (check FRED_API_KEY in Vercel env)."}
+        >
+          {isLive && dataDate
+            ? `Live FRED · latest ${fmtFreshness(dataDate)}`
             : `As of ${staticAsOf} · auto-generated`}
         </div>
       </div>
