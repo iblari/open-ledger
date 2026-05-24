@@ -42,12 +42,45 @@ const DEEPGRAM_KEY = process.env.DEEPGRAM_API_KEY;
 const ADMIN_KEY = process.env.ADMIN_KEY;
 const API_URL = process.env.API_URL || "https://voteunbiased.org";
 
-const YOUTUBE_URL = process.argv[2];
-const TITLE = process.argv[3] || "Live Broadcast";
+// Parse positional args + flags. Positionals stay in the original order so
+// the manual-invocation README example still works:
+//   node scripts/go-live.mjs <youtube-url> [title]
+// Flags (any position):
+//   --duration <seconds>   Auto-stop after N seconds. Used by the GitHub
+//                           Action so a 90-minute event doesn't run forever.
+//                           Without it, the script runs until ffmpeg exits
+//                           (broadcaster ends stream) or Ctrl+C.
+const rawArgs = process.argv.slice(2);
+let durationSec = null;
+const positionals = [];
+for (let i = 0; i < rawArgs.length; i++) {
+  if (rawArgs[i] === "--duration") {
+    durationSec = Number(rawArgs[++i]);
+    if (!Number.isFinite(durationSec) || durationSec <= 0) {
+      console.error("ERROR: --duration must be a positive number of seconds");
+      process.exit(1);
+    }
+  } else if (rawArgs[i].startsWith("--")) {
+    console.error(`ERROR: unknown flag ${rawArgs[i]}`);
+    process.exit(1);
+  } else {
+    positionals.push(rawArgs[i]);
+  }
+}
+// Env var fallback for --duration so the GitHub Action can pass it cleanly
+// without quoting issues. CLI flag takes precedence.
+if (durationSec == null && process.env.LIVE_DURATION_SECONDS) {
+  durationSec = Number(process.env.LIVE_DURATION_SECONDS);
+  if (!Number.isFinite(durationSec) || durationSec <= 0) durationSec = null;
+}
+
+const YOUTUBE_URL = positionals[0];
+const TITLE = positionals[1] || "Live Broadcast";
 
 if (!YOUTUBE_URL) {
-  console.error("Usage: node scripts/go-live.mjs <youtube-url> [title]");
+  console.error("Usage: node scripts/go-live.mjs <youtube-url> [title] [--duration <seconds>]");
   console.error("  e.g. node scripts/go-live.mjs https://youtube.com/watch?v=abc123 'Press Briefing'");
+  console.error("  e.g. node scripts/go-live.mjs https://youtube.com/watch?v=abc123 'SOTU' --duration 5400");
   process.exit(1);
 }
 
@@ -92,9 +125,13 @@ function extractVideoId(url) {
 
 const videoId = extractVideoId(YOUTUBE_URL);
 console.log(`\n📡 Vote Unbiased — Live Broadcast Pipeline`);
-console.log(`   Video: ${videoId}`);
-console.log(`   Title: ${TITLE}`);
-console.log(`   API:   ${API_URL}`);
+console.log(`   Video:    ${videoId}`);
+console.log(`   Title:    ${TITLE}`);
+console.log(`   API:      ${API_URL}`);
+if (durationSec) {
+  const mins = Math.round(durationSec / 60);
+  console.log(`   Duration: ${mins} min (auto-stop)`);
+}
 console.log(``);
 
 console.log("→ Setting site to LIVE...");
@@ -279,3 +316,20 @@ async function shutdown() {
 
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
+
+// Auto-stop timer — set when --duration is provided so the GitHub Action's
+// workflow doesn't have to send a signal. Adds a hard ceiling so a runaway
+// stream can't burn through STT credits indefinitely.
+let shuttingDown = false;
+const guardedShutdown = async (reason) => {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log(`\nAuto-stop: ${reason}`);
+  await shutdown();
+};
+
+if (durationSec != null) {
+  setTimeout(() => {
+    guardedShutdown(`reached --duration of ${durationSec}s`);
+  }, durationSec * 1000);
+}

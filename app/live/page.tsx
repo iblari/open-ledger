@@ -118,6 +118,38 @@ function fmtTime(sec: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
+/* ── Format a "starts in" countdown for scheduled broadcasts ──── */
+// Picks the right precision based on remaining time so the label feels right
+// at every scale — "in 3 days", "in 4h 12m", "in 14:32", "Live now".
+function fmtCountdown(secondsUntil: number): string {
+  if (secondsUntil <= 0) return "Live now";
+  const days = Math.floor(secondsUntil / 86400);
+  if (days >= 2) return `in ${days} days`;
+  const hours = Math.floor(secondsUntil / 3600);
+  if (hours >= 2) {
+    const m = Math.floor((secondsUntil % 3600) / 60);
+    return `in ${hours}h ${m}m`;
+  }
+  const m = Math.floor(secondsUntil / 60);
+  const s = secondsUntil % 60;
+  return `in ${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+}
+
+/* ── Pretty event date for the schedule list — local time, contextual ─ */
+function fmtEventDate(iso: string): string {
+  const d = new Date(iso);
+  const now = new Date();
+  const sameDay = d.toDateString() === now.toDateString();
+  if (sameDay) {
+    return `Today, ${d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
+  }
+  const tomorrow = new Date(now); tomorrow.setDate(tomorrow.getDate() + 1);
+  if (d.toDateString() === tomorrow.toDateString()) {
+    return `Tomorrow, ${d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
+  }
+  return d.toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+}
+
 /* ── Fact-Check Card ──────────────────────────────────────────── */
 function FactCard({ claim, isNew, onSeek }: { claim: Claim; isNew: boolean; onSeek?: (t: number) => void }) {
   const [expanded, setExpanded] = useState(false);
@@ -321,6 +353,20 @@ export default function LiveFactCheckPage() {
 
   /* ── State ── */
   const [config, setConfig] = useState<LiveConfig | null>(null);
+  // Public broadcast schedule (public/live-schedule.json via /api/live-schedule).
+  // Refetched every 30s so adding an event to the JSON and redeploying
+  // shows up without a hard reload, and so a freshly-started event appears
+  // here within 30s without needing the user to refresh.
+  const [schedule, setSchedule] = useState<{
+    active: { id: string; title: string; speaker: string; source: string; youtubeUrl: string; scheduledStart: string; scheduledEnd: string } | null;
+    next: { id: string; title: string; speaker: string; source: string; youtubeUrl: string; scheduledStart: string; scheduledEnd: string } | null;
+    nextSecondsUntilStart: number | null;
+    upcoming: { id: string; title: string; speaker: string; source: string; youtubeUrl: string; scheduledStart: string; scheduledEnd: string }[];
+  } | null>(null);
+  // Wall-clock tick used to drive the countdown re-render once per second.
+  // We only use this for display — the source of truth is the scheduledStart
+  // ISO strings so missing a tick doesn't drift the countdown.
+  const [, setClockTick] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isDemo, setIsDemo] = useState(false);
   const [videoId, setVideoId] = useState("");
@@ -401,6 +447,32 @@ export default function LiveFactCheckPage() {
       } catch {}
     }
     loadConfig();
+  }, []);
+
+  /* ── Fetch broadcast schedule + tick clock for countdown ── */
+  // The schedule comes from /api/live-schedule, which reads public/live-schedule.json.
+  // We refetch every 30s so newly-added events appear without a hard refresh
+  // and so an event transitioning to "active" surfaces near-real-time.
+  useEffect(() => {
+    let cancelled = false;
+    async function loadSchedule() {
+      try {
+        const resp = await fetch("/api/live-schedule");
+        if (!resp.ok) return;
+        const data = await resp.json();
+        if (!cancelled) setSchedule(data);
+      } catch { /* schedule is decorative — silent failure is OK */ }
+    }
+    loadSchedule();
+    const id = setInterval(loadSchedule, 30000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, []);
+
+  // 1-second tick to drive the countdown re-render. Cheap — only updates a
+  // single state value, the actual time math reads from Date.now() each render.
+  useEffect(() => {
+    const id = setInterval(() => setClockTick(t => t + 1), 1000);
+    return () => clearInterval(id);
   }, []);
 
   /* ── Poll live-feed API during live broadcasts (not demos) ── */
@@ -1152,27 +1224,98 @@ export default function LiveFactCheckPage() {
                   Watch a past speech from the archive below,<br />or analyze any YouTube video.
                 </div>
 
-                {/* Upcoming schedule */}
-                {config?.upcoming && config.upcoming.length > 0 && (
+                {/* Upcoming schedule — driven by public/live-schedule.json
+                    via /api/live-schedule. The GitHub Action reads the same
+                    endpoint, so what's shown here is exactly what will
+                    auto-trigger when its scheduledStart hits. */}
+                {schedule && (schedule.active || (schedule.upcoming && schedule.upcoming.length > 0)) && (
                   <div style={{
-                    marginTop: 16, padding: "12px 16px", background: T.paper,
+                    marginTop: 16, padding: "14px 18px", background: T.paper,
                     borderRadius: 8, border: `1px solid ${T.rule}`,
-                    display: "inline-flex", flexDirection: "column", gap: 6,
+                    display: "inline-flex", flexDirection: "column", gap: 10,
+                    minWidth: 280, textAlign: "left",
                   }}>
+                    {/* Currently live (auto-triggered by the GitHub Action) */}
+                    {schedule.active && (() => {
+                      const startMs = Date.parse(schedule.active!.scheduledStart);
+                      const nowMs = Date.now();
+                      const hasStarted = nowMs >= startMs;
+                      return (
+                        <div>
+                          <div style={{
+                            display: "flex", alignItems: "center", gap: 6,
+                            fontFamily: "'DM Sans',sans-serif", fontSize: 10, fontWeight: 700,
+                            textTransform: "uppercase", letterSpacing: 1.5,
+                            color: hasStarted ? "#dc2626" : T.gold,
+                          }}>
+                            <span style={{
+                              width: 6, height: 6, borderRadius: "50%",
+                              background: hasStarted ? "#dc2626" : T.gold,
+                              animation: hasStarted ? "pulse 2s infinite" : "none",
+                            }} />
+                            {hasStarted ? "LIVE NOW" : "STARTING SOON"}
+                          </div>
+                          <div style={{ fontFamily: "'Source Serif 4',serif", fontSize: 16, fontWeight: 600, color: T.ink, marginTop: 4 }}>
+                            {schedule.active!.title}
+                          </div>
+                          <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: T.sub, marginTop: 2 }}>
+                            {schedule.active!.speaker} · {schedule.active!.source}
+                          </div>
+                          {!hasStarted && (
+                            <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: T.gold, marginTop: 4, fontWeight: 600 }}>
+                              Starts {fmtCountdown(Math.floor((startMs - nowMs) / 1000))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+
+                    {/* Next scheduled (or all upcoming if nothing's live yet) */}
+                    {(schedule.active ? schedule.upcoming.filter(e => e.id !== schedule.active!.id).slice(0, 2) : schedule.upcoming.slice(0, 3)).map((ev) => {
+                      const secs = Math.floor((Date.parse(ev.scheduledStart) - Date.now()) / 1000);
+                      return (
+                        <div key={ev.id} style={{
+                          paddingTop: schedule.active ? 8 : 0,
+                          borderTop: schedule.active ? `1px solid ${T.rule}` : "none",
+                        }}>
+                          {(!schedule.active) && (
+                            <div style={{
+                              fontFamily: "'DM Sans',sans-serif", fontSize: 10, fontWeight: 700,
+                              textTransform: "uppercase", letterSpacing: 1.5, color: T.sub, marginBottom: 4,
+                            }}>NEXT BROADCAST</div>
+                          )}
+                          <div style={{
+                            fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: T.ink,
+                            display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap",
+                          }}>
+                            <span style={{ fontWeight: 600 }}>{ev.title}</span>
+                            <span style={{ color: T.mute, fontSize: 11 }}>· {ev.speaker}</span>
+                          </div>
+                          <div style={{
+                            fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: T.sub, marginTop: 2,
+                            display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap",
+                          }}>
+                            <span>{fmtEventDate(ev.scheduledStart)}</span>
+                            {secs > 0 && (
+                              <>
+                                <span style={{ color: T.mute }}>·</span>
+                                <span style={{ color: T.accent, fontWeight: 600 }}>{fmtCountdown(secs)}</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {/* Tiny footer reassuring viewers this isn't manually
+                        operated — sets expectations correctly. */}
                     <div style={{
-                      fontFamily: "'DM Sans',sans-serif", fontSize: 10, fontWeight: 700,
-                      textTransform: "uppercase", letterSpacing: 1.5, color: T.sub,
-                    }}>NEXT BROADCAST</div>
-                    {config.upcoming.slice(0, 2).map((u, i) => (
-                      <div key={i} style={{
-                        fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: T.ink,
-                        display: "flex", alignItems: "center", gap: 8,
-                      }}>
-                        <span style={{ color: T.accent, fontWeight: 700, fontSize: 11 }}>{formatTime(u.date)}</span>
-                        <span style={{ color: T.mute }}>—</span>
-                        <span style={{ fontWeight: 600 }}>{u.title}</span>
-                      </div>
-                    ))}
+                      fontFamily: "'DM Sans',sans-serif", fontSize: 9, color: T.mute,
+                      letterSpacing: 0.5, marginTop: 4, paddingTop: 6,
+                      borderTop: `1px solid ${T.rule}`,
+                    }}>
+                      Auto-broadcast · fact-checks appear in real time when the event begins
+                    </div>
                   </div>
                 )}
               </div>
