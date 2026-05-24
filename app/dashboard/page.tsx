@@ -2118,8 +2118,10 @@ function App(){
             })}
           </div>
 
-          {/* Scenario description card */}
-          {activeScenario!=="baseline"&&(
+          {/* Scenario description card — desktop only. Methodology takes too
+              much vertical space on mobile; the full text is still available
+              in the methodology disclosure at the bottom of the tab. */}
+          {!mob && activeScenario!=="baseline"&&(
             <div style={{...sty.card,padding:"16px 20px",marginBottom:20,borderLeft:`3px solid ${T.accent}`,background:`linear-gradient(135deg, ${T.highlight} 0%, #fff 100%)`}}>
               <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:700,color:T.ink,marginBottom:6}}>
                 {SCENARIO_DETAILS[activeScenario].title}
