@@ -1829,11 +1829,13 @@ function App(){
             <h2 style={{fontFamily:ESERIF,fontSize:mob?26:34,fontWeight:400,letterSpacing:"-0.02em",lineHeight:1.1,margin:"0 0 6px",color:EC.ink}}>
               The country, <em style={{fontStyle:"italic",color:EC.accent}}>state by state.</em>
             </h2>
-            <p style={{fontFamily:ESANS,fontSize:13,color:EC.sub,lineHeight:1.55,maxWidth:"60ch",margin:0}}>
-              Cost-of-living metrics across all 50 states + DC. Pick a metric;
-              hover any state for the value. Toggle to &ldquo;vs national average&rdquo;
-              to see who&rsquo;s above or below the unweighted mean.
-            </p>
+            {!mob && (
+              <p style={{fontFamily:ESANS,fontSize:13,color:EC.sub,lineHeight:1.55,maxWidth:"60ch",margin:0}}>
+                Cost-of-living metrics across all 50 states + DC. Pick a metric;
+                hover any state for the value. Toggle to &ldquo;vs national average&rdquo;
+                to see who&rsquo;s above or below the unweighted mean.
+              </p>
+            )}
           </div>
           <StateAtlas/>
         </div>)}
