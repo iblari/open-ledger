@@ -131,7 +131,13 @@ function Nav({ mob }: { mob: boolean }) {
 
         {/* CTA */}
         <div style={{ marginLeft: "auto", display: "flex", gap: 10, alignItems: "center" }}>
-          <Link href="/live" style={{
+          {/* Live nav pill — destination differs by viewport because the
+              labels differ. On mobile the label is just "Live" (short for
+              space), and most mobile users tapping it expect 'live data, not
+              a video player' → routes to Live Benchmark. On desktop the full
+              label "Live Broadcast" makes the intent unambiguous → routes
+              to /live (the video + fact-check page). */}
+          <Link href={mob ? "/dashboard?tab=live_benchmark" : "/live"} style={{
             display: "inline-flex", alignItems: "center", gap: 6,
             padding: mob ? "8px 12px" : "10px 14px",
             borderRadius: 4, fontSize: 13, fontWeight: 600,
