@@ -3,7 +3,7 @@
 // State Atlas — Trend Chart (Phase B).
 //
 // Editorial line chart: always shows the unweighted national mean across the
-// 11-year window (2014-2024); each clicked state on the map adds its own line
+// 12-year window (2014-2025); each clicked state on the map adds its own line
 // in a distinct color. Max 5 selected states.
 
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
@@ -64,7 +64,7 @@ export function StateTrendChart({
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
         <div>
           <div style={{ fontFamily: ESERIF, fontSize: 18, fontWeight: 500, color: EC.ink, letterSpacing: "-0.01em" }}>
-            {metric.label} <span style={{ color: EC.mute, fontWeight: 400 }}>· trend, 2014&ndash;2024</span>
+            {metric.label} <span style={{ color: EC.mute, fontWeight: 400 }}>· trend, {HISTORY_YEARS[0]}&ndash;{HISTORY_YEARS[HISTORY_YEARS.length - 1]}</span>
           </div>
           <div style={{ fontFamily: ESANS, fontSize: 11, color: EC.sub, marginTop: 2, letterSpacing: "0.02em" }}>
             {selected.length === 0
