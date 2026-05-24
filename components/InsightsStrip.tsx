@@ -2,19 +2,27 @@
 
 // InsightsStrip — auto-generated "what's notable right now" callouts.
 //
-// Renders the top N observations from lib/insights as a compact card row.
-// On desktop: 3-up grid. On mobile: vertically stacked (each card stays
-// readable; the strip itself is short enough that 4 stacked cards = ~one
-// scroll). Card click deep-links into /dashboard?metric=<key>&admin=<id>.
+// Two data sources, hot-swapped at runtime:
+//   1. PRIMARY: fetch /api/benchmark-data → run lib/insights-live detectors.
+//      This is the live FRED-backed path; insights describe "as of Sept 2025."
+//   2. FALLBACK: lib/insights generateInsights() over static annual snapshots.
+//      Used if the live fetch fails (missing FRED_API_KEY, network, etc.) so
+//      the UI never goes blank.
 //
-// Pure client component because the insight scoring runs at render time —
-// fast enough (just iterates 6 metrics × 5 detectors) that there's no need
-// to precompute or cache.
+// Strip is purely client-rendered so the live fetch doesn't slow down the
+// initial page paint — the static fallback shows immediately, then upgrades
+// to the live version once the network roundtrip completes (~200-800ms).
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { C as EC, SERIF as ESERIF, SANS as ESANS } from "@/lib/design-tokens";
-import { generateInsights, insightsAsOfYear, adminName, type InsightKind } from "@/lib/insights";
+import {
+  generateInsights, insightsAsOfYear, adminName,
+  type Insight, type InsightKind,
+} from "@/lib/insights";
+import {
+  generateLiveInsights, timeAgo, type LiveBenchmarkPayload,
+} from "@/lib/insights-live";
 
 interface Props {
   /** How many insight cards to render. 3 = desktop grid. */
@@ -39,10 +47,37 @@ const KIND_COLOR: Record<InsightKind, string> = {
 };
 
 export function InsightsStrip({ limit = 3, mob, eyebrow }: Props) {
-  // useMemo so the insight list doesn't recompute on every parent re-render
-  // (the metrics-data is static during a session so the result is stable).
-  const insights = useMemo(() => generateInsights({ limit }), [limit]);
-  const asOfYear = insightsAsOfYear();
+  // Static fallback computed at render — shown immediately while the live
+  // fetch is in flight, and kept if the fetch fails entirely.
+  const staticInsights = useMemo(() => generateInsights({ limit }), [limit]);
+  const staticAsOf = insightsAsOfYear();
+
+  // Live fetch state. lastUpdated lets us show "fresh as of 5 min ago"
+  // instead of the stale "AS OF 2024" annual label.
+  const [liveInsights, setLiveInsights] = useState<Insight[] | null>(null);
+  const [lastUpdatedIso, setLastUpdatedIso] = useState<string | null>(null);
+  const [, setFetchError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/benchmark-data")
+      .then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
+      .then((data: LiveBenchmarkPayload) => {
+        if (cancelled) return;
+        if (data.error) { setFetchError(data.error); return; }
+        const live = generateLiveInsights(data, { limit });
+        if (live.length > 0) {
+          setLiveInsights(live);
+          setLastUpdatedIso(data.lastUpdated);
+        }
+      })
+      .catch(e => { if (!cancelled) setFetchError(e.message); });
+    return () => { cancelled = true; };
+  }, [limit]);
+
+  // Prefer live insights when available; static is the warm-up state.
+  const insights = liveInsights ?? staticInsights;
+  const isLive = liveInsights !== null;
   if (insights.length === 0) return null;
 
   return (
@@ -67,10 +102,12 @@ export function InsightsStrip({ limit = 3, mob, eyebrow }: Props) {
           {eyebrow ?? "What's notable in the data"}
         </div>
         <div style={{
-          fontFamily: ESANS, fontSize: 10, color: EC.mute, letterSpacing: "0.06em",
-          textTransform: "uppercase",
-        }}>
-          As of {asOfYear} · auto-generated
+          fontFamily: ESANS, fontSize: 10, color: isLive ? EC.improveStrong : EC.mute,
+          letterSpacing: "0.06em", textTransform: "uppercase", fontWeight: isLive ? 600 : 500,
+        }} title={isLive ? "Pulled live from FRED via /api/benchmark-data" : "Computed from static fallback data"}>
+          {isLive && lastUpdatedIso
+            ? `Live · updated ${timeAgo(lastUpdatedIso)}`
+            : `As of ${staticAsOf} · auto-generated`}
         </div>
       </div>
 
