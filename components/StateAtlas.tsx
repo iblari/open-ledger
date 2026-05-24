@@ -195,13 +195,46 @@ export function StateAtlas() {
   return (
     <>
     <div style={{ background: EC.card, border: `1px solid ${EC.rule}`, borderRadius: 4, overflow: "hidden" }}>
-      {/* Toggle bar — View only. Metric picker lives below in a grouped row. */}
+      {/* Toggle bar — left: contextual hint, right: View toggle.
+          Switched from flex-end to space-between so the empty left half can
+          carry a teaching prompt: "hover for the value, click to add to chart."
+          When states are already on the chart, the hint flips to a status
+          line ("3 states on the chart · click to add or remove"). */}
       <div style={{
-        display: "flex", justifyContent: "flex-end", alignItems: "center",
+        display: "flex", justifyContent: "space-between", alignItems: "center",
         gap: 16, padding: "10px 14px",
         background: EC.paper, borderBottom: `1px solid ${EC.rule}`,
         flexWrap: "wrap",
       }}>
+        <div style={{
+          fontFamily: ESANS, fontSize: 11, color: EC.sub, lineHeight: 1.4,
+          display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
+        }}>
+          {selected.length === 0 ? (
+            <>
+              <span style={{
+                width: 6, height: 6, borderRadius: "50%",
+                background: EC.mute, flexShrink: 0,
+              }} />
+              <span>
+                <strong style={{ color: EC.ink, fontWeight: 600 }}>Hover</strong> a state for the value,{" "}
+                <strong style={{ color: EC.ink, fontWeight: 600 }}>click</strong> to add it to the chart below.
+              </span>
+            </>
+          ) : (
+            <>
+              <span style={{
+                width: 6, height: 6, borderRadius: "50%",
+                background: EC.accent, flexShrink: 0,
+              }} />
+              <span>
+                <strong style={{ color: EC.ink, fontWeight: 600 }}>{selected.length}</strong>{" "}
+                {selected.length === 1 ? "state" : "states"} on the chart.{" "}
+                Click any state to {selected.length >= 5 ? "swap" : "add or remove"}.
+              </span>
+            </>
+          )}
+        </div>
         <PillToggle<ViewMode>
           label="View"
           value={view}
