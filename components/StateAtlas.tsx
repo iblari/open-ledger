@@ -44,28 +44,29 @@ type ViewMode = "latest" | "vs_avg";
 const IMPROVE_RGB = "13, 115, 119";
 const DECLINE_RGB = "194, 65, 12";
 
+// Color convention is uniform across all metrics: warm/orange = higher value
+// or above national average; cool/teal = lower value or below average. The
+// color encodes magnitude only — no "good/bad" semantics, since whether
+// "high population" or "high income" is good depends on the reader. The
+// metric label + numeric value carry the meaning; the color just shows
+// which direction this state sits relative to its peers.
 function colorFor(m: StateMetric, v: number | undefined, view: ViewMode): string {
   if (v === undefined || !isFinite(v)) return EC.rule;
   if (view === "latest") {
     const [lo, hi] = metricExtent(m);
     const t = hi === lo ? 0.5 : (v - lo) / (hi - lo);
     const alpha = 0.18 + t * 0.72;
-    const hue = m.costLike ? DECLINE_RGB : IMPROVE_RGB;
-    return `rgba(${hue}, ${alpha})`;
+    return `rgba(${DECLINE_RGB}, ${alpha})`;
   }
-  // vs_avg
+  // vs_avg: warm = above mean, cool = below mean. Magnitude scales by
+  // distance from mean, normalized against the max absolute deviation.
   const avg = metricMean(m);
   const dev = v - avg;
   const vals = Object.values(m.latest) as number[];
   const maxDev = Math.max(...vals.map(x => Math.abs(x - avg)));
   const t = maxDev === 0 ? 0 : Math.abs(dev) / maxDev;
   const alpha = 0.18 + t * 0.72;
-  // For cost-like metrics, "higher than average" reads as worse → orange.
-  // For non-cost metrics, "higher than average" reads as better → teal.
-  const isHigher = dev >= 0;
-  const hue = m.costLike
-    ? (isHigher ? DECLINE_RGB : IMPROVE_RGB)
-    : (isHigher ? IMPROVE_RGB : DECLINE_RGB);
+  const hue = dev >= 0 ? DECLINE_RGB : IMPROVE_RGB;
   return `rgba(${hue}, ${alpha})`;
 }
 
@@ -296,7 +297,15 @@ export function StateAtlas() {
             <div style={{ fontFamily: ESERIF, fontWeight: 600, fontSize: 13 }}>{tooltip.name}</div>
             <div style={{
               fontFamily: ESERIF, fontWeight: 500, marginTop: 2,
-              color: metric.costLike ? "#fed7aa" : "#8ee3e6",
+              // Value text color reflects the cell's actual position (above
+              // mean = warm, below = cool) so the tooltip matches the map color.
+              color: (() => {
+                const code = STATE_NAME_TO_CODE[tooltip.name];
+                const v = code ? metric.latest[code] : undefined;
+                if (v === undefined) return "#fef9e7";
+                const ref = view === "vs_avg" ? metricMean(metric) : (metricExtent(metric)[0] + metricExtent(metric)[1]) / 2;
+                return v >= ref ? "#fed7aa" : "#8ee3e6";
+              })(),
             }} dangerouslySetInnerHTML={{ __html: tooltip.html }} />
           </div>
         )}
@@ -320,14 +329,14 @@ export function StateAtlas() {
           {view === "latest" ? (
             <>
               <span>Lower</span>
-              <ColorRamp single hue={metric.costLike ? DECLINE_RGB : IMPROVE_RGB} />
+              <ColorRamp single hue={DECLINE_RGB} />
               <span>Higher</span>
             </>
           ) : (
             <>
-              <span>{metric.costLike ? "Below avg" : "Above avg"}</span>
-              <ColorRamp diverging firstHue={metric.costLike ? IMPROVE_RGB : DECLINE_RGB} secondHue={metric.costLike ? DECLINE_RGB : IMPROVE_RGB} />
-              <span>{metric.costLike ? "Above avg" : "Below avg"}</span>
+              <span>Below avg</span>
+              <ColorRamp diverging firstHue={IMPROVE_RGB} secondHue={DECLINE_RGB} />
+              <span>Above avg</span>
             </>
           )}
         </div>
