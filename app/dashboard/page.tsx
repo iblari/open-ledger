@@ -2079,9 +2079,12 @@ function App(){
         {/* ═══ SCENARIOS ═══ */}
         {tab==="scenarios"&&(<div style={{animation:"fadeUp 0.4s ease"}}>
           <div style={{marginBottom:24}}>
-            <h2 style={{fontSize:mob?24:28,fontWeight:900,margin:"0 0 4px",color:T.ink}}>Scenario Modeling</h2>
-            <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:T.sub,margin:"0 0 0",lineHeight:1.6,maxWidth:600}}>
-              What would the data look like if a major economic shock never happened? Transparent trend extrapolation — not a prediction.
+            <h2 style={{fontFamily:ESERIF,fontSize:mob?26:34,fontWeight:400,letterSpacing:"-0.02em",lineHeight:1.1,margin:"0 0 6px",color:EC.ink}}>
+              The data without the shock, <em style={{fontStyle:"italic",color:EC.accent}}>modeled.</em>
+            </h2>
+            <p style={{fontFamily:ESANS,fontSize:13,color:EC.sub,lineHeight:1.55,maxWidth:"60ch",margin:0}}>
+              What would the numbers look like if a major economic shock never happened?
+              Transparent trend extrapolation &mdash; not a prediction.
             </p>
           </div>
 
@@ -2283,66 +2286,81 @@ function App(){
                   </div>
                 </div>
 
-                {/* Arrow legend — sits above president cards */}
-                <div style={{order:mob?2:1,display:"flex",alignItems:"center",justifyContent:"flex-end",gap:mob?10:14,marginBottom:mob?6:8,fontFamily:"'DM Sans',sans-serif",fontSize:mob?9:11,color:T.mute}}>
-                  <span><span style={{color:"#16a34a",fontWeight:700}}>▲</span> improved</span>
-                  <span><span style={{color:"#dc2626",fontWeight:700}}>▼</span> worsened</span>
-                  {metric.inv&&<span style={{fontSize:mob?8:9,opacity:0.7}}>(lower = better)</span>}
-                </div>
+                {/* (Removed: arrow legend — color does the work now, matches Data tab.) */}
 
-                {/* President impact cards — above chart on desktop, below on mobile */}
+                {/* President impact cards — above chart on desktop, below on mobile.
+                    Uses per-metric framing on both actual and modeled values. */}
                 <div style={{display:"grid",gridTemplateColumns:mob?"repeat(2,1fr)":`repeat(${Math.min(presCards.length+1,6)},1fr)`,gap:mob?8:8,marginBottom:mob?12:20,order:mob?2:1}}>
                   {presCards.map((pc,idx)=>{
                     if(!pc)return null;
-                    const {id,a,actualStart,actualEnd,actualPct,actualImproved,modeledEnd,modeledPct,modeledImproved,hasModeled,diff:pDiff}=pc;
+                    const {id,a,actualStart,actualEnd,modeledStart,modeledEnd,hasModeled,diff:pDiff}=pc;
                     const shockHit=scenario.shockYears.length>0&&baselineData.some(d=>d.a===id&&scenario.shockYears.includes(d.y));
-                    const mnt=Math.abs(actualPct)<5;
-                    const col=mnt?T.gold:actualImproved?T.improve.strong:T.decline.strong;
                     const showModeled=activeScenario!=="baseline"&&hasModeled&&Math.abs(pDiff)>0.01;
-                    // Compute averages
+
+                    // Per-metric formatted actual (via HEAT_DATA) and modeled (computed inline
+                    // using the same per-metric framing on the counterfactual data).
+                    const actualCell=HEAT_DATA[scenarioMetric]?.[id];
+                    const actualDisp=actualCell?resolveDashDisplay(actualCell,scenarioMetric,displayMode,dollarMode):null;
+                    const actualHeadline=actualDisp?formatDisplayedChange(actualDisp.value,actualDisp.unit,false,{metricUnit:metric.u}):"—";
+                    const actualColor=actualDisp&&actualDisp.value!==null?(actualDisp.improved?EC.improveStrong:EC.declineStrong):EC.mute;
+
+                    // Modeled headline — compute in the same unit family the metric uses.
+                    const cfg=METRIC_DISPLAY_DASHBOARD[scenarioMetric];
+                    const scenPts=scenarioData.filter(d=>d.a===id);
+                    const scenAvg=scenPts.length>0?scenPts.reduce((s,d)=>s+d.v,0)/scenPts.length:0;
+                    const yrsTenure=Math.max(scenPts.length,1);
+                    let modeledValue:number|null=null;
+                    if(cfg?.perMetricUnit==="pp"){modeledValue=modeledEnd-modeledStart;}
+                    else if(cfg?.perMetricUnit==="pct_avg"){modeledValue=scenAvg;}
+                    else if(cfg?.perMetricUnit==="avg_per_year"){modeledValue=scenAvg;}
+                    else if(cfg?.perMetricUnit==="pct_yr"&&modeledStart>0&&modeledEnd>0){
+                      modeledValue=(Math.pow(modeledEnd/modeledStart,1/yrsTenure)-1)*100;
+                    }
+                    const modeledImp=cfg?.perMetricUnit==="pct_avg"
+                      ? (cfg.pctAvgTarget!==undefined ? (metric.inv?(modeledValue??0)<=cfg.pctAvgTarget:(modeledValue??0)>=cfg.pctAvgTarget) : (metric.inv?(modeledValue??0)<=0:(modeledValue??0)>=0))
+                      : (metric.inv?(modeledValue??0)<0:(modeledValue??0)>0);
+                    const modeledHeadline=modeledValue!==null?formatDisplayedChange(modeledValue,cfg?.perMetricUnit??"pct",false,{metricUnit:metric.u}):"—";
+                    const modeledColor=modeledValue!==null?(modeledImp?EC.improveStrong:EC.declineStrong):EC.mute;
+
                     const actualPts=baselineData.filter(d=>d.a===id);
                     const actualAvg=actualPts.length>0?actualPts.reduce((s,d)=>s+d.v,0)/actualPts.length:0;
-                    const scenPts=scenarioData.filter(d=>d.a===id);
-                    const modeledAvg=scenPts.length>0?scenPts.reduce((s,d)=>s+d.v,0)/scenPts.length:0;
                     return (
                       <div key={id} className={`hover-lift stagger-${idx+1}`} style={{
                         ...sty.card,padding:mob?"10px 12px":"14px 14px 12px",borderTop:`${mob?3:4}px solid ${a.color}`,
                         position:"relative",overflow:"hidden"
                       }}>
                         {!mob&&<div style={{position:"absolute",top:0,right:0,width:80,height:80,background:`linear-gradient(135deg, ${a.color}08 0%, transparent 70%)`,borderRadius:"0 0 0 80px"}}/>}
-                        <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?9:10,fontWeight:800,textTransform:"uppercase",letterSpacing:1,color:a.color,marginBottom:mob?4:6}}>{a.name}</div>
+                        <div style={{fontFamily:ESANS,fontSize:mob?9:10,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.14em",color:a.color,marginBottom:mob?4:6}}>{a.name}</div>
                         <div style={{display:"flex",alignItems:"baseline",gap:mob?4:6,marginBottom:mob?3:4}}>
-                          <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?10:12,color:T.mute,fontVariantNumeric:"tabular-nums"}}>{fmt(actualStart,metric.u)}</span>
-                          <span style={{fontSize:mob?8:10,color:T.mute}}>→</span>
-                          <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?10:18,fontWeight:700,color:T.ink,fontVariantNumeric:"tabular-nums"}}>{fmt(actualEnd,metric.u)}</span>
+                          <span style={{fontFamily:ESANS,fontSize:mob?10:12,color:EC.mute,fontVariantNumeric:"tabular-nums"}}>{fmt(actualStart,metric.u)}</span>
+                          <span style={{fontSize:mob?8:10,color:EC.mute}}>→</span>
+                          <span style={{fontFamily:ESANS,fontSize:mob?10:18,fontWeight:600,color:EC.ink,fontVariantNumeric:"tabular-nums"}}>{fmt(actualEnd,metric.u)}</span>
                         </div>
-                        {/* Actual % with label */}
+                        {/* Actual headline value */}
                         <div style={{display:"flex",alignItems:"center",gap:mob?4:8,marginBottom:showModeled?(mob?2:4):(mob?4:6)}}>
-                          <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?17:24,fontWeight:900,color:col,fontVariantNumeric:"tabular-nums"}}>
-                            {mnt?"—":actualImproved?"▲":"▼"}{Math.abs(actualPct).toFixed(0)}%
+                          <div style={{fontFamily:ESERIF,fontSize:mob?18:24,fontWeight:600,color:actualColor,fontVariantNumeric:"tabular-nums",letterSpacing:"-0.015em",lineHeight:1.05}}>
+                            {actualHeadline}
                           </div>
                           {!mob&&<Sparkline data={actualPts.map(d=>d.v)} color={a.color} width={50} height={20} />}
                         </div>
-                        {/* Modeled % with label */}
-                        {showModeled&&(()=>{
-                          const mMnt=Math.abs(modeledPct)<5;
-                          const mCol=mMnt?T.gold:modeledImproved?T.improve.strong:T.decline.strong;
-                          return <div style={{display:"flex",alignItems:"center",gap:mob?4:8,marginBottom:mob?4:6}}>
-                            <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?14:18,fontWeight:800,color:mCol,fontVariantNumeric:"tabular-nums"}}>
-                              {mMnt?"—":modeledImproved?"▲":"▼"}{Math.abs(modeledPct).toFixed(0)}%
+                        {/* Modeled headline value */}
+                        {showModeled&&(
+                          <div style={{display:"flex",alignItems:"center",gap:mob?4:8,marginBottom:mob?4:6}}>
+                            <div style={{fontFamily:ESERIF,fontSize:mob?15:18,fontWeight:600,color:modeledColor,fontVariantNumeric:"tabular-nums",letterSpacing:"-0.015em",lineHeight:1.05,opacity:0.85}}>
+                              {modeledHeadline}
                             </div>
-                            <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?8:9,color:T.accent,fontWeight:600}}>modeled</span>
-                          </div>;
-                        })()}
+                            <span style={{fontFamily:ESANS,fontSize:mob?8:9,color:EC.accent,fontWeight:600,letterSpacing:"0.04em",textTransform:"uppercase"}}>modeled</span>
+                          </div>
+                        )}
                         {/* Bottom row: avg + years */}
-                        <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?9:10,color:T.mute,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                          <span>{showModeled?<>avg {fmt(actualAvg,metric.u)} · <span style={{color:T.accent,fontWeight:600}}>{fmt(modeledAvg,metric.u)}</span></>:<>avg {fmt(actualAvg,metric.u)}</>}</span>
+                        <div style={{fontFamily:ESANS,fontSize:mob?9:10,color:EC.mute,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                          <span>{showModeled?<>avg {fmt(actualAvg,metric.u)} · <span style={{color:EC.accent,fontWeight:600}}>{fmt(scenAvg,metric.u)}</span></>:<>avg {fmt(actualAvg,metric.u)}</>}</span>
                           <span style={{color:a.color,fontWeight:600}}>{a.years}</span>
                         </div>
                         {/* Shock badge */}
                         {shockHit&&activeScenario!=="baseline"&&(
-                          <div style={{position:"absolute",top:mob?4:6,right:mob?6:8,fontFamily:"'DM Sans',sans-serif",fontSize:mob?7:8,fontWeight:700,
-                            padding:"2px 6px",borderRadius:3,background:T.accent+"15",color:T.accent}}>
+                          <div style={{position:"absolute",top:mob?4:6,right:mob?6:8,fontFamily:ESANS,fontSize:mob?7:8,fontWeight:600,letterSpacing:"0.1em",
+                            padding:"2px 6px",borderRadius:3,background:EC.accent+"15",color:EC.accent}}>
                             SHOCK
                           </div>
                         )}
@@ -2373,80 +2391,85 @@ function App(){
                   </div>
                 )}
 
-                {/* ── Inherited vs Left Behind (selected metric only, scorecard style) ── */}
+                {/* ── Inherited vs Left Behind — per-metric framing, matching detail mode ── */}
                 <div style={{...sty.card,marginBottom:24,order:4,overflow:"hidden"}}>
-                  <div style={{padding:"10px 14px 6px",borderBottom:`1px solid ${T.rule}`,display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:4}}>
-                    <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:1.5,color:T.mute}}>
-                      Term Trajectory — Inherited vs Left Behind {activeScenario!=="baseline"&&<span style={{color:T.accent,fontWeight:600,textTransform:"none",letterSpacing:0}}>— {SCENARIOS[activeScenario].shortLabel}</span>}
+                  <div style={{padding:"10px 14px 6px",borderBottom:`1px solid ${EC.rule}`,display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:4}}>
+                    <div style={{fontFamily:ESANS,fontSize:10,fontWeight:500,textTransform:"uppercase",letterSpacing:"0.12em",color:EC.sub}}>
+                      Term Trajectory &mdash; Inherited vs Left Behind {activeScenario!=="baseline"&&<span style={{color:EC.accent,fontWeight:500,textTransform:"none",letterSpacing:0}}>&mdash; {SCENARIOS[activeScenario].shortLabel}</span>}
                     </div>
-                    <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,color:T.mute}}>
-                      <span style={{color:"#16a34a",fontWeight:700}}>▲</span> improved · <span style={{color:"#dc2626",fontWeight:700}}>▼</span> worsened{metric.inv?" (lower = better)":""}
-                    </span>
                   </div>
-                  <table style={{width:"100%",borderCollapse:"collapse",fontFamily:"'DM Sans',sans-serif",fontSize:12}}>
+                  <table style={{width:"100%",borderCollapse:"collapse",fontFamily:ESANS,fontSize:12}}>
                     <thead>
-                      <tr style={{borderBottom:`1px solid ${T.rule}`}}>
-                        <th style={{textAlign:"left",padding:"8px 14px",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:0.5,color:T.mute}}>President</th>
-                        <th style={{textAlign:"center",padding:"8px 10px",fontSize:10,fontWeight:700,color:T.mute}}>Inherited</th>
-                        <th style={{textAlign:"center",padding:"8px 4px",fontSize:10,color:T.rule}}></th>
-                        <th style={{textAlign:"center",padding:"8px 10px",fontSize:10,fontWeight:700,color:T.mute}}>Left At</th>
-                        <th style={{textAlign:"center",padding:"8px 10px",fontSize:10,fontWeight:700,color:T.mute}}>Avg</th>
-                        {activeScenario!=="baseline"&&<th style={{textAlign:"center",padding:"8px 10px",fontSize:10,fontWeight:700,color:T.accent}}>Modeled Avg</th>}
-                        <th style={{textAlign:"right",padding:"8px 14px",fontSize:10,fontWeight:700,color:T.mute}}>% Change</th>
+                      <tr style={{borderBottom:`1px solid ${EC.rule}`}}>
+                        <th style={{textAlign:"left",padding:"8px 14px",fontSize:10,fontWeight:500,textTransform:"uppercase",letterSpacing:"0.08em",color:EC.sub}}>President</th>
+                        <th style={{textAlign:"center",padding:"8px 10px",fontSize:10,fontWeight:500,textTransform:"uppercase",letterSpacing:"0.08em",color:EC.sub}}>Inherited</th>
+                        <th style={{textAlign:"center",padding:"8px 4px",fontSize:10,color:EC.rule}}></th>
+                        <th style={{textAlign:"center",padding:"8px 10px",fontSize:10,fontWeight:500,textTransform:"uppercase",letterSpacing:"0.08em",color:EC.sub}}>Left At</th>
+                        <th style={{textAlign:"center",padding:"8px 10px",fontSize:10,fontWeight:500,textTransform:"uppercase",letterSpacing:"0.08em",color:EC.sub}}>Avg</th>
+                        {activeScenario!=="baseline"&&<th style={{textAlign:"center",padding:"8px 10px",fontSize:10,fontWeight:500,textTransform:"uppercase",letterSpacing:"0.08em",color:EC.accent}}>Modeled Avg</th>}
+                        <th style={{textAlign:"right",padding:"8px 14px",fontSize:10,fontWeight:500,textTransform:"uppercase",letterSpacing:"0.08em",color:EC.sub}}>Change</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {AID.map((id,i)=>{
+                      {AID.map((id)=>{
                         const a=ADMINS[id];
                         const pts=baselineData.filter(d=>d.a===id);
                         if(pts.length<1)return null;
 
-                        const actualStart=inheritedStart(scenarioMetric,id);
-                        const actualEnd=pts[pts.length-1].v;
-                        const actualPct=actualStart!==0?((actualEnd-actualStart)/Math.abs(actualStart))*100:0;
-                        const actualImproved=metric.inv?actualEnd<actualStart:actualEnd>actualStart;
-                        const maintained=Math.abs(actualPct)<5;
-                        const verdict=maintained?"Maintained":actualImproved?"Improved":"Declined";
-                        const verdictColor=maintained?T.gold:actualImproved?"#16a34a":"#dc2626";
+                        // Actual side — per-metric framing via the shared cell.
+                        const actualCell=HEAT_DATA[scenarioMetric]?.[id];
+                        if(!actualCell)return null;
+                        const actualDisp=resolveDashDisplay(actualCell,scenarioMetric,displayMode,dollarMode);
+                        const actualHeadline=formatDisplayedChange(actualDisp.value,actualDisp.unit,false,{metricUnit:metric.u});
+                        const verdictColor=actualDisp.value===null?EC.mute:actualDisp.improved?EC.improveStrong:EC.declineStrong;
 
-                        // Modeled values
+                        // Modeled side — same per-metric framing, computed inline on
+                        // the counterfactual data.
                         const scenPts=scenarioData.filter(d=>d.a===id);
                         const hasModeled=activeScenario!=="baseline"&&scenPts.some(d=>d.estimated);
-                        const modeledEnd=scenPts.length>0?scenPts[scenPts.length-1].v:actualEnd;
+                        const modeledEnd=scenPts.length>0?scenPts[scenPts.length-1].v:actualCell.end;
                         const ai=AID.indexOf(id);
-                        let modeledStart=actualStart;
+                        let modeledStart=actualCell.start;
                         if(ai>0&&activeScenario!=="baseline"){
                           const prevScen=scenarioData.filter(d=>d.a===AID[ai-1]);
                           if(prevScen.length>0)modeledStart=prevScen[prevScen.length-1].v;
                         }
-                        const modeledPct=modeledStart!==0?((modeledEnd-modeledStart)/Math.abs(modeledStart))*100:0;
-                        const modeledImproved=metric.inv?modeledEnd<modeledStart:modeledEnd>modeledStart;
-                        const mArrow=modeledImproved?"▲":"▼";
-                        const mArrowColor=modeledImproved?"#16a34a":"#dc2626";
+                        const cfg=METRIC_DISPLAY_DASHBOARD[scenarioMetric];
+                        const scenAvg=scenPts.length>0?scenPts.reduce((s,d)=>s+d.v,0)/scenPts.length:0;
+                        const yrsT=Math.max(scenPts.length,1);
+                        let modeledValue:number|null=null;
+                        if(cfg?.perMetricUnit==="pp")modeledValue=modeledEnd-modeledStart;
+                        else if(cfg?.perMetricUnit==="pct_avg")modeledValue=scenAvg;
+                        else if(cfg?.perMetricUnit==="avg_per_year")modeledValue=scenAvg;
+                        else if(cfg?.perMetricUnit==="pct_yr"&&modeledStart>0&&modeledEnd>0){
+                          modeledValue=(Math.pow(modeledEnd/modeledStart,1/yrsT)-1)*100;
+                        }
+                        const modeledImp=cfg?.perMetricUnit==="pct_avg"&&cfg.pctAvgTarget!==undefined
+                          ? (metric.inv?(modeledValue??0)<=cfg.pctAvgTarget:(modeledValue??0)>=cfg.pctAvgTarget)
+                          : (metric.inv?(modeledValue??0)<0:(modeledValue??0)>0);
+                        const modeledHeadline=modeledValue!==null?formatDisplayedChange(modeledValue,cfg?.perMetricUnit??"pct",false,{metricUnit:metric.u}):"—";
+                        const modeledColor=modeledValue!==null?(modeledImp?EC.improveStrong:EC.declineStrong):EC.mute;
 
-                        // Averages
                         const tActualAvg=pts.reduce((s,d)=>s+d.v,0)/pts.length;
-                        const tModeledAvg=scenPts.length>0?scenPts.reduce((s,d)=>s+d.v,0)/scenPts.length:tActualAvg;
-                        const showMod=hasModeled&&Math.abs(modeledEnd-actualEnd)>0.01;
+                        const showMod=hasModeled&&Math.abs(modeledEnd-actualCell.end)>0.01;
 
-                        return <tr key={id} style={{borderBottom:`1px solid ${T.rule}22`}}>
+                        return <tr key={id} style={{borderBottom:`1px solid ${EC.rule}55`}}>
                           <td style={{padding:"8px 14px",display:"flex",alignItems:"center",gap:6}}>
                             <span style={{width:8,height:8,borderRadius:2,background:a.color,flexShrink:0}}/>
-                            <span style={{fontWeight:700,color:a.color}}>{a.name}</span>
+                            <span style={{fontWeight:600,color:a.color,fontFamily:ESERIF,letterSpacing:"-0.01em"}}>{a.name}</span>
                           </td>
-                          <td style={{textAlign:"center",padding:"8px 10px",fontFamily:"'DM Sans',sans-serif",fontSize:11,color:T.sub}}>{fmt(actualStart,metric.u)}</td>
-                          <td style={{textAlign:"center",padding:"8px 2px",color:T.rule,fontSize:10}}>→</td>
-                          <td style={{textAlign:"center",padding:"8px 10px",fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:600,color:T.ink}}>{fmt(actualEnd,metric.u)}</td>
-                          <td style={{textAlign:"center",padding:"8px 10px",fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:500,color:T.sub}}>{fmt(tActualAvg,metric.u)}</td>
-                          {activeScenario!=="baseline"&&<td style={{textAlign:"center",padding:"8px 10px",fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:600,color:showMod?T.accent:T.sub}}>{showMod?fmt(tModeledAvg,metric.u):fmt(tActualAvg,metric.u)}</td>}
-                          <td style={{textAlign:"right",padding:"8px 14px"}}>
-                            <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:600,color:verdictColor}}>
-                              {maintained?"—":actualImproved?"▲":"▼"}{Math.abs(actualPct).toFixed(1)}%
+                          <td style={{textAlign:"center",padding:"8px 10px",fontFamily:ESANS,fontSize:11,color:EC.sub,fontVariantNumeric:"tabular-nums"}}>{fmt(actualCell.start,metric.u)}</td>
+                          <td style={{textAlign:"center",padding:"8px 2px",color:EC.rule,fontSize:10}}>→</td>
+                          <td style={{textAlign:"center",padding:"8px 10px",fontFamily:ESANS,fontSize:11,fontWeight:600,color:EC.ink,fontVariantNumeric:"tabular-nums"}}>{fmt(actualCell.end,metric.u)}</td>
+                          <td style={{textAlign:"center",padding:"8px 10px",fontFamily:ESANS,fontSize:11,fontWeight:500,color:EC.sub,fontVariantNumeric:"tabular-nums"}}>{fmt(tActualAvg,metric.u)}</td>
+                          {activeScenario!=="baseline"&&<td style={{textAlign:"center",padding:"8px 10px",fontFamily:ESANS,fontSize:11,fontWeight:600,color:showMod?EC.accent:EC.sub,fontVariantNumeric:"tabular-nums"}}>{showMod?fmt(scenAvg,metric.u):fmt(tActualAvg,metric.u)}</td>}
+                          <td style={{textAlign:"right",padding:"8px 14px",whiteSpace:"nowrap"}}>
+                            <span style={{fontFamily:ESERIF,fontSize:mob?12:13,fontWeight:600,color:verdictColor,letterSpacing:"-0.01em",fontVariantNumeric:"tabular-nums"}}>
+                              {actualHeadline}
                             </span>
-                            <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,color:verdictColor,marginLeft:5,fontWeight:600}}>{verdict}</span>
-                            {showMod&&(
-                              <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,fontWeight:600,color:mArrowColor,marginLeft:8,borderLeft:`1px dashed ${T.rule}`,paddingLeft:8}}>
-                                {mArrow}{Math.abs(modeledPct).toFixed(0)}% <span style={{fontSize:8,fontWeight:400,color:T.mute}}>modeled</span>
+                            {showMod&&!mob&&(
+                              <span style={{fontFamily:ESERIF,fontSize:12,fontWeight:600,color:modeledColor,marginLeft:8,borderLeft:`1px dashed ${EC.rule}`,paddingLeft:8,letterSpacing:"-0.01em",fontVariantNumeric:"tabular-nums",opacity:0.85}}>
+                                {modeledHeadline} <span style={{fontFamily:ESANS,fontSize:8,fontWeight:600,color:EC.accent,letterSpacing:"0.06em",textTransform:"uppercase",marginLeft:2}}>modeled</span>
                               </span>
                             )}
                           </td>
@@ -2466,8 +2489,8 @@ function App(){
               display:"flex",alignItems:"center",justifyContent:"space-between",
               fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:700,color:T.ink
             }}>
-              <span>📐 {METHODOLOGY_TEXT.title}</span>
-              <span style={{fontSize:10,color:T.mute,transform:showMethodology?"rotate(180deg)":"rotate(0deg)",transition:"transform 0.2s"}}>▼</span>
+              <span style={{fontFamily:ESANS,fontSize:12,fontWeight:500,letterSpacing:"0.04em",color:EC.sub,textTransform:"uppercase"}}>{METHODOLOGY_TEXT.title}</span>
+              <span style={{fontSize:10,color:EC.mute,transform:showMethodology?"rotate(180deg)":"rotate(0deg)",transition:"transform 0.2s"}}>▾</span>
             </button>
             {showMethodology&&(
               <div style={{padding:"0 20px 20px",borderTop:`1px solid ${T.rule}`}}>
