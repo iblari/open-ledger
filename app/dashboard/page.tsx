@@ -2,13 +2,28 @@
 import { useState, useMemo, useEffect, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { BarChart, Bar, LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import { BarChart, Bar, LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell as RechartsCell } from "recharts";
 import FeedbackBanner from "./FeedbackBanner";
 import GlobeView from "@/components/GlobeView";
 import { HEADER_METRICS, THEATERS, PERSONNEL_BY_COUNTRY, POSTURE_ASSETS, ASSET_TYPES, ALERT_COLORS, THEATER_COLORS, POSTURE_FEED, type PostureAsset, type AssetType, type FeedItem } from "@/lib/abroad-data";
 import { CONFLICT_STREAMS, estimateTotal, estimateGrandTotal, formatUSD, formatUSDFull, MONTHLY_SPEND, computeDeltas, type ConflictStream, type SpendRow, type DeltaRow } from "@/lib/war-costs";
 import { SCENARIOS, SCENARIO_ORDER, applyScenario, type ScenarioId, type DataPoint } from "@/lib/scenarios";
 import { SCENARIO_DETAILS, METHODOLOGY_TEXT } from "@/lib/scenario-descriptions";
+// Shared editorial design tokens + per-metric display helpers — same lib the
+// landing page uses, so the Data tab redesign matches that aesthetic exactly.
+import { C as EC, SERIF as ESERIF, SANS as ESANS } from "@/lib/design-tokens";
+import {
+  type Cell as MetricCell,
+  type DisplayMode,
+  type DollarMode,
+  computeHeatmap,
+  getDisplayedChange,
+  formatDisplayedChange,
+  colorMagnitude,
+  cellColorFromMag,
+  METRIC_DISPLAY_DASHBOARD,
+} from "@/lib/display-modes";
+import { PillToggle } from "@/components/PillToggle";
 
 function useIsMobile() {
   const [w, setW] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
@@ -226,34 +241,7 @@ function fmt(v,u){
   if(u==="inc")return`$${(v/1000).toFixed(1)}K`;if(u==="cc")return v.toFixed(0);if(u==="mfg")return`${v.toFixed(1)}M`;if(u==="pp")return`$${v.toFixed(2)}`;return v.toLocaleString();
 }
 
-function scores(){
-  const sc={};for(const id of AID)sc[id]={r:{},p:0,details:{}};
-  for(const mk of MK){const m=M[mk];
-    const changes={};
-    for(const id of AID){
-      const pts=m.d.filter(d=>d.a===id);
-      if(pts.length<1)continue;
-      const start=inheritedStart(mk,id);const end=pts[pts.length-1].v;
-      const abs=end-start;
-      const pct=start!==0?((end-start)/Math.abs(start))*100:0;
-      // For inverse metrics (lower=better), improvement is negative change
-      const improved=m.inv?abs<0:abs>0;
-      const maintained=Math.abs(pct)<5; // <5% change = maintained
-      changes[id]={start,end,abs,pct,improved,maintained};
-    }
-    // Rank by % change - for inverse metrics, most negative = best; for normal, most positive = best
-    const sorted=Object.entries(changes).sort((a,b)=>{
-      return m.inv?(a[1].pct-b[1].pct):(b[1].pct-a[1].pct);
-    });
-    sorted.forEach(([id,data],i)=>{
-      const pts=AID.length-i;
-      sc[id].r[mk]={rank:i+1,p:pts,...data};
-      sc[id].p+=pts;
-      sc[id].details[mk]=data;
-    });
-  }
-  return sc;
-}
+// (Removed: scores() — only consumer was the deleted Scorecard tab.)
 
 function Tip({active,payload,label,unit}){
   if(!active||!payload?.length)return null;
@@ -716,8 +704,163 @@ function SpendTrendChart({ mob }: { mob?: boolean }) {
   );
 }
 
-const TABS_DESKTOP=[["dashboard","Data"],["scorecard","Scorecard"],["scenarios","Scenarios"],["abroad","Abroad"],["global","Global"]];
+const TABS_DESKTOP=[["dashboard","Data"],["scenarios","Scenarios"],["abroad","Abroad"],["global","Global"]];
 const TABS_MOBILE=[["dashboard","Data"],["scenarios","Scenarios"],["abroad","Abroad"],["global","Global"]];
+
+// Per-metric heatmap data, computed once at module-load. Uses the shared lib
+// so the dashboard speaks the same data language as the landing page.
+const HEAT_DATA = computeHeatmap(M, AID, "inflation");
+
+// Bound helper — pre-applies the dashboard's METRIC_DISPLAY config and the
+// per-metric inverse flag so call sites stay short.
+function resolveDashDisplay(c: MetricCell, mk: string, mode: DisplayMode, dm: DollarMode) {
+  return getDisplayedChange(c, mk, mode, dm, METRIC_DISPLAY_DASHBOARD, M[mk].inv);
+}
+
+// First metric rendered in the heatmap (top of the first non-empty
+// category). Used by DashHeatCell to flip its tooltip below the cell
+// for the topmost row, where overflow clipping would hide a tooltip
+// positioned above.
+const FIRST_METRIC_KEY: string | undefined = (() => {
+  for (const catKey of Object.keys(CATS)) {
+    const first = MK.find(k => M[k].cat === catKey);
+    if (first) return first;
+  }
+  return undefined;
+})();
+
+// Per-metric color-scale max for the avg_per_year unit. Different metrics
+// have wildly different "big" magnitudes (2M jobs/yr vs $1000B deficit/yr),
+// so we normalize against each metric's own historical max within this dataset.
+const AVG_SCALE_BY_METRIC: Record<string, number> = (() => {
+  const out: Record<string, number> = {};
+  for (const mk of Object.keys(METRIC_DISPLAY_DASHBOARD)) {
+    if (METRIC_DISPLAY_DASHBOARD[mk].perMetricUnit !== "avg_per_year") continue;
+    const maxAbs = Math.max(
+      ...AID.map(id => Math.abs(HEAT_DATA[mk]?.[id]?.avgValue ?? 0))
+    );
+    out[mk] = maxAbs > 0 ? maxAbs : 1;
+  }
+  return out;
+})();
+
+// Per-cell heatmap cell with hover scale + rich tooltip, matching the
+// landing page's HeatCell behavior. Tooltip flips below for the top
+// metric (Real GDP) since the container clips vertical overflow.
+function DashHeatCell({
+  c, mk, aid, displayMode, dollarMode, flipBelow = false, onClick,
+}: {
+  c: MetricCell;
+  mk: string;
+  aid: string;
+  displayMode: DisplayMode;
+  dollarMode: DollarMode;
+  flipBelow?: boolean;
+  onClick: () => void;
+}) {
+  const [hov, setHov] = useState(false);
+  const mx = M[mk];
+  const admin = ADMINS[aid];
+
+  const disp = resolveDashDisplay(c, mk, displayMode, dollarMode);
+  const cfgD = METRIC_DISPLAY_DASHBOARD[mk];
+  const mag = disp.value !== null
+    ? colorMagnitude(disp.value, disp.unit, {
+        avgScale: AVG_SCALE_BY_METRIC[mk],
+        pctAvgTarget: cfgD?.pctAvgTarget,
+        pctAvgRange:  cfgD?.pctAvgRange,
+      })
+    : 0;
+  const st = disp.value !== null
+    ? cellColorFromMag(mag, disp.improved)
+    : { bg: EC.paper, text: EC.mute };
+  const headline = formatDisplayedChange(disp.value, disp.unit, false, { metricUnit: mx.u });
+  const tooltipHeadline = formatDisplayedChange(disp.value, disp.unit, true, { metricUnit: mx.u });
+  const dollarQualifier = displayMode === "per_metric" && disp.unit === "pct_yr"
+    ? (dollarMode === "real" ? " (real)" : " (nominal)")
+    : "";
+  const showRawNote = displayMode === "per_metric"
+    && disp.unit !== "pct"
+    && isFinite(c.pctChange)
+    && Math.abs(c.pctChange) < 100000;
+  const rawNote = showRawNote
+    ? `raw % change: ${c.pctChange >= 0 ? "+" : ""}${c.pctChange.toFixed(1)}%`
+    : null;
+
+  return (
+    <div
+      onClick={onClick}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        position: "relative",
+        margin: 4, height: 54, borderRadius: 3,
+        display: "grid", placeItems: "center", padding: "4px 6px",
+        background: st.bg, color: st.text, textAlign: "center",
+        fontVariantNumeric: "tabular-nums",
+        cursor: "pointer",
+        transition: "transform 0.18s ease, box-shadow 0.18s ease",
+        transform: hov ? "scale(1.08)" : "scale(1)",
+        boxShadow: hov ? "0 4px 20px rgba(0,0,0,0.18)" : "none",
+        zIndex: hov ? 10 : 1,
+      }}
+    >
+      <span style={{ fontFamily: ESERIF, fontSize: 16, fontWeight: 600, lineHeight: 1.05, letterSpacing: "-0.01em" }}>{headline}</span>
+      <span style={{ fontSize: 10, opacity: 0.78, lineHeight: 1.1, letterSpacing: "0.02em", fontFamily: ESANS, marginTop: 1, fontWeight: 500 }}>
+        {fmt(c.start, mx.u)} → {fmt(c.end, mx.u)}
+      </span>
+
+      {/* Tooltip — flips below for the top row because the heatmap container
+          uses overflowX:auto which forces overflow-y to clip per CSS spec. */}
+      {hov && (
+        <div style={{
+          position: "absolute",
+          ...(flipBelow
+            ? { top: "calc(100% + 10px)" }
+            : { bottom: "calc(100% + 10px)" }),
+          left: "50%", transform: "translateX(-50%)",
+          background: EC.ink, color: "#fff", padding: "10px 14px", borderRadius: 6,
+          fontSize: 12, lineHeight: 1.5, whiteSpace: "nowrap", pointerEvents: "none",
+          boxShadow: "0 8px 30px rgba(0,0,0,0.25)", zIndex: 100,
+          minWidth: 200, textAlign: "center", fontFamily: ESANS,
+        }}>
+          <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>
+            {mx.l} under {admin.name}
+          </div>
+          <div style={{ fontVariantNumeric: "tabular-nums" }}>
+            <span style={{ opacity: 0.7 }}>{fmt(c.start, mx.u)}</span>
+            <span style={{ margin: "0 6px", opacity: 0.5 }}>→</span>
+            <span>{fmt(c.end, mx.u)}</span>
+          </div>
+          <div style={{
+            fontFamily: ESERIF, fontSize: 16, fontWeight: 600, marginTop: 4,
+            color: disp.improved ? "#8ee3e6" : "#fed7aa",
+            letterSpacing: "-0.01em",
+          }}>
+            {tooltipHeadline}
+            <span style={{ fontSize: 11, fontWeight: 400, opacity: 0.7 }}>{dollarQualifier}</span>
+          </div>
+          {rawNote && (
+            <div style={{ fontSize: 10, opacity: 0.45, marginTop: 2, fontVariantNumeric: "tabular-nums" }}>
+              {rawNote}
+            </div>
+          )}
+          <div style={{ fontSize: 10, opacity: 0.5, marginTop: 4 }}>Click to explore →</div>
+          {/* Arrow */}
+          <div style={{
+            position: "absolute",
+            ...(flipBelow
+              ? { top: -6, borderBottom: `6px solid ${EC.ink}` }
+              : { bottom: -6, borderTop: `6px solid ${EC.ink}` }),
+            left: "50%", transform: "translateX(-50%)",
+            width: 0, height: 0,
+            borderLeft: "6px solid transparent", borderRight: "6px solid transparent",
+          }} />
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function DashboardPage() {
   return <Suspense><App /></Suspense>;
@@ -740,6 +883,9 @@ function App(){
   const [scenarioMetric,setScenarioMetric]=useState("gdp");
   const [activeScenario,setActiveScenario]=useState<ScenarioId>("no_covid");
   const [showMethodology,setShowMethodology]=useState(false);
+  // Per-metric display toggles for the Data tab heatmap.
+  const [displayMode,setDisplayMode]=useState<DisplayMode>("per_metric");
+  const [dollarMode,setDollarMode]=useState<DollarMode>("real");
 
   // Read metric from URL query param (e.g. /dashboard?metric=unemployment)
   useEffect(() => {
@@ -811,9 +957,7 @@ function App(){
     o[id]={avg:p.reduce((s,x)=>s+x.v,0)/p.length,chg:p[p.length-1].v-p[0].v};}return o;},[am,sel]);
 
 
-  const sc=useMemo(()=>scores(),[]);
-  const ss=useMemo(()=>AID.slice().sort((a,b)=>sc[b].p-sc[a].p),[sc]);
-  const maxP=MK.length*AID.length;
+  // (Removed: sc/ss/maxP/scores() — Scorecard tab is gone.)
   const gmd=GLOBAL_METRICS[gm];
 
   const sty={
@@ -895,6 +1039,9 @@ function App(){
           transform: translateY(-3px);
           box-shadow: 0 12px 24px rgba(0,0,0,0.08);
         }
+
+        /* (Per-cell hover with tooltip is handled in JS via the DashHeatCell
+           component — matches the landing page heatmap behavior.) */
         
         /* Insight callout pulse */
         .insight-pulse {
@@ -982,23 +1129,78 @@ function App(){
         }
       `}</style>
 
-      {/* ── HEADER ── */}
-      <div style={sty.header} className="ol-header-wrap">
-        <div className="ol-header" style={{maxWidth:1080,margin:"0 auto"}}>
-          <Link href="/" style={{display:"flex",alignItems:"center",gap:12,marginBottom:12,textDecoration:"none",cursor:"pointer"}}>
-            <div style={{display:"flex",gap:3}}>
-              <div style={{width:4,height:20,background:T.accent,borderRadius:1}}/>
-              <div style={{width:4,height:20,background:T.accent,borderRadius:1,opacity:0.6}}/>
-              <div style={{width:4,height:20,background:T.accent,borderRadius:1,opacity:0.3}}/>
-            </div>
-            <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:800,letterSpacing:4,textTransform:"uppercase",color:T.mute}}>Open Ledger</span>
+      {/* ── HEADER ── Vote Unbiased logo (left) + presidential timeline
+          strip (right). Trump II appears as the 6th segment with a live
+          pulse — historical admins 1993-2024 + current term 2025-. */}
+      <div style={{...sty.header,padding:mob?"10px 0":"12px 0"}} className="ol-header-wrap">
+        <div className="ol-header" style={{
+          maxWidth:1080,margin:"0 auto",
+          display:"flex",alignItems:"center",gap:mob?14:28,
+        }}>
+          {/* Brand — matches the landing page nav. Whole logo links home. */}
+          <Link href="/" aria-label="Vote Unbiased home" style={{
+            display:"flex",alignItems:"center",gap:10,
+            textDecoration:"none",cursor:"pointer",flexShrink:0,
+            fontFamily:ESERIF,fontSize:mob?16:20,fontWeight:600,letterSpacing:"-0.015em",
+            color:EC.ink,
+          }}>
+            <div style={{
+              width:mob?26:30,height:mob?26:30,borderRadius:"50%",
+              background:EC.ink,color:EC.bg,
+              display:"grid",placeItems:"center",
+              fontFamily:ESERIF,fontWeight:700,fontSize:mob?13:15,
+              flexShrink:0,
+            }}>V</div>
+            {!mob && (
+              <span style={{whiteSpace:"nowrap"}}>
+                Vote <em style={{fontStyle:"italic",color:EC.accent,fontWeight:500}}>Unbiased</em>
+              </span>
+            )}
           </Link>
-          <h1 style={{fontSize:mob?32:48,fontWeight:900,margin:0,lineHeight:1.05,letterSpacing:-2,maxWidth:700,color:T.ink}}>
-            The economy under<br/>every president, <span style={{color:T.accent}}>in data.</span>
-          </h1>
-          <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:15,color:T.sub,margin:"14px 0 0",maxWidth:520,lineHeight:1.6}}>
-            19 economic indicators. 4 active conflicts. 5 administrations. 32 years. No editorial. No spin. <strong style={{color:T.ink}}>You interpret.</strong>
-          </p>
+
+          {/* Timeline strip — fills the remaining width.
+              On mobile: year-range labels are dropped (saves height) and
+              names use short forms (Bush W. -> Bush, Trump II -> Trump 2)
+              so the 4-flex segments don't truncate. */}
+          <div style={{flex:1,display:"flex",alignItems:"stretch",gap:3,minWidth:0}}>
+            {AID.map(id=>{
+              const a=ADMINS[id];
+              const parts=a.full.split("–");
+              const ys=parseInt(parts[0])||0;
+              const ye=parseInt(parts[1])||2025;
+              const yrs=Math.max(ye-ys,1);
+              return (
+                <div key={id} style={{flex:mob?1:yrs,display:"flex",flexDirection:"column",gap:mob?4:6,minWidth:0}}>
+                  <div style={{width:"100%",height:4,background:a.color,borderRadius:1}}/>
+                  <div style={{display:"flex",flexDirection:"column",gap:1,paddingLeft:2,overflow:"hidden"}}>
+                    <span style={{fontFamily:ESERIF,fontSize:mob?10:13,fontWeight:500,color:a.color,letterSpacing:"-0.015em",lineHeight:1.1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{a.name}</span>
+                    {!mob && (
+                      <span style={{fontFamily:ESANS,fontSize:9,color:EC.mute,letterSpacing:"0.04em",lineHeight:1.1,whiteSpace:"nowrap"}}>{a.full}</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+            {/* Trump II — current term, no historical data yet. Striped bar
+                + inline pulse dot signal "in progress / live". */}
+            <div style={{flex:mob?1:4,display:"flex",flexDirection:"column",gap:mob?4:6,minWidth:0}}>
+              <div style={{
+                width:"100%",height:4,borderRadius:1,
+                background:`repeating-linear-gradient(-45deg, #c1272d, #c1272d 3px, rgba(193,39,45,0.35) 3px, rgba(193,39,45,0.35) 6px)`,
+              }}/>
+              <div style={{display:"flex",flexDirection:"column",gap:1,paddingLeft:2,overflow:"hidden"}}>
+                <span style={{fontFamily:ESERIF,fontSize:mob?10:13,fontWeight:500,color:"#c1272d",letterSpacing:"-0.015em",lineHeight:1.1,whiteSpace:"nowrap",display:"inline-flex",alignItems:"center",gap:mob?3:5,overflow:"hidden",textOverflow:"ellipsis"}}>
+                  {/* Drop the pulse dot on mobile — the striped bar above
+                      already signals "in progress", and the dot eats label space. */}
+                  {!mob && <span style={{width:6,height:6,borderRadius:"50%",background:"#c1272d",animation:"pulse 2s infinite",flexShrink:0}}/>}
+                  Trump II
+                </span>
+                {!mob && (
+                  <span style={{fontFamily:ESANS,fontSize:9,color:EC.mute,letterSpacing:"0.04em",lineHeight:1.1,whiteSpace:"nowrap"}}>2025&ndash;</span>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1030,40 +1232,17 @@ function App(){
 
           {/* ── OVERVIEW MODE ── */}
           {!detail&&(<div>
-            {/* Key Insights Callout — desktop only */}
-            {!mob && (
-            <div className="insight-pulse" style={{...sty.card,padding:"18px 20px",marginBottom:24,borderLeft:`4px solid ${T.accent}`,background:`linear-gradient(135deg, ${T.highlight} 0%, #fff 100%)`}}>
-              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
-                <span style={{fontSize:18}}>&#9733;</span>
-                <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:800,letterSpacing:2,textTransform:"uppercase",color:T.accent}}>Key Insights</span>
-              </div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:16}}>
-                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,lineHeight:1.5}}>
-                  <strong style={{color:T.ink}}>Clinton achieved budget surpluses</strong>
-                  <span style={{color:T.sub}}> — the only president in this dataset to do so, with 4 consecutive surplus years.</span>
-                </div>
-                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,lineHeight:1.5}}>
-                  <strong style={{color:T.ink}}>Inequality rose under every president</strong>
-                  <span style={{color:T.sub}}> — from 40.5% to 47.2% over 32 years, regardless of party.</span>
-                </div>
-                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,lineHeight:1.5}}>
-                  <strong style={{color:T.ink}}>Obama inherited the worst economy</strong>
-                  <span style={{color:T.sub}}> — 9.3% unemployment, yet improved it by 47% during his tenure.</span>
-                </div>
-              </div>
-            </div>
-            )}
+            {/* (Removed: 'Worth knowing' insights callout — user prefers a cleaner top.) */}
             
-            <div style={{marginBottom:24}}>
-              <h2 style={{fontSize:28,fontWeight:900,margin:"0 0 6px",letterSpacing:-0.5}}>All Metrics at a Glance</h2>
-              <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:T.sub,margin:"0 0 16px",lineHeight:1.5}}>19 metrics across 5 presidents. Each cell shows % change from start to end of term. <strong style={{color:T.ink}}>Hover to see trend.</strong> Click any row to explore.</p>
-              <div className="ol-heatmap-legend" style={{display:"flex",gap:20,fontFamily:"'DM Sans',sans-serif",fontSize:12,flexWrap:"wrap",alignItems:"center"}}>
-                <span style={{display:"flex",alignItems:"center",gap:8}}><span style={{display:"inline-block",width:18,height:18,borderRadius:4,background:T.improve.strong}}/>Strong improvement</span>
-                <span style={{display:"flex",alignItems:"center",gap:8}}><span style={{display:"inline-block",width:18,height:18,borderRadius:4,background:T.improve.light}}/>Modest improvement</span>
-                <span style={{display:"flex",alignItems:"center",gap:8}}><span style={{display:"inline-block",width:18,height:18,borderRadius:4,background:T.neutral,border:`1px solid ${T.rule}`}}/>Maintained</span>
-                <span style={{display:"flex",alignItems:"center",gap:8}}><span style={{display:"inline-block",width:18,height:18,borderRadius:4,background:T.decline.light}}/>Modest decline</span>
-                <span style={{display:"flex",alignItems:"center",gap:8}}><span style={{display:"inline-block",width:18,height:18,borderRadius:4,background:T.decline.strong}}/>Strong decline</span>
-              </div>
+            <div style={{marginBottom:20}}>
+              <h2 style={{fontFamily:ESERIF,fontSize:mob?26:34,fontWeight:400,letterSpacing:"-0.02em",lineHeight:1.1,margin:"0 0 6px"}}>
+                All metrics, <em style={{fontStyle:"italic",color:EC.accent}}>at a glance.</em>
+              </h2>
+              <p style={{fontFamily:ESANS,fontSize:13,color:EC.sub,lineHeight:1.55,maxWidth:"60ch",margin:0}}>
+                19 metrics across 5 administrations, shown in the unit that fits each metric &mdash;
+                percentage points for rates, annualized for prices and income, average for inflation
+                and flow values. Toggle for raw % change.
+              </p>
             </div>
 
             {/* Mobile view toggle */}
@@ -1101,38 +1280,36 @@ function App(){
                       <div style={{display:"flex",flexDirection:"column",gap:8}}>
                         {catMetrics.map((k,idx)=>{
                           const mx=M[k];
-                          const pts=mx.d.filter(d=>d.a===selectedPres);
-                          if(pts.length<1)return null;
-                          const s=inheritedStart(k,selectedPres),e=pts[pts.length-1].v;
-                          const pc=s!==0?((e-s)/Math.abs(s))*100:0;
-                          const absPc=Math.abs(pc);
-                          const imp=mx.inv?pc<0:pc>0;
-                          const mnt=absPc<5;
-                          const sparkData=pts.map(p=>p.v);
+                          const c=HEAT_DATA[k]?.[selectedPres];
+                          if(!c)return null;
+                          const disp=resolveDashDisplay(c,k,displayMode,dollarMode);
+                          const mag=disp.value!==null
+                            ? colorMagnitude(disp.value,disp.unit,{avgScale:AVG_SCALE_BY_METRIC[k]})
+                            : 0;
+                          const st=disp.value!==null
+                            ? cellColorFromMag(mag,disp.improved)
+                            : {bg:EC.paper,text:EC.mute};
+                          const headline=formatDisplayedChange(disp.value,disp.unit,false,{metricUnit:mx.u});
+                          const sparkData=mx.d.filter(d=>d.a===selectedPres).map(p=>p.v);
 
-                          let bg,fg;
-                          if(mnt){bg=T.neutral;fg=T.gold;}
-                          else if(imp){bg=absPc>30?T.improve.strong:absPc>10?T.improve.medium:T.improve.light;fg=absPc>10?"#fff":T.improve.strong;}
-                          else{bg=absPc>30?T.decline.strong:absPc>10?T.decline.medium:T.decline.light;fg=absPc>10?"#fff":T.decline.strong;}
-                          
                           return (
                             <div
                               key={k}
                               data-nudge="1"
                               className={`hover-lift stagger-${Math.min(idx+1,20)}`}
                               onClick={()=>{setAm(k);setDetail(k);setOpenFacts(false);}}
-                              style={{...sty.card,padding:"14px 16px",display:"flex",alignItems:"center",gap:10,cursor:"pointer",borderLeft:`4px solid ${ADMINS[selectedPres]?.color||T.accent}`,position:"relative"}}
+                              style={{background:EC.card,border:`1px solid ${EC.rule}`,borderRadius:3,padding:"12px 14px",display:"flex",alignItems:"center",gap:10,cursor:"pointer",borderLeft:`3px solid ${ADMINS[selectedPres]?.color||EC.accent}`,position:"relative"}}
                             >
                               <div style={{flex:1,minWidth:0}}>
-                                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:14,fontWeight:700,color:T.ink,marginBottom:2}}>{mx.l}</div>
-                                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:T.mute}}>{fmt(s,mx.u)} → {fmt(e,mx.u)}</div>
+                                <div style={{fontFamily:ESERIF,fontSize:14,fontWeight:500,color:EC.ink,marginBottom:2}}>{mx.l}</div>
+                                <div style={{fontFamily:ESANS,fontSize:11,color:EC.mute,fontVariantNumeric:"tabular-nums"}}>{fmt(c.start,mx.u)} → {fmt(c.end,mx.u)}</div>
                               </div>
                               <div style={{display:"flex",alignItems:"center",gap:8}}>
-                                <Sparkline data={sparkData} color={ADMINS[selectedPres]?.color||T.sub} width={50} height={22} />
-                                <div style={{background:bg,borderRadius:6,padding:"8px 10px",color:fg,fontWeight:700,fontSize:14,minWidth:54,textAlign:"center",fontVariantNumeric:"tabular-nums"}}>
-                                  {mnt?"—":imp?"▲":"▼"}{absPc.toFixed(0)}%
+                                <Sparkline data={sparkData} color={ADMINS[selectedPres]?.color||EC.sub} width={50} height={22} />
+                                <div style={{background:st.bg,color:st.text,borderRadius:3,padding:"7px 11px",fontFamily:ESERIF,fontWeight:600,fontSize:15,minWidth:68,textAlign:"center",fontVariantNumeric:"tabular-nums",lineHeight:1.15,letterSpacing:"-0.01em"}}>
+                                  {headline}
                                 </div>
-                                <span className="tap-chevron" style={{fontSize:18,color:T.mute,fontWeight:300,marginLeft:2,lineHeight:1}}>›</span>
+                                <span className="tap-chevron" style={{fontSize:18,color:EC.mute,fontWeight:300,marginLeft:2,lineHeight:1}}>›</span>
                               </div>
                             </div>
                           );
@@ -1144,99 +1321,132 @@ function App(){
               </div>
             )}
 
-            {/* Desktop Table View (or mobile table view when toggled) */}
+            {/* Desktop heatmap — editorial style, matches landing page Section 01 */}
             {(!mob || mobileView==="table") && (
-            <div style={{...sty.card,overflow:"auto",marginBottom:16,WebkitOverflowScrolling:"touch"}}>
-              <table className="ol-heatmap-table" style={{width:"100%",borderCollapse:"collapse",fontFamily:"'DM Sans',sans-serif",fontSize:13}}>
-                <thead>
-                  <tr style={{borderBottom:`2px solid ${T.rule}`}}>
-                    <th style={{textAlign:"left",padding:"14px 16px",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:1,color:T.mute,position:"sticky",left:0,background:T.card,zIndex:2,minWidth:150}}>Metric</th>
-                    {AID.map(id=>{const a=ADMINS[id];return(
-                      <th key={id} style={{textAlign:"center",padding:"14px 10px",minWidth:100}}>
-                        <div style={{fontWeight:700,color:a.color,fontSize:13}}>{a.name}</div>
-                        <div style={{fontSize:10,color:T.mute,fontWeight:400}}>{a.years}</div>
-                      </th>
-                    );})}
-                  </tr>
-                </thead>
-                <tbody>
-                  {Object.entries(CATS).map(([catKey,catLabel])=>{
-                    const catMetrics=MK.filter(k=>M[k].cat===catKey);
-                    if(!catMetrics.length)return null;
-                    return [
-                      <tr key={"cat-"+catKey}><td colSpan={6} style={{padding:"12px 16px 6px",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:2,color:T.mute,background:T.bg,borderBottom:`1px solid ${T.rule}`}}>{catLabel}</td></tr>,
-                      ...catMetrics.map((k,rowIdx)=>{
-                        const mx=M[k];
-                        const perPres=AID.map(id=>{
-                          const pts=mx.d.filter(d=>d.a===id);if(pts.length<1)return null;
-                          const s=inheritedStart(k,id),e=pts[pts.length-1].v;
-                          const pc=s!==0?((e-s)/Math.abs(s))*100:0;
-                          const imp=mx.inv?pc<0:pc>0;const mnt=Math.abs(pc)<5;
-                          const sparkData=pts.map(p=>p.v);
-                          return{id,s,e,pc,imp,mnt,sparkData};
-                        }).filter(Boolean);
+            <div style={{background:EC.card,border:`1px solid ${EC.rule}`,borderRadius:4,overflow:"hidden",overflowX:"auto",WebkitOverflowScrolling:"touch",marginBottom:16}}>
+              {/* Toggle bar */}
+              <div style={{display:"flex",justifyContent:"flex-end",alignItems:"center",gap:16,padding:"10px 14px",background:EC.paper,borderBottom:`1px solid ${EC.rule}`,flexWrap:"wrap",minWidth:mob?780:undefined}}>
+                <PillToggle<DisplayMode>
+                  label="Display"
+                  value={displayMode}
+                  onChange={setDisplayMode}
+                  options={[
+                    {value:"per_metric",label:"Per-metric"},
+                    {value:"raw_pct",   label:"Raw %"},
+                  ]}
+                />
+                <PillToggle<DollarMode>
+                  label="$ values"
+                  value={dollarMode}
+                  onChange={setDollarMode}
+                  disabled={displayMode==="raw_pct"}
+                  options={[
+                    {value:"real",   label:"Real"},
+                    {value:"nominal",label:"Nominal"},
+                  ]}
+                />
+              </div>
 
-                        return <tr key={k} className={`heatmap-row stagger-${Math.min(rowIdx+1,20)}`} onClick={()=>{setAm(k);setDetail(k);setOpenFacts(false);}}
-                          style={{borderBottom:`1px solid ${T.rule}22`,cursor:"pointer"}}>
-                          <td className="heatmap-metric-cell" style={{padding:"16px 18px",fontWeight:600,color:T.ink,position:"sticky",left:0,background:T.card,zIndex:1,transition:"background 0.2s"}}>
-                            <div style={{fontSize:15,fontWeight:700}}>{mx.l}</div>
-                            <div style={{fontSize:10,color:T.mute,fontWeight:500,marginTop:3,letterSpacing:0.3}}>{mx.s}</div>
-                          </td>
-                          {perPres.map(p=>{
-                            const absPc=Math.abs(p.pc);
-                            let bg,fg,sparkColor;
-                            if(p.mnt){
-                              bg=T.neutral;fg=T.gold;sparkColor=T.gold;
-                            } else if(p.imp){
-                              bg=absPc>30?T.improve.strong:absPc>10?T.improve.medium:T.improve.light;
-                              fg=absPc>10?"#fff":T.improve.strong;
-                              sparkColor=T.improve.strong;
-                            }else{
-                              bg=absPc>30?T.decline.strong:absPc>10?T.decline.medium:T.decline.light;
-                              fg=absPc>10?"#fff":T.decline.strong;
-                              sparkColor=T.decline.strong;
-                            }
-                            return <td key={p.id} style={{textAlign:"center",padding:"10px 8px",verticalAlign:"middle"}}>
-                              <div className="heatmap-cell hover-lift" style={{background:bg,borderRadius:8,padding:"12px 10px 8px",color:fg,fontWeight:700,fontSize:15,lineHeight:1.2,minHeight:mob?60:72,display:"flex",flexDirection:"column",justifyContent:"center",alignItems:"center"}}>
-                                <span style={{fontVariantNumeric:"tabular-nums"}}>{p.mnt?"—":p.imp?"▲":"▼"}{absPc.toFixed(0)}%</span>
-                                {!mob && <Sparkline data={p.sparkData} color={fg} width={50} height={16} />}
-                              </div>
-                              <div className="heatmap-cell-value" style={{fontSize:10,color:T.mute,marginTop:5,fontVariantNumeric:"tabular-nums"}}>{fmt(p.s,mx.u)} → {fmt(p.e,mx.u)}</div>
-                            </td>;
-                          })}
-                        </tr>;
-                      })
-                    ];
-                  })}
-                </tbody>
-              </table>
-            </div>
-            )}
-
-            {/* Totals row */}
-            <div style={{...sty.card,padding:"14px 16px",marginBottom:16}}>
-              <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:1.5,color:T.mute,marginBottom:10}}>Summary — Metrics Improved vs Declined</div>
-              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+              {/* Header row */}
+              <div style={{
+                display:"grid",
+                gridTemplateColumns:mob?"160px repeat(5, 1fr)":"200px repeat(5, 1fr)",
+                alignItems:"center",background:EC.paper,borderBottom:`1px solid ${EC.rule}`,
+                padding:"10px 0",fontSize:11,letterSpacing:"0.09em",textTransform:"uppercase",
+                color:EC.sub,fontWeight:500,minWidth:mob?780:undefined,
+              }}>
+                <div style={{paddingLeft:18}}>Metric</div>
                 {AID.map(id=>{
                   const a=ADMINS[id];
-                  let imp=0,dec=0;
-                  MK.forEach(k=>{
-                    const mx=M[k];const pts=mx.d.filter(d=>d.a===id);if(pts.length<1)return;
-                    const s=inheritedStart(k,id),e=pts[pts.length-1].v;
-                    const pc=s!==0?((e-s)/Math.abs(s))*100:0;
-                    const improved=mx.inv?pc<0:pc>0;const mnt=Math.abs(pc)<5;
-                    if(mnt)return;if(improved)imp++;else dec++;
-                  });
-                  return <div key={id} style={{flex:1,minWidth:100,borderLeft:`3px solid ${a.color}`,padding:"8px 12px",background:T.paper,borderRadius:3}}>
-                    <div style={{fontWeight:700,color:a.color,fontSize:13,marginBottom:4}}>{a.name}</div>
-                    <div style={{display:"flex",gap:8,fontFamily:"'DM Sans',sans-serif",fontSize:12}}>
-                      <span style={{color:"#16a34a",fontWeight:700}}>▲{imp}</span>
-                      <span style={{color:"#dc2626",fontWeight:700}}>▼{dec}</span>
+                  return (
+                    <div key={id} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3,textAlign:"center"}}>
+                      <div style={{width:24,height:3,borderRadius:2,background:a.color}}/>
+                      <div style={{color:EC.ink,fontSize:12,fontWeight:500,letterSpacing:"-0.01em",textTransform:"none",fontFamily:ESERIF}}>{a.name}</div>
+                      {!mob && <div style={{color:EC.mute,letterSpacing:"0.04em",fontFamily:ESANS,fontSize:10}}>{a.years}</div>}
                     </div>
-                  </div>;
+                  );
                 })}
               </div>
+
+              {/* Rows grouped by category */}
+              {Object.entries(CATS).map(([catKey,catLabel])=>{
+                const catMetrics=MK.filter(k=>M[k].cat===catKey);
+                if(!catMetrics.length)return null;
+                return (
+                  <div key={catKey}>
+                    <div style={{
+                      fontFamily:ESANS,fontSize:9,fontWeight:500,letterSpacing:"0.14em",
+                      textTransform:"uppercase",color:EC.mute,
+                      padding:"12px 18px 4px",background:"#fbf8f3",
+                      borderTop:`1px solid ${EC.rule}`,
+                      minWidth:mob?780:undefined,
+                    }}>{catLabel as string}</div>
+                    {catMetrics.map((mk)=>{
+                      const mx=M[mk];
+                      // Flip tooltip below the cell ONLY for the very first metric
+                      // (top of the heatmap). Every other row has enough room above.
+                      const flipBelow = mk === FIRST_METRIC_KEY;
+                      return (
+                        <div
+                          key={mk}
+                          style={{
+                            display:"grid",
+                            gridTemplateColumns:mob?"160px repeat(5, 1fr)":"200px repeat(5, 1fr)",
+                            alignItems:"center",borderTop:`1px solid ${EC.rule}`,
+                            fontSize:13,minWidth:mob?780:undefined,
+                          }}
+                        >
+                          <div style={{padding:"10px 18px",display:"flex",flexDirection:"column",gap:1}}>
+                            <span style={{fontWeight:500,color:EC.ink,fontSize:13,fontFamily:ESANS}}>{mx.l}</span>
+                            <span style={{fontSize:10,color:EC.mute,letterSpacing:"0.03em",fontFamily:ESANS}}>{mx.s}</span>
+                          </div>
+                          {AID.map(id=>{
+                            const c=HEAT_DATA[mk]?.[id];
+                            if(!c)return <div key={id}/>;
+                            return (
+                              <DashHeatCell
+                                key={id}
+                                c={c}
+                                mk={mk}
+                                aid={id}
+                                displayMode={displayMode}
+                                dollarMode={dollarMode}
+                                flipBelow={flipBelow}
+                                onClick={()=>{setAm(mk);setDetail(mk);setOpenFacts(false);}}
+                              />
+                            );
+                          })}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+
+              {/* Legend strip */}
+              <div style={{
+                display:"flex",alignItems:"center",justifyContent:"space-between",
+                padding:"12px 18px",background:EC.paper,borderTop:`1px solid ${EC.rule}`,
+                fontSize:11,color:EC.sub,letterSpacing:"0.03em",flexWrap:"wrap",gap:10,
+                minWidth:mob?780:undefined,fontFamily:ESANS,
+              }}>
+                <span>
+                  {displayMode==="per_metric"
+                    ? <>Per-metric view: percentage-point (pp) change for rates, {dollarMode} annualized for prices/income, average for inflation and flow values.</>
+                    : <>Raw % change from inherited value to last year of administration.</>}
+                </span>
+                <div style={{display:"flex",alignItems:"center",gap:6}}>
+                  <span>Worsened</span>
+                  <div style={{display:"flex",border:`1px solid ${EC.rule}`,borderRadius:2,overflow:"hidden"}}>
+                    {[0.8,0.45,0.2].map((a,i)=><i key={"d"+i} style={{width:18,height:10,display:"inline-block",background:`rgba(194,65,12,${a})`}}/>)}
+                    <i style={{width:18,height:10,display:"inline-block",background:EC.paper}}/>
+                    {[0.2,0.45,0.8].map((a,i)=><i key={"i"+i} style={{width:18,height:10,display:"inline-block",background:`rgba(13,115,119,${a})`}}/>)}
+                  </div>
+                  <span>Improved</span>
+                </div>
+              </div>
             </div>
+            )}
           </div>)}
 
           {/* ── DETAIL MODE ── */}
@@ -1410,7 +1620,7 @@ function App(){
                 <span style={{color:"#15803d",fontWeight:600}}>{m.bench.good}</span>
                 <span style={{color:T.rule}}>|</span>
                 <span style={{width:6,height:6,borderRadius:"50%",background:"#dc2626",flexShrink:0}}/>
-                <span style={{color:"#991b1b",fontWeight:600}}>{m.bench.warn.length>20?m.bench.warn.slice(0,20)+"…":m.bench.warn}</span>
+                <span style={{color:"#991b1b",fontWeight:600}}>{m.bench.warn.split(". ")[0]}</span>
                 <span style={{flex:1}}/>
                 <button onClick={()=>{setFxOpen(!fxOpen);if(whyOpen)setWhyOpen(false);}} style={{
                   border:"none",background:"transparent",fontFamily:"'Source Serif 4',Georgia,serif",
@@ -1449,24 +1659,24 @@ function App(){
           <div className="ol-grid-summary" style={{display:"grid",gridTemplateColumns:mob?"repeat(2,1fr)":`repeat(${Math.min(sel.length+1,6)},1fr)`,gap:mob?8:10,marginBottom:mob?12:20,order:mob?2:1}}>
             {sel.map((id,idx)=>{const s=sums[id];if(!s)return null;const a=ADMINS[id];
               const pts=m.d.filter(d=>d.a===id);if(pts.length<1)return null;
-              const start=inheritedStart(am,id),end=pts[pts.length-1].v;
-              const pct=start!==0?((end-start)/Math.abs(start))*100:0;
-              const imp=m.inv?pct<0:pct>0;const mnt=Math.abs(pct)<5;
-              const col=mnt?T.gold:imp?T.improve.strong:T.decline.strong;
+              const cell=HEAT_DATA[am]?.[id];
+              const disp=cell?resolveDashDisplay(cell,am,displayMode,dollarMode):null;
+              const headline=disp?formatDisplayedChange(disp.value,disp.unit,false,{metricUnit:m.u}):"—";
+              const headlineColor=disp&&disp.value!==null?(disp.improved?EC.improveStrong:EC.declineStrong):EC.mute;
               const sparkData=pts.map(p=>p.v);
               return <div key={id} className={`hover-lift stagger-${idx+1}`} style={{...sty.card,padding:mob?"10px 12px":"16px 18px",borderTop:`${mob?3:4}px solid ${a.color}`,position:"relative",overflow:"hidden"}}>
                 {!mob&&<div style={{position:"absolute",top:0,right:0,width:80,height:80,background:`linear-gradient(135deg, ${a.color}08 0%, transparent 70%)`,borderRadius:"0 0 0 80px"}}/>}
-                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?9:10,fontWeight:800,textTransform:"uppercase",letterSpacing:1,color:a.color,marginBottom:mob?4:6}}>{a.name}</div>
+                <div style={{fontFamily:ESANS,fontSize:mob?9:10,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.14em",color:a.color,marginBottom:mob?4:6}}>{a.name}</div>
                 <div style={{display:"flex",alignItems:"baseline",gap:mob?4:6,marginBottom:mob?3:4}}>
-                  <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?10:12,color:T.mute,fontVariantNumeric:"tabular-nums"}}>{fmt(start,m.u)}</span>
-                  <span style={{fontSize:mob?8:10,color:T.mute}}>→</span>
-                  <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?10:18,fontWeight:700,color:T.ink,fontVariantNumeric:"tabular-nums"}}>{fmt(end,m.u)}</span>
+                  <span style={{fontFamily:ESANS,fontSize:mob?10:12,color:EC.mute,fontVariantNumeric:"tabular-nums"}}>{fmt(cell?cell.start:0,m.u)}</span>
+                  <span style={{fontSize:mob?8:10,color:EC.mute}}>→</span>
+                  <span style={{fontFamily:ESANS,fontSize:mob?10:18,fontWeight:600,color:EC.ink,fontVariantNumeric:"tabular-nums"}}>{fmt(cell?cell.end:0,m.u)}</span>
                 </div>
                 <div style={{display:"flex",alignItems:"center",gap:mob?4:8,marginBottom:mob?4:6}}>
-                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?17:24,fontWeight:900,color:col,fontVariantNumeric:"tabular-nums"}}>{mnt?"—":imp?"▲":"▼"}{Math.abs(pct).toFixed(0)}%</div>
+                  <div style={{fontFamily:ESERIF,fontSize:mob?18:24,fontWeight:600,color:headlineColor,fontVariantNumeric:"tabular-nums",letterSpacing:"-0.015em",lineHeight:1.05}}>{headline}</div>
                   {!mob&&<Sparkline data={sparkData} color={a.color} width={50} height={20} />}
                 </div>
-                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?9:10,color:T.mute,display:"flex",justifyContent:"space-between"}}>
+                <div style={{fontFamily:ESANS,fontSize:mob?9:10,color:EC.mute,display:"flex",justifyContent:"space-between"}}>
                   <span>avg {fmt(s.avg,m.u)}</span>
                   <span style={{color:a.color,fontWeight:600}}>{a.years}</span>
                 </div>
@@ -1517,7 +1727,7 @@ function App(){
                   <YAxis stroke={T.rule} fontSize={10} fontFamily="'DM Sans',sans-serif" tick={{fill:T.sub}} tickFormatter={v=>fmt(v,m.u)} axisLine={{stroke:T.rule}}/>
                   <Tooltip content={<Tip unit={m.u}/>} cursor={{fill:T.paper,opacity:0.5}}/>
                   <Bar dataKey="v" radius={[4,4,0,0]} maxBarSize={28} animationDuration={600} animationEasing="ease-out">
-                    {fd.map((e,i)=><Cell key={i} fill={`url(#bar-gradient-${e.a})`}/>)}
+                    {fd.map((e,i)=><RechartsCell key={i} fill={`url(#bar-gradient-${e.a})`}/>)}
                   </Bar>
                 </BarChart>
               ):(
@@ -1547,7 +1757,7 @@ function App(){
                   <th style={{textAlign:"center",padding:"8px 4px",fontSize:10,color:T.rule}}></th>
                   <th style={{textAlign:"center",padding:"8px 10px",fontSize:10,fontWeight:700,color:T.mute}}>Left At</th>
                   <th style={{textAlign:"center",padding:"8px 10px",fontSize:10,fontWeight:700,color:T.mute}}>Avg</th>
-                  <th style={{textAlign:"right",padding:"8px 14px",fontSize:10,fontWeight:700,color:T.mute}}>% Change</th>
+                  <th style={{textAlign:"right",padding:"8px 14px",fontSize:10,fontWeight:700,color:T.mute}}>Change</th>
                 </tr>
               </thead>
               <tbody>
@@ -1555,27 +1765,31 @@ function App(){
                   const pts=m.d.filter(d=>d.a===id);
                   if(pts.length<1)return null;
                   const a=ADMINS[id];
-                  const start=inheritedStart(am,id);const end=pts[pts.length-1].v;
-                  const pctChg=start!==0?((end-start)/Math.abs(start))*100:0;
-                  const improved=m.inv?pctChg<0:pctChg>0;
-                  const maintained=Math.abs(pctChg)<5;
-                  const verdict=maintained?"Maintained":improved?"Improved":"Declined";
-                  const verdictColor=maintained?T.gold:improved?"#16a34a":"#dc2626";
+                  const cell=HEAT_DATA[am]?.[id];
+                  if(!cell)return null;
+                  const disp=resolveDashDisplay(cell,am,displayMode,dollarMode);
+                  const headline=formatDisplayedChange(disp.value,disp.unit,false,{metricUnit:m.u});
+                  const verdict=disp.value===null?"—":disp.improved?"Improved":"Declined";
+                  const verdictColor=disp.value===null?EC.mute:disp.improved?EC.improveStrong:EC.declineStrong;
                   const termAvg=pts.reduce((s,d)=>s+d.v,0)/pts.length;
                   return <tr key={id} style={{borderBottom:`1px solid ${T.rule}22`}}>
                     <td style={{padding:"8px 14px",display:"flex",alignItems:"center",gap:6}}>
                       <span style={{width:8,height:8,borderRadius:2,background:a.color,flexShrink:0}}/>
-                      <span style={{fontWeight:700,color:a.color}}>{a.name}</span>
+                      <span style={{fontWeight:600,color:a.color,fontFamily:ESERIF,letterSpacing:"-0.01em"}}>{a.name}</span>
                     </td>
-                    <td style={{textAlign:"center",padding:"8px 10px",fontFamily:"'DM Sans',sans-serif",fontSize:11,color:T.sub}}>{fmt(start,m.u)}</td>
-                    <td style={{textAlign:"center",padding:"8px 2px",color:T.rule,fontSize:10}}>→</td>
-                    <td style={{textAlign:"center",padding:"8px 10px",fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:600,color:T.ink}}>{fmt(end,m.u)}</td>
-                    <td style={{textAlign:"center",padding:"8px 10px",fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:500,color:T.sub}}>{fmt(termAvg,m.u)}</td>
-                    <td style={{textAlign:"right",padding:"8px 14px"}}>
-                      <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:600,color:verdictColor}}>
-                        {maintained?"—":improved?"▲":"▼"}{Math.abs(pctChg).toFixed(1)}%
+                    <td style={{textAlign:"center",padding:"8px 10px",fontFamily:ESANS,fontSize:11,color:EC.sub,fontVariantNumeric:"tabular-nums"}}>{fmt(cell.start,m.u)}</td>
+                    <td style={{textAlign:"center",padding:"8px 2px",color:EC.rule,fontSize:10}}>→</td>
+                    <td style={{textAlign:"center",padding:"8px 10px",fontFamily:ESANS,fontSize:11,fontWeight:600,color:EC.ink,fontVariantNumeric:"tabular-nums"}}>{fmt(cell.end,m.u)}</td>
+                    <td style={{textAlign:"center",padding:"8px 10px",fontFamily:ESANS,fontSize:11,fontWeight:500,color:EC.sub,fontVariantNumeric:"tabular-nums"}}>{fmt(termAvg,m.u)}</td>
+                    <td style={{textAlign:"right",padding:"8px 14px",whiteSpace:"nowrap"}}>
+                      <span style={{fontFamily:ESERIF,fontSize:mob?12:13,fontWeight:600,color:verdictColor,letterSpacing:"-0.01em",fontVariantNumeric:"tabular-nums"}}>
+                        {headline}
                       </span>
-                      <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,color:verdictColor,marginLeft:5,fontWeight:600}}>{verdict}</span>
+                      {/* Verdict label is redundant on mobile (color carries
+                          the meaning); only render on desktop. */}
+                      {!mob && (
+                        <span style={{fontFamily:ESANS,fontSize:9,color:verdictColor,marginLeft:6,fontWeight:600,letterSpacing:"0.04em",textTransform:"uppercase"}}>{verdict}</span>
+                      )}
                     </td>
                   </tr>;
                 })}
@@ -1601,90 +1815,10 @@ function App(){
           </div>)}
         </div>)}
 
-        {/* ═══ SCORECARD ═══ */}
-        {tab==="scorecard"&&(<div style={{animation:"fadeUp 0.4s ease"}}>
-          <h2 style={{fontSize:28,fontWeight:900,margin:"0 0 4px"}}>Who improved the most?</h2>
-          <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:T.sub,margin:"0 0 10px"}}>Ranked by % change from start to end of term — not averages. This measures who moved the needle, not who inherited the best numbers.</p>
-          <div style={{background:T.highlight,border:"1px solid #f5deb3",borderRadius:3,padding:"10px 14px",marginBottom:22}}>
-            <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,lineHeight:1.6,color:"#78716c"}}><strong style={{color:T.ink}}>↳ How scoring works: </strong>For each metric, presidents are ranked by % improvement (start → end of term). #1 gets 5 pts, #2 gets 4, etc. For metrics where lower is better (unemployment, inflation), a bigger decrease = better rank. Maintaining a strong inherited position (under 5% change) is noted but ranked below active improvement.</div>
-          </div>
-
-          {/* Composite Rankings */}
-          <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:32}}>
-            {ss.map((id,i)=>{const a=ADMINS[id];const s=sc[id];const medals=["1st","2nd","3rd","4th","5th"];
-              const pct=(s.p/maxP)*100;
-              // Count improvements, declines, maintained
-              const improved=Object.values(s.details).filter(d=>d.improved).length;
-              const maintained=Object.values(s.details).filter(d=>d.maintained).length;
-              const declined=Object.keys(s.details).length-improved-maintained;
-              return <div key={id} className="ol-score-card" style={{...sty.card,padding:"16px 20px",borderLeft:`4px solid ${a.color}`,display:"flex",alignItems:"center",gap:16}}>
-                <div className="ol-score-medal" style={{fontFamily:"'DM Sans',sans-serif",fontSize:28,fontWeight:600,color:i===0?T.accent:i<3?T.gold:T.mute,width:44,textAlign:"center"}}>{medals[i]}</div>
-                <div style={{flex:1}}>
-                  <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
-                    <span style={{fontSize:18,fontWeight:700,color:a.color}}>{a.name}</span>
-                    <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:T.mute}}>{a.full}</span>
-                    <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,padding:"2px 6px",borderRadius:2,background:a.party==="D"?"#dbeafe":"#fee2e2",color:a.party==="D"?"#2563eb":"#dc2626",fontWeight:700}}>{a.party}</span>
-                  </div>
-                  <div style={{width:"100%",height:6,borderRadius:3,background:T.paper,overflow:"hidden",marginBottom:5}}>
-                    <div style={{width:`${pct}%`,height:"100%",borderRadius:3,background:a.color,transition:"width 0.6s ease"}}/>
-                  </div>
-                  <div style={{display:"flex",gap:10,fontFamily:"'DM Sans',sans-serif",fontSize:11,flexWrap:"wrap"}}>
-                    <span style={{color:"#16a34a",fontWeight:700}}>▲ {improved} improved</span>
-                    <span style={{color:T.gold,fontWeight:600}}>— {maintained} maintained</span>
-                    <span style={{color:"#dc2626",fontWeight:600}}>▼ {declined} declined</span>
-                  </div>
-                </div>
-                <div className="ol-score-pts" style={{textAlign:"right"}}><div style={{fontSize:30,fontWeight:900,fontFamily:"'DM Sans',sans-serif",color:a.color}}>{s.p}</div><div style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,color:T.mute}}>of {maxP}</div></div>
-              </div>;
-            })}
-          </div>
-
-          {/* Metric-by-metric: Inherited → Exit → % Change */}
-          <h3 style={{fontSize:18,fontWeight:700,margin:"0 0 12px",borderBottom:`1px solid ${T.rule}`,paddingBottom:8}}>Metric by Metric: What They Inherited vs What They Left</h3>
-          <div className="ol-grid-metrics" style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:8,marginBottom:28}}>
-            {MK.map(mk=>{const mx=M[mk];
-              const ranked=AID.filter(id=>sc[id].r[mk]).sort((a,b)=>(sc[a].r[mk]?.rank||99)-(sc[b].r[mk]?.rank||99));
-              return <div key={mk} style={{...sty.card,padding:"12px 14px"}}>
-                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:700,marginBottom:2,color:T.ink}}>{mx.l}</div>
-                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,color:T.mute,marginBottom:8,textTransform:"uppercase",letterSpacing:0.5}}>Inherited → Exit → Change</div>
-                {ranked.map((id,i)=>{const a=ADMINS[id];const d=sc[id].details[mk];if(!d)return null;
-                  const arrow=d.improved?"▲":d.maintained?"—":"▼";
-                  const arrowColor=d.improved?"#16a34a":d.maintained?T.gold:"#dc2626";
-                  return <div key={id} style={{display:"flex",alignItems:"center",gap:6,marginBottom:5,padding:"3px 0",borderBottom:i<ranked.length-1?`1px solid ${T.rule}22`:"none"}}>
-                    <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,width:18,color:i===0?"#16a34a":i===1?T.gold:T.mute,fontWeight:i<=1?700:400}}>#{i+1}</span>
-                    <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:a.color,fontWeight:600,width:52}}>{a.name}</span>
-                    <div style={{flex:1,display:"flex",alignItems:"center",gap:4,fontFamily:"'DM Sans',sans-serif",fontSize:10}}>
-                      <span style={{color:T.mute}}>{fmt(d.start,mx.u)}</span>
-                      <span style={{color:T.mute,fontSize:8}}>→</span>
-                      <span style={{color:T.ink,fontWeight:600}}>{fmt(d.end,mx.u)}</span>
-                    </div>
-                    <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:600,color:arrowColor,width:56,textAlign:"right"}}>
-                      {arrow}{Math.abs(d.pct).toFixed(0)}%
-                    </span>
-                  </div>;
-                })}
-              </div>;
-            })}
-          </div>
-
-          {/* Inherited context */}
-          <h3 style={{fontSize:18,fontWeight:700,margin:"0 0 12px",borderBottom:`1px solid ${T.rule}`,paddingBottom:8}}>What They Inherited — Essential Context</h3>
-          <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:16}}>
-            {AID.map(id=>{const a=ADMINS[id];const c=INH[id];
-              return <div key={id} className="ol-inherited" style={{...sty.card,padding:"10px 14px",borderLeft:`3px solid ${a.color}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                <div><span style={{fontWeight:700,color:a.color}}>{a.name}</span><span style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:T.mute,marginLeft:8}}>{c.c}</span></div>
-                <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,padding:"3px 8px",borderRadius:2,background:T.paper,fontWeight:600,color:T.sub,whiteSpace:"nowrap"}}>{c.g}</span>
-              </div>;
-            })}
-          </div>
-
-          <FactsPanel facts={[
-            {t:"Why % change > averages",x:"Averages punish presidents who inherited crises. Obama's unemployment average was 7.5% but he improved it by 47% — more than Clinton's 42% improvement. % change captures the actual trajectory."},
-            {t:"The maintenance problem",x:"Trump inherited 3.7% unemployment (near historic lows). Maintaining that is genuinely hard — there's less room to improve. Under 5% change is scored as 'maintained' and noted, but ranked below active improvement."},
-            {t:"COVID distorts everything",x:"Trump's % change on most metrics is dominated by 2020 COVID collapse. Excluding 2020 would change his rankings dramatically. Biden's improvements are partly COVID rebound. Neither fully 'owns' these numbers."},
-            {t:"No single number tells the story",x:"% change is fairer than averages but still imperfect. A president who improved GDP from -2% to +2% (huge improvement) ranks the same as one who improved it from 2% to 6% (also huge, but from a stable base). Context always matters."},
-          ]} label="How to Read This"/>
-        </div>)}
+        {/* (Removed: Scorecard tab — composite ranking by % change was the
+            same misleading framing as the old +1800% display. Per-category
+            ranking under per-metric framing would need a separate design
+            pass; cut entirely for now per user request.) */}
 
         {/* ═══ ABROAD ═══ */}
         {tab==="abroad"&&(()=>{
@@ -1945,9 +2079,12 @@ function App(){
         {/* ═══ SCENARIOS ═══ */}
         {tab==="scenarios"&&(<div style={{animation:"fadeUp 0.4s ease"}}>
           <div style={{marginBottom:24}}>
-            <h2 style={{fontSize:mob?24:28,fontWeight:900,margin:"0 0 4px",color:T.ink}}>Scenario Modeling</h2>
-            <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:T.sub,margin:"0 0 0",lineHeight:1.6,maxWidth:600}}>
-              What would the data look like if a major economic shock never happened? Transparent trend extrapolation — not a prediction.
+            <h2 style={{fontFamily:ESERIF,fontSize:mob?26:34,fontWeight:400,letterSpacing:"-0.02em",lineHeight:1.1,margin:"0 0 6px",color:EC.ink}}>
+              The data without the shock, <em style={{fontStyle:"italic",color:EC.accent}}>modeled.</em>
+            </h2>
+            <p style={{fontFamily:ESANS,fontSize:13,color:EC.sub,lineHeight:1.55,maxWidth:"60ch",margin:0}}>
+              What would the numbers look like if a major economic shock never happened?
+              Transparent trend extrapolation &mdash; not a prediction.
             </p>
           </div>
 
@@ -2149,66 +2286,81 @@ function App(){
                   </div>
                 </div>
 
-                {/* Arrow legend — sits above president cards */}
-                <div style={{order:mob?2:1,display:"flex",alignItems:"center",justifyContent:"flex-end",gap:mob?10:14,marginBottom:mob?6:8,fontFamily:"'DM Sans',sans-serif",fontSize:mob?9:11,color:T.mute}}>
-                  <span><span style={{color:"#16a34a",fontWeight:700}}>▲</span> improved</span>
-                  <span><span style={{color:"#dc2626",fontWeight:700}}>▼</span> worsened</span>
-                  {metric.inv&&<span style={{fontSize:mob?8:9,opacity:0.7}}>(lower = better)</span>}
-                </div>
+                {/* (Removed: arrow legend — color does the work now, matches Data tab.) */}
 
-                {/* President impact cards — above chart on desktop, below on mobile */}
+                {/* President impact cards — above chart on desktop, below on mobile.
+                    Uses per-metric framing on both actual and modeled values. */}
                 <div style={{display:"grid",gridTemplateColumns:mob?"repeat(2,1fr)":`repeat(${Math.min(presCards.length+1,6)},1fr)`,gap:mob?8:8,marginBottom:mob?12:20,order:mob?2:1}}>
                   {presCards.map((pc,idx)=>{
                     if(!pc)return null;
-                    const {id,a,actualStart,actualEnd,actualPct,actualImproved,modeledEnd,modeledPct,modeledImproved,hasModeled,diff:pDiff}=pc;
+                    const {id,a,actualStart,actualEnd,modeledStart,modeledEnd,hasModeled,diff:pDiff}=pc;
                     const shockHit=scenario.shockYears.length>0&&baselineData.some(d=>d.a===id&&scenario.shockYears.includes(d.y));
-                    const mnt=Math.abs(actualPct)<5;
-                    const col=mnt?T.gold:actualImproved?T.improve.strong:T.decline.strong;
                     const showModeled=activeScenario!=="baseline"&&hasModeled&&Math.abs(pDiff)>0.01;
-                    // Compute averages
+
+                    // Per-metric formatted actual (via HEAT_DATA) and modeled (computed inline
+                    // using the same per-metric framing on the counterfactual data).
+                    const actualCell=HEAT_DATA[scenarioMetric]?.[id];
+                    const actualDisp=actualCell?resolveDashDisplay(actualCell,scenarioMetric,displayMode,dollarMode):null;
+                    const actualHeadline=actualDisp?formatDisplayedChange(actualDisp.value,actualDisp.unit,false,{metricUnit:metric.u}):"—";
+                    const actualColor=actualDisp&&actualDisp.value!==null?(actualDisp.improved?EC.improveStrong:EC.declineStrong):EC.mute;
+
+                    // Modeled headline — compute in the same unit family the metric uses.
+                    const cfg=METRIC_DISPLAY_DASHBOARD[scenarioMetric];
+                    const scenPts=scenarioData.filter(d=>d.a===id);
+                    const scenAvg=scenPts.length>0?scenPts.reduce((s,d)=>s+d.v,0)/scenPts.length:0;
+                    const yrsTenure=Math.max(scenPts.length,1);
+                    let modeledValue:number|null=null;
+                    if(cfg?.perMetricUnit==="pp"){modeledValue=modeledEnd-modeledStart;}
+                    else if(cfg?.perMetricUnit==="pct_avg"){modeledValue=scenAvg;}
+                    else if(cfg?.perMetricUnit==="avg_per_year"){modeledValue=scenAvg;}
+                    else if(cfg?.perMetricUnit==="pct_yr"&&modeledStart>0&&modeledEnd>0){
+                      modeledValue=(Math.pow(modeledEnd/modeledStart,1/yrsTenure)-1)*100;
+                    }
+                    const modeledImp=cfg?.perMetricUnit==="pct_avg"
+                      ? (cfg.pctAvgTarget!==undefined ? (metric.inv?(modeledValue??0)<=cfg.pctAvgTarget:(modeledValue??0)>=cfg.pctAvgTarget) : (metric.inv?(modeledValue??0)<=0:(modeledValue??0)>=0))
+                      : (metric.inv?(modeledValue??0)<0:(modeledValue??0)>0);
+                    const modeledHeadline=modeledValue!==null?formatDisplayedChange(modeledValue,cfg?.perMetricUnit??"pct",false,{metricUnit:metric.u}):"—";
+                    const modeledColor=modeledValue!==null?(modeledImp?EC.improveStrong:EC.declineStrong):EC.mute;
+
                     const actualPts=baselineData.filter(d=>d.a===id);
                     const actualAvg=actualPts.length>0?actualPts.reduce((s,d)=>s+d.v,0)/actualPts.length:0;
-                    const scenPts=scenarioData.filter(d=>d.a===id);
-                    const modeledAvg=scenPts.length>0?scenPts.reduce((s,d)=>s+d.v,0)/scenPts.length:0;
                     return (
                       <div key={id} className={`hover-lift stagger-${idx+1}`} style={{
                         ...sty.card,padding:mob?"10px 12px":"14px 14px 12px",borderTop:`${mob?3:4}px solid ${a.color}`,
                         position:"relative",overflow:"hidden"
                       }}>
                         {!mob&&<div style={{position:"absolute",top:0,right:0,width:80,height:80,background:`linear-gradient(135deg, ${a.color}08 0%, transparent 70%)`,borderRadius:"0 0 0 80px"}}/>}
-                        <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?9:10,fontWeight:800,textTransform:"uppercase",letterSpacing:1,color:a.color,marginBottom:mob?4:6}}>{a.name}</div>
+                        <div style={{fontFamily:ESANS,fontSize:mob?9:10,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.14em",color:a.color,marginBottom:mob?4:6}}>{a.name}</div>
                         <div style={{display:"flex",alignItems:"baseline",gap:mob?4:6,marginBottom:mob?3:4}}>
-                          <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?10:12,color:T.mute,fontVariantNumeric:"tabular-nums"}}>{fmt(actualStart,metric.u)}</span>
-                          <span style={{fontSize:mob?8:10,color:T.mute}}>→</span>
-                          <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?10:18,fontWeight:700,color:T.ink,fontVariantNumeric:"tabular-nums"}}>{fmt(actualEnd,metric.u)}</span>
+                          <span style={{fontFamily:ESANS,fontSize:mob?10:12,color:EC.mute,fontVariantNumeric:"tabular-nums"}}>{fmt(actualStart,metric.u)}</span>
+                          <span style={{fontSize:mob?8:10,color:EC.mute}}>→</span>
+                          <span style={{fontFamily:ESANS,fontSize:mob?10:18,fontWeight:600,color:EC.ink,fontVariantNumeric:"tabular-nums"}}>{fmt(actualEnd,metric.u)}</span>
                         </div>
-                        {/* Actual % with label */}
+                        {/* Actual headline value */}
                         <div style={{display:"flex",alignItems:"center",gap:mob?4:8,marginBottom:showModeled?(mob?2:4):(mob?4:6)}}>
-                          <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?17:24,fontWeight:900,color:col,fontVariantNumeric:"tabular-nums"}}>
-                            {mnt?"—":actualImproved?"▲":"▼"}{Math.abs(actualPct).toFixed(0)}%
+                          <div style={{fontFamily:ESERIF,fontSize:mob?18:24,fontWeight:600,color:actualColor,fontVariantNumeric:"tabular-nums",letterSpacing:"-0.015em",lineHeight:1.05}}>
+                            {actualHeadline}
                           </div>
                           {!mob&&<Sparkline data={actualPts.map(d=>d.v)} color={a.color} width={50} height={20} />}
                         </div>
-                        {/* Modeled % with label */}
-                        {showModeled&&(()=>{
-                          const mMnt=Math.abs(modeledPct)<5;
-                          const mCol=mMnt?T.gold:modeledImproved?T.improve.strong:T.decline.strong;
-                          return <div style={{display:"flex",alignItems:"center",gap:mob?4:8,marginBottom:mob?4:6}}>
-                            <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?14:18,fontWeight:800,color:mCol,fontVariantNumeric:"tabular-nums"}}>
-                              {mMnt?"—":modeledImproved?"▲":"▼"}{Math.abs(modeledPct).toFixed(0)}%
+                        {/* Modeled headline value */}
+                        {showModeled&&(
+                          <div style={{display:"flex",alignItems:"center",gap:mob?4:8,marginBottom:mob?4:6}}>
+                            <div style={{fontFamily:ESERIF,fontSize:mob?15:18,fontWeight:600,color:modeledColor,fontVariantNumeric:"tabular-nums",letterSpacing:"-0.015em",lineHeight:1.05,opacity:0.85}}>
+                              {modeledHeadline}
                             </div>
-                            <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?8:9,color:T.accent,fontWeight:600}}>modeled</span>
-                          </div>;
-                        })()}
+                            <span style={{fontFamily:ESANS,fontSize:mob?8:9,color:EC.accent,fontWeight:600,letterSpacing:"0.04em",textTransform:"uppercase"}}>modeled</span>
+                          </div>
+                        )}
                         {/* Bottom row: avg + years */}
-                        <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?9:10,color:T.mute,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                          <span>{showModeled?<>avg {fmt(actualAvg,metric.u)} · <span style={{color:T.accent,fontWeight:600}}>{fmt(modeledAvg,metric.u)}</span></>:<>avg {fmt(actualAvg,metric.u)}</>}</span>
+                        <div style={{fontFamily:ESANS,fontSize:mob?9:10,color:EC.mute,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                          <span>{showModeled?<>avg {fmt(actualAvg,metric.u)} · <span style={{color:EC.accent,fontWeight:600}}>{fmt(scenAvg,metric.u)}</span></>:<>avg {fmt(actualAvg,metric.u)}</>}</span>
                           <span style={{color:a.color,fontWeight:600}}>{a.years}</span>
                         </div>
                         {/* Shock badge */}
                         {shockHit&&activeScenario!=="baseline"&&(
-                          <div style={{position:"absolute",top:mob?4:6,right:mob?6:8,fontFamily:"'DM Sans',sans-serif",fontSize:mob?7:8,fontWeight:700,
-                            padding:"2px 6px",borderRadius:3,background:T.accent+"15",color:T.accent}}>
+                          <div style={{position:"absolute",top:mob?4:6,right:mob?6:8,fontFamily:ESANS,fontSize:mob?7:8,fontWeight:600,letterSpacing:"0.1em",
+                            padding:"2px 6px",borderRadius:3,background:EC.accent+"15",color:EC.accent}}>
                             SHOCK
                           </div>
                         )}
@@ -2239,80 +2391,85 @@ function App(){
                   </div>
                 )}
 
-                {/* ── Inherited vs Left Behind (selected metric only, scorecard style) ── */}
+                {/* ── Inherited vs Left Behind — per-metric framing, matching detail mode ── */}
                 <div style={{...sty.card,marginBottom:24,order:4,overflow:"hidden"}}>
-                  <div style={{padding:"10px 14px 6px",borderBottom:`1px solid ${T.rule}`,display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:4}}>
-                    <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:1.5,color:T.mute}}>
-                      Term Trajectory — Inherited vs Left Behind {activeScenario!=="baseline"&&<span style={{color:T.accent,fontWeight:600,textTransform:"none",letterSpacing:0}}>— {SCENARIOS[activeScenario].shortLabel}</span>}
+                  <div style={{padding:"10px 14px 6px",borderBottom:`1px solid ${EC.rule}`,display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:4}}>
+                    <div style={{fontFamily:ESANS,fontSize:10,fontWeight:500,textTransform:"uppercase",letterSpacing:"0.12em",color:EC.sub}}>
+                      Term Trajectory &mdash; Inherited vs Left Behind {activeScenario!=="baseline"&&<span style={{color:EC.accent,fontWeight:500,textTransform:"none",letterSpacing:0}}>&mdash; {SCENARIOS[activeScenario].shortLabel}</span>}
                     </div>
-                    <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,color:T.mute}}>
-                      <span style={{color:"#16a34a",fontWeight:700}}>▲</span> improved · <span style={{color:"#dc2626",fontWeight:700}}>▼</span> worsened{metric.inv?" (lower = better)":""}
-                    </span>
                   </div>
-                  <table style={{width:"100%",borderCollapse:"collapse",fontFamily:"'DM Sans',sans-serif",fontSize:12}}>
+                  <table style={{width:"100%",borderCollapse:"collapse",fontFamily:ESANS,fontSize:12}}>
                     <thead>
-                      <tr style={{borderBottom:`1px solid ${T.rule}`}}>
-                        <th style={{textAlign:"left",padding:"8px 14px",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:0.5,color:T.mute}}>President</th>
-                        <th style={{textAlign:"center",padding:"8px 10px",fontSize:10,fontWeight:700,color:T.mute}}>Inherited</th>
-                        <th style={{textAlign:"center",padding:"8px 4px",fontSize:10,color:T.rule}}></th>
-                        <th style={{textAlign:"center",padding:"8px 10px",fontSize:10,fontWeight:700,color:T.mute}}>Left At</th>
-                        <th style={{textAlign:"center",padding:"8px 10px",fontSize:10,fontWeight:700,color:T.mute}}>Avg</th>
-                        {activeScenario!=="baseline"&&<th style={{textAlign:"center",padding:"8px 10px",fontSize:10,fontWeight:700,color:T.accent}}>Modeled Avg</th>}
-                        <th style={{textAlign:"right",padding:"8px 14px",fontSize:10,fontWeight:700,color:T.mute}}>% Change</th>
+                      <tr style={{borderBottom:`1px solid ${EC.rule}`}}>
+                        <th style={{textAlign:"left",padding:"8px 14px",fontSize:10,fontWeight:500,textTransform:"uppercase",letterSpacing:"0.08em",color:EC.sub}}>President</th>
+                        <th style={{textAlign:"center",padding:"8px 10px",fontSize:10,fontWeight:500,textTransform:"uppercase",letterSpacing:"0.08em",color:EC.sub}}>Inherited</th>
+                        <th style={{textAlign:"center",padding:"8px 4px",fontSize:10,color:EC.rule}}></th>
+                        <th style={{textAlign:"center",padding:"8px 10px",fontSize:10,fontWeight:500,textTransform:"uppercase",letterSpacing:"0.08em",color:EC.sub}}>Left At</th>
+                        <th style={{textAlign:"center",padding:"8px 10px",fontSize:10,fontWeight:500,textTransform:"uppercase",letterSpacing:"0.08em",color:EC.sub}}>Avg</th>
+                        {activeScenario!=="baseline"&&<th style={{textAlign:"center",padding:"8px 10px",fontSize:10,fontWeight:500,textTransform:"uppercase",letterSpacing:"0.08em",color:EC.accent}}>Modeled Avg</th>}
+                        <th style={{textAlign:"right",padding:"8px 14px",fontSize:10,fontWeight:500,textTransform:"uppercase",letterSpacing:"0.08em",color:EC.sub}}>Change</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {AID.map((id,i)=>{
+                      {AID.map((id)=>{
                         const a=ADMINS[id];
                         const pts=baselineData.filter(d=>d.a===id);
                         if(pts.length<1)return null;
 
-                        const actualStart=inheritedStart(scenarioMetric,id);
-                        const actualEnd=pts[pts.length-1].v;
-                        const actualPct=actualStart!==0?((actualEnd-actualStart)/Math.abs(actualStart))*100:0;
-                        const actualImproved=metric.inv?actualEnd<actualStart:actualEnd>actualStart;
-                        const maintained=Math.abs(actualPct)<5;
-                        const verdict=maintained?"Maintained":actualImproved?"Improved":"Declined";
-                        const verdictColor=maintained?T.gold:actualImproved?"#16a34a":"#dc2626";
+                        // Actual side — per-metric framing via the shared cell.
+                        const actualCell=HEAT_DATA[scenarioMetric]?.[id];
+                        if(!actualCell)return null;
+                        const actualDisp=resolveDashDisplay(actualCell,scenarioMetric,displayMode,dollarMode);
+                        const actualHeadline=formatDisplayedChange(actualDisp.value,actualDisp.unit,false,{metricUnit:metric.u});
+                        const verdictColor=actualDisp.value===null?EC.mute:actualDisp.improved?EC.improveStrong:EC.declineStrong;
 
-                        // Modeled values
+                        // Modeled side — same per-metric framing, computed inline on
+                        // the counterfactual data.
                         const scenPts=scenarioData.filter(d=>d.a===id);
                         const hasModeled=activeScenario!=="baseline"&&scenPts.some(d=>d.estimated);
-                        const modeledEnd=scenPts.length>0?scenPts[scenPts.length-1].v:actualEnd;
+                        const modeledEnd=scenPts.length>0?scenPts[scenPts.length-1].v:actualCell.end;
                         const ai=AID.indexOf(id);
-                        let modeledStart=actualStart;
+                        let modeledStart=actualCell.start;
                         if(ai>0&&activeScenario!=="baseline"){
                           const prevScen=scenarioData.filter(d=>d.a===AID[ai-1]);
                           if(prevScen.length>0)modeledStart=prevScen[prevScen.length-1].v;
                         }
-                        const modeledPct=modeledStart!==0?((modeledEnd-modeledStart)/Math.abs(modeledStart))*100:0;
-                        const modeledImproved=metric.inv?modeledEnd<modeledStart:modeledEnd>modeledStart;
-                        const mArrow=modeledImproved?"▲":"▼";
-                        const mArrowColor=modeledImproved?"#16a34a":"#dc2626";
+                        const cfg=METRIC_DISPLAY_DASHBOARD[scenarioMetric];
+                        const scenAvg=scenPts.length>0?scenPts.reduce((s,d)=>s+d.v,0)/scenPts.length:0;
+                        const yrsT=Math.max(scenPts.length,1);
+                        let modeledValue:number|null=null;
+                        if(cfg?.perMetricUnit==="pp")modeledValue=modeledEnd-modeledStart;
+                        else if(cfg?.perMetricUnit==="pct_avg")modeledValue=scenAvg;
+                        else if(cfg?.perMetricUnit==="avg_per_year")modeledValue=scenAvg;
+                        else if(cfg?.perMetricUnit==="pct_yr"&&modeledStart>0&&modeledEnd>0){
+                          modeledValue=(Math.pow(modeledEnd/modeledStart,1/yrsT)-1)*100;
+                        }
+                        const modeledImp=cfg?.perMetricUnit==="pct_avg"&&cfg.pctAvgTarget!==undefined
+                          ? (metric.inv?(modeledValue??0)<=cfg.pctAvgTarget:(modeledValue??0)>=cfg.pctAvgTarget)
+                          : (metric.inv?(modeledValue??0)<0:(modeledValue??0)>0);
+                        const modeledHeadline=modeledValue!==null?formatDisplayedChange(modeledValue,cfg?.perMetricUnit??"pct",false,{metricUnit:metric.u}):"—";
+                        const modeledColor=modeledValue!==null?(modeledImp?EC.improveStrong:EC.declineStrong):EC.mute;
 
-                        // Averages
                         const tActualAvg=pts.reduce((s,d)=>s+d.v,0)/pts.length;
-                        const tModeledAvg=scenPts.length>0?scenPts.reduce((s,d)=>s+d.v,0)/scenPts.length:tActualAvg;
-                        const showMod=hasModeled&&Math.abs(modeledEnd-actualEnd)>0.01;
+                        const showMod=hasModeled&&Math.abs(modeledEnd-actualCell.end)>0.01;
 
-                        return <tr key={id} style={{borderBottom:`1px solid ${T.rule}22`}}>
+                        return <tr key={id} style={{borderBottom:`1px solid ${EC.rule}55`}}>
                           <td style={{padding:"8px 14px",display:"flex",alignItems:"center",gap:6}}>
                             <span style={{width:8,height:8,borderRadius:2,background:a.color,flexShrink:0}}/>
-                            <span style={{fontWeight:700,color:a.color}}>{a.name}</span>
+                            <span style={{fontWeight:600,color:a.color,fontFamily:ESERIF,letterSpacing:"-0.01em"}}>{a.name}</span>
                           </td>
-                          <td style={{textAlign:"center",padding:"8px 10px",fontFamily:"'DM Sans',sans-serif",fontSize:11,color:T.sub}}>{fmt(actualStart,metric.u)}</td>
-                          <td style={{textAlign:"center",padding:"8px 2px",color:T.rule,fontSize:10}}>→</td>
-                          <td style={{textAlign:"center",padding:"8px 10px",fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:600,color:T.ink}}>{fmt(actualEnd,metric.u)}</td>
-                          <td style={{textAlign:"center",padding:"8px 10px",fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:500,color:T.sub}}>{fmt(tActualAvg,metric.u)}</td>
-                          {activeScenario!=="baseline"&&<td style={{textAlign:"center",padding:"8px 10px",fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:600,color:showMod?T.accent:T.sub}}>{showMod?fmt(tModeledAvg,metric.u):fmt(tActualAvg,metric.u)}</td>}
-                          <td style={{textAlign:"right",padding:"8px 14px"}}>
-                            <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:600,color:verdictColor}}>
-                              {maintained?"—":actualImproved?"▲":"▼"}{Math.abs(actualPct).toFixed(1)}%
+                          <td style={{textAlign:"center",padding:"8px 10px",fontFamily:ESANS,fontSize:11,color:EC.sub,fontVariantNumeric:"tabular-nums"}}>{fmt(actualCell.start,metric.u)}</td>
+                          <td style={{textAlign:"center",padding:"8px 2px",color:EC.rule,fontSize:10}}>→</td>
+                          <td style={{textAlign:"center",padding:"8px 10px",fontFamily:ESANS,fontSize:11,fontWeight:600,color:EC.ink,fontVariantNumeric:"tabular-nums"}}>{fmt(actualCell.end,metric.u)}</td>
+                          <td style={{textAlign:"center",padding:"8px 10px",fontFamily:ESANS,fontSize:11,fontWeight:500,color:EC.sub,fontVariantNumeric:"tabular-nums"}}>{fmt(tActualAvg,metric.u)}</td>
+                          {activeScenario!=="baseline"&&<td style={{textAlign:"center",padding:"8px 10px",fontFamily:ESANS,fontSize:11,fontWeight:600,color:showMod?EC.accent:EC.sub,fontVariantNumeric:"tabular-nums"}}>{showMod?fmt(scenAvg,metric.u):fmt(tActualAvg,metric.u)}</td>}
+                          <td style={{textAlign:"right",padding:"8px 14px",whiteSpace:"nowrap"}}>
+                            <span style={{fontFamily:ESERIF,fontSize:mob?12:13,fontWeight:600,color:verdictColor,letterSpacing:"-0.01em",fontVariantNumeric:"tabular-nums"}}>
+                              {actualHeadline}
                             </span>
-                            <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,color:verdictColor,marginLeft:5,fontWeight:600}}>{verdict}</span>
-                            {showMod&&(
-                              <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,fontWeight:600,color:mArrowColor,marginLeft:8,borderLeft:`1px dashed ${T.rule}`,paddingLeft:8}}>
-                                {mArrow}{Math.abs(modeledPct).toFixed(0)}% <span style={{fontSize:8,fontWeight:400,color:T.mute}}>modeled</span>
+                            {showMod&&!mob&&(
+                              <span style={{fontFamily:ESERIF,fontSize:12,fontWeight:600,color:modeledColor,marginLeft:8,borderLeft:`1px dashed ${EC.rule}`,paddingLeft:8,letterSpacing:"-0.01em",fontVariantNumeric:"tabular-nums",opacity:0.85}}>
+                                {modeledHeadline} <span style={{fontFamily:ESANS,fontSize:8,fontWeight:600,color:EC.accent,letterSpacing:"0.06em",textTransform:"uppercase",marginLeft:2}}>modeled</span>
                               </span>
                             )}
                           </td>
@@ -2332,8 +2489,8 @@ function App(){
               display:"flex",alignItems:"center",justifyContent:"space-between",
               fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:700,color:T.ink
             }}>
-              <span>📐 {METHODOLOGY_TEXT.title}</span>
-              <span style={{fontSize:10,color:T.mute,transform:showMethodology?"rotate(180deg)":"rotate(0deg)",transition:"transform 0.2s"}}>▼</span>
+              <span style={{fontFamily:ESANS,fontSize:12,fontWeight:500,letterSpacing:"0.04em",color:EC.sub,textTransform:"uppercase"}}>{METHODOLOGY_TEXT.title}</span>
+              <span style={{fontSize:10,color:EC.mute,transform:showMethodology?"rotate(180deg)":"rotate(0deg)",transition:"transform 0.2s"}}>▾</span>
             </button>
             {showMethodology&&(
               <div style={{padding:"0 20px 20px",borderTop:`1px solid ${T.rule}`}}>

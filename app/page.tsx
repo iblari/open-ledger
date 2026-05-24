@@ -297,8 +297,12 @@ function HeatCell({
   const admin = ADMINS[id as keyof typeof ADMINS];
 
   const disp = c ? resolveDisplay(c, mk, displayMode, dollarMode) : null;
+  const cfgL = METRIC_DISPLAY_LANDING[mk];
   const st = disp && disp.value !== null
-    ? cellColorFromMag(colorMagnitude(disp.value, disp.unit), disp.improved)
+    ? cellColorFromMag(colorMagnitude(disp.value, disp.unit, {
+        pctAvgTarget: cfgL?.pctAvgTarget,
+        pctAvgRange:  cfgL?.pctAvgRange,
+      }), disp.improved)
     : { bg: C.paper, text: C.mute };
   // Compact form ("+1.8 pp") for the cell; verbose form ("+1.8 percentage points")
   // for the tooltip so the abbreviation isn't unexplained on hover.
