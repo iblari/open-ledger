@@ -232,16 +232,18 @@ function Hero({ mob, med }: { mob: boolean; med: boolean }) {
             <em style={{ fontStyle: "italic", color: C.accent }}>in data.</em>
           </h1>
 
-          {/* Sub */}
-          <p style={{
-            marginTop: 28, fontSize: mob ? 16 : 19, color: C.sub,
-            maxWidth: "50ch", lineHeight: 1.5, fontFamily: SANS,
-          }}>
-            Nineteen economic metrics across five administrations, plus live military
-            spend tracking across four active conflicts &mdash; 32 years of data from BEA, BLS,
-            Treasury, the Fed, CSIS, Brown University, and more. We don&rsquo;t tell you who
-            did better. We show you what the numbers did.
-          </p>
+          {/* Sub — desktop only; mobile hero is just headline + CTAs to save space */}
+          {!mob && (
+            <p style={{
+              marginTop: 28, fontSize: 19, color: C.sub,
+              maxWidth: "50ch", lineHeight: 1.5, fontFamily: SANS,
+            }}>
+              Nineteen economic metrics across five administrations, plus live military
+              spend tracking across four active conflicts &mdash; 32 years of data from BEA, BLS,
+              Treasury, the Fed, CSIS, Brown University, and more. We don&rsquo;t tell you who
+              did better. We show you what the numbers did.
+            </p>
+          )}
 
           {/* CTA */}
           <div style={{ marginTop: 32, display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
