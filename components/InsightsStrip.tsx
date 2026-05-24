@@ -147,7 +147,15 @@ export function InsightsStrip({ limit = 3, mob, eyebrow }: Props) {
       }}>
         {insights.map(i => (
           <Link key={i.id}
-            href={`/dashboard?metric=${i.metricKey}${i.admin ? `&admin=${i.admin}` : ""}`}
+            // Deep-link target depends on insight source:
+            //   - LIVE insights point at the Live Benchmark tab, since that's
+            //     where the same fresh FRED data is plotted (matches the
+            //     '3.8% inflation as of Apr 2026' the card shows).
+            //   - STATIC fallback insights point at the Data tab, since that's
+            //     where the annual snapshot data they describe lives.
+            href={isLive
+              ? `/dashboard?tab=live_benchmark&metric=${i.metricKey}`
+              : `/dashboard?metric=${i.metricKey}${i.admin ? `&admin=${i.admin}` : ""}`}
             style={{
               display: "block",
               background: EC.card,

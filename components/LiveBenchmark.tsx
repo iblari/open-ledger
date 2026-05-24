@@ -10,6 +10,7 @@
 // against every prior president at the same point in their tenure.
 
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, ReferenceLine,
@@ -259,6 +260,7 @@ const ADMIN_COLORS: Record<string, string> = {
 // ═══ Main component ════════════════════════════════════════════════
 export default function LiveBenchmark() {
   const mob = useIsMobile();
+  const searchParams = useSearchParams();
   const [metric, setMetric] = useState<string>("unemployment");
   const [catFilter, setCatFilter] = useState<string>("all");
   const [data, setData] = useState<APIResponse | null>(null);
@@ -274,6 +276,19 @@ export default function LiveBenchmark() {
       .then((d: APIResponse) => { if (!d.error) setData(d); setLoading(false); })
       .catch(() => setLoading(false));
   }, []);
+
+  // Read ?metric=<key> URL param so deep-links from the insights strip land
+  // on the right metric. We wait until `data` arrives so we can validate the
+  // param against the actual list of metrics (FRED ids vs dashboard ids
+  // could drift in theory). If invalid, fall back to the default.
+  useEffect(() => {
+    if (!data) return;
+    const m = searchParams.get("metric");
+    if (m && data.metrics[m]) {
+      setMetric(m);
+      setHighlighted(new Set()); // clear any prior highlight state from URL
+    }
+  }, [searchParams, data]);
 
   const adminMap = useMemo(() => {
     if (!data) return {};
