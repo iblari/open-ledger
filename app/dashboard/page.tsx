@@ -1249,13 +1249,7 @@ function App(){
               <h2 style={{fontFamily:ESERIF,fontSize:mob?26:34,fontWeight:400,letterSpacing:"-0.02em",lineHeight:1.1,margin:"0 0 6px"}}>
                 All metrics, <em style={{fontStyle:"italic",color:EC.accent}}>at a glance.</em>
               </h2>
-              {!mob && (
-                <p style={{fontFamily:ESANS,fontSize:13,color:EC.sub,lineHeight:1.55,maxWidth:"60ch",margin:0}}>
-                  19 metrics across 5 administrations, shown in the unit that fits each metric &mdash;
-                  percentage points for rates, annualized for prices and income, average for inflation
-                  and flow values. Toggle for raw % change.
-                </p>
-              )}
+              {/* Data tab intro paragraph removed per design — headline only. */}
             </div>
 
             {/* Mobile view toggle */}
@@ -1839,13 +1833,7 @@ function App(){
             <h2 style={{fontFamily:ESERIF,fontSize:mob?26:34,fontWeight:400,letterSpacing:"-0.02em",lineHeight:1.1,margin:"0 0 6px",color:EC.ink}}>
               The country, <em style={{fontStyle:"italic",color:EC.accent}}>state by state.</em>
             </h2>
-            {!mob && (
-              <p style={{fontFamily:ESANS,fontSize:13,color:EC.sub,lineHeight:1.55,maxWidth:"60ch",margin:0}}>
-                Cost-of-living metrics across all 50 states + DC. Pick a metric;
-                hover any state for the value. Toggle to &ldquo;vs national average&rdquo;
-                to see who&rsquo;s above or below the unweighted mean.
-              </p>
-            )}
+            {/* State Atlas intro paragraph removed per design — headline only. */}
           </div>
           <StateAtlas/>
         </div>)}
@@ -2132,24 +2120,8 @@ function App(){
             })}
           </div>
 
-          {/* Scenario description card — desktop only. Methodology takes too
-              much vertical space on mobile; the full text is still available
-              in the methodology disclosure at the bottom of the tab. */}
-          {!mob && activeScenario!=="baseline"&&(
-            <div style={{...sty.card,padding:"16px 20px",marginBottom:20,borderLeft:`3px solid ${T.accent}`,background:`linear-gradient(135deg, ${T.highlight} 0%, #fff 100%)`}}>
-              <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:700,color:T.ink,marginBottom:6}}>
-                {SCENARIO_DETAILS[activeScenario].title}
-              </div>
-              <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:T.sub,lineHeight:1.6,marginBottom:SCENARIO_DETAILS[activeScenario].caveat?8:0}}>
-                {SCENARIO_DETAILS[activeScenario].methodology}
-              </div>
-              {SCENARIO_DETAILS[activeScenario].caveat&&(
-                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:T.mute,lineHeight:1.5,fontStyle:"italic"}}>
-                  ⚠ {SCENARIO_DETAILS[activeScenario].caveat}
-                </div>
-              )}
-            </div>
-          )}
+          {/* Scenario description card removed per design — methodology
+              disclosure at the bottom of the tab still has the full text. */}
 
           {/* Metric picker — dropdown on mobile, pills on desktop */}
           {mob?(

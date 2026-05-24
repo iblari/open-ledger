@@ -232,18 +232,7 @@ function Hero({ mob, med }: { mob: boolean; med: boolean }) {
             <em style={{ fontStyle: "italic", color: C.accent }}>in data.</em>
           </h1>
 
-          {/* Sub — desktop only; mobile hero is just headline + CTAs to save space */}
-          {!mob && (
-            <p style={{
-              marginTop: 28, fontSize: 19, color: C.sub,
-              maxWidth: "50ch", lineHeight: 1.5, fontFamily: SANS,
-            }}>
-              Nineteen economic metrics across five administrations, plus live military
-              spend tracking across four active conflicts &mdash; 32 years of data from BEA, BLS,
-              Treasury, the Fed, CSIS, Brown University, and more. We don&rsquo;t tell you who
-              did better. We show you what the numbers did.
-            </p>
-          )}
+          {/* Hero subtitle removed per design — headline + CTAs only. */}
 
           {/* CTA */}
           <div style={{ marginTop: 32, display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
@@ -422,15 +411,7 @@ function ScorecardSection({ mob, med }: { mob: boolean; med: boolean }) {
             </h2>
           </div>
           <div>
-            {!mob && (
-              <p style={{ fontSize: 17, color: C.sub, maxWidth: "56ch", lineHeight: 1.5 }}>
-                Each cell shows how that metric moved across the administration&rsquo;s tenure, in
-                the unit that best fits the metric &mdash; percentage points for rates, annualized
-                for prices and income, average for inflation. Greens mean the number moved in the
-                conventionally-preferred direction; oranges mean it moved away. <strong style={{ color: C.ink }}>We make no claim that
-                the president caused the change</strong> &mdash; that&rsquo;s your job.
-              </p>
-            )}
+            {/* Scorecard intro paragraph removed per design — headline only. */}
             <Link href="/dashboard" style={{
               marginTop: 12, display: "inline-flex", alignItems: "center", gap: 8,
               fontSize: 13, color: C.accent, fontWeight: 500, textDecoration: "none",
@@ -641,13 +622,7 @@ function DeepDiveSection({ mob, med }: { mob: boolean; med: boolean }) {
               The long view,<br />color-coded by <em style={{ fontStyle: "italic", color: C.accent }}>who held office.</em>
             </h2>
           </div>
-          {!mob && (
-            <p style={{ fontSize: 17, color: C.sub, maxWidth: "56ch", lineHeight: 1.5 }}>
-              Pick a metric and see the full 31-year timeline. Each president&rsquo;s segment is
-              color-coded so you can compare spans at a glance — or zoom into the full dashboard
-              for all 19 metrics side by side.
-            </p>
-          )}
+          {/* Deep Dive intro paragraph removed per design — headline only. */}
         </div>
 
         <div style={{ background: C.card, border: `1px solid ${C.rule}`, borderRadius: 4, overflow: "hidden", display: "grid", gridTemplateColumns: med ? "1fr" : "1.2fr 1fr" }}>
@@ -786,12 +761,7 @@ function PrinciplesSection({ mob, med }: { mob: boolean; med: boolean }) {
               How we stay <em style={{ fontStyle: "italic", color: C.accent }}>out of the way.</em>
             </h2>
           </div>
-          {!mob && (
-            <p style={{ fontSize: 17, color: C.sub, maxWidth: "56ch", lineHeight: 1.5 }}>
-              An unbiased source is a design problem before it is an editorial one.
-              These three rules govern what gets published and what doesn&rsquo;t.
-            </p>
-          )}
+          {/* Principles intro paragraph removed per design — headline only. */}
         </div>
 
         <div style={{
@@ -839,12 +809,7 @@ function SourcesSection({ mob, med }: { mob: boolean; med: boolean }) {
               Where the <em style={{ fontStyle: "italic", color: C.accent }}>numbers come from.</em>
             </h2>
           </div>
-          {!mob && (
-            <p style={{ fontSize: 17, color: C.sub, maxWidth: "56ch", lineHeight: 1.5 }}>
-              Every data point on Vote Unbiased is traceable to a single federal statistical
-              agency or official market index. Click any chart cell to follow the citation trail.
-            </p>
-          )}
+          {/* Sources intro paragraph removed per design — headline only. */}
         </div>
 
         <div style={{
@@ -935,12 +900,7 @@ function ComingSoonSection({ mob, med }: { mob: boolean; med: boolean }) {
         <h2 style={{ fontFamily: SERIF, fontSize: mob ? 32 : 48, lineHeight: 1.05, letterSpacing: "-0.022em", fontWeight: 400, margin: "0 auto 16px", maxWidth: 700 }}>
           Two new ways to <em style={{ fontStyle: "italic", color: C.accent }}>see the data.</em>
         </h2>
-        {!mob && (
-          <p style={{ fontSize: 17, color: C.sub, maxWidth: "56ch", lineHeight: 1.5, margin: "0 auto 40px" }}>
-            National averages and quarterly snapshots only get you so far.
-            We&apos;re building two complements: one for the map, one for the moment.
-          </p>
-        )}
+        {/* Coming Soon intro paragraph removed per design — headline only. */}
 
         <div style={{
           display: "grid",
