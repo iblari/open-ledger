@@ -20,13 +20,17 @@ import type { Feature, FeatureCollection, Geometry } from "geojson";
 import { C as EC, SERIF as ESERIF, SANS as ESANS } from "@/lib/design-tokens";
 import { PillToggle } from "@/components/PillToggle";
 import { StateTrendChart, stateLineColor } from "@/components/StateTrendChart";
+import { StateTileGrid } from "@/components/StateTileGrid";
 import {
   STATE_METRICS,
   STATE_METRIC_ORDER,
+  STATE_CATEGORY_LABELS,
   STATE_NAMES,
   STATE_NAME_TO_CODE,
   type StateCode,
   type StateMetric,
+  type StateMetricCategory,
+  metricsForCategory,
   metricMean,
   metricExtent,
   formatMetricValue,
@@ -34,6 +38,7 @@ import {
 } from "@/lib/state-data";
 
 const MAX_SELECTED = 5;
+type MapStyle = "geo" | "tile";
 
 type ViewMode = "latest" | "vs_avg";
 
@@ -71,6 +76,7 @@ type TooltipState = { name: string; html: string; x: number; y: number } | null;
 export function StateAtlas() {
   const [mk, setMk] = useState<string>(STATE_METRIC_ORDER[0]);
   const [view, setView] = useState<ViewMode>("latest");
+  const [mapStyle, setMapStyle] = useState<MapStyle>("geo");
   const [topo, setTopo] = useState<unknown | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [tooltip, setTooltip] = useState<TooltipState>(null);
@@ -191,18 +197,22 @@ export function StateAtlas() {
   return (
     <>
     <div style={{ background: EC.card, border: `1px solid ${EC.rule}`, borderRadius: 4, overflow: "hidden" }}>
-      {/* Toggle bar — matches Data tab pattern */}
+      {/* Toggle bar — View + Map style. Metric picker lives below in a
+          grouped row because we now have 14 metrics across 3 categories. */}
       <div style={{
-        display: "flex", justifyContent: "space-between", alignItems: "center",
+        display: "flex", justifyContent: "flex-end", alignItems: "center",
         gap: 16, padding: "10px 14px",
         background: EC.paper, borderBottom: `1px solid ${EC.rule}`,
         flexWrap: "wrap",
       }}>
-        <PillToggle<string>
-          label="Metric"
-          value={mk}
-          onChange={setMk}
-          options={STATE_METRIC_ORDER.map(k => ({ value: k, label: STATE_METRICS[k].shortLabel }))}
+        <PillToggle<MapStyle>
+          label="Map"
+          value={mapStyle}
+          onChange={setMapStyle}
+          options={[
+            { value: "geo", label: "Geographic" },
+            { value: "tile", label: "Tilegrid" },
+          ]}
         />
         <PillToggle<ViewMode>
           label="View"
@@ -210,12 +220,78 @@ export function StateAtlas() {
           onChange={setView}
           options={[
             { value: "latest", label: "Latest" },
-            { value: "vs_avg", label: "vs National avg" },
+            { value: "vs_avg", label: "vs Avg" },
           ]}
         />
       </div>
 
-      {/* Map */}
+      {/* Grouped metric picker — 3 sections (Cost / Tax / Demographics).
+          Each section header is a small caps label; pills wrap inline. */}
+      <div style={{
+        padding: "12px 14px 10px",
+        background: EC.card,
+        borderBottom: `1px solid ${EC.rule}`,
+        display: "flex", flexDirection: "column", gap: 8,
+      }}>
+        {(["cost", "tax", "demo"] as StateMetricCategory[]).map(cat => {
+          const keys = metricsForCategory(cat);
+          if (keys.length === 0) return null;
+          return (
+            <div key={cat} style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              <span style={{
+                fontFamily: ESANS, fontSize: 10, fontWeight: 500,
+                letterSpacing: "0.12em", textTransform: "uppercase", color: EC.mute,
+                minWidth: 110,
+              }}>{STATE_CATEGORY_LABELS[cat]}</span>
+              <div style={{ display: "inline-flex", gap: 4, flexWrap: "wrap" }}>
+                {keys.map(k => {
+                  const active = mk === k;
+                  return (
+                    <button
+                      key={k}
+                      type="button"
+                      onClick={() => setMk(k)}
+                      aria-pressed={active}
+                      style={{
+                        fontSize: 11, padding: "4px 10px",
+                        border: `1px solid ${active ? EC.ink : EC.rule}`,
+                        borderRadius: 3,
+                        background: active ? EC.ink : "transparent",
+                        color: active ? EC.bg : EC.sub,
+                        fontWeight: 500,
+                        fontFamily: ESANS,
+                        cursor: "pointer",
+                        transition: "all 0.12s",
+                      }}
+                    >
+                      {STATE_METRICS[k].shortLabel}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Map — either real-geo D3 choropleth or tilegrid cartogram */}
+      {mapStyle === "tile" && (
+        <StateTileGrid
+          metric={metric}
+          colorFor={(m, v) => colorFor(m, v, view)}
+          formatValue={(v) => {
+            if (v === undefined) return "—";
+            if (view === "vs_avg") {
+              const dev = v - metricMean(metric);
+              return `${formatMetricValue(metric, v)} (${formatDeviation(metric, dev)} vs avg)`;
+            }
+            return formatMetricValue(metric, v);
+          }}
+          selected={selected}
+          onToggleSelect={toggleSelect}
+        />
+      )}
+      {mapStyle === "geo" && (
       <div ref={wrapRef} style={{ position: "relative", padding: 16, background: EC.card }}>
         {loadError && (
           <div style={{ textAlign: "center", padding: 40, fontFamily: ESANS, fontSize: 13, color: EC.sub }}>
@@ -255,6 +331,7 @@ export function StateAtlas() {
           </div>
         )}
       </div>
+      )}
 
       {/* Legend strip */}
       <div style={{

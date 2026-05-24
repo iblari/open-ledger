@@ -132,5 +132,7 @@ function round(v: number, m: StateMetric): number {
     case "$/gal":  return Math.round(v * 100) / 100;
     case "$/mo":   return Math.round(v);
     case "%":      return Math.round(v * 100) / 100;
+    case "M":      return Math.round(v * 100) / 100;
+    case "¢/gal":  return Math.round(v * 10) / 10;
   }
 }
