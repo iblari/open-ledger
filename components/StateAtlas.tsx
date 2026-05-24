@@ -20,7 +20,6 @@ import type { Feature, FeatureCollection, Geometry } from "geojson";
 import { C as EC, SERIF as ESERIF, SANS as ESANS } from "@/lib/design-tokens";
 import { PillToggle } from "@/components/PillToggle";
 import { StateTrendChart, stateLineColor } from "@/components/StateTrendChart";
-import { StateTileGrid } from "@/components/StateTileGrid";
 import {
   STATE_METRICS,
   STATE_METRIC_ORDER,
@@ -38,7 +37,6 @@ import {
 } from "@/lib/state-data";
 
 const MAX_SELECTED = 5;
-type MapStyle = "geo" | "tile";
 
 type ViewMode = "latest" | "vs_avg";
 
@@ -76,7 +74,6 @@ type TooltipState = { name: string; html: string; x: number; y: number } | null;
 export function StateAtlas() {
   const [mk, setMk] = useState<string>(STATE_METRIC_ORDER[0]);
   const [view, setView] = useState<ViewMode>("latest");
-  const [mapStyle, setMapStyle] = useState<MapStyle>("geo");
   const [topo, setTopo] = useState<unknown | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [tooltip, setTooltip] = useState<TooltipState>(null);
@@ -197,30 +194,20 @@ export function StateAtlas() {
   return (
     <>
     <div style={{ background: EC.card, border: `1px solid ${EC.rule}`, borderRadius: 4, overflow: "hidden" }}>
-      {/* Toggle bar — View + Map style. Metric picker lives below in a
-          grouped row because we now have 14 metrics across 3 categories. */}
+      {/* Toggle bar — View only. Metric picker lives below in a grouped row. */}
       <div style={{
         display: "flex", justifyContent: "flex-end", alignItems: "center",
         gap: 16, padding: "10px 14px",
         background: EC.paper, borderBottom: `1px solid ${EC.rule}`,
         flexWrap: "wrap",
       }}>
-        <PillToggle<MapStyle>
-          label="Map"
-          value={mapStyle}
-          onChange={setMapStyle}
-          options={[
-            { value: "geo", label: "Geographic" },
-            { value: "tile", label: "Tilegrid" },
-          ]}
-        />
         <PillToggle<ViewMode>
           label="View"
           value={view}
           onChange={setView}
           options={[
             { value: "latest", label: "Latest" },
-            { value: "vs_avg", label: "vs Avg" },
+            { value: "vs_avg", label: "vs National avg" },
           ]}
         />
       </div>
@@ -274,24 +261,7 @@ export function StateAtlas() {
         })}
       </div>
 
-      {/* Map — either real-geo D3 choropleth or tilegrid cartogram */}
-      {mapStyle === "tile" && (
-        <StateTileGrid
-          metric={metric}
-          colorFor={(m, v) => colorFor(m, v, view)}
-          formatValue={(v) => {
-            if (v === undefined) return "—";
-            if (view === "vs_avg") {
-              const dev = v - metricMean(metric);
-              return `${formatMetricValue(metric, v)} (${formatDeviation(metric, dev)} vs avg)`;
-            }
-            return formatMetricValue(metric, v);
-          }}
-          selected={selected}
-          onToggleSelect={toggleSelect}
-        />
-      )}
-      {mapStyle === "geo" && (
+      {/* Map — real-geo D3 choropleth */}
       <div ref={wrapRef} style={{ position: "relative", padding: 16, background: EC.card }}>
         {loadError && (
           <div style={{ textAlign: "center", padding: 40, fontFamily: ESANS, fontSize: 13, color: EC.sub }}>
@@ -331,7 +301,6 @@ export function StateAtlas() {
           </div>
         )}
       </div>
-      )}
 
       {/* Legend strip */}
       <div style={{
