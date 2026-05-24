@@ -24,6 +24,7 @@ import {
   METRIC_DISPLAY_DASHBOARD,
 } from "@/lib/display-modes";
 import { PillToggle } from "@/components/PillToggle";
+import { StateAtlas } from "@/components/StateAtlas";
 
 function useIsMobile() {
   const [w, setW] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
@@ -704,8 +705,8 @@ function SpendTrendChart({ mob }: { mob?: boolean }) {
   );
 }
 
-const TABS_DESKTOP=[["dashboard","Data"],["scenarios","Scenarios"],["abroad","Abroad"],["global","Global"]];
-const TABS_MOBILE=[["dashboard","Data"],["scenarios","Scenarios"],["abroad","Abroad"],["global","Global"]];
+const TABS_DESKTOP=[["dashboard","Data"],["state_atlas","State Atlas"],["scenarios","Scenarios"],["abroad","Abroad"],["global","Global"]];
+const TABS_MOBILE=[["dashboard","Data"],["state_atlas","State Atlas"],["scenarios","Scenarios"],["abroad","Abroad"],["global","Global"]];
 
 // Per-metric heatmap data, computed once at module-load. Uses the shared lib
 // so the dashboard speaks the same data language as the landing page.
@@ -1819,6 +1820,21 @@ function App(){
             same misleading framing as the old +1800% display. Per-category
             ranking under per-metric framing would need a separate design
             pass; cut entirely for now per user request.) */}
+
+        {/* ═══ STATE ATLAS ═══ */}
+        {tab==="state_atlas"&&(<div style={{animation:"fadeUp 0.4s ease"}}>
+          <div style={{marginBottom:20}}>
+            <h2 style={{fontFamily:ESERIF,fontSize:mob?26:34,fontWeight:400,letterSpacing:"-0.02em",lineHeight:1.1,margin:"0 0 6px",color:EC.ink}}>
+              The country, <em style={{fontStyle:"italic",color:EC.accent}}>state by state.</em>
+            </h2>
+            <p style={{fontFamily:ESANS,fontSize:13,color:EC.sub,lineHeight:1.55,maxWidth:"60ch",margin:0}}>
+              Cost-of-living metrics across all 50 states + DC. Pick a metric;
+              hover any state for the value. Toggle to &ldquo;vs national average&rdquo;
+              to see who&rsquo;s above or below the unweighted mean.
+            </p>
+          </div>
+          <StateAtlas/>
+        </div>)}
 
         {/* ═══ ABROAD ═══ */}
         {tab==="abroad"&&(()=>{
