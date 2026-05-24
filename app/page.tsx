@@ -812,17 +812,42 @@ function SourcesSection({ mob, med }: { mob: boolean; med: boolean }) {
           {/* Sources intro paragraph removed per design — headline only. */}
         </div>
 
+        {/* Sources grid. Mobile is a 4-up compact tile layout (acronym only,
+            descriptions hidden) so all 12 sources fit in 3 rows instead of 12
+            and the page stops feeling endlessly scrollable. Desktop keeps the
+            full layout with descriptions since there's room. The hidden
+            descriptions live in `title` attributes so they're still
+            discoverable via long-press on touch / hover on desktop. */}
         <div style={{
-          display: "grid", gridTemplateColumns: mob ? "1fr" : (med ? "repeat(2, 1fr)" : "repeat(3, 1fr)"), gap: 12,
+          display: "grid",
+          gridTemplateColumns: mob ? "repeat(4, 1fr)" : (med ? "repeat(2, 1fr)" : "repeat(3, 1fr)"),
+          gap: mob ? 6 : 12,
         }}>
           {sources.map(s => (
-            <div key={s.src} style={{
-              padding: "14px 16px", background: C.card, border: `1px solid ${C.rule}`,
-              borderRadius: 4, display: "flex", flexDirection: "column", gap: 4,
-              transition: "border-color 0.15s", cursor: "pointer",
-            }}>
-              <span style={{ fontFamily: SERIF, fontWeight: 600, fontSize: 17, letterSpacing: "-0.01em" }}>{s.src}</span>
-              <span style={{ fontSize: 11, color: C.mute, lineHeight: 1.4 }}>{s.d}</span>
+            <div key={s.src}
+              title={mob ? s.d : undefined}
+              style={{
+                padding: mob ? "10px 8px" : "14px 16px",
+                background: C.card, border: `1px solid ${C.rule}`,
+                borderRadius: 4, display: "flex", flexDirection: "column", gap: 4,
+                transition: "border-color 0.15s", cursor: "pointer",
+                minWidth: 0, // allow text to ellipsis inside a tight column
+                textAlign: mob ? "center" : "left",
+                justifyContent: mob ? "center" : "flex-start",
+                alignItems: mob ? "center" : "stretch",
+                minHeight: mob ? 56 : undefined,
+              }}>
+              <span style={{
+                fontFamily: SERIF, fontWeight: 600,
+                fontSize: mob ? 13 : 17,
+                letterSpacing: "-0.01em",
+                lineHeight: 1.15,
+                whiteSpace: mob ? "normal" : "nowrap",
+                overflow: "hidden", textOverflow: "ellipsis",
+              }}>{s.src}</span>
+              {!mob && (
+                <span style={{ fontSize: 11, color: C.mute, lineHeight: 1.4 }}>{s.d}</span>
+              )}
             </div>
           ))}
         </div>
