@@ -257,7 +257,7 @@ function Hero({ mob, med }: { mob: boolean; med: boolean }) {
             }}>
               See methodology
             </a>
-            <span style={{ fontSize: 11, color: C.mute, letterSpacing: "0.08em", textTransform: "uppercase", marginLeft: 8 }}>Updated Apr 2026</span>
+            <span style={{ fontSize: 11, color: C.mute, letterSpacing: "0.08em", textTransform: "uppercase", marginLeft: 8 }}>Updated May 2026</span>
           </div>
 
           {/* Mobile: GDP-by-administration chart sits directly under the CTAs.
