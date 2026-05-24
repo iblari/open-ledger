@@ -1239,11 +1239,13 @@ function App(){
               <h2 style={{fontFamily:ESERIF,fontSize:mob?26:34,fontWeight:400,letterSpacing:"-0.02em",lineHeight:1.1,margin:"0 0 6px"}}>
                 All metrics, <em style={{fontStyle:"italic",color:EC.accent}}>at a glance.</em>
               </h2>
-              <p style={{fontFamily:ESANS,fontSize:13,color:EC.sub,lineHeight:1.55,maxWidth:"60ch",margin:0}}>
-                19 metrics across 5 administrations, shown in the unit that fits each metric &mdash;
-                percentage points for rates, annualized for prices and income, average for inflation
-                and flow values. Toggle for raw % change.
-              </p>
+              {!mob && (
+                <p style={{fontFamily:ESANS,fontSize:13,color:EC.sub,lineHeight:1.55,maxWidth:"60ch",margin:0}}>
+                  19 metrics across 5 administrations, shown in the unit that fits each metric &mdash;
+                  percentage points for rates, annualized for prices and income, average for inflation
+                  and flow values. Toggle for raw % change.
+                </p>
+              )}
             </div>
 
             {/* Mobile view toggle */}
