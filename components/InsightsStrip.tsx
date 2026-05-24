@@ -21,7 +21,7 @@ import {
   type Insight, type InsightKind,
 } from "@/lib/insights";
 import {
-  generateLiveInsights, latestDataDate, fmtFreshness,
+  generateLiveInsights, latestDataDate, fmtFreshness, timeAgo,
   type LiveBenchmarkPayload,
 } from "@/lib/insights-live";
 
@@ -53,12 +53,19 @@ export function InsightsStrip({ limit = 3, mob, eyebrow }: Props) {
   const staticInsights = useMemo(() => generateInsights({ limit }), [limit]);
   const staticAsOf = insightsAsOfYear();
 
-  // Live fetch state. We track the latest DATA date (most recent FRED print
-  // across all metrics) rather than the cache-warming timestamp — the former
-  // is the meaningful freshness signal, the latter is misleading because it
-  // resets whenever Vercel rebuilds even if the underlying data is unchanged.
+  // Live fetch state. We track TWO freshness signals because they tell the
+  // user different things:
+  //   - dataDate    = the latest FRED print across all metrics (bounded by
+  //                   FRED publishing cadence; can be ~1 month stale because
+  //                   BLS/BEA take time to compile official releases).
+  //   - cacheIso    = when our /api/benchmark-data route last ran (proves the
+  //                   refresh pipeline is alive and Vercel is serving fresh
+  //                   responses, distinct from the underlying data lag).
+  // Showing both lets the user diagnose: "cache refreshed 1m ago AND data
+  // is from Apr 2026 → our pipeline works, BLS just hasn't published May yet."
   const [liveInsights, setLiveInsights] = useState<Insight[] | null>(null);
   const [dataDate, setDataDate] = useState<Date | null>(null);
+  const [cacheIso, setCacheIso] = useState<string | null>(null);
   const [, setFetchError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -72,6 +79,7 @@ export function InsightsStrip({ limit = 3, mob, eyebrow }: Props) {
         if (live.length > 0) {
           setLiveInsights(live);
           setDataDate(latestDataDate(data));
+          setCacheIso(data.lastUpdated);
         }
       })
       .catch(e => { if (!cancelled) setFetchError(e.message); });
@@ -104,17 +112,30 @@ export function InsightsStrip({ limit = 3, mob, eyebrow }: Props) {
           }} />
           {eyebrow ?? "What's notable in the data"}
         </div>
+        {/* Freshness badge — primary signal in bold teal (latest data date),
+            secondary signal in muted text right after (when our cache last
+            refreshed). Together they read: 'the data itself is from Apr 2026
+            because FRED hasn't published May yet, AND our pipeline pulled
+            this 1 minute ago so the cache is alive.' */}
         <div style={{
-          fontFamily: ESANS, fontSize: 10, color: isLive ? EC.improveStrong : EC.mute,
-          letterSpacing: "0.06em", textTransform: "uppercase", fontWeight: isLive ? 600 : 500,
+          fontFamily: ESANS, fontSize: 10, letterSpacing: "0.06em",
+          textTransform: "uppercase", display: "flex", alignItems: "baseline",
+          gap: 6, flexWrap: "wrap",
         }}
         title={isLive
-          ? "Pulled live from FRED. Most macro data (CPI, unemployment, GDP) is published with a 4-6 week lag by BLS/BEA — this date is the most recent official print, not when our cache refreshed."
+          ? "Two freshness signals. Latest = most recent FRED print (bounded by BLS/BEA publishing lag, typically 4-6 weeks for macro data). Cache = when our API endpoint last refreshed from FRED (proves the pipeline is alive)."
           : "Showing static fallback — live FRED data couldn't be fetched (check FRED_API_KEY in Vercel env)."}
         >
-          {isLive && dataDate
-            ? `Live FRED · latest ${fmtFreshness(dataDate)}`
-            : `As of ${staticAsOf} · auto-generated`}
+          <span style={{ color: isLive ? EC.improveStrong : EC.mute, fontWeight: isLive ? 600 : 500 }}>
+            {isLive && dataDate
+              ? `Live FRED · latest ${fmtFreshness(dataDate)}`
+              : `As of ${staticAsOf} · auto-generated`}
+          </span>
+          {isLive && cacheIso && (
+            <span style={{ color: EC.mute, fontWeight: 500, textTransform: "none", letterSpacing: 0 }}>
+              · cache {timeAgo(cacheIso)}
+            </span>
+          )}
         </div>
       </div>
 
