@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 
-export const revalidate = 86400;
+// Cache window for this route. Was 86400 (24h); dropped to 3600 (1h) so the
+// site picks up new BLS/BEA prints within an hour of FRED ingesting them
+// instead of within a day. Trade-off is ~24 FRED API calls per region per
+// day instead of 1, which is well within FRED's free-tier rate limit.
+export const revalidate = 3600;
 
 // ── Administrations aligned to inauguration ──
 const ADMINS = [
@@ -83,7 +87,9 @@ function monthsDiff(a: Date, b: Date): number {
 
 async function fetchFRED(seriesId: string, apiKey: string, start: string): Promise<{ date: string; value: string }[]> {
   const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${seriesId}&api_key=${apiKey}&file_type=json&observation_start=${start}`;
-  const res = await fetch(url, { next: { revalidate: 86400 } });
+  // Keep per-FRED-call cache aligned with the route-level revalidate above
+  // (1h) so the two layers don't disagree and serve mismatched freshness.
+  const res = await fetch(url, { next: { revalidate: 3600 } });
   if (!res.ok) throw new Error(`FRED ${seriesId}: ${res.status}`);
   const json = await res.json();
   return (json.observations || []).filter((o: { value: string }) => o.value !== '.');
