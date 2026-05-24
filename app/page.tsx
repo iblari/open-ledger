@@ -158,22 +158,22 @@ function Nav({ mob }: { mob: boolean }) {
 /* ── Hero Chart Visualization ── */
 function HeroViz({ mob }: { mob: boolean }) {
   const data = METRICS.gdp.d;
-  if (mob) return null; // skip viz on mobile — hero stacks vertically
 
   return (
     <div style={{
       background: C.card, border: `1px solid ${C.rule}`, borderRadius: 4,
-      padding: 20, boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 12px 32px -12px rgba(0,0,0,0.08)",
+      padding: mob ? 14 : 20,
+      boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 12px 32px -12px rgba(0,0,0,0.08)",
     }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", paddingBottom: 14, marginBottom: 6, borderBottom: `1px solid ${C.rule}` }}>
-        <span style={{ fontWeight: 600, fontSize: 13, fontFamily: SANS }}>The economy, by administration</span>
-        <span style={{ fontSize: 11, color: C.mute, letterSpacing: "0.06em", textTransform: "uppercase" }}>31 yrs · BEA</span>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", paddingBottom: mob ? 10 : 14, marginBottom: 6, borderBottom: `1px solid ${C.rule}`, gap: 8 }}>
+        <span style={{ fontWeight: 600, fontSize: mob ? 12 : 13, fontFamily: SANS }}>The economy, by administration</span>
+        <span style={{ fontSize: mob ? 10 : 11, color: C.mute, letterSpacing: "0.06em", textTransform: "uppercase", whiteSpace: "nowrap" }}>31 yrs · BEA</span>
       </div>
-      <ResponsiveContainer width="100%" height={280}>
-        <BarChart data={data} margin={{ top: 10, right: 10, left: -10, bottom: 5 }}>
+      <ResponsiveContainer width="100%" height={mob ? 200 : 280}>
+        <BarChart data={data} margin={{ top: 10, right: mob ? 4 : 10, left: mob ? -16 : -10, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke={C.rule} vertical={false} />
-          <XAxis dataKey="y" fontSize={10} fontFamily={SANS} stroke={C.mute} tick={{ fill: C.sub }} interval={3} />
-          <YAxis fontSize={10} fontFamily={SANS} stroke={C.rule} tick={{ fill: C.sub }} tickFormatter={v => `${v}%`} />
+          <XAxis dataKey="y" fontSize={mob ? 9 : 10} fontFamily={SANS} stroke={C.mute} tick={{ fill: C.sub }} interval={mob ? 5 : 3} />
+          <YAxis fontSize={mob ? 9 : 10} fontFamily={SANS} stroke={C.rule} tick={{ fill: C.sub }} tickFormatter={v => `${v}%`} />
           <Tooltip
             contentStyle={{ background: C.card, border: `1px solid ${C.rule}`, borderRadius: 4, fontFamily: SANS, fontSize: 12 }}
             formatter={(v: number) => [`${v.toFixed(1)}%`, "GDP Growth"]}
@@ -187,11 +187,11 @@ function HeroViz({ mob }: { mob: boolean }) {
           </Bar>
         </BarChart>
       </ResponsiveContainer>
-      <div style={{ marginTop: 12, paddingTop: 10, borderTop: `1px solid ${C.rule}`, display: "flex", justifyContent: "space-between", fontSize: 11, color: C.mute, letterSpacing: "0.06em", textTransform: "uppercase" }}>
-        <div style={{ display: "flex", gap: 14, fontSize: 11, color: C.sub }}>
+      <div style={{ marginTop: 12, paddingTop: 10, borderTop: `1px solid ${C.rule}`, display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: mob ? 10 : 11, color: C.mute, letterSpacing: "0.06em", textTransform: "uppercase", flexWrap: "wrap", gap: 8 }}>
+        <div style={{ display: "flex", gap: mob ? 8 : 14, fontSize: mob ? 9 : 11, color: C.sub, flexWrap: "wrap" }}>
           {AID.map(id => (
-            <span key={id} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <i style={{ width: 10, height: 10, borderRadius: 2, display: "inline-block", background: ADMINS[id].color }} />
+            <span key={id} style={{ display: "flex", alignItems: "center", gap: mob ? 4 : 6 }}>
+              <i style={{ width: mob ? 8 : 10, height: mob ? 8 : 10, borderRadius: 2, display: "inline-block", background: ADMINS[id].color }} />
               {ADMINS[id].name}
             </span>
           ))}
@@ -264,6 +264,14 @@ function Hero({ mob, med }: { mob: boolean; med: boolean }) {
             <span style={{ fontSize: 11, color: C.mute, letterSpacing: "0.08em", textTransform: "uppercase", marginLeft: 8 }}>Updated Apr 2026</span>
           </div>
 
+          {/* Mobile: GDP-by-administration chart sits directly under the CTAs.
+              On desktop this chart lives in the right column (see below). */}
+          {mob && (
+            <div style={{ marginTop: 28 }}>
+              <HeroViz mob />
+            </div>
+          )}
+
           {/* Stats */}
           <div style={{
             display: "grid", gridTemplateColumns: mob ? "1fr 1fr" : "repeat(4, 1fr)",
@@ -280,7 +288,9 @@ function Hero({ mob, med }: { mob: boolean; med: boolean }) {
           </div>
         </div>
 
-        <HeroViz mob={mob} />
+        {/* Desktop: chart in right column. Mobile renders it inside the
+            left column directly under the CTAs (above). */}
+        {!mob && <HeroViz mob={mob} />}
       </div>
     </header>
   );
