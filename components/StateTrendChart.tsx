@@ -59,6 +59,9 @@ export function StateTrendChart({
     return row;
   });
 
+  const isSum = metric.aggregateMethod === "sum";
+  const nationalLabel = isSum ? "US total" : "National avg";
+
   return (
     <div style={{ background: EC.card, border: `1px solid ${EC.rule}`, borderRadius: 4, padding: 16, marginTop: 14 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
@@ -67,21 +70,34 @@ export function StateTrendChart({
             {metric.label} <span style={{ color: EC.mute, fontWeight: 400 }}>· trend, {HISTORY_YEARS[0]}&ndash;{HISTORY_YEARS[HISTORY_YEARS.length - 1]}</span>
           </div>
           <div style={{ fontFamily: ESANS, fontSize: 11, color: EC.sub, marginTop: 2, letterSpacing: "0.02em" }}>
-            {selected.length === 0
-              ? <>Showing the unweighted national mean. Click any state on the map to add its line.</>
-              : <>Black line is the unweighted national mean. Colored lines are your selected states.</>}
+            {isSum ? (
+              selected.length === 0
+                ? <>The dashed line shows the US total (right axis). Click any state on the map to add its line on the left axis.</>
+                : <>Dashed line: US total ({nationalLabel}, right axis). Colored lines: your selected states (left axis).</>
+            ) : (
+              selected.length === 0
+                ? <>Showing the unweighted national mean. Click any state on the map to add its line.</>
+                : <>Black line is the unweighted national mean. Colored lines are your selected states.</>
+            )}
           </div>
         </div>
       </div>
 
       <ResponsiveContainer width="100%" height={300}>
-        <LineChart data={data} margin={{ top: 8, right: 16, left: 4, bottom: 6 }}>
+        <LineChart data={data} margin={{ top: 8, right: isSum ? 60 : 16, left: 4, bottom: 6 }}>
           <CartesianGrid strokeDasharray="3 3" stroke={EC.rule} />
           <XAxis dataKey="year" stroke={EC.mute} fontSize={11} fontFamily={ESANS}
                  tick={{ fill: EC.sub }} interval={1} />
-          <YAxis stroke={EC.rule} fontSize={11} fontFamily={ESANS}
+          {/* Left axis: per-state values. */}
+          <YAxis yAxisId="left" stroke={EC.rule} fontSize={11} fontFamily={ESANS}
                  tick={{ fill: EC.sub }} width={60}
                  tickFormatter={(v: number) => formatMetricValue(metric, v)} />
+          {/* Right axis (sum-aggregate metrics only): national total, separate scale. */}
+          {isSum && (
+            <YAxis yAxisId="right" orientation="right" stroke={EC.rule} fontSize={11} fontFamily={ESANS}
+                   tick={{ fill: EC.mute }} width={60}
+                   tickFormatter={(v: number) => formatMetricValue(metric, v)} />
+          )}
           <Tooltip content={(rechartProps) => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const props = rechartProps as any;
@@ -97,7 +113,7 @@ export function StateTrendChart({
                 {props.payload.map((p: any, i: number) => (
                   <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: 10, fontVariantNumeric: "tabular-nums" }}>
                     <span style={{ color: p.color, fontWeight: 500 }}>
-                      {p.dataKey === "national" ? "National avg" : STATE_NAMES[p.dataKey as StateCode] ?? p.dataKey}
+                      {p.dataKey === "national" ? nationalLabel : STATE_NAMES[p.dataKey as StateCode] ?? p.dataKey}
                     </span>
                     <span>{formatMetricValue(metric, p.value)}</span>
                   </div>
@@ -106,13 +122,18 @@ export function StateTrendChart({
             );
           }} />
 
-          {/* National line — always shown, bold black. */}
-          <Line type="monotone" dataKey="national" stroke={EC.ink} strokeWidth={2.5}
-                dot={false} activeDot={{ r: 4 }} name="National avg" />
+          {/* National line — bold for mean metrics, dashed muted for sum metrics
+              (to signal it's on a different scale). */}
+          <Line yAxisId={isSum ? "right" : "left"}
+                type="monotone" dataKey="national"
+                stroke={EC.ink} strokeWidth={2.5}
+                strokeDasharray={isSum ? "5 3" : undefined}
+                dot={false} activeDot={{ r: 4 }} name={nationalLabel} />
 
-          {/* Per-selected-state lines, colored from the palette. */}
+          {/* Per-selected-state lines — always on left axis. */}
           {selected.map((code, i) => (
-            <Line key={code} type="monotone" dataKey={code}
+            <Line key={code} yAxisId="left"
+                  type="monotone" dataKey={code}
                   stroke={stateLineColor(i)} strokeWidth={2}
                   dot={false} activeDot={{ r: 4 }}
                   name={STATE_NAMES[code]} />

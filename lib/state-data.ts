@@ -60,6 +60,15 @@ export type StateMetric = {
   asOf: string;          // e.g., "Q3 2024" or "2024"
   costLike: boolean;     // true = higher value is "more expensive" (colors warm)
   category: StateMetricCategory;  // groups metrics in the picker
+  // How the "national line" on the trend chart should aggregate across states:
+  //   "mean" (default) — unweighted mean state value. Makes sense for prices,
+  //     rates, taxes (where "the average state's electricity cost" is a useful
+  //     benchmark).
+  //   "sum" — total across all states. Makes sense for aggregates like total
+  //     population, total jobs, total deficit. The trend chart will use a dual
+  //     Y-axis (state values on left, national total on right) so state lines
+  //     stay readable when the sum is orders of magnitude larger.
+  aggregateMethod?: "mean" | "sum";
   latest: Partial<Record<StateCode, number>>;
   // Approximate 10-year compound annual growth rate per state (2014→2024).
   // Used by buildHistory() to back-fill an annual series from `latest`. A
@@ -92,20 +101,25 @@ export function stateHistory(m: StateMetric, code: StateCode): number[] | null {
   return buildHistory(latest, cagr);
 }
 
-// Unweighted national mean for each of the 11 years (used for the trend chart's
-// always-on national line). Computed lazily, cached per metric.
+// National 12-year series, computed per metric's aggregateMethod:
+//   "mean" (default) — unweighted mean state value per year
+//   "sum"            — total across states per year (US-wide aggregate)
+// Cached per metric.
 const _nationalCache = new WeakMap<StateMetric, number[]>();
 export function nationalHistory(m: StateMetric): number[] {
   const cached = _nationalCache.get(m);
   if (cached) return cached;
-  const result: number[] = Array(12).fill(0);
+  const sums: number[] = Array(12).fill(0);
   const counts: number[] = Array(12).fill(0);
   for (const code of Object.keys(m.latest) as StateCode[]) {
     const hist = stateHistory(m, code);
     if (!hist) continue;
-    for (let i = 0; i < 12; i++) { result[i] += hist[i]; counts[i] += 1; }
+    for (let i = 0; i < 12; i++) { sums[i] += hist[i]; counts[i] += 1; }
   }
-  for (let i = 0; i < 12; i++) result[i] = counts[i] ? result[i] / counts[i] : 0;
+  const method = m.aggregateMethod ?? "mean";
+  const result: number[] = method === "sum"
+    ? sums
+    : sums.map((s, i) => (counts[i] ? s / counts[i] : 0));
   _nationalCache.set(m, result);
   return result;
 }
@@ -361,6 +375,7 @@ export const STATE_METRICS: Record<string, StateMetric> = {
     asOf: "2025",
     costLike: false,
     category: "demo",
+    aggregateMethod: "sum", // national line = total US population
     latest: {
       AL: 5.13, AK: 0.74, AZ: 7.5, AR: 3.12, CA: 39.0, CO: 5.95, CT: 3.62, DE: 1.0,
       DC: 0.68, FL: 23.01, GA: 11.21, HI: 1.4, ID: 2.04, IL: 12.44, IN: 6.93, IA: 3.22,
