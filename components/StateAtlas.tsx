@@ -393,7 +393,9 @@ export function StateAtlas() {
     </div>
 
     {/* Trend chart + selected-state chips */}
-    <StateTrendChart metric={metric} selected={selected} />
+    {/* onSwitchMetric powers the 'Compare on:' related-metrics row in the
+        trend chart — switches metric while keeping selected states intact. */}
+    <StateTrendChart metric={metric} selected={selected} onSwitchMetric={setMk} />
 
     {selected.length > 0 && (
       <div style={{

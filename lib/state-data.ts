@@ -814,6 +814,54 @@ export function metricsForCategory(cat: StateMetricCategory): string[] {
   return STATE_METRIC_ORDER.filter(k => STATE_METRICS[k].category === cat);
 }
 
+// ── Related-metrics affinity map ──────────────────────────────────
+//
+// Hand-curated correlations from economic literature: for each metric, the
+// 2-4 OTHER metrics that economists widely consider related and likely to
+// move together (or against each other) across states.
+//
+// Powers the "Also compare these states on:" pill row that appears below
+// the InsightsPanel — clicking a related metric switches the chart while
+// keeping the user's state selection intact, so they can quickly explore
+// hypotheses like "Georgia grew home values 2.9× faster than Mississippi
+// — was that driven by population growth?"
+//
+// Each entry's first listed related metric is the MOST informative one
+// to compare against (used when we surface a single quick-link).
+export const RELATED_METRICS: Record<string, string[]> = {
+  // Cost-of-living
+  median_home:    ["population", "household_income", "rent"],
+  rent:           ["median_home", "household_income", "population"],
+  gas:            ["gas_tax", "population"],
+  electricity:    ["population"],
+  // Taxes
+  income_tax:     ["household_income", "gdp_capita"],
+  sales_tax:      ["income_tax", "gdp_capita"],
+  property_tax:   ["median_home", "income_tax"],
+  gas_tax:        ["gas", "gdp_capita"],
+  corp_tax:       ["gdp_capita", "income_tax"],
+  // Demographics
+  population:     ["median_home", "household_income", "gdp_capita"],
+  household_income:["bachelors", "gdp_capita", "median_home"],
+  unemployment:   ["bachelors", "household_income"],
+  bachelors:      ["household_income", "gdp_capita", "uninsured"],
+  gdp_capita:     ["household_income", "bachelors", "population"],
+  // Health
+  life_expectancy:["uninsured", "drug_deaths", "household_income"],
+  uninsured:      ["life_expectancy", "household_income", "bachelors"],
+  infant_mortality:["life_expectancy", "maternal_mortality", "household_income"],
+  drug_deaths:    ["life_expectancy", "uninsured", "incarceration"],
+  maternal_mortality:["infant_mortality", "uninsured"],
+  // Politics
+  presidential_margin:["bachelors", "uninsured", "voter_turnout"],
+  voter_turnout:  ["bachelors", "household_income"],
+  // Crime
+  violent_crime:  ["incarceration", "drug_deaths", "household_income"],
+  murder_rate:    ["violent_crime", "incarceration"],
+  property_crime: ["violent_crime", "incarceration"],
+  incarceration:  ["violent_crime", "murder_rate", "drug_deaths"],
+};
+
 // Compute the unweighted national mean across the 50 states + DC for a metric.
 export function metricMean(m: StateMetric): number {
   const vals = Object.values(m.latest) as number[];

@@ -15,6 +15,8 @@ import {
   formatMetricValue,
   nationalHistory,
   stateHistory,
+  RELATED_METRICS,
+  STATE_METRICS,
   type StateCode,
   type StateMetric,
 } from "@/lib/state-data";
@@ -36,9 +38,15 @@ export function stateLineColor(idx: number): string {
 export function StateTrendChart({
   metric,
   selected,
+  onSwitchMetric,
 }: {
   metric: StateMetric;
   selected: StateCode[];
+  /** Callback to switch the current metric while keeping `selected` intact.
+   *  Wired into the 'Also compare on:' row so users can explore correlations
+   *  with one click (e.g. 'home values grew 2.9× faster — but was it
+   *  driven by population?'). Optional; if omitted, the row doesn't render. */
+  onSwitchMetric?: (key: string) => void;
 }) {
   // Build the chart data: one row per year, with `national` + one column per
   // selected state (keyed by state code). Recharts iterates rows, lines pull
@@ -146,6 +154,49 @@ export function StateTrendChart({
           empty-state copy already lives in the chart subtitle above. */}
       {selected.length > 0 && (
         <InsightsPanel metric={metric} selected={selected} />
+      )}
+
+      {/* Related-metrics row — "Also compare these states on: [pills]"
+          Hand-curated affinity map in lib/state-data.RELATED_METRICS.
+          Clicking switches the metric (via onSwitchMetric callback from
+          StateAtlas) while keeping the selected states intact, so users
+          can explore correlations like "home values grew 2.9× faster in
+          Georgia — was that driven by population?" without having to
+          re-click the states on the map. */}
+      {onSwitchMetric && selected.length > 0 && RELATED_METRICS[metric.key]?.length > 0 && (
+        <div style={{
+          marginTop: 14, paddingTop: 14, borderTop: `1px solid ${EC.rule}`,
+          display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
+        }}>
+          <span style={{
+            fontFamily: ESANS, fontSize: 10, letterSpacing: "0.14em",
+            textTransform: "uppercase", color: EC.mute, fontWeight: 600,
+          }}>
+            Compare on
+          </span>
+          {RELATED_METRICS[metric.key].slice(0, 4).map(relKey => {
+            const rel = STATE_METRICS[relKey];
+            if (!rel) return null;
+            return (
+              <button key={relKey} onClick={() => onSwitchMetric(relKey)} style={{
+                padding: "5px 12px", borderRadius: 999,
+                border: `1px solid ${EC.rule}`,
+                background: EC.card,
+                color: EC.ink,
+                fontFamily: ESANS, fontSize: 12, fontWeight: 500,
+                cursor: "pointer", transition: "all 0.15s",
+                display: "inline-flex", alignItems: "center", gap: 5,
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = EC.accent; e.currentTarget.style.color = EC.accent; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = EC.rule; e.currentTarget.style.color = EC.ink; }}
+              title={`Switch to ${rel.label} — your selected states stay on the chart.`}
+              >
+                {rel.shortLabel || rel.label}
+                <span style={{ fontSize: 11, opacity: 0.6 }}>→</span>
+              </button>
+            );
+          })}
+        </div>
       )}
     </div>
   );
