@@ -210,6 +210,17 @@ function InsightsPanel({
   const fastest = byGrowth[0];
   const slowest = byGrowth[byGrowth.length - 1];
 
+  // Detect "all selected states have the same % change" — happens when the
+  // metric uses a single default CAGR with no per-state overrides, so back-
+  // filling produces identical 11-year deltas for every state. Showing
+  // '+12%' five times in a row pretends to be a comparison when it isn't.
+  // When detected, suppress per-row badges + the "X grew faster than Y" line
+  // and let the footer caveat carry the explanation.
+  const pctSpread = rows.length > 1
+    ? (fastest.pctChange - slowest.pctChange) * 100
+    : 0;
+  const allChangesIdentical = rows.length > 1 && Math.abs(pctSpread) < 0.5;
+
   // ─── Build the facts. Each is { kind, text, color? } ───
   type Fact = { text: React.ReactNode; tone?: "neutral" | "good" | "bad" };
   const facts: Fact[] = [];
@@ -243,11 +254,19 @@ function InsightsPanel({
           <span style={{ color: r.color, fontWeight: 600 }}>{r.name}</span>
           {" "}
           <span style={{ fontVariantNumeric: "tabular-nums" }}>{startTxt} → {endTxt}</span>
-          {" "}
-          <span style={{
-            color: r.pctChange >= 0 ? EC.improveStrong : EC.declineStrong,
-            fontWeight: 600, fontVariantNumeric: "tabular-nums",
-          }}>({pctTxt})</span>
+          {/* Hide the (+X%) badge when all selected states share the same
+              change — they're all back-filled from the same per-metric CAGR,
+              so the badge would just repeat the same number for everyone and
+              imply a comparison that isn't there. */}
+          {!allChangesIdentical && (
+            <>
+              {" "}
+              <span style={{
+                color: r.pctChange >= 0 ? EC.improveStrong : EC.declineStrong,
+                fontWeight: 600, fontVariantNumeric: "tabular-nums",
+              }}>({pctTxt})</span>
+            </>
+          )}
           {vsNatTxt}
         </>
       ),
@@ -257,27 +276,25 @@ function InsightsPanel({
   // Fact 2 — comparative line when 2+ states are selected. Spread captures
   // how different the selected slice is from itself; a wide spread is the
   // interesting story ("Hawaii grew 3× faster than West Virginia").
-  if (rows.length >= 2) {
-    const spreadPct = (fastest.pctChange - slowest.pctChange) * 100;
-    if (Math.abs(spreadPct) >= 5) {
-      const ratio = slowest.pctChange !== 0
-        ? Math.abs(fastest.pctChange / slowest.pctChange)
-        : null;
-      facts.push({
-        text: (
-          <>
-            <span style={{ color: fastest.color, fontWeight: 600 }}>{fastest.name}</span>
-            {" grew "}
-            {ratio && ratio >= 1.4
-              ? <><strong style={{ color: EC.ink }}>{ratio.toFixed(1)}×</strong> faster than </>
-              : <>more than </>}
-            <span style={{ color: slowest.color, fontWeight: 600 }}>{slowest.name}</span>
-            {" over the window."}
-          </>
-        ),
-        tone: "neutral",
-      });
-    }
+  // Skipped entirely when allChangesIdentical (no real spread to talk about).
+  if (rows.length >= 2 && Math.abs(pctSpread) >= 5) {
+    const ratio = slowest.pctChange !== 0
+      ? Math.abs(fastest.pctChange / slowest.pctChange)
+      : null;
+    facts.push({
+      text: (
+        <>
+          <span style={{ color: fastest.color, fontWeight: 600 }}>{fastest.name}</span>
+          {" grew "}
+          {ratio && ratio >= 1.4
+            ? <><strong style={{ color: EC.ink }}>{ratio.toFixed(1)}×</strong> faster than </>
+            : <>more than </>}
+          <span style={{ color: slowest.color, fontWeight: 600 }}>{slowest.name}</span>
+          {" over the window."}
+        </>
+      ),
+      tone: "neutral",
+    });
   }
 
   // Fact 3 — national context, only for mean-aggregated metrics. For sum
@@ -355,8 +372,9 @@ function InsightsPanel({
         marginTop: 10, fontFamily: ESANS, fontSize: 10, color: EC.mute,
         lineHeight: 1.5, fontStyle: "italic",
       }}>
-        Trend lines are smoothed from per-state growth rates; year-over-year spike
-        detection lights up once real annual data is wired in.
+        {allChangesIdentical
+          ? "All selected states share the same back-filled growth rate for this metric, so % changes are intentionally hidden. Start → end values are real (sourced) endpoints; the in-between years are smoothed estimates pending real annual per-state data."
+          : "Trend lines are smoothed from per-state growth rates; year-over-year spike detection lights up once real annual data is wired in."}
       </div>
     </div>
   );
