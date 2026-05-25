@@ -324,19 +324,51 @@ function autoInsight(args: {
     }
   }
 
+  // ── Within-term trajectory: how has this admin moved during their term? ──
+  // The ranking-vs-peers framing misses dramatic improvements/declines that
+  // happen WITHIN a term. Trade Balance is the textbook example: Trump II
+  // ranks 2nd-weakest by absolute level, but went from ~-\$135B at month 2
+  // to ~-\$60B at month 14 — a massive within-term improvement the ranking
+  // doesn't capture. We surface it here when the change is meaningful.
+  const currentSeries = md.series.find(s => s.current);
+  let trajectoryPhrase = "";
+  if (currentSeries && currentSeries.data.length >= 4) {
+    const sorted = [...currentSeries.data].sort((a, b) => a.month - b.month);
+    const first = sorted[0]; // start of term
+    const last = sorted[sorted.length - 1];
+    const change = last.value - first.value;
+    const denom = Math.abs(first.value) || 1;
+    const relChange = Math.abs(change) / denom;
+    // Significance gate: 1pp for rate metrics (%), 10% relative for everything
+    // else. Avoids surfacing noise as "trajectory."
+    const significant = md.unit === "%"
+      ? Math.abs(change) >= 1.0
+      : relChange >= 0.10;
+    if (significant) {
+      const improving = md.lowerBetter ? change < 0 : change > 0;
+      const magnitudeTxt = md.unit === "%"
+        ? `${Math.abs(change).toFixed(1)}pp`
+        : fmtVal(Math.abs(change), md.unit);
+      const verb = improving ? "improved" : "deteriorated";
+      const dirWord = (change > 0 ? "up" : "down");
+      trajectoryPhrase = ` Within term: ${dirWord} ${magnitudeTxt} from ${fmtVal(first.value, md.unit)} at month ${first.month} (${verb}).`;
+    }
+  }
+
   // ── Compose ──
   const valTxt = fmtVal(currentValue, md.unit);
   const histTxt = fmtVal(historicalAvg, md.unit);
   const headline = `${currentAdminName} at ${valTxt} — ${rankPhrase}${thresholdPhrase}.`;
 
-  // Context: vs historical avg + closest historical parallel.
+  // Context: vs historical avg + trajectory + closest historical parallel.
+  // Order matters: historical-mean comparison sets the static context, then
+  // trajectory shows the within-term motion, then the parallel grounds it.
   const histDiff = currentValue - historicalAvg;
-  const histDir = histDiff >= 0
-    ? (md.lowerBetter ? "above" : "above")
-    : (md.lowerBetter ? "below" : "below");
+  const histDir = histDiff >= 0 ? "above" : "below";
   const histColor = (md.lowerBetter ? histDiff < 0 : histDiff > 0) ? "better than" : "worse than";
   let context = `${Math.abs(histDiff).toFixed(1)}${md.unit === "%" ? "pp" : md.unit} ${histDir} the historical mean of ${histTxt} (${histColor} typical).`;
-  if (closestAdmin && smallestGap < Math.max(0.5, currentValue * 0.05)) {
+  context += trajectoryPhrase;
+  if (closestAdmin && smallestGap < Math.max(0.5, Math.abs(currentValue) * 0.05)) {
     context += ` Closest historical parallel: ${closestAdmin.name} at month ${atMonth} (${fmtVal(closestAdmin.value, md.unit)}).`;
   }
   // Suppress the unused adverb warning — kept for future template variations.
