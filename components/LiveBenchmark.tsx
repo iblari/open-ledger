@@ -451,10 +451,17 @@ export default function LiveBenchmark() {
             })}
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 20 }}>
+            {/* Metric pills. setMetric() deliberately does NOT clear the
+                `highlighted` Set — users were losing comparison admins every
+                time they switched metrics, which is the opposite of what you
+                want when browsing related metrics ("how does Trump II compare
+                on inflation? on unemployment? on jobs?"). Admin ids that
+                don't exist for the new metric are silently skipped by the
+                chip iteration below the chart. */}
             {metricKeys.map(k => {
               const m = data.metrics[k]; const on = metric === k;
               return (
-                <button key={k} onClick={() => { setMetric(k); setHighlighted(new Set()); }} style={{
+                <button key={k} onClick={() => { setMetric(k); }} style={{
                   padding: "5px 12px", borderRadius: 3,
                   border: `1px solid ${on ? EC.accent + "55" : EC.rule}`,
                   background: on ? EC.accent + "0A" : "transparent",
@@ -729,7 +736,9 @@ export default function LiveBenchmark() {
           title="Select metric"
           options={pickerOptions}
           value={metric}
-          onSelect={(v) => { setMetric(v); setHighlighted(new Set()); }}
+          // Same as the desktop pills above — keep highlighted admins across
+          // metric changes so users don't lose their comparison context.
+          onSelect={(v) => { setMetric(v); }}
         />
       )}
     </div>
