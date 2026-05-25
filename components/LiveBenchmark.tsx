@@ -257,6 +257,93 @@ const ADMIN_COLORS: Record<string, string> = {
   biden: "#1d4ed8", trump2: "#b8372d",
 };
 
+// ── Auto-generated "How to interpret" narrative ──────────────────
+//
+// Replaces the static META[metric].facts list. Reads the current admin's
+// value + stats + the metric's benchmark thresholds and produces a 1-2
+// sentence narrative that's specific to what the user is looking at right
+// now ("Trump II at month 16, 4.3% unemployment, 3rd-tightest, inside the
+// healthy band") instead of generic context ("U-3 misses discouraged
+// workers").
+//
+// Output is editorial: real numbers, real admin names, no boilerplate.
+function autoInsight(args: {
+  md: MetricData;
+  stats: { currentValue: number; historicalAvg: number; rank: number; total: number; atMonth: number };
+  bench?: { good: string; target: string; warn: string; why: string };
+  currentAdminName: string;
+}): { headline: string; context: string } | null {
+  const { md, stats, bench, currentAdminName } = args;
+  const { currentValue, historicalAvg, rank, total, atMonth } = stats;
+
+  // ── Find the closest historical parallel (admin with nearest value at
+  //    same month-of-term). Powerful framing: "you're tracking like Bush 43." ──
+  let closestAdmin: { name: string; value: number; id: string } | null = null;
+  let smallestGap = Infinity;
+  for (const s of md.series) {
+    if (s.current) continue;
+    const pt = [...s.data].filter(p => p.month <= atMonth + 1 && p.month >= atMonth - 1)
+      .sort((a, b) => Math.abs(a.month - atMonth) - Math.abs(b.month - atMonth))[0];
+    if (!pt) continue;
+    const gap = Math.abs(pt.value - currentValue);
+    if (gap < smallestGap) { smallestGap = gap; closestAdmin = { name: s.name, value: pt.value, id: s.id }; }
+  }
+
+  // ── Phrase the standing vs prior admins ──
+  // Lower rank = better when lowerBetter (1st of 10 unemployment = best).
+  const adverbBetter = md.lowerBetter ? "lower" : "higher";
+  const performWord  = md.lowerBetter
+    ? (rank <= total / 3 ? "tighter" : rank >= 2 * total / 3 ? "looser" : "in line with")
+    : (rank <= total / 3 ? "stronger" : rank >= 2 * total / 3 ? "weaker" : "in line with");
+
+  // Top/bottom quartile + middle wording.
+  let rankPhrase: string;
+  if (rank <= 3) {
+    rankPhrase = `the ${ordinal(rank)}-${performWord === "in line with" ? "ranked" : performWord} of ${total} modern administrations at month ${atMonth}`;
+  } else if (rank >= total - 2) {
+    const fromBottom = total - rank + 1;
+    rankPhrase = `${ordinal(fromBottom)}-${md.lowerBetter ? "weakest" : "weakest"} of ${total} at month ${atMonth}`;
+  } else {
+    rankPhrase = `roughly mid-pack: ${ordinal(rank)} of ${total} at month ${atMonth}`;
+  }
+
+  // ── Phrase the threshold position if we have benchmarks ──
+  // Best-effort numeric parsing of bench.good (e.g. "3.5–4.5%", "Below 60%")
+  // since the bench strings are human-edited copy. Falls back to no threshold
+  // commentary if parsing fails.
+  let thresholdPhrase = "";
+  if (bench) {
+    const goodRange = bench.good.match(/(\d+(?:\.\d+)?)\s*[–-]\s*(\d+(?:\.\d+)?)/);
+    if (goodRange) {
+      const lo = parseFloat(goodRange[1]); const hi = parseFloat(goodRange[2]);
+      if (currentValue >= lo && currentValue <= hi) {
+        thresholdPhrase = `, inside the healthy ${bench.good} band`;
+      } else if (md.lowerBetter ? currentValue > hi : currentValue < lo) {
+        thresholdPhrase = `, outside the healthy ${bench.good} band`;
+      }
+    }
+  }
+
+  // ── Compose ──
+  const valTxt = fmtVal(currentValue, md.unit);
+  const histTxt = fmtVal(historicalAvg, md.unit);
+  const headline = `${currentAdminName} at ${valTxt} — ${rankPhrase}${thresholdPhrase}.`;
+
+  // Context: vs historical avg + closest historical parallel.
+  const histDiff = currentValue - historicalAvg;
+  const histDir = histDiff >= 0
+    ? (md.lowerBetter ? "above" : "above")
+    : (md.lowerBetter ? "below" : "below");
+  const histColor = (md.lowerBetter ? histDiff < 0 : histDiff > 0) ? "better than" : "worse than";
+  let context = `${Math.abs(histDiff).toFixed(1)}${md.unit === "%" ? "pp" : md.unit} ${histDir} the historical mean of ${histTxt} (${histColor} typical).`;
+  if (closestAdmin && smallestGap < Math.max(0.5, currentValue * 0.05)) {
+    context += ` Closest historical parallel: ${closestAdmin.name} at month ${atMonth} (${fmtVal(closestAdmin.value, md.unit)}).`;
+  }
+  // Suppress the unused adverb warning — kept for future template variations.
+  void adverbBetter;
+  return { headline, context };
+}
+
 // ═══ Main component ════════════════════════════════════════════════
 export default function LiveBenchmark() {
   const mob = useIsMobile();
@@ -637,22 +724,38 @@ export default function LiveBenchmark() {
           </div>
         )}
 
-        {/* ── How to interpret ── */}
-        {md && META[metric] && META[metric].facts.length > 0 && (
-          <div style={{ borderLeft: `2px solid ${EC.accent}`, paddingLeft: 16, marginBottom: 24 }}>
-            <div style={{ fontFamily: ESANS, fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", color: EC.mute, marginBottom: 6 }}>
-              How to interpret · {META[metric].label}
+        {/* ── How to interpret — AUTO-GENERATED from the metric, current
+            value, ranking, threshold band, and closest historical parallel.
+            Replaces a static facts list with text specific to whatever the
+            user is currently looking at (e.g. "Trump II at 4.3% — the
+            3rd-tightest of 10 modern admins at month 16, inside the healthy
+            3.5-4.5% band. Closest parallel: Bush 43 at month 16 (4.5%).") */}
+        {md && stats && (() => {
+          const insight = autoInsight({
+            md, stats, bench: META[metric]?.bench,
+            currentAdminName: md.series.find(s => s.current)?.name ?? "Current administration",
+          });
+          if (!insight) return null;
+          return (
+            <div style={{ borderLeft: `2px solid ${EC.accent}`, paddingLeft: 16, marginBottom: 24 }}>
+              <div style={{
+                fontFamily: ESANS, fontSize: 10, fontWeight: 700,
+                letterSpacing: 1.5, textTransform: "uppercase", color: EC.mute, marginBottom: 6,
+              }}>
+                How to interpret · {md.label}
+              </div>
+              <div style={{
+                fontFamily: ESERIF, fontSize: 15, fontWeight: 500, color: EC.ink,
+                lineHeight: 1.3, letterSpacing: "-0.005em", marginBottom: 4,
+              }}>
+                {insight.headline}
+              </div>
+              <div style={{ fontFamily: ESANS, fontSize: 12, lineHeight: 1.6, color: EC.sub }}>
+                {insight.context}
+              </div>
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {META[metric].facts.map((f, i) => (
-                <div key={i}>
-                  <div style={{ fontFamily: ESERIF, fontSize: 14, fontWeight: 600, color: EC.ink, marginBottom: 2 }}>{f.t}</div>
-                  <div style={{ fontFamily: ESANS, fontSize: 12, lineHeight: 1.6, color: EC.sub }}>{f.x}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* ── Share card ── */}
         {stats && md && (
