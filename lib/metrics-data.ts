@@ -80,122 +80,78 @@ export interface MetricDef {
   hints: string[];
 }
 
-export const METRICS_DATA: Record<MetricKey, MetricDef> = {
+// ── Snapshot-backed data layer ────────────────────────────────────
+//
+// The per-year data arrays for each metric live in data/fred-snapshot.json,
+// regenerated weekly by scripts/refresh-data.mjs (run by the GitHub Action
+// at .github/workflows/refresh-data.yml). The metadata (label, source,
+// hints, etc.) stays in this file because it changes rarely and benefits
+// from being colocated with the type definitions.
+//
+// Why split: the snapshot is a single artifact the auto-refresh can replace
+// atomically without touching code. The metadata is editorial copy and stays
+// hand-maintained.
+//
+// Fallback behavior: if the snapshot is missing or malformed, the imported
+// JSON resolves to {} and METRICS_DATA's data arrays default to []. The site
+// still renders (charts will be empty) — won't crash.
+import snapshot from "../data/fred-snapshot.json";
+
+interface SnapshotShape {
+  generatedAt?: string;
+  source?: string;
+  metrics?: Partial<Record<MetricKey, MetricPoint[]>>;
+}
+const SNAPSHOT = snapshot as SnapshotShape;
+
+/** When the snapshot was last regenerated. Surfaced by callers that want to
+ *  show "data updated X days ago" badges. ISO string or null if missing. */
+export const SNAPSHOT_GENERATED_AT: string | null = SNAPSHOT.generatedAt ?? null;
+/** Where the snapshot data came from. Distinguishes "bootstrap-from-hardcoded"
+ *  (our initial commit) from "fred-api" (a real refresh). */
+export const SNAPSHOT_SOURCE: string = SNAPSHOT.source ?? "unknown";
+
+function dataFor(key: MetricKey): MetricPoint[] {
+  return SNAPSHOT.metrics?.[key] ?? [];
+}
+
+// Metric metadata (everything except the data arrays). Data is merged in
+// below from the snapshot. To add a new metric:
+//   1. Add an entry here with metadata
+//   2. Add its key to the MetricKey union above
+//   3. Add the FRED series ID + transform to scripts/refresh-data.mjs
+const METRIC_DEFS: Record<MetricKey, Omit<MetricDef, "data">> = {
   gdp: {
     key: "gdp", label: "GDP Growth", unit: "%", inverse: false, category: "Growth", source: "BEA",
     hints: ["gdp", "gross domestic product", "economic growth", "economy grew", "economy contracted", "real gdp"],
-    data: [
-      { y: 1993, v: 2.7, a: "clinton" }, { y: 1994, v: 4.0, a: "clinton" }, { y: 1995, v: 2.7, a: "clinton" },
-      { y: 1996, v: 3.8, a: "clinton" }, { y: 1997, v: 4.5, a: "clinton" }, { y: 1998, v: 4.5, a: "clinton" },
-      { y: 1999, v: 4.7, a: "clinton" }, { y: 2000, v: 4.1, a: "clinton" },
-      { y: 2001, v: 1.0, a: "bush" }, { y: 2002, v: 1.7, a: "bush" }, { y: 2003, v: 2.8, a: "bush" },
-      { y: 2004, v: 3.8, a: "bush" }, { y: 2005, v: 3.5, a: "bush" }, { y: 2006, v: 2.8, a: "bush" },
-      { y: 2007, v: 2.0, a: "bush" }, { y: 2008, v: -0.1, a: "bush" },
-      { y: 2009, v: -2.6, a: "obama" }, { y: 2010, v: 2.7, a: "obama" }, { y: 2011, v: 1.5, a: "obama" },
-      { y: 2012, v: 2.3, a: "obama" }, { y: 2013, v: 1.8, a: "obama" }, { y: 2014, v: 2.3, a: "obama" },
-      { y: 2015, v: 2.7, a: "obama" }, { y: 2016, v: 1.7, a: "obama" },
-      { y: 2017, v: 2.2, a: "trump1" }, { y: 2018, v: 2.9, a: "trump1" }, { y: 2019, v: 2.3, a: "trump1" },
-      { y: 2020, v: -2.8, a: "trump1" },
-      { y: 2021, v: 5.9, a: "biden" }, { y: 2022, v: 1.9, a: "biden" }, { y: 2023, v: 2.5, a: "biden" },
-      { y: 2024, v: 2.8, a: "biden" },
-    ],
   },
   unemployment: {
     key: "unemployment", label: "Unemployment", unit: "%", inverse: true, category: "Jobs", source: "BLS",
     hints: ["unemployment", "jobless rate", "out of work", "u-3"],
-    data: [
-      { y: 1993, v: 6.9, a: "clinton" }, { y: 1994, v: 6.1, a: "clinton" }, { y: 1995, v: 5.6, a: "clinton" },
-      { y: 1996, v: 5.4, a: "clinton" }, { y: 1997, v: 4.9, a: "clinton" }, { y: 1998, v: 4.5, a: "clinton" },
-      { y: 1999, v: 4.2, a: "clinton" }, { y: 2000, v: 4.0, a: "clinton" },
-      { y: 2001, v: 4.7, a: "bush" }, { y: 2002, v: 5.8, a: "bush" }, { y: 2003, v: 6.0, a: "bush" },
-      { y: 2004, v: 5.5, a: "bush" }, { y: 2005, v: 5.1, a: "bush" }, { y: 2006, v: 4.6, a: "bush" },
-      { y: 2007, v: 4.6, a: "bush" }, { y: 2008, v: 5.8, a: "bush" },
-      { y: 2009, v: 9.3, a: "obama" }, { y: 2010, v: 9.6, a: "obama" }, { y: 2011, v: 8.9, a: "obama" },
-      { y: 2012, v: 8.1, a: "obama" }, { y: 2013, v: 7.4, a: "obama" }, { y: 2014, v: 6.2, a: "obama" },
-      { y: 2015, v: 5.3, a: "obama" }, { y: 2016, v: 4.9, a: "obama" },
-      { y: 2017, v: 4.4, a: "trump1" }, { y: 2018, v: 3.9, a: "trump1" }, { y: 2019, v: 3.7, a: "trump1" },
-      { y: 2020, v: 8.1, a: "trump1" },
-      { y: 2021, v: 5.4, a: "biden" }, { y: 2022, v: 3.6, a: "biden" }, { y: 2023, v: 3.6, a: "biden" },
-      { y: 2024, v: 4.0, a: "biden" },
-    ],
   },
   inflation: {
     key: "inflation", label: "Inflation (CPI)", unit: "%", inverse: true, category: "Prices", source: "BLS CPI-U",
     hints: ["inflation", "cpi", "consumer price", "prices rose", "prices fell", "cost of living"],
-    data: [
-      { y: 1993, v: 3.0, a: "clinton" }, { y: 1994, v: 2.6, a: "clinton" }, { y: 1995, v: 2.8, a: "clinton" },
-      { y: 1996, v: 2.9, a: "clinton" }, { y: 1997, v: 2.3, a: "clinton" }, { y: 1998, v: 1.5, a: "clinton" },
-      { y: 1999, v: 2.2, a: "clinton" }, { y: 2000, v: 3.4, a: "clinton" },
-      { y: 2001, v: 2.8, a: "bush" }, { y: 2002, v: 1.6, a: "bush" }, { y: 2003, v: 2.3, a: "bush" },
-      { y: 2004, v: 2.7, a: "bush" }, { y: 2005, v: 3.4, a: "bush" }, { y: 2006, v: 3.2, a: "bush" },
-      { y: 2007, v: 2.9, a: "bush" }, { y: 2008, v: 3.8, a: "bush" },
-      { y: 2009, v: -0.3, a: "obama" }, { y: 2010, v: 1.6, a: "obama" }, { y: 2011, v: 3.2, a: "obama" },
-      { y: 2012, v: 2.1, a: "obama" }, { y: 2013, v: 1.5, a: "obama" }, { y: 2014, v: 1.6, a: "obama" },
-      { y: 2015, v: 0.1, a: "obama" }, { y: 2016, v: 1.3, a: "obama" },
-      { y: 2017, v: 2.1, a: "trump1" }, { y: 2018, v: 2.4, a: "trump1" }, { y: 2019, v: 1.8, a: "trump1" },
-      { y: 2020, v: 1.2, a: "trump1" },
-      { y: 2021, v: 4.7, a: "biden" }, { y: 2022, v: 8.0, a: "biden" }, { y: 2023, v: 4.1, a: "biden" },
-      { y: 2024, v: 2.9, a: "biden" },
-    ],
   },
   sp500: {
     key: "sp500", label: "S&P 500", unit: "idx", inverse: false, category: "Markets", source: "Yahoo Finance",
     hints: ["s&p", "s&p 500", "stock market", "wall street", "market cap", "stocks"],
-    data: [
-      { y: 1993, v: 452, a: "clinton" }, { y: 1994, v: 460, a: "clinton" }, { y: 1995, v: 615, a: "clinton" },
-      { y: 1996, v: 741, a: "clinton" }, { y: 1997, v: 970, a: "clinton" }, { y: 1998, v: 1229, a: "clinton" },
-      { y: 1999, v: 1469, a: "clinton" }, { y: 2000, v: 1320, a: "clinton" },
-      { y: 2001, v: 1148, a: "bush" }, { y: 2002, v: 880, a: "bush" }, { y: 2003, v: 1112, a: "bush" },
-      { y: 2004, v: 1212, a: "bush" }, { y: 2005, v: 1249, a: "bush" }, { y: 2006, v: 1418, a: "bush" },
-      { y: 2007, v: 1468, a: "bush" }, { y: 2008, v: 903, a: "bush" },
-      { y: 2009, v: 1115, a: "obama" }, { y: 2010, v: 1258, a: "obama" }, { y: 2011, v: 1258, a: "obama" },
-      { y: 2012, v: 1426, a: "obama" }, { y: 2013, v: 1848, a: "obama" }, { y: 2014, v: 2059, a: "obama" },
-      { y: 2015, v: 2044, a: "obama" }, { y: 2016, v: 2239, a: "obama" },
-      { y: 2017, v: 2674, a: "trump1" }, { y: 2018, v: 2507, a: "trump1" }, { y: 2019, v: 3231, a: "trump1" },
-      { y: 2020, v: 3756, a: "trump1" },
-      { y: 2021, v: 4766, a: "biden" }, { y: 2022, v: 3840, a: "biden" }, { y: 2023, v: 4770, a: "biden" },
-      { y: 2024, v: 5881, a: "biden" },
-    ],
   },
   debt_gdp: {
     key: "debt_gdp", label: "Debt-to-GDP", unit: "%", inverse: true, category: "Fiscal", source: "FRED / Treasury",
     hints: ["debt", "national debt", "debt-to-gdp", "federal debt"],
-    data: [
-      { y: 1993, v: 64.4, a: "clinton" }, { y: 1994, v: 64.0, a: "clinton" }, { y: 1995, v: 64.2, a: "clinton" },
-      { y: 1996, v: 63.3, a: "clinton" }, { y: 1997, v: 60.3, a: "clinton" }, { y: 1998, v: 57.2, a: "clinton" },
-      { y: 1999, v: 55.3, a: "clinton" }, { y: 2000, v: 54.7, a: "clinton" },
-      { y: 2001, v: 54.3, a: "bush" }, { y: 2002, v: 56.8, a: "bush" }, { y: 2003, v: 59.1, a: "bush" },
-      { y: 2004, v: 61.0, a: "bush" }, { y: 2005, v: 60.9, a: "bush" }, { y: 2006, v: 61.1, a: "bush" },
-      { y: 2007, v: 62.0, a: "bush" }, { y: 2008, v: 67.7, a: "bush" },
-      { y: 2009, v: 82.4, a: "obama" }, { y: 2010, v: 91.4, a: "obama" }, { y: 2011, v: 95.6, a: "obama" },
-      { y: 2012, v: 99.7, a: "obama" }, { y: 2013, v: 100.4, a: "obama" }, { y: 2014, v: 103.4, a: "obama" },
-      { y: 2015, v: 100.8, a: "obama" }, { y: 2016, v: 105.6, a: "obama" },
-      { y: 2017, v: 105.0, a: "trump1" }, { y: 2018, v: 106.1, a: "trump1" }, { y: 2019, v: 107.2, a: "trump1" },
-      { y: 2020, v: 129.2, a: "trump1" },
-      { y: 2021, v: 126.4, a: "biden" }, { y: 2022, v: 120.6, a: "biden" }, { y: 2023, v: 122.3, a: "biden" },
-      { y: 2024, v: 124.0, a: "biden" },
-    ],
   },
   median_income: {
     key: "median_income", label: "Median Income", unit: "$K", inverse: false, category: "Wages", source: "Census ACS",
     hints: ["median income", "household income", "family income", "real wages", "wages"],
-    data: [
-      { y: 1993, v: 52.3, a: "clinton" }, { y: 1994, v: 53.2, a: "clinton" }, { y: 1995, v: 54.5, a: "clinton" },
-      { y: 1996, v: 55.9, a: "clinton" }, { y: 1997, v: 57.6, a: "clinton" }, { y: 1998, v: 59.5, a: "clinton" },
-      { y: 1999, v: 60.1, a: "clinton" }, { y: 2000, v: 59.5, a: "clinton" },
-      { y: 2001, v: 58.1, a: "bush" }, { y: 2002, v: 57.4, a: "bush" }, { y: 2003, v: 56.5, a: "bush" },
-      { y: 2004, v: 56.1, a: "bush" }, { y: 2005, v: 56.2, a: "bush" }, { y: 2006, v: 56.4, a: "bush" },
-      { y: 2007, v: 57.4, a: "bush" }, { y: 2008, v: 55.3, a: "bush" },
-      { y: 2009, v: 55.7, a: "obama" }, { y: 2010, v: 54.2, a: "obama" }, { y: 2011, v: 53.4, a: "obama" },
-      { y: 2012, v: 53.6, a: "obama" }, { y: 2013, v: 54.5, a: "obama" }, { y: 2014, v: 55.6, a: "obama" },
-      { y: 2015, v: 58.5, a: "obama" }, { y: 2016, v: 60.3, a: "obama" },
-      { y: 2017, v: 61.4, a: "trump1" }, { y: 2018, v: 63.2, a: "trump1" }, { y: 2019, v: 68.7, a: "trump1" },
-      { y: 2020, v: 67.5, a: "trump1" },
-      { y: 2021, v: 70.8, a: "biden" }, { y: 2022, v: 74.6, a: "biden" }, { y: 2023, v: 80.6, a: "biden" },
-      { y: 2024, v: 81.5, a: "biden" },
-    ],
   },
 };
+
+// Merge metadata + snapshot data into the public METRICS_DATA shape.
+export const METRICS_DATA: Record<MetricKey, MetricDef> = Object.fromEntries(
+  (Object.entries(METRIC_DEFS) as [MetricKey, Omit<MetricDef, "data">][])
+    .map(([k, def]) => [k, { ...def, data: dataFor(k) }]),
+) as Record<MetricKey, MetricDef>;
 
 export const METRIC_KEYS = Object.keys(METRICS_DATA) as MetricKey[];
 
