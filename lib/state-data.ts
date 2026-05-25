@@ -790,6 +790,11 @@ export const STATE_METRICS: Record<string, StateMetric> = {
 
 // Metric ordering — grouped by category for the picker. Order within each
 // group is "most asked about / most universal" first.
+// Display order for the picker. metricsForCategory() filters this list by
+// category, so ANY new metric added to STATE_METRICS must also appear here
+// or it won't render in the UI. (Found-and-fixed: an earlier PR added the
+// Health / Politics / Crime metrics to STATE_METRICS but missed this list,
+// so those categories showed up empty in the picker.)
 export const STATE_METRIC_ORDER = [
   // Cost of living
   "median_home", "rent", "gas", "electricity",
@@ -797,6 +802,12 @@ export const STATE_METRIC_ORDER = [
   "income_tax", "sales_tax", "property_tax", "gas_tax", "corp_tax",
   // Demographics
   "population", "household_income", "unemployment", "bachelors", "gdp_capita",
+  // Health & wellbeing
+  "life_expectancy", "uninsured", "infant_mortality", "drug_deaths", "maternal_mortality",
+  // Politics & civic life
+  "presidential_margin", "voter_turnout",
+  // Crime & safety
+  "violent_crime", "murder_rate", "property_crime", "incarceration",
 ];
 
 export function metricsForCategory(cat: StateMetricCategory): string[] {
