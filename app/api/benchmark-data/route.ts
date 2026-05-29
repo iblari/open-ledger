@@ -187,11 +187,20 @@ function purchasingPower(parsed: { date: Date; value: number }[]): { date: Date;
   return parsed.map(p => ({ date: p.date, value: Math.round((baseVal / p.value) * 10000) / 100 }));
 }
 
+// Standard no-cache headers for error responses. Important: this route's
+// revalidate is 1h, but errors must NOT be cached — otherwise a transient
+// FRED outage poisons the cache for an hour even after FRED recovers.
+const ERROR_HEADERS = {
+  "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+  "CDN-Cache-Control": "no-store",
+  "Vercel-CDN-Cache-Control": "no-store",
+};
+
 // ── Main handler ──
 export async function GET() {
   const apiKey = process.env.FRED_API_KEY;
   if (!apiKey) {
-    return NextResponse.json({ error: 'FRED_API_KEY not configured' }, { status: 200 });
+    return NextResponse.json({ error: 'FRED_API_KEY not configured' }, { status: 200, headers: ERROR_HEADERS });
   }
 
   try {
@@ -283,6 +292,8 @@ export async function GET() {
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     console.error('Benchmark API error:', message);
-    return NextResponse.json({ error: message }, { status: 200 });
+    // no-store on the error path so the next request after FRED recovers
+    // hits the upstream fresh instead of seeing the cached failure.
+    return NextResponse.json({ error: message }, { status: 200, headers: ERROR_HEADERS });
   }
 }
