@@ -148,7 +148,12 @@ function ordinal(n: number): string {
   const s = ["th", "st", "nd", "rd"]; const v = n % 100;
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
 }
-function fmtVal(v: number, unit: string): string {
+function fmtVal(v: number | null | undefined, unit: string): string {
+  // Defensive: hover panel payload can include admins with no data at the
+  // hovered month (e.g. Nixon at month 48 — his term ended decades before
+  // most metrics' data even starts), in which case value is undefined.
+  // Without this guard, .toFixed() crashes React and the whole page goes blank.
+  if (v == null || !Number.isFinite(v)) return "—";
   if (unit === "T") return `$${v.toFixed(1)}T`;
   if (unit === "B") return `$${v.toFixed(0)}B`;
   if (unit === "M") return `${v.toFixed(2)}M`;
@@ -697,6 +702,11 @@ export default function LiveBenchmark() {
                   fontVariantNumeric: "tabular-nums",
                 }}>
                   {[...hover.payload]
+                    // Drop admins with no data at this month — Recharts still
+                    // includes them in the payload with value === undefined/null,
+                    // which would render as "Nixon —" noise (and previously
+                    // crashed fmtVal). Filtering here keeps the panel honest.
+                    .filter(p => p && p.value != null && Number.isFinite(p.value))
                     .sort((a, b) => {
                       const aCur = adminMap[a.dataKey]?.current; const bCur = adminMap[b.dataKey]?.current;
                       if (aCur && !bCur) return -1; if (!aCur && bCur) return 1;
