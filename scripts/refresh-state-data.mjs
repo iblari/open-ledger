@@ -189,6 +189,14 @@ function assembleSeries(yearMap, allStates) {
     if (series[idx2020] == null && series[idx2019] != null) {
       series[idx2020] = series[idx2019];
     }
+    // Forward-fill any trailing nulls from the last known value. Census ACS
+    // 1-year releases ~9 months after year end, so e.g. 2025 isn't available
+    // until Sept 2026; until then we show 2024's value rather than dropping
+    // the state entirely. Once the real release lands, the weekly refresh PR
+    // will replace these.
+    for (let i = 1; i < series.length; i++) {
+      if (series[i] == null && series[i - 1] != null) series[i] = series[i - 1];
+    }
     if (series.every(v => v != null)) out[code] = series;
   }
   return out;
@@ -239,17 +247,27 @@ async function pullCensusACS() {
       yearMaps.bachelors[y] = out;
     }
 
-    // S2701_C05_001E: % uninsured (already a percentage)
+    // S2701_C05_001E: % uninsured (already a percentage in 2015+).
+    //
+    // ⚠ Schema drift: in the 2014 ACS this SAME variable code meant
+    // "Percent INSURED" (Census restructured the S2701 table in 2015).
+    // Same variable name, opposite meaning. Without correction, 2014 would
+    // show ~88% uninsured for California — obviously wrong.
+    // Fix: invert (100 - insured = uninsured) for 2014 only.
     const insUrl = `https://api.census.gov/data/${y}/acs/acs1/subject`
       + `?get=NAME,S2701_C05_001E&for=state:*&key=${apiKey}`;
     const insRes = await fetch(insUrl);
     if (insRes.ok) {
       const insJson = await insRes.json();
       const out = {};
+      const invert2014 = y === 2014;
       for (const row of insJson.slice(1)) {
         const code = FIPS_TO_CODE[row[2]];
-        const v = parseFloat(row[1]);
-        if (code && Number.isFinite(v)) out[code] = Math.round(v * 10) / 10;
+        const raw = parseFloat(row[1]);
+        if (code && Number.isFinite(raw)) {
+          const v = invert2014 ? 100 - raw : raw;
+          out[code] = Math.round(v * 10) / 10;
+        }
       }
       yearMaps.uninsured[y] = out;
     }
@@ -412,15 +430,38 @@ async function main() {
   const here = dirname(fileURLToPath(import.meta.url));
   const outPath = `${here}/../data/state-snapshot.json`;
   mkdirSync(dirname(outPath), { recursive: true });
+
+  // Merge with previous snapshot: keep last-good data for any metric a source
+  // didn't produce THIS run (e.g. BLS rate-limited, Zillow temporarily 500,
+  // Census API down). This prevents a one-off upstream failure from wiping
+  // months of correct data off the site. The cron is weekly, so worst case
+  // is one week of slightly-stale data for the failing source.
+  let prevMetrics = {};
+  try {
+    const { readFileSync, existsSync } = await import("node:fs");
+    if (existsSync(outPath)) {
+      const prev = JSON.parse(readFileSync(outPath, "utf8"));
+      prevMetrics = prev.metrics || {};
+    }
+  } catch {
+    // No previous snapshot or unreadable — that's fine, write a fresh one.
+  }
+
+  const merged = { ...prevMetrics, ...metrics };
+  const preserved = Object.keys(prevMetrics).filter(k => !(k in metrics));
+  if (preserved.length) {
+    console.log(`   ⓘ preserved ${preserved.length} metric(s) from last snapshot: ${preserved.join(", ")}`);
+  }
+
   const snapshot = {
     generatedAt: new Date().toISOString(),
     source: "real-annual",
-    metrics,
+    metrics: merged,
   };
   writeFileSync(outPath, JSON.stringify(snapshot, null, 2) + "\n");
   console.log("");
   console.log(`✓ wrote ${outPath}`);
-  console.log(`  ${Object.keys(metrics).length} metric${Object.keys(metrics).length === 1 ? "" : "s"} with real history`);
+  console.log(`  ${Object.keys(merged).length} metric${Object.keys(merged).length === 1 ? "" : "s"} with real history (${Object.keys(metrics).length} fresh this run)`);
 }
 
 main().catch(e => {
