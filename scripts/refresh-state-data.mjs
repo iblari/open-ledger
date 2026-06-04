@@ -264,6 +264,96 @@ async function pullCensusACS() {
   };
 }
 
+
+// ── BLS LAUS pipeline — state unemployment ──
+// Local Area Unemployment Statistics. Series ID format:
+//   LASST + 2-digit FIPS + 10 zeros + "03"   (03 = unemployment rate)
+// The public BLS API needs no key for our volume (~6 queries per refresh,
+// well under the 25/day key-less quota), but with a free BLS_API_KEY the
+// quota lifts to 500/day. Either works — we use the key if present.
+//
+// The API caps each request at 10 years and 25 series, so we do 6 queries:
+// 3 batches of ~17 states × 2 year windows (2014-2023, 2024-2025).
+const BLS_FIPS = Object.keys(FIPS_TO_CODE); // 51 entries (50 states + DC)
+const blsSeries = (fips) => `LASST${fips}0000000000003`;
+
+async function blsFetch(seriesIds, startYear, endYear) {
+  const body = {
+    seriesid: seriesIds,
+    startyear: String(startYear),
+    endyear: String(endYear),
+  };
+  const key = process.env.BLS_API_KEY;
+  if (key) body.registrationkey = key;
+  const res = await fetch("https://api.bls.gov/publicAPI/v2/timeseries/data/", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`BLS HTTP ${res.status}`);
+  const json = await res.json();
+  if (json.status !== "REQUEST_SUCCEEDED") {
+    throw new Error(`BLS API: ${(json.message || []).join("; ")}`);
+  }
+  return json.Results?.series ?? [];
+}
+
+// Aggregate monthly readings → annual mean. Need ≥6 months to count a year.
+function monthlyToAnnual(rows) {
+  const byYear = {};
+  for (const x of rows) {
+    if (x.value === "-" || x.value == null) continue;
+    const v = parseFloat(x.value);
+    if (!Number.isFinite(v)) continue;
+    const y = parseInt(x.year, 10);
+    (byYear[y] = byYear[y] || []).push(v);
+  }
+  const out = {};
+  for (const [y, vs] of Object.entries(byYear)) {
+    if (vs.length >= 6) out[y] = +(vs.reduce((a, b) => a + b, 0) / vs.length).toFixed(2);
+  }
+  return out;
+}
+
+async function pullBLSUnemployment() {
+  // Build series-id → state-code lookup.
+  const idToCode = {};
+  for (const fips of BLS_FIPS) idToCode[blsSeries(fips)] = FIPS_TO_CODE[fips];
+  const allIds = Object.keys(idToCode);
+
+  // Split 51 series into batches of 25 (API cap).
+  const batches = [];
+  for (let i = 0; i < allIds.length; i += 25) batches.push(allIds.slice(i, i + 25));
+
+  // Two year windows to cover 2014-2025 within the 10-year-per-query cap.
+  const windows = [[2014, 2023], [2024, 2025]];
+
+  // Accumulate { CODE: { year: value } }
+  const stateYearMap = {};
+  for (const [start, end] of windows) {
+    for (const batch of batches) {
+      const series = await blsFetch(batch, start, end);
+      for (const s of series) {
+        const code = idToCode[s.seriesID];
+        if (!code) continue;
+        const annual = monthlyToAnnual(s.data);
+        (stateYearMap[code] = stateYearMap[code] || {});
+        Object.assign(stateYearMap[code], annual);
+      }
+      // Tiny pause between batches — BLS is generous but be polite.
+      await new Promise(r => setTimeout(r, 250));
+    }
+  }
+
+  // Project to YEARS-length arrays. Drop any state missing any year.
+  const out = {};
+  for (const [code, ym] of Object.entries(stateYearMap)) {
+    const series = YEARS.map(y => ym[y] ?? null);
+    if (series.every(v => v != null)) out[code] = series;
+  }
+  return out;
+}
+
 // ── Main ─────────────────────────────────────────────────────────
 
 async function main() {
@@ -299,8 +389,20 @@ async function main() {
     console.error(`   Census ACS failed: ${e.message} — continuing without it`);
   }
 
+  // PIPELINE 4: BLS LAUS — state unemployment (key-less, but BLS_API_KEY ups the quota)
+  try {
+    const history = await pullBLSUnemployment();
+    if (history && Object.keys(history).length >= 40) {
+      metrics.unemployment = { history };
+      console.log(`   ✓ unemployment: ${Object.keys(history).length} states, ${YEARS.length} years (BLS LAUS)`);
+    } else {
+      console.log(`   BLS LAUS returned only ${Object.keys(history || {}).length} complete states — skipping`);
+    }
+  } catch (e) {
+    console.error(`   BLS LAUS failed: ${e.message} — continuing without it`);
+  }
+
   // (Pipelines to add — each follows the pattern above and is mostly mechanical:
-  //  - BLS LAUS: unemployment (needs BLS_API_KEY)
   //  - EIA: gas, electricity (needs EIA_API_KEY)
   //  - FBI Crime Data Explorer: violent_crime, murder_rate, property_crime
   //  - CDC NVSS / WONDER: life_expectancy, infant_mortality, drug_deaths, maternal_mortality

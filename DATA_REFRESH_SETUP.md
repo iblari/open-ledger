@@ -164,6 +164,7 @@ back-fill — both paths coexist, so wiring is incremental and safe.
 | Metric | Source | Cadence | Setup |
 |---|---|---|---|
 | `median_home` | Zillow ZHVI state CSV | Monthly | None (open CSV) |
+| `unemployment` | BLS LAUS public API | Monthly (rolled to annual) | None (works key-less; `BLS_API_KEY` ups daily quota to 500) |
 | `population`, `household_income`, `bachelors`, `uninsured` | Census ACS 1-year API | Annual (Sept release) | **Needs `CENSUS_API_KEY`** — see below |
 
 ### Enabling the Census pipeline (4 metrics, 2 min)
@@ -187,7 +188,6 @@ is handled — the script forward-fills 2019 → 2020.
 | Metric(s) | Source | API key | Difficulty |
 |---|---|---|---|
 | `rent` | Zillow ZORI state CSV | None | Easy — URL pattern moved, needs scraping |
-| `unemployment` | BLS LAUS | `BLS_API_KEY` (free) | Easy |
 | `gas`, `electricity` | EIA | `EIA_API_KEY` (free) | Easy |
 | `violent_crime`, `murder_rate`, `property_crime` | FBI Crime Data Explorer API | None | Medium — quirky JSON shape |
 | `life_expectancy`, `infant_mortality`, `drug_deaths`, `maternal_mortality` | CDC NVSS / WONDER | None | Medium — multiple CSVs per metric |
