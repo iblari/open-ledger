@@ -135,3 +135,74 @@ have been in the PR.
 FRED is free, no daily quota. ~6 API calls per refresh = 24 per month.
 GitHub Actions free tier covers the workflow runs easily (the job takes
 ~10 seconds end to end).
+
+---
+
+# State Atlas data refresh (parallel pipeline)
+
+Same idea as the national FRED refresh above, but for the State Atlas's
+per-state annual history. Runs Mondays 14:00 UTC, one hour after the
+national refresh.
+
+## How the State Atlas data flows
+
+```
+scripts/refresh-state-data.mjs
+   ↓ (per-source ingestion blocks)
+data/state-snapshot.json
+   ↓ (imported by lib/state-data.ts at build time)
+StateMetric.history is populated → stateHistory() prefers it over CAGR back-fill
+   ↓
+Trend chart shows REAL spikes/dips (2008 crash, 2020 COVID, 2022 home-price peak…)
+```
+
+Metrics without real data in the snapshot fall back to the existing CAGR
+back-fill — both paths coexist, so wiring is incremental and safe.
+
+## What's wired right now
+
+| Metric | Source | Cadence | Setup |
+|---|---|---|---|
+| `median_home` | Zillow ZHVI state CSV | Monthly | None (open CSV) |
+
+## What's planned (each is ~50-line addition to refresh-state-data.mjs)
+
+| Metric(s) | Source | API key |
+|---|---|---|
+| `unemployment` | BLS LAUS | `BLS_API_KEY` (free) |
+| `household_income`, `population`, `bachelors`, `uninsured` | Census ACS 1-year | `CENSUS_API_KEY` (free) |
+| `gas`, `electricity` | EIA | `EIA_API_KEY` (free) |
+| `violent_crime`, `murder_rate`, `property_crime` | FBI Crime Data Explorer | `FBI_API_KEY` (free) |
+| `life_expectancy`, `infant_mortality`, `drug_deaths`, `maternal_mortality` | CDC NVSS / WONDER | None (CSV downloads) |
+| `presidential_margin`, `voter_turnout` | MIT Election Lab | None (CSV downloads) |
+| `gdp_capita` | BEA SAGDP | `BEA_API_KEY` (free) |
+
+To add a new pipeline:
+
+1. Write a `pullX()` function in `scripts/refresh-state-data.mjs` following
+   the `pullZillowHomeValues()` pattern (parse upstream → produce
+   `{ STATE_CODE: [12 values 2014..2025] }`).
+2. Call it in `main()` and assign to `metrics[KEY] = { history: ... }`.
+3. If the source needs an API key, add the env var to the GitHub Action
+   step in `.github/workflows/refresh-state-data.yml`.
+4. Add the API-key secret in GitHub Settings → Secrets and variables.
+
+Done. Next Monday's refresh PR includes the new metric.
+
+## Failure modes
+
+| What | Behavior |
+|---|---|
+| Source API/CSV down | That pipeline fails, script exits 2, snapshot NOT overwritten |
+| Source returns <40 states | Script refuses to write — refuses to publish a sparse series |
+| Existing real history newer than upstream | Diff in PR shows the upstream's values (FRED-style revision); merge to accept |
+| Metric not in snapshot | Falls back to CAGR back-fill (smooth line, no spikes) |
+
+## Manual testing
+
+```bash
+node scripts/refresh-state-data.mjs
+```
+
+Watch for "51 states, 12 years" — that means a clean pull. The script
+exits non-zero on any failure.

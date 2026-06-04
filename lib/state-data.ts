@@ -90,9 +90,15 @@ export type StateMetric = {
   // Used by buildHistory() to back-fill an annual series from `latest`. A
   // single default rate covers the median state; entries in stateOverrides
   // refine where reality diverged meaningfully (hot housing markets, states
-  // that cut income tax, etc.). Phase B+ should swap these for real
-  // year-by-year published series.
+  // that cut income tax, etc.). This is the FALLBACK — when `history` (below)
+  // has real per-year data for a state, the back-fill is skipped.
   cagr: { default: number; stateOverrides?: Partial<Record<StateCode, number>> };
+  // REAL annual history per state — when present, OVERRIDES the CAGR back-fill.
+  // Array indices match HISTORY_YEARS (0 → 2014, ..., 11 → 2025).
+  // Populated by scripts/refresh-state-data.mjs from official sources (Zillow,
+  // Census ACS, BLS LAUS, FBI UCR, CDC NVSS, EIA, MIT Election Lab). Any
+  // missing state still falls back to the CAGR back-fill.
+  history?: Partial<Record<StateCode, number[]>>;
 };
 
 // Years covered by historical data. Indexed 0..11 = 2014..2025.
@@ -109,12 +115,28 @@ export function buildHistory(latest: number, cagr: number): number[] {
   return out;
 }
 
-// Compute a per-state 11-year history for a given metric using `latest` + cagr.
+// Return a per-state 12-year history for a given metric.
+//   1. Prefer REAL annual data from m.history if present (sourced from Zillow,
+//      Census, BLS, etc. via scripts/refresh-state-data.mjs). Real data shows
+//      actual spikes/dips — 2008 housing crash, 2020 COVID, 2021 inflation, etc.
+//   2. Fall back to CAGR-back-filled smooth curve otherwise. This is the
+//      "estimated trend" path — mathematically smooth, no spikes possible.
+// Until every metric × every state has real data, both paths coexist.
 export function stateHistory(m: StateMetric, code: StateCode): number[] | null {
+  // Real data wins if available
+  const realSeries = m.history?.[code];
+  if (realSeries && realSeries.length === HISTORY_YEARS.length) return realSeries;
+  // Otherwise CAGR back-fill from the latest anchor
   const latest = m.latest[code];
   if (latest === undefined) return null;
   const cagr = m.cagr.stateOverrides?.[code] ?? m.cagr.default;
   return buildHistory(latest, cagr);
+}
+
+/** True when this state has real annual data (not back-filled) for this metric. */
+export function hasRealHistory(m: StateMetric, code: StateCode): boolean {
+  const real = m.history?.[code];
+  return !!(real && real.length === HISTORY_YEARS.length);
 }
 
 // National 12-year series, computed per metric's aggregateMethod:
@@ -790,6 +812,30 @@ export const STATE_METRICS: Record<string, StateMetric> = {
 
 // Metric ordering — grouped by category for the picker. Order within each
 // group is "most asked about / most universal" first.
+// ── Attach real annual history from data/state-snapshot.json ─────
+//
+// scripts/refresh-state-data.mjs writes this file weekly from Zillow / Census /
+// BLS / FBI / CDC. When a metric key has an entry, the per-state history
+// arrays replace the CAGR back-fill (per stateHistory() above). Metrics not
+// in the snapshot keep using the back-fill — both paths coexist until the
+// last metric is fully wired.
+//
+// Currently wired: median_home (Zillow ZHVI). All other metrics still use
+// the smooth back-fill. See DATA_REFRESH_SETUP.md for the expansion plan.
+import stateSnapshot from "../data/state-snapshot.json";
+interface StateSnapshotShape {
+  generatedAt?: string;
+  source?: string;
+  metrics?: Record<string, { history?: Partial<Record<StateCode, number[]>> }>;
+}
+const STATE_SNAPSHOT = stateSnapshot as StateSnapshotShape;
+for (const [key, entry] of Object.entries(STATE_SNAPSHOT.metrics ?? {})) {
+  const target = STATE_METRICS[key];
+  if (target && entry?.history) target.history = entry.history;
+}
+/** When the state snapshot was last regenerated (or null if missing). */
+export const STATE_SNAPSHOT_GENERATED_AT: string | null = STATE_SNAPSHOT.generatedAt ?? null;
+
 // Display order for the picker. metricsForCategory() filters this list by
 // category, so ANY new metric added to STATE_METRICS must also appear here
 // or it won't render in the UI. (Found-and-fixed: an earlier PR added the
