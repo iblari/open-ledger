@@ -36,11 +36,15 @@ jobs:
           node-version: "20"
 
       - name: Pull state-level data
-        # Pipeline-specific env vars can go here as more sources are added:
-        #   CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
-        #   BLS_API_KEY:    ${{ secrets.BLS_API_KEY }}
-        #   FBI_API_KEY:    ${{ secrets.FBI_API_KEY }}
-        #   EIA_API_KEY:    ${{ secrets.EIA_API_KEY }}
+        env:
+          # Each pipeline gracefully SKIPS when its key is missing — adding
+          # a secret in GitHub repo settings enables that pipeline immediately.
+          CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
+          # Future keys (uncomment as the corresponding pipeline lands):
+          # BLS_API_KEY:    ${{ secrets.BLS_API_KEY }}
+          # FBI_API_KEY:    ${{ secrets.FBI_API_KEY }}
+          # EIA_API_KEY:    ${{ secrets.EIA_API_KEY }}
+          # BEA_API_KEY:    ${{ secrets.BEA_API_KEY }}
         run: node scripts/refresh-state-data.mjs
 
       - name: Open PR if snapshot changed

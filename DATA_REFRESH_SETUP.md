@@ -164,18 +164,36 @@ back-fill — both paths coexist, so wiring is incremental and safe.
 | Metric | Source | Cadence | Setup |
 |---|---|---|---|
 | `median_home` | Zillow ZHVI state CSV | Monthly | None (open CSV) |
+| `population`, `household_income`, `bachelors`, `uninsured` | Census ACS 1-year API | Annual (Sept release) | **Needs `CENSUS_API_KEY`** — see below |
+
+### Enabling the Census pipeline (4 metrics, 2 min)
+
+The Census code is shipped but skips itself when `CENSUS_API_KEY` is missing.
+To turn it on:
+
+1. Register for a free key at https://api.census.gov/data/key_signup.html
+   (instant — email link arrives in <1 min).
+2. GitHub repo → Settings → Secrets and variables → Actions → New secret.
+   Name: `CENSUS_API_KEY`, value: your key.
+3. Next Monday's auto-refresh PR (or trigger manually via Actions tab) will
+   include population / income / bachelor's / uninsured with REAL annual data
+   instead of CAGR back-fill.
+
+The 2020 ACS gap (Census skipped 1-year that year over COVID data quality)
+is handled — the script forward-fills 2019 → 2020.
 
 ## What's planned (each is ~50-line addition to refresh-state-data.mjs)
 
-| Metric(s) | Source | API key |
-|---|---|---|
-| `unemployment` | BLS LAUS | `BLS_API_KEY` (free) |
-| `household_income`, `population`, `bachelors`, `uninsured` | Census ACS 1-year | `CENSUS_API_KEY` (free) |
-| `gas`, `electricity` | EIA | `EIA_API_KEY` (free) |
-| `violent_crime`, `murder_rate`, `property_crime` | FBI Crime Data Explorer | `FBI_API_KEY` (free) |
-| `life_expectancy`, `infant_mortality`, `drug_deaths`, `maternal_mortality` | CDC NVSS / WONDER | None (CSV downloads) |
-| `presidential_margin`, `voter_turnout` | MIT Election Lab | None (CSV downloads) |
-| `gdp_capita` | BEA SAGDP | `BEA_API_KEY` (free) |
+| Metric(s) | Source | API key | Difficulty |
+|---|---|---|---|
+| `rent` | Zillow ZORI state CSV | None | Easy — URL pattern moved, needs scraping |
+| `unemployment` | BLS LAUS | `BLS_API_KEY` (free) | Easy |
+| `gas`, `electricity` | EIA | `EIA_API_KEY` (free) | Easy |
+| `violent_crime`, `murder_rate`, `property_crime` | FBI Crime Data Explorer API | None | Medium — quirky JSON shape |
+| `life_expectancy`, `infant_mortality`, `drug_deaths`, `maternal_mortality` | CDC NVSS / WONDER | None | Medium — multiple CSVs per metric |
+| `presidential_margin`, `voter_turnout` | MIT Election Lab | None | Easy — values stable post-cert, can be embedded |
+| `gdp_capita` | BEA SAGDP | `BEA_API_KEY` (free) | Easy |
+| `income_tax`, `sales_tax`, `property_tax`, `gas_tax`, `corp_tax` | Tax Foundation annual CSVs | None | Easy — statutory rates barely change |
 
 To add a new pipeline:
 
