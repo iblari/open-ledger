@@ -19,6 +19,7 @@ import type { Feature, FeatureCollection, Geometry } from "geojson";
 
 import { C as EC, SERIF as ESERIF, SANS as ESANS } from "@/lib/design-tokens";
 import { PillToggle } from "@/components/PillToggle";
+import CompactPicker from "@/components/CompactPicker";
 import { StateTrendChart, stateLineColor } from "@/components/StateTrendChart";
 import {
   STATE_METRICS,
@@ -86,6 +87,18 @@ function colorFor(m: StateMetric, v: number | undefined, view: ViewMode): string
 
 type TooltipState = { name: string; html: string; x: number; y: number } | null;
 
+// Local viewport hook — matches the useIsMobile pattern used elsewhere
+// on the site so this component doesn't depend on any one parent's check.
+function useIsMobile() {
+  const [mob, setMob] = useState(false);
+  useEffect(() => {
+    const check = () => setMob(window.innerWidth < 768);
+    check(); window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+  return mob;
+}
+
 export function StateAtlas() {
   const [mk, setMk] = useState<string>(STATE_METRIC_ORDER[0]);
   const [view, setView] = useState<ViewMode>("latest");
@@ -95,10 +108,26 @@ export function StateAtlas() {
   // Selected states (max 5) — drives the per-state lines in the trend chart
   // and the thicker stroke on the map. Order preserved for stable colors.
   const [selected, setSelected] = useState<StateCode[]>([]);
+  // Mobile picker sheet — replaces the 25-pill grid on small screens. The
+  // grid eats ~400px of vertical space before the map; the sheet collapses
+  // it to a single button.
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const mob = useIsMobile();
   const wrapRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
   const metric = STATE_METRICS[mk];
+
+  // Build options for the CompactPicker — same metrics, but grouped by
+  // category label so the bottom-sheet shows section headers (Cost of living,
+  // Taxes, etc.) just like the desktop pill grid.
+  const pickerOptions = useMemo(() => {
+    return STATE_METRIC_ORDER.map(k => ({
+      value: k,
+      label: STATE_METRICS[k].label,
+      category: STATE_CATEGORY_LABELS[STATE_METRICS[k].category],
+    }));
+  }, []);
 
   function toggleSelect(code: StateCode) {
     setSelected(prev => {
@@ -260,9 +289,45 @@ export function StateAtlas() {
         />
       </div>
 
-      {/* Grouped metric picker — 3 sections (Cost / Tax / Demographics).
+      {/* MOBILE: single-button picker that opens a bottom-sheet with all
+          metrics grouped by category. Replaces the 25-pill grid which ate
+          ~400px of vertical space before the map was visible. */}
+      {mob && (
+        <div style={{
+          padding: "10px 14px",
+          background: EC.card,
+          borderBottom: `1px solid ${EC.rule}`,
+        }}>
+          <button
+            type="button"
+            onClick={() => setPickerOpen(true)}
+            style={{
+              width: "100%", display: "flex", alignItems: "center",
+              justifyContent: "space-between", gap: 8,
+              padding: "10px 14px", borderRadius: 4,
+              border: `1px solid ${EC.rule}`, background: EC.paper,
+              fontFamily: ESANS, fontSize: 13, color: EC.ink,
+              cursor: "pointer", textAlign: "left",
+            }}
+          >
+            <span style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+              <span style={{
+                fontFamily: ESANS, fontSize: 9, fontWeight: 600,
+                letterSpacing: "0.12em", textTransform: "uppercase", color: EC.mute,
+              }}>{STATE_CATEGORY_LABELS[metric.category]}</span>
+              <span style={{ fontWeight: 600, color: EC.ink, fontSize: 14, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {metric.label}
+              </span>
+            </span>
+            <span style={{ fontSize: 11, color: EC.mute, flexShrink: 0 }}>change ▾</span>
+          </button>
+        </div>
+      )}
+
+      {/* DESKTOP: grouped metric picker — same content as the mobile sheet
+          but laid out inline as a pill grid with category labels.
           Each section header is a small caps label; pills wrap inline. */}
-      <div style={{
+      {!mob && <div style={{
         padding: "12px 14px 10px",
         background: EC.card,
         borderBottom: `1px solid ${EC.rule}`,
@@ -309,7 +374,7 @@ export function StateAtlas() {
             </div>
           );
         })}
-      </div>
+      </div>}
 
       {/* Map — real-geo D3 choropleth */}
       <div ref={wrapRef} style={{ position: "relative", padding: 16, background: EC.card }}>
@@ -445,6 +510,19 @@ export function StateAtlas() {
       }}>
         Tip: click any state on the map to add its 10-year line to the chart. Up to {MAX_SELECTED} at a time.
       </p>
+    )}
+
+    {/* Mobile bottom-sheet picker — opens when the user taps the button at
+        the top of the card. Same metric list, grouped by category. */}
+    {mob && (
+      <CompactPicker
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        title="Choose a metric"
+        options={pickerOptions}
+        value={mk}
+        onSelect={(v) => setMk(v)}
+      />
     )}
     </>
   );
