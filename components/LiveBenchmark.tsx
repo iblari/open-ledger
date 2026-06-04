@@ -387,6 +387,11 @@ export default function LiveBenchmark() {
   const [shareStatus, setShareStatus] = useState<string | null>(null);
   const [highlighted, setHighlighted] = useState<Set<string>>(new Set());
   const [sheetOpen, setSheetOpen] = useState(false);
+  // Hover state captured via LineChart.onMouseMove. Lives OUTSIDE the SVG
+  // so the panel can render above the chart instead of as an in-chart overlay.
+  // Removes the "tooltip covers Trump II's data" problem completely — chart
+  // stays clean, hover panel sits in its own row above.
+  const [hover, setHover] = useState<{ month: number; payload: { dataKey: string; value: number; color: string }[] } | null>(null);
 
   // Fetch live FRED-backed data
   useEffect(() => {
@@ -670,33 +675,82 @@ export default function LiveBenchmark() {
                 · {md.series.length} administrations · months in office
               </span>
             </div>
+            {/* Hover panel — renders ABOVE the chart so it never overlays the
+                data. Visible only while hovering; collapses to a hint when not.
+                On mobile the chart is too narrow for an in-chart tooltip not
+                to cover Trump II's recent months; pulling it out fixes that. */}
+            {hover ? (
+              <div style={{
+                background: EC.ink, color: "#fff",
+                padding: mob ? "8px 12px" : "10px 14px",
+                borderRadius: 6, marginBottom: 10,
+                fontFamily: ESANS, fontSize: mob ? 11 : 12, lineHeight: 1.4,
+              }}>
+                <div style={{ fontFamily: ESERIF, fontWeight: 600, fontSize: mob ? 12 : 13, marginBottom: 6 }}>
+                  Month {hover.month}
+                </div>
+                {/* Render the same sorted admin rows as before, in a
+                    horizontal wrap so all 10 fit without scroll. */}
+                <div style={{
+                  display: "flex", flexWrap: "wrap",
+                  gap: mob ? "4px 12px" : "4px 16px",
+                  fontVariantNumeric: "tabular-nums",
+                }}>
+                  {[...hover.payload]
+                    .sort((a, b) => {
+                      const aCur = adminMap[a.dataKey]?.current; const bCur = adminMap[b.dataKey]?.current;
+                      if (aCur && !bCur) return -1; if (!aCur && bCur) return 1;
+                      const aHL = highlighted.has(a.dataKey); const bHL = highlighted.has(b.dataKey);
+                      if (aHL && !bHL) return -1; if (!aHL && bHL) return 1;
+                      return (adminMap[a.dataKey]?.name || "").localeCompare(adminMap[b.dataKey]?.name || "");
+                    })
+                    .map((p, i) => {
+                      const isCur = adminMap[p.dataKey]?.current;
+                      const isHL = highlighted.has(p.dataKey);
+                      const anyHL = highlighted.size > 0;
+                      const dimmed = anyHL && !isHL && !isCur;
+                      const col = isCur ? EC.accent : isHL ? (ADMIN_COLORS[p.dataKey] || "#fff") : "#9a9490";
+                      return (
+                        <span key={i} style={{ display: "inline-flex", gap: 4, opacity: dimmed ? 0.4 : 1, whiteSpace: "nowrap" }}>
+                          <span style={{ color: col, fontWeight: isCur || isHL ? 600 : 400 }}>{adminMap[p.dataKey]?.name || p.dataKey}</span>
+                          <span>{fmtVal(p.value, md.unit)}</span>
+                        </span>
+                      );
+                    })}
+                </div>
+              </div>
+            ) : (
+              <div style={{
+                fontFamily: ESANS, fontSize: 11, color: EC.mute, marginBottom: 10,
+                paddingLeft: mob ? 8 : 0, fontStyle: "italic",
+              }}>
+                Hover the chart to compare all administrations at any month.
+              </div>
+            )}
             <ResponsiveContainer width="100%" height={mob ? 300 : 420}>
-              <LineChart data={chartData} margin={{ top: 10, right: 16, left: 0, bottom: 10 }}>
+              <LineChart
+                data={chartData}
+                margin={{ top: 10, right: 16, left: 0, bottom: 10 }}
+                /* eslint-disable @typescript-eslint/no-explicit-any */
+                onMouseMove={(state: any) => {
+                  if (state?.activeLabel != null && Array.isArray(state.activePayload)) {
+                    setHover({ month: state.activeLabel as number, payload: state.activePayload });
+                  }
+                }}
+                onMouseLeave={() => setHover(null)}
+                /* eslint-enable @typescript-eslint/no-explicit-any */
+              >
                 <CartesianGrid strokeDasharray="3 3" stroke={EC.rule} strokeOpacity={0.6} />
                 <XAxis dataKey="month" type="number" domain={[0, "dataMax"] as [number, string]}
                   stroke={EC.mute} fontSize={11} fontFamily={ESANS} tick={{ fill: EC.sub }} axisLine={{ stroke: EC.rule }} />
                 <YAxis stroke={EC.rule} fontSize={10} fontFamily={ESANS} tick={{ fill: EC.sub }} axisLine={{ stroke: EC.rule }}
                   tickFormatter={(v: number) => fmtVal(v, md.unit)} />
-                {/* Pin the tooltip to the top-left corner of the chart so
-                    it never covers the line you're hovering. Without `position`,
-                    Recharts follows the cursor — on mobile that blocks the
-                    entire visible chart area with a 10-row admin list. With
-                    `position={{ x: 8, y: 0 }}` the tooltip sits at the top-left
-                    of the chart's data area, out of the way of every data point. */}
-                <Tooltip
-                  position={{ x: 8, y: 0 }}
-                  content={(p) => (
-                    <BenchTooltip
-                      /* eslint-disable @typescript-eslint/no-explicit-any */
-                      active={(p as any).active}
-                      payload={(p as any).payload}
-                      label={(p as any).label}
-                      /* eslint-enable @typescript-eslint/no-explicit-any */
-                      metric={md} adminMap={adminMap}
-                      highlighted={highlighted} adminColors={ADMIN_COLORS}
-                    />
-                  )}
-                />
+                {/* Keep a Tooltip purely for the dashed vertical cursor
+                    line — content is rendered as empty () so Recharts shows
+                    the cursor but no popup. The actual hover panel renders
+                    ABOVE the chart via the `hover` state captured by
+                    onMouseMove on the LineChart above. */}
+                <Tooltip cursor={{ stroke: EC.mute, strokeWidth: 1, strokeDasharray: "3 3" }} content={() => null} />
                 <ReferenceLine x={currentMonth} stroke={EC.accent} strokeDasharray="4 4" strokeWidth={1.5} />
                 {md.series.map(s => {
                   const isCurrent = s.current; const isHL = highlighted.has(s.id);
