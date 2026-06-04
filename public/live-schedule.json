@@ -1,0 +1,14 @@
+{
+  "_comment": "Vote Unbiased — Live Broadcast Schedule. Edit this file to add an event; the GitHub Action picks it up on its next 5-minute cron cycle. See LIVE_BROADCAST_SETUP.md.",
+  "events": [
+    {
+      "id": "potus-presser-example",
+      "title": "POTUS Press Conference (example)",
+      "speaker": "President",
+      "source": "White House YouTube",
+      "youtubeUrl": "https://www.youtube.com/watch?v=REPLACE_WITH_LIVE_VIDEO_ID",
+      "scheduledStart": "2099-12-31T19:00:00Z",
+      "scheduledEnd": "2099-12-31T20:30:00Z"
+    }
+  ]
+}

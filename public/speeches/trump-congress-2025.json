@@ -1,0 +1,244 @@
+{
+  "title": "Address to Joint Session of Congress 2025",
+  "speaker": "Donald Trump",
+  "date": "2025-03-04",
+  "videoId": "QpH2KQ8mHjg",
+  "duration": "99 minutes",
+  "segments": [
+    {
+      "time": 5,
+      "text": "Thank you very much. This is a great honor. We've accomplished more in 43 days than most administrations accomplish in four years, maybe even eight years.",
+      "claims": []
+    },
+    {
+      "time": 180,
+      "text": "America is back, open for business, and stronger than ever before. We will very quickly make America greater than ever before.",
+      "claims": []
+    },
+    {
+      "time": 480,
+      "text": "When I took office, we inherited a mess. We inherited an economic catastrophe and an inflation nightmare.",
+      "claims": [
+        {
+          "quote": "We inherited an economic catastrophe and an inflation nightmare",
+          "rating": "MISLEADING",
+          "actual": "BEA/BLS: The economy grew 2.5%+ annually since 2021. Unemployment was 4.0% in Jan 2025, well below historical norms. Inflation had declined from 9.1% peak to ~3% by inauguration.",
+          "explanation": "Economy was growing steadily with low unemployment when Trump took office."
+        }
+      ]
+    },
+    {
+      "time": 600,
+      "text": "We suffered the worst inflation in 48 years, but perhaps even in the history of our country. Americans saw their grocery bills skyrocket and everything go through the roof.",
+      "claims": [
+        {
+          "quote": "Worst inflation in 48 years, but perhaps even in the history of our country",
+          "rating": "FALSE",
+          "actual": "BLS CPI: Peak was 9.1% in June 2022 — the highest since November 1981 (41 years, not 48). Inflation exceeded 12-15% in the 1970s-80s and 18% in 1946.",
+          "explanation": "Inflation was high but far from the worst in U.S. history."
+        }
+      ]
+    },
+    {
+      "time": 720,
+      "text": "Joe Biden, especially, let the price of eggs get out of control. Everyone knows it. Under my leadership, we will bring the price of eggs and everything else back down.",
+      "claims": [
+        {
+          "quote": "Joe Biden let the price of eggs get out of control",
+          "rating": "MISLEADING",
+          "actual": "BLS/USDA: Egg prices spiked due to bird flu killing 100+ million chickens — a supply shock, not policy. Egg prices are higher under Trump than Biden's peak, rising ~$2 since inauguration.",
+          "explanation": "Bird flu drove egg prices; they actually rose further under Trump."
+        }
+      ]
+    },
+    {
+      "time": 900,
+      "text": "We have more liquid gold under our feet than any nation on earth, and by far. We are going to use it. Drill, baby, drill.",
+      "claims": [
+        {
+          "quote": "We have more liquid gold under our feet than any nation on earth",
+          "rating": "FALSE",
+          "actual": "EIA/OPEC: U.S. ranks 9th-11th globally in proven crude oil reserves behind Venezuela, Saudi Arabia, Iran, Canada, Iraq, and others. U.S. leads in production but not reserves.",
+          "explanation": "U.S. is a top producer but does not have the most oil reserves."
+        }
+      ]
+    },
+    {
+      "time": 1020,
+      "text": "The previous administration closed more than 100 power plants. They were shutting down our energy. We are now opening them back up.",
+      "claims": [
+        {
+          "quote": "Closed more than 100 power plants",
+          "rating": "MISLEADING",
+          "actual": "EIA: Total U.S. electric power plants increased by 2,187 from 2020–2023. Coal plants decreased by 57, petroleum by 23. Renewable and natural gas plants far offset closures.",
+          "explanation": "Some fossil fuel plants closed but total plants increased significantly."
+        }
+      ]
+    },
+    {
+      "time": 1200,
+      "text": "We are taking on waste, fraud, and abuse in the federal government. We found hundreds of billions of dollars of fraud. DOGE is doing an incredible job saving taxpayer money.",
+      "claims": [
+        {
+          "quote": "We found hundreds of billions of dollars of fraud",
+          "rating": "MISLEADING",
+          "actual": "DOGE website: Claimed $105B in estimated savings as of March 2025. Only $19.8B documented on their 'wall of receipts.' Most identified items were program cuts, not proven fraud.",
+          "explanation": "Documented savings are far less than claimed; 'fraud' conflated with spending cuts."
+        }
+      ]
+    },
+    {
+      "time": 1500,
+      "text": "DOGE found that we were paying $8 billion a year for buildings that are mostly empty. Government employees will come back to work or they will be dismissed.",
+      "claims": [
+        {
+          "quote": "Paying $8 billion a year for buildings that are mostly empty",
+          "rating": "MOSTLY TRUE",
+          "actual": "GSA/GAO: Federal government spends ~$6-8B annually on leased office space. GAO confirmed many federal buildings were underutilized post-COVID, with some at 25% occupancy.",
+          "explanation": "Spending figure is roughly accurate; utilization was genuinely low."
+        }
+      ]
+    },
+    {
+      "time": 1920,
+      "text": "On April 2nd, reciprocal tariffs kick in. We will take in trillions and trillions of dollars that create jobs like we have never seen before.",
+      "claims": [
+        {
+          "quote": "We will take in trillions and trillions of dollars",
+          "rating": "FALSE",
+          "actual": "Tax Foundation: Estimated first-year tariff revenue of ~$140B. CBO: Total customs duties in FY2024 were $77B. Tariff costs are largely passed to U.S. consumers.",
+          "explanation": "Tariff revenue is in the hundreds of billions at most, not trillions."
+        }
+      ]
+    },
+    {
+      "time": 2040,
+      "text": "I did it with China, and nobody thought that was possible. We took in hundreds of billions of dollars from China. They paid dearly, not us.",
+      "claims": [
+        {
+          "quote": "We took in hundreds of billions of dollars from China. They paid, not us",
+          "rating": "FALSE",
+          "actual": "Multiple studies (NBER, Fed, Tax Foundation): U.S. importers and consumers bore nearly all tariff costs. Total China tariff revenue was ~$80B/year, not hundreds of billions.",
+          "explanation": "Research consistently shows tariff costs are borne by U.S. businesses and consumers."
+        }
+      ]
+    },
+    {
+      "time": 2280,
+      "text": "Auto plants are opening up all over the place. They're coming back to Michigan, they're coming back to South Carolina, Ohio, and many other states.",
+      "claims": [
+        {
+          "quote": "Auto plants are opening up all over the place",
+          "rating": "MISLEADING",
+          "actual": "BLS: Manufacturing jobs fell by 49,000 since January 2025. While some auto investment announcements were made, most were planned before Trump took office or are conditional.",
+          "explanation": "Some announcements exist but manufacturing jobs have declined overall."
+        }
+      ]
+    },
+    {
+      "time": 2520,
+      "text": "Before the end of my first full business day, we secured nearly $3 trillion of new investments in the United States. SoftBank committed $200 billion. Apple committed $500 billion. TSMC is investing $165 billion.",
+      "claims": [
+        {
+          "quote": "We secured nearly $3 trillion of new investments",
+          "rating": "MISLEADING",
+          "actual": "White House tracker: Investment pledges are announcements, not deployed capital. Many were planned before Trump took office. Economists note pledges frequently don't materialize in full.",
+          "explanation": "These are pledges and announcements, not actual deployed investments."
+        },
+        {
+          "quote": "Apple committed $500 billion",
+          "rating": "MOSTLY TRUE",
+          "actual": "Apple announced a $500B five-year U.S. spending plan in Feb 2025, including a Houston AI server factory. However, Apple already spends ~$80B/year in the U.S., making this partly a repackaging of existing plans.",
+          "explanation": "Apple confirmed the pledge, but much reflects continuation of existing spending."
+        }
+      ]
+    },
+    {
+      "time": 2760,
+      "text": "We're going to have no tax on tips, no tax on overtime, and no tax on Social Security. People on Social Security have been treated very unfairly.",
+      "claims": [
+        {
+          "quote": "No tax on tips, no tax on overtime, and no tax on Social Security",
+          "rating": "UNVERIFIABLE",
+          "actual": "Congress: These are proposals requiring legislation. CBO has not scored the combined revenue impact. Estimates suggest $1.5-2T in revenue loss over 10 years if all three pass.",
+          "explanation": "Campaign promises requiring Congressional action — not yet law."
+        }
+      ]
+    },
+    {
+      "time": 3120,
+      "text": "I brought back the TikTok ban, saved it, and now we're going to get a deal where the United States gets 50 percent of TikTok.",
+      "claims": []
+    },
+    {
+      "time": 3360,
+      "text": "The previous administration spent perhaps $350 billion on Ukraine, like taking candy from a baby. And we never got a thank you.",
+      "claims": [
+        {
+          "quote": "Spent perhaps $350 billion on Ukraine",
+          "rating": "FALSE",
+          "actual": "Congressional Research Service: Congress appropriated $174.2B for Ukraine since 2022. Ukraine Oversight Inspector General reported $183B allocated as of Sept 2024.",
+          "explanation": "Actual amount is roughly half what Trump claimed."
+        }
+      ]
+    },
+    {
+      "time": 3600,
+      "text": "I ended the last administration's insane electric vehicle mandate. You can buy any car you want. You can buy a gasoline-powered car, a hybrid, electric, anything.",
+      "claims": [
+        {
+          "quote": "I ended the last administration's insane electric vehicle mandate",
+          "rating": "FALSE",
+          "actual": "EPA/DOT: The Biden administration never imposed an EV mandate. EPA set tailpipe emission standards; automakers could meet them with any technology mix including hybrids.",
+          "explanation": "No EV mandate existed — emission standards allowed multiple compliance paths."
+        }
+      ]
+    },
+    {
+      "time": 3840,
+      "text": "I always said the stock market is the ultimate report card. And our stock market since Election Day has been doing very well. Trillions of dollars of wealth created.",
+      "claims": [
+        {
+          "quote": "Our stock market since Election Day has been doing very well. Trillions of dollars of wealth created",
+          "rating": "MOSTLY TRUE",
+          "actual": "S&P 500 rose ~4% from Election Day (Nov 5, 2024) to inauguration. However, markets had been rising under Biden too, with S&P 500 up ~50% from Jan 2021 to Jan 2025.",
+          "explanation": "Markets rose post-election but context matters — they rose under Biden too."
+        }
+      ]
+    },
+    {
+      "time": 4200,
+      "text": "Gas prices are coming down and coming down rapidly. In some states, you can already buy gas for under two dollars a gallon.",
+      "claims": [
+        {
+          "quote": "In some states, you can already buy gas for under two dollars a gallon",
+          "rating": "MISLEADING",
+          "actual": "AAA: No state average was below $2/gallon in March 2025. Some individual gas stations may have had promotional prices, but statewide averages ranged from $2.50-$4.00+.",
+          "explanation": "Individual stations may hit $1.99 but no state average was that low."
+        }
+      ]
+    },
+    {
+      "time": 4800,
+      "text": "We are going to make the Trump tax cuts permanent. If we don't, you will have the biggest tax increase in the history of our country.",
+      "claims": [
+        {
+          "quote": "If we don't, you will have the biggest tax increase in the history of our country",
+          "rating": "MOSTLY TRUE",
+          "actual": "CBO/Tax Policy Center: The 2017 TCJA individual provisions expire after 2025. If not extended, taxes would increase by ~$4 trillion over 10 years — one of the largest increases by value, though not as a share of GDP.",
+          "explanation": "Expiration would be a large tax increase in dollar terms."
+        }
+      ]
+    },
+    {
+      "time": 5400,
+      "text": "We will rebuild our military, take care of our veterans, and always put America first. We are respected again all over the world.",
+      "claims": []
+    },
+    {
+      "time": 5700,
+      "text": "Our country is going to be bigger, better, and stronger than ever before. The best is yet to come. God bless you, and God bless America.",
+      "claims": []
+    }
+  ]
+}

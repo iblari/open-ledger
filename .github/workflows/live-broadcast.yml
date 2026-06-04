@@ -1,0 +1,131 @@
+# Vote Unbiased — Live Broadcast auto-trigger.
+#
+# Every 5 minutes, this workflow checks /api/live-schedule. If an event is
+# currently within its "active window" (scheduled start - 10 min pre-roll
+# through scheduled end + 30 min post-roll), it runs scripts/go-live.mjs
+# for the remaining duration. The transcript pipeline (yt-dlp → ffmpeg →
+# Deepgram → /api/admin/ingest) does the rest.
+#
+# The script also auto-stops itself via --duration so the GitHub Action
+# runner exits cleanly when the event ends — no orphan workers.
+#
+# Required GitHub secrets (Settings → Secrets and variables → Actions):
+#   - DEEPGRAM_API_KEY   the same key your Deepgram dashboard shows
+#   - ADMIN_KEY          the same value you set in Vercel env vars
+#   - API_URL            e.g. https://voteunbiased.org   (optional, defaults below)
+#
+# Manual trigger: Actions tab → "Live Broadcast" → Run workflow. Picks up
+# anything currently live without waiting for the next cron tick.
+
+name: Live Broadcast
+
+on:
+  schedule:
+    # Every 5 minutes. GitHub Actions free-tier cron can be delayed up to
+    # 15 min under heavy load — schedule.ts PRE_ROLL_SECONDS = 10 min buffers
+    # this so we don't miss the start of an event.
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+    inputs:
+      max_duration_min:
+        description: "Hard ceiling on worker runtime in minutes (default 300, max 350)"
+        required: false
+        default: "300"
+
+# Only one live-broadcast worker at a time. If a previous cron tick is still
+# running a broadcast, this run will be cancelled rather than starting a
+# second worker on the same event.
+concurrency:
+  group: live-broadcast
+  cancel-in-progress: false
+
+jobs:
+  broadcast:
+    runs-on: ubuntu-latest
+    # 6hr is the GitHub Actions hard ceiling; the script's --duration will
+    # cut us off earlier based on scheduledEnd.
+    timeout-minutes: 350
+
+    steps:
+      - name: Check out repo (only need scripts/)
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            scripts/
+            package.json
+            package-lock.json
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # The ubuntu-latest runner has ffmpeg pre-installed; yt-dlp is not.
+      - name: Install yt-dlp
+        run: |
+          sudo curl -L -o /usr/local/bin/yt-dlp \
+            https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp
+          sudo chmod a+rx /usr/local/bin/yt-dlp
+          yt-dlp --version
+          ffmpeg -version | head -1
+
+      - name: Install ws (Deepgram WebSocket dep)
+        run: npm install ws --no-save --no-audit --no-fund
+
+      # Hit /api/live-schedule. If something is active, write its details
+      # to a job output so the next step can decide whether to launch the
+      # worker. If nothing is active, this step exits 0 (no event) and the
+      # rest of the job is skipped.
+      - name: Check schedule
+        id: schedule
+        env:
+          API_URL: ${{ secrets.API_URL || 'https://voteunbiased.org' }}
+        run: |
+          set -e
+          echo "Fetching $API_URL/api/live-schedule..."
+          RESP=$(curl -fsSL "$API_URL/api/live-schedule" || echo '{"active":null}')
+          echo "$RESP" | head -c 800
+          echo
+          ACTIVE=$(echo "$RESP" | jq -r '.active // empty')
+          if [ -z "$ACTIVE" ]; then
+            echo "No active event. Exiting cleanly."
+            echo "has_event=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Compute remaining duration. activeSecondsRemaining is from now()
+          # → scheduledEnd. We add 60s of post-roll grace, then clamp to the
+          # workflow's max_duration_min input (default 300) so the runner
+          # exits well before the 6hr ceiling.
+          REMAIN=$(echo "$RESP" | jq -r '.activeSecondsRemaining // 0')
+          MAX_MIN="${{ github.event.inputs.max_duration_min || '300' }}"
+          MAX_SEC=$((MAX_MIN * 60))
+          DURATION=$((REMAIN + 60))
+          if [ "$DURATION" -gt "$MAX_SEC" ]; then DURATION=$MAX_SEC; fi
+          if [ "$DURATION" -lt 60 ]; then
+            echo "Event already ended (remain=$REMAIN). Skipping."
+            echo "has_event=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          {
+            echo "has_event=true"
+            echo "youtube_url=$(echo "$RESP" | jq -r '.active.youtubeUrl')"
+            echo "title=$(echo "$RESP" | jq -r '.active.title')"
+            echo "event_id=$(echo "$RESP" | jq -r '.active.id')"
+            echo "duration_sec=$DURATION"
+          } >> "$GITHUB_OUTPUT"
+          echo "Found event: $(echo "$RESP" | jq -r '.active.title')"
+          echo "Will run for ${DURATION}s (~$((DURATION/60)) min)"
+
+      - name: Run live broadcast worker
+        if: steps.schedule.outputs.has_event == 'true'
+        env:
+          DEEPGRAM_API_KEY: ${{ secrets.DEEPGRAM_API_KEY }}
+          ADMIN_KEY: ${{ secrets.ADMIN_KEY }}
+          API_URL: ${{ secrets.API_URL || 'https://voteunbiased.org' }}
+        run: |
+          set -e
+          echo "Starting worker for event ${{ steps.schedule.outputs.event_id }}"
+          node scripts/go-live.mjs \
+            "${{ steps.schedule.outputs.youtube_url }}" \
+            "${{ steps.schedule.outputs.title }}" \
+            --duration "${{ steps.schedule.outputs.duration_sec }}"
