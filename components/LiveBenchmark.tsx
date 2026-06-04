@@ -181,29 +181,29 @@ function BenchTooltip(props: {
   });
   return (
     <div style={{
-      background: EC.ink, color: "#fff", padding: "10px 14px", borderRadius: 6,
-      fontFamily: ESANS, fontSize: 12, lineHeight: 1.5, minWidth: 180,
+      background: EC.ink, color: "#fff", padding: "8px 12px", borderRadius: 6,
+      fontFamily: ESANS, fontSize: 11, lineHeight: 1.4, minWidth: 160, maxWidth: 220,
       boxShadow: "0 8px 30px rgba(0,0,0,0.25)",
     }}>
-      <div style={{ fontFamily: ESERIF, fontWeight: 600, fontSize: 13, marginBottom: 4 }}>
+      <div style={{ fontFamily: ESERIF, fontWeight: 600, fontSize: 12, marginBottom: 4 }}>
         Month {label}
       </div>
-      {sorted.slice(0, 8).map((p, i) => {
+      {/* Show all admins now that the tooltip is pinned to a corner and
+          isn't covering the chart line. Tighter line spacing + smaller
+          font keeps the box compact even with 10 rows. */}
+      {sorted.map((p, i) => {
         const isCur = adminMap[p.dataKey]?.current;
         const isHL = highlighted.has(p.dataKey);
         const anyHL = highlighted.size > 0;
         const dimmed = anyHL && !isHL && !isCur;
         const col = isCur ? EC.accent : isHL ? (adminColors[p.dataKey] || "#fff") : "#9a9490";
         return (
-          <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: 10, opacity: dimmed ? 0.35 : 1, fontVariantNumeric: "tabular-nums", marginTop: i > 0 ? 2 : 0 }}>
+          <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: 10, opacity: dimmed ? 0.35 : 1, fontVariantNumeric: "tabular-nums", marginTop: i > 0 ? 1 : 0 }}>
             <span style={{ color: col, fontWeight: isCur || isHL ? 600 : 400 }}>{adminMap[p.dataKey]?.name || p.dataKey}</span>
             <span>{fmtVal(p.value, metric.unit)}</span>
           </div>
         );
       })}
-      {sorted.length > 8 && (
-        <div style={{ fontSize: 10, color: "#9a9490", marginTop: 4 }}>+{sorted.length - 8} more</div>
-      )}
     </div>
   );
 }
@@ -677,17 +677,26 @@ export default function LiveBenchmark() {
                   stroke={EC.mute} fontSize={11} fontFamily={ESANS} tick={{ fill: EC.sub }} axisLine={{ stroke: EC.rule }} />
                 <YAxis stroke={EC.rule} fontSize={10} fontFamily={ESANS} tick={{ fill: EC.sub }} axisLine={{ stroke: EC.rule }}
                   tickFormatter={(v: number) => fmtVal(v, md.unit)} />
-                <Tooltip content={(p) => (
-                  <BenchTooltip
-                    /* eslint-disable @typescript-eslint/no-explicit-any */
-                    active={(p as any).active}
-                    payload={(p as any).payload}
-                    label={(p as any).label}
-                    /* eslint-enable @typescript-eslint/no-explicit-any */
-                    metric={md} adminMap={adminMap}
-                    highlighted={highlighted} adminColors={ADMIN_COLORS}
-                  />
-                )} />
+                {/* Pin the tooltip to the top-left corner of the chart so
+                    it never covers the line you're hovering. Without `position`,
+                    Recharts follows the cursor — on mobile that blocks the
+                    entire visible chart area with a 10-row admin list. With
+                    `position={{ x: 8, y: 0 }}` the tooltip sits at the top-left
+                    of the chart's data area, out of the way of every data point. */}
+                <Tooltip
+                  position={{ x: 8, y: 0 }}
+                  content={(p) => (
+                    <BenchTooltip
+                      /* eslint-disable @typescript-eslint/no-explicit-any */
+                      active={(p as any).active}
+                      payload={(p as any).payload}
+                      label={(p as any).label}
+                      /* eslint-enable @typescript-eslint/no-explicit-any */
+                      metric={md} adminMap={adminMap}
+                      highlighted={highlighted} adminColors={ADMIN_COLORS}
+                    />
+                  )}
+                />
                 <ReferenceLine x={currentMonth} stroke={EC.accent} strokeDasharray="4 4" strokeWidth={1.5} />
                 {md.series.map(s => {
                   const isCurrent = s.current; const isHL = highlighted.has(s.id);
