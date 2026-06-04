@@ -19,8 +19,8 @@ import type { Feature, FeatureCollection, Geometry } from "geojson";
 
 import { C as EC, SERIF as ESERIF, SANS as ESANS } from "@/lib/design-tokens";
 import { PillToggle } from "@/components/PillToggle";
+import CompactPicker from "@/components/CompactPicker";
 import { StateTrendChart, stateLineColor } from "@/components/StateTrendChart";
-import { StateTileGrid } from "@/components/StateTileGrid";
 import {
   STATE_METRICS,
   STATE_METRIC_ORDER,
@@ -38,7 +38,6 @@ import {
 } from "@/lib/state-data";
 
 const MAX_SELECTED = 5;
-type MapStyle = "geo" | "tile";
 
 type ViewMode = "latest" | "vs_avg";
 
@@ -46,47 +45,89 @@ type ViewMode = "latest" | "vs_avg";
 const IMPROVE_RGB = "13, 115, 119";
 const DECLINE_RGB = "194, 65, 12";
 
+// Color convention is uniform across all metrics: warm/orange = higher value
+// or above national average; cool/teal = lower value or below average. The
+// color encodes magnitude only — no "good/bad" semantics, since whether
+// "high population" or "high income" is good depends on the reader. The
+// metric label + numeric value carry the meaning; the color just shows
+// which direction this state sits relative to its peers.
 function colorFor(m: StateMetric, v: number | undefined, view: ViewMode): string {
   if (v === undefined || !isFinite(v)) return EC.rule;
+
+  // Bipolar diverging palette for signed metrics like 2024 presidential margin.
+  // Center is always 0 (not the mean of the data); positive = red (Trump),
+  // negative = blue (Harris). Matches the conventional US election map.
+  if (m.unit === "±pp") {
+    const vals = Object.values(m.latest) as number[];
+    const maxAbs = Math.max(...vals.map(x => Math.abs(x)));
+    const t = maxAbs === 0 ? 0 : Math.abs(v) / maxAbs;
+    const alpha = 0.18 + t * 0.72;
+    const REP_RGB  = "184, 55, 45";   // EC.accent — red for Trump
+    const DEM_RGB  = "29, 78, 216";   // blue for Harris (matches Clinton/Biden chart color)
+    return `rgba(${v >= 0 ? REP_RGB : DEM_RGB}, ${alpha})`;
+  }
+
   if (view === "latest") {
     const [lo, hi] = metricExtent(m);
     const t = hi === lo ? 0.5 : (v - lo) / (hi - lo);
     const alpha = 0.18 + t * 0.72;
-    const hue = m.costLike ? DECLINE_RGB : IMPROVE_RGB;
-    return `rgba(${hue}, ${alpha})`;
+    return `rgba(${DECLINE_RGB}, ${alpha})`;
   }
-  // vs_avg
+  // vs_avg: warm = above mean, cool = below mean. Magnitude scales by
+  // distance from mean, normalized against the max absolute deviation.
   const avg = metricMean(m);
   const dev = v - avg;
   const vals = Object.values(m.latest) as number[];
   const maxDev = Math.max(...vals.map(x => Math.abs(x - avg)));
   const t = maxDev === 0 ? 0 : Math.abs(dev) / maxDev;
   const alpha = 0.18 + t * 0.72;
-  // For cost-like metrics, "higher than average" reads as worse → orange.
-  // For non-cost metrics, "higher than average" reads as better → teal.
-  const isHigher = dev >= 0;
-  const hue = m.costLike
-    ? (isHigher ? DECLINE_RGB : IMPROVE_RGB)
-    : (isHigher ? IMPROVE_RGB : DECLINE_RGB);
+  const hue = dev >= 0 ? DECLINE_RGB : IMPROVE_RGB;
   return `rgba(${hue}, ${alpha})`;
 }
 
 type TooltipState = { name: string; html: string; x: number; y: number } | null;
 
+// Local viewport hook — matches the useIsMobile pattern used elsewhere
+// on the site so this component doesn't depend on any one parent's check.
+function useIsMobile() {
+  const [mob, setMob] = useState(false);
+  useEffect(() => {
+    const check = () => setMob(window.innerWidth < 768);
+    check(); window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+  return mob;
+}
+
 export function StateAtlas() {
   const [mk, setMk] = useState<string>(STATE_METRIC_ORDER[0]);
   const [view, setView] = useState<ViewMode>("latest");
-  const [mapStyle, setMapStyle] = useState<MapStyle>("geo");
   const [topo, setTopo] = useState<unknown | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [tooltip, setTooltip] = useState<TooltipState>(null);
   // Selected states (max 5) — drives the per-state lines in the trend chart
   // and the thicker stroke on the map. Order preserved for stable colors.
   const [selected, setSelected] = useState<StateCode[]>([]);
+  // Mobile picker sheet — replaces the 25-pill grid on small screens. The
+  // grid eats ~400px of vertical space before the map; the sheet collapses
+  // it to a single button.
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const mob = useIsMobile();
   const wrapRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
   const metric = STATE_METRICS[mk];
+
+  // Build options for the CompactPicker — same metrics, but grouped by
+  // category label so the bottom-sheet shows section headers (Cost of living,
+  // Taxes, etc.) just like the desktop pill grid.
+  const pickerOptions = useMemo(() => {
+    return STATE_METRIC_ORDER.map(k => ({
+      value: k,
+      label: STATE_METRICS[k].label,
+      category: STATE_CATEGORY_LABELS[STATE_METRICS[k].category],
+    }));
+  }, []);
 
   function toggleSelect(code: StateCode) {
     setSelected(prev => {
@@ -197,43 +238,104 @@ export function StateAtlas() {
   return (
     <>
     <div style={{ background: EC.card, border: `1px solid ${EC.rule}`, borderRadius: 4, overflow: "hidden" }}>
-      {/* Toggle bar — View + Map style. Metric picker lives below in a
-          grouped row because we now have 14 metrics across 3 categories. */}
+      {/* Toggle bar — left: contextual hint, right: View toggle.
+          Switched from flex-end to space-between so the empty left half can
+          carry a teaching prompt: "hover for the value, click to add to chart."
+          When states are already on the chart, the hint flips to a status
+          line ("3 states on the chart · click to add or remove"). */}
       <div style={{
-        display: "flex", justifyContent: "flex-end", alignItems: "center",
+        display: "flex", justifyContent: "space-between", alignItems: "center",
         gap: 16, padding: "10px 14px",
         background: EC.paper, borderBottom: `1px solid ${EC.rule}`,
         flexWrap: "wrap",
       }}>
-        <PillToggle<MapStyle>
-          label="Map"
-          value={mapStyle}
-          onChange={setMapStyle}
-          options={[
-            { value: "geo", label: "Geographic" },
-            { value: "tile", label: "Tilegrid" },
-          ]}
-        />
+        <div style={{
+          fontFamily: ESANS, fontSize: 11, color: EC.sub, lineHeight: 1.4,
+          display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
+        }}>
+          {selected.length === 0 ? (
+            <>
+              <span style={{
+                width: 6, height: 6, borderRadius: "50%",
+                background: EC.mute, flexShrink: 0,
+              }} />
+              <span>
+                <strong style={{ color: EC.ink, fontWeight: 600 }}>Hover</strong> a state for the value,{" "}
+                <strong style={{ color: EC.ink, fontWeight: 600 }}>click</strong> to add it to the chart below.
+              </span>
+            </>
+          ) : (
+            <>
+              <span style={{
+                width: 6, height: 6, borderRadius: "50%",
+                background: EC.accent, flexShrink: 0,
+              }} />
+              <span>
+                <strong style={{ color: EC.ink, fontWeight: 600 }}>{selected.length}</strong>{" "}
+                {selected.length === 1 ? "state" : "states"} on the chart.{" "}
+                Click any state to {selected.length >= 5 ? "swap" : "add or remove"}.
+              </span>
+            </>
+          )}
+        </div>
         <PillToggle<ViewMode>
           label="View"
           value={view}
           onChange={setView}
           options={[
             { value: "latest", label: "Latest" },
-            { value: "vs_avg", label: "vs Avg" },
+            { value: "vs_avg", label: "vs National avg" },
           ]}
         />
       </div>
 
-      {/* Grouped metric picker — 3 sections (Cost / Tax / Demographics).
+      {/* MOBILE: single-button picker that opens a bottom-sheet with all
+          metrics grouped by category. Replaces the 25-pill grid which ate
+          ~400px of vertical space before the map was visible. */}
+      {mob && (
+        <div style={{
+          padding: "10px 14px",
+          background: EC.card,
+          borderBottom: `1px solid ${EC.rule}`,
+        }}>
+          <button
+            type="button"
+            onClick={() => setPickerOpen(true)}
+            style={{
+              width: "100%", display: "flex", alignItems: "center",
+              justifyContent: "space-between", gap: 8,
+              padding: "10px 14px", borderRadius: 4,
+              border: `1px solid ${EC.rule}`, background: EC.paper,
+              fontFamily: ESANS, fontSize: 13, color: EC.ink,
+              cursor: "pointer", textAlign: "left",
+            }}
+          >
+            <span style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+              <span style={{
+                fontFamily: ESANS, fontSize: 9, fontWeight: 600,
+                letterSpacing: "0.12em", textTransform: "uppercase", color: EC.mute,
+              }}>{STATE_CATEGORY_LABELS[metric.category]}</span>
+              <span style={{ fontWeight: 600, color: EC.ink, fontSize: 14, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {metric.label}
+              </span>
+            </span>
+            <span style={{ fontSize: 11, color: EC.mute, flexShrink: 0 }}>change ▾</span>
+          </button>
+        </div>
+      )}
+
+      {/* DESKTOP: grouped metric picker — same content as the mobile sheet
+          but laid out inline as a pill grid with category labels.
           Each section header is a small caps label; pills wrap inline. */}
-      <div style={{
+      {!mob && <div style={{
         padding: "12px 14px 10px",
         background: EC.card,
         borderBottom: `1px solid ${EC.rule}`,
         display: "flex", flexDirection: "column", gap: 8,
       }}>
-        {(["cost", "tax", "demo"] as StateMetricCategory[]).map(cat => {
+        {/* Picker rows — categories render in the order listed here. Updated
+            with the Politics + Health + Crime categories added in lib/state-data. */}
+        {(["cost", "tax", "demo", "health", "politics", "crime"] as StateMetricCategory[]).map(cat => {
           const keys = metricsForCategory(cat);
           if (keys.length === 0) return null;
           return (
@@ -272,26 +374,9 @@ export function StateAtlas() {
             </div>
           );
         })}
-      </div>
+      </div>}
 
-      {/* Map — either real-geo D3 choropleth or tilegrid cartogram */}
-      {mapStyle === "tile" && (
-        <StateTileGrid
-          metric={metric}
-          colorFor={(m, v) => colorFor(m, v, view)}
-          formatValue={(v) => {
-            if (v === undefined) return "—";
-            if (view === "vs_avg") {
-              const dev = v - metricMean(metric);
-              return `${formatMetricValue(metric, v)} (${formatDeviation(metric, dev)} vs avg)`;
-            }
-            return formatMetricValue(metric, v);
-          }}
-          selected={selected}
-          onToggleSelect={toggleSelect}
-        />
-      )}
-      {mapStyle === "geo" && (
+      {/* Map — real-geo D3 choropleth */}
       <div ref={wrapRef} style={{ position: "relative", padding: 16, background: EC.card }}>
         {loadError && (
           <div style={{ textAlign: "center", padding: 40, fontFamily: ESANS, fontSize: 13, color: EC.sub }}>
@@ -326,12 +411,19 @@ export function StateAtlas() {
             <div style={{ fontFamily: ESERIF, fontWeight: 600, fontSize: 13 }}>{tooltip.name}</div>
             <div style={{
               fontFamily: ESERIF, fontWeight: 500, marginTop: 2,
-              color: metric.costLike ? "#fed7aa" : "#8ee3e6",
+              // Value text color reflects the cell's actual position (above
+              // mean = warm, below = cool) so the tooltip matches the map color.
+              color: (() => {
+                const code = STATE_NAME_TO_CODE[tooltip.name];
+                const v = code ? metric.latest[code] : undefined;
+                if (v === undefined) return "#fef9e7";
+                const ref = view === "vs_avg" ? metricMean(metric) : (metricExtent(metric)[0] + metricExtent(metric)[1]) / 2;
+                return v >= ref ? "#fed7aa" : "#8ee3e6";
+              })(),
             }} dangerouslySetInnerHTML={{ __html: tooltip.html }} />
           </div>
         )}
       </div>
-      )}
 
       {/* Legend strip */}
       <div style={{
@@ -351,14 +443,14 @@ export function StateAtlas() {
           {view === "latest" ? (
             <>
               <span>Lower</span>
-              <ColorRamp single hue={metric.costLike ? DECLINE_RGB : IMPROVE_RGB} />
+              <ColorRamp single hue={DECLINE_RGB} />
               <span>Higher</span>
             </>
           ) : (
             <>
-              <span>{metric.costLike ? "Below avg" : "Above avg"}</span>
-              <ColorRamp diverging firstHue={metric.costLike ? IMPROVE_RGB : DECLINE_RGB} secondHue={metric.costLike ? DECLINE_RGB : IMPROVE_RGB} />
-              <span>{metric.costLike ? "Above avg" : "Below avg"}</span>
+              <span>Below avg</span>
+              <ColorRamp diverging firstHue={IMPROVE_RGB} secondHue={DECLINE_RGB} />
+              <span>Above avg</span>
             </>
           )}
         </div>
@@ -366,7 +458,9 @@ export function StateAtlas() {
     </div>
 
     {/* Trend chart + selected-state chips */}
-    <StateTrendChart metric={metric} selected={selected} />
+    {/* onSwitchMetric powers the 'Compare on:' related-metrics row in the
+        trend chart — switches metric while keeping selected states intact. */}
+    <StateTrendChart metric={metric} selected={selected} onSwitchMetric={setMk} />
 
     {selected.length > 0 && (
       <div style={{
@@ -416,6 +510,19 @@ export function StateAtlas() {
       }}>
         Tip: click any state on the map to add its 10-year line to the chart. Up to {MAX_SELECTED} at a time.
       </p>
+    )}
+
+    {/* Mobile bottom-sheet picker — opens when the user taps the button at
+        the top of the card. Same metric list, grouped by category. */}
+    {mob && (
+      <CompactPicker
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        title="Choose a metric"
+        options={pickerOptions}
+        value={mk}
+        onSelect={(v) => setMk(v)}
+      />
     )}
     </>
   );

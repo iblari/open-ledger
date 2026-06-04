@@ -15,6 +15,7 @@ import {
   cellColor, cellColorFromMag,
 } from "@/lib/display-modes";
 import { PillToggle } from "@/components/PillToggle";
+import { InsightsStrip } from "@/components/InsightsStrip";
 
 /* ─────────────────────────────────────────────
    ADMINS & METRIC DATA — subset for heatmap
@@ -130,7 +131,13 @@ function Nav({ mob }: { mob: boolean }) {
 
         {/* CTA */}
         <div style={{ marginLeft: "auto", display: "flex", gap: 10, alignItems: "center" }}>
-          <Link href="/live" style={{
+          {/* Live nav pill — destination differs by viewport because the
+              labels differ. On mobile the label is just "Live" (short for
+              space), and most mobile users tapping it expect 'live data, not
+              a video player' → routes to Live Benchmark. On desktop the full
+              label "Live Broadcast" makes the intent unambiguous → routes
+              to /live (the video + fact-check page). */}
+          <Link href={mob ? "/dashboard?tab=live_benchmark" : "/live"} style={{
             display: "inline-flex", alignItems: "center", gap: 6,
             padding: mob ? "8px 12px" : "10px 14px",
             borderRadius: 4, fontSize: 13, fontWeight: 600,
@@ -158,22 +165,22 @@ function Nav({ mob }: { mob: boolean }) {
 /* ── Hero Chart Visualization ── */
 function HeroViz({ mob }: { mob: boolean }) {
   const data = METRICS.gdp.d;
-  if (mob) return null; // skip viz on mobile — hero stacks vertically
 
   return (
     <div style={{
       background: C.card, border: `1px solid ${C.rule}`, borderRadius: 4,
-      padding: 20, boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 12px 32px -12px rgba(0,0,0,0.08)",
+      padding: mob ? 14 : 20,
+      boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 12px 32px -12px rgba(0,0,0,0.08)",
     }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", paddingBottom: 14, marginBottom: 6, borderBottom: `1px solid ${C.rule}` }}>
-        <span style={{ fontWeight: 600, fontSize: 13, fontFamily: SANS }}>The economy, by administration</span>
-        <span style={{ fontSize: 11, color: C.mute, letterSpacing: "0.06em", textTransform: "uppercase" }}>31 yrs · BEA</span>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", paddingBottom: mob ? 10 : 14, marginBottom: 6, borderBottom: `1px solid ${C.rule}`, gap: 8 }}>
+        <span style={{ fontWeight: 600, fontSize: mob ? 12 : 13, fontFamily: SANS }}>The economy, by administration</span>
+        <span style={{ fontSize: mob ? 10 : 11, color: C.mute, letterSpacing: "0.06em", textTransform: "uppercase", whiteSpace: "nowrap" }}>31 yrs · BEA</span>
       </div>
-      <ResponsiveContainer width="100%" height={280}>
-        <BarChart data={data} margin={{ top: 10, right: 10, left: -10, bottom: 5 }}>
+      <ResponsiveContainer width="100%" height={mob ? 200 : 280}>
+        <BarChart data={data} margin={{ top: 10, right: mob ? 4 : 10, left: mob ? -16 : -10, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke={C.rule} vertical={false} />
-          <XAxis dataKey="y" fontSize={10} fontFamily={SANS} stroke={C.mute} tick={{ fill: C.sub }} interval={3} />
-          <YAxis fontSize={10} fontFamily={SANS} stroke={C.rule} tick={{ fill: C.sub }} tickFormatter={v => `${v}%`} />
+          <XAxis dataKey="y" fontSize={mob ? 9 : 10} fontFamily={SANS} stroke={C.mute} tick={{ fill: C.sub }} interval={mob ? 5 : 3} />
+          <YAxis fontSize={mob ? 9 : 10} fontFamily={SANS} stroke={C.rule} tick={{ fill: C.sub }} tickFormatter={v => `${v}%`} />
           <Tooltip
             contentStyle={{ background: C.card, border: `1px solid ${C.rule}`, borderRadius: 4, fontFamily: SANS, fontSize: 12 }}
             formatter={(v: number) => [`${v.toFixed(1)}%`, "GDP Growth"]}
@@ -187,11 +194,11 @@ function HeroViz({ mob }: { mob: boolean }) {
           </Bar>
         </BarChart>
       </ResponsiveContainer>
-      <div style={{ marginTop: 12, paddingTop: 10, borderTop: `1px solid ${C.rule}`, display: "flex", justifyContent: "space-between", fontSize: 11, color: C.mute, letterSpacing: "0.06em", textTransform: "uppercase" }}>
-        <div style={{ display: "flex", gap: 14, fontSize: 11, color: C.sub }}>
+      <div style={{ marginTop: 12, paddingTop: 10, borderTop: `1px solid ${C.rule}`, display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: mob ? 10 : 11, color: C.mute, letterSpacing: "0.06em", textTransform: "uppercase", flexWrap: "wrap", gap: 8 }}>
+        <div style={{ display: "flex", gap: mob ? 8 : 14, fontSize: mob ? 9 : 11, color: C.sub, flexWrap: "wrap" }}>
           {AID.map(id => (
-            <span key={id} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <i style={{ width: 10, height: 10, borderRadius: 2, display: "inline-block", background: ADMINS[id].color }} />
+            <span key={id} style={{ display: "flex", alignItems: "center", gap: mob ? 4 : 6 }}>
+              <i style={{ width: mob ? 8 : 10, height: mob ? 8 : 10, borderRadius: 2, display: "inline-block", background: ADMINS[id].color }} />
               {ADMINS[id].name}
             </span>
           ))}
@@ -232,16 +239,7 @@ function Hero({ mob, med }: { mob: boolean; med: boolean }) {
             <em style={{ fontStyle: "italic", color: C.accent }}>in data.</em>
           </h1>
 
-          {/* Sub */}
-          <p style={{
-            marginTop: 28, fontSize: mob ? 16 : 19, color: C.sub,
-            maxWidth: "50ch", lineHeight: 1.5, fontFamily: SANS,
-          }}>
-            Nineteen economic metrics across five administrations, plus live military
-            spend tracking across four active conflicts &mdash; 32 years of data from BEA, BLS,
-            Treasury, the Fed, CSIS, Brown University, and more. We don&rsquo;t tell you who
-            did better. We show you what the numbers did.
-          </p>
+          {/* Hero subtitle removed per design — headline + CTAs only. */}
 
           {/* CTA */}
           <div style={{ marginTop: 32, display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
@@ -259,8 +257,16 @@ function Hero({ mob, med }: { mob: boolean; med: boolean }) {
             }}>
               See methodology
             </a>
-            <span style={{ fontSize: 11, color: C.mute, letterSpacing: "0.08em", textTransform: "uppercase", marginLeft: 8 }}>Updated Apr 2026</span>
+            <span style={{ fontSize: 11, color: C.mute, letterSpacing: "0.08em", textTransform: "uppercase", marginLeft: 8 }}>Updated May 2026</span>
           </div>
+
+          {/* Mobile: GDP-by-administration chart sits directly under the CTAs.
+              On desktop this chart lives in the right column (see below). */}
+          {mob && (
+            <div style={{ marginTop: 28 }}>
+              <HeroViz mob />
+            </div>
+          )}
 
           {/* Stats */}
           <div style={{
@@ -278,7 +284,9 @@ function Hero({ mob, med }: { mob: boolean; med: boolean }) {
           </div>
         </div>
 
-        <HeroViz mob={mob} />
+        {/* Desktop: chart in right column. Mobile renders it inside the
+            left column directly under the CTAs (above). */}
+        {!mob && <HeroViz mob={mob} />}
       </div>
     </header>
   );
@@ -410,13 +418,7 @@ function ScorecardSection({ mob, med }: { mob: boolean; med: boolean }) {
             </h2>
           </div>
           <div>
-            <p style={{ fontSize: 17, color: C.sub, maxWidth: "56ch", lineHeight: 1.5 }}>
-              Each cell shows how that metric moved across the administration&rsquo;s tenure, in
-              the unit that best fits the metric &mdash; percentage points for rates, annualized
-              for prices and income, average for inflation. Greens mean the number moved in the
-              conventionally-preferred direction; oranges mean it moved away. <strong style={{ color: C.ink }}>We make no claim that
-              the president caused the change</strong> &mdash; that&rsquo;s your job.
-            </p>
+            {/* Scorecard intro paragraph removed per design — headline only. */}
             <Link href="/dashboard" style={{
               marginTop: 12, display: "inline-flex", alignItems: "center", gap: 8,
               fontSize: 13, color: C.accent, fontWeight: 500, textDecoration: "none",
@@ -529,11 +531,15 @@ function ScorecardSection({ mob, med }: { mob: boolean; med: boolean }) {
             );
           })}
 
-          {/* Legend strip */}
+          {/* Legend strip — needs the same minWidth as the rows above so when
+              the user scrolls horizontally on mobile, the legend background
+              extends to the right edge of the table instead of cutting off
+              short and exposing whitespace beyond the visible viewport. */}
           <div style={{
             display: "flex", alignItems: "center", justifyContent: "space-between",
             padding: "14px 20px", background: C.paper, borderTop: `1px solid ${C.rule}`,
             fontSize: 11, color: C.sub, letterSpacing: "0.04em", flexWrap: "wrap", gap: 12,
+            minWidth: mob ? 800 : undefined,
           }}>
             <span>
               {displayMode === "per_metric"
@@ -556,6 +562,61 @@ function ScorecardSection({ mob, med }: { mob: boolean; med: boolean }) {
   );
 }
 
+/* President card on Deep Dive side panel. Clicking it deep-links into the
+   dashboard's Data tab, in detail mode for the current metric, with the
+   clicked admin pre-selected in the side panel (?metric=<mk>&admin=<id>). */
+function PresidentCard({
+  id, name, full, color, metricKey, headline, improved, start, end,
+}: {
+  id: string; name: string; full: string; color: string;
+  metricKey: string; headline: string; improved: boolean;
+  start: string; end: string;
+}) {
+  const [hov, setHov] = useState(false);
+  return (
+    <Link href={`/dashboard?metric=${metricKey}&admin=${id}`}
+          onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
+          aria-label={`Open ${name} detail on dashboard`}
+          style={{
+            display: "grid", gridTemplateColumns: "auto 1fr auto", gap: 12,
+            alignItems: "center", padding: "10px 12px",
+            background: hov ? C.paper : C.card,
+            border: `1px solid ${hov ? color : C.rule}`,
+            borderRadius: 3, fontSize: 13,
+            textDecoration: "none", color: "inherit",
+            cursor: "pointer",
+            transform: hov ? "translateX(2px)" : "translateX(0)",
+            boxShadow: hov ? `0 2px 8px -2px rgba(0,0,0,0.08)` : "none",
+            transition: "all 0.15s ease",
+          }}>
+      <div style={{ width: 6, height: 32, borderRadius: 2, background: color }} />
+      <div>
+        <div style={{ fontFamily: SERIF, fontWeight: 500, fontSize: 15, letterSpacing: "-0.01em", display: "flex", alignItems: "center", gap: 6 }}>
+          {name}
+          <span style={{
+            fontFamily: SANS, fontSize: 11, color: hov ? color : C.mute,
+            transition: "all 0.15s ease",
+            transform: hov ? "translateX(2px)" : "translateX(0)",
+            display: "inline-block",
+          }}>→</span>
+        </div>
+        <div style={{ fontSize: 10, color: C.mute, letterSpacing: "0.06em", textTransform: "uppercase" }}>{full}</div>
+      </div>
+      <div style={{ textAlign: "right" }}>
+        <div style={{
+          fontFamily: SERIF, fontSize: 17, fontVariantNumeric: "tabular-nums", fontWeight: 500,
+          color: improved ? C.improveStrong : C.declineStrong,
+        }}>
+          {headline}
+        </div>
+        <div style={{ fontSize: 10, color: C.mute, fontVariantNumeric: "tabular-nums" }}>
+          {start} → {end}
+        </div>
+      </div>
+    </Link>
+  );
+}
+
 /* ── Deep Dive ── */
 function DeepDiveSection({ mob, med }: { mob: boolean; med: boolean }) {
   const [mk, setMk] = useState("gdp");
@@ -572,11 +633,7 @@ function DeepDiveSection({ mob, med }: { mob: boolean; med: boolean }) {
               The long view,<br />color-coded by <em style={{ fontStyle: "italic", color: C.accent }}>who held office.</em>
             </h2>
           </div>
-          <p style={{ fontSize: 17, color: C.sub, maxWidth: "56ch", lineHeight: 1.5 }}>
-            Pick a metric and see the full 31-year timeline. Each president&rsquo;s segment is
-            color-coded so you can compare spans at a glance — or zoom into the full dashboard
-            for all 19 metrics side by side.
-          </p>
+          {/* Deep Dive intro paragraph removed per design — headline only. */}
         </div>
 
         <div style={{ background: C.card, border: `1px solid ${C.rule}`, borderRadius: 4, overflow: "hidden", display: "grid", gridTemplateColumns: med ? "1fr" : "1.2fr 1fr" }}>
@@ -653,28 +710,10 @@ function DeepDiveSection({ mob, med }: { mob: boolean; med: boolean }) {
                 const disp = resolveDisplay(c, mk, "per_metric", "real");
                 const headline = formatDisplayedChange(disp.value, disp.unit);
                 return (
-                  <div key={id} style={{
-                    display: "grid", gridTemplateColumns: "auto 1fr auto", gap: 12,
-                    alignItems: "center", padding: "10px 12px", background: C.card,
-                    border: `1px solid ${C.rule}`, borderRadius: 3, fontSize: 13,
-                  }}>
-                    <div style={{ width: 6, height: 32, borderRadius: 2, background: a.color }} />
-                    <div>
-                      <div style={{ fontFamily: SERIF, fontWeight: 500, fontSize: 15, letterSpacing: "-0.01em" }}>{a.name}</div>
-                      <div style={{ fontSize: 10, color: C.mute, letterSpacing: "0.06em", textTransform: "uppercase" }}>{a.full}</div>
-                    </div>
-                    <div style={{ textAlign: "right" }}>
-                      <div style={{
-                        fontFamily: SERIF, fontSize: 17, fontVariantNumeric: "tabular-nums", fontWeight: 500,
-                        color: disp.improved ? C.improveStrong : C.declineStrong,
-                      }}>
-                        {headline}
-                      </div>
-                      <div style={{ fontSize: 10, color: C.mute, fontVariantNumeric: "tabular-nums" }}>
-                        {fmt(c.start, m.u)} → {fmt(c.end, m.u)}
-                      </div>
-                    </div>
-                  </div>
+                  <PresidentCard key={id} id={id} name={a.name} full={a.full} color={a.color}
+                                 metricKey={mk} headline={headline}
+                                 improved={disp.improved}
+                                 start={fmt(c.start, m.u)} end={fmt(c.end, m.u)} />
                 );
               })}
             </div>
@@ -733,22 +772,51 @@ function PrinciplesSection({ mob, med }: { mob: boolean; med: boolean }) {
               How we stay <em style={{ fontStyle: "italic", color: C.accent }}>out of the way.</em>
             </h2>
           </div>
-          <p style={{ fontSize: 17, color: C.sub, maxWidth: "56ch", lineHeight: 1.5 }}>
-            An unbiased source is a design problem before it is an editorial one.
-            These three rules govern what gets published and what doesn&rsquo;t.
-          </p>
+          {/* Principles intro paragraph removed per design — headline only. */}
         </div>
 
+        {/* Mobile: 3-up tile grid (matches the Sources section pattern) —
+            number + headline only, descriptions + footer links hidden so
+            three principles fit on one screen instead of three full scrolls.
+            Descriptions still discoverable via the title attribute (long-
+            press on touch). Desktop unchanged: full 3-up with descriptions
+            and footer links. */}
         <div style={{
-          display: "grid", gridTemplateColumns: med ? "1fr" : "repeat(3, 1fr)",
-          background: C.rule, border: `1px solid ${C.rule}`, borderRadius: 4, overflow: "hidden", gap: 1,
+          display: "grid",
+          gridTemplateColumns: mob ? "repeat(3, 1fr)" : (med ? "1fr" : "repeat(3, 1fr)"),
+          background: C.rule, border: `1px solid ${C.rule}`, borderRadius: 4,
+          overflow: "hidden", gap: 1,
         }}>
           {items.map(it => (
-            <div key={it.n} style={{ background: C.card, padding: mob ? "24px 20px" : "32px 28px", display: "flex", flexDirection: "column", gap: 14 }}>
-              <div style={{ fontFamily: SERIF, fontSize: 36, fontWeight: 400, color: C.accent, letterSpacing: "-0.02em", lineHeight: 1, fontStyle: "italic" }}>{it.n}</div>
-              <h3 style={{ fontFamily: SERIF, fontWeight: 500, fontSize: 22, lineHeight: 1.2, letterSpacing: "-0.01em", margin: 0 }}>{it.t}</h3>
-              <p style={{ fontSize: 13, color: C.sub, lineHeight: 1.6, margin: 0 }}>{it.p}</p>
-              <div style={{ marginTop: "auto", paddingTop: 14, borderTop: `1px solid ${C.rule}`, fontSize: 11, color: C.mute, letterSpacing: "0.08em", textTransform: "uppercase" }}>{it.r} ↗</div>
+            <div key={it.n}
+              title={mob ? `${it.t} — ${it.p}` : undefined}
+              style={{
+                background: C.card,
+                padding: mob ? "16px 10px" : "32px 28px",
+                display: "flex", flexDirection: "column",
+                gap: mob ? 6 : 14,
+                minWidth: 0,
+              }}>
+              <div style={{
+                fontFamily: SERIF,
+                fontSize: mob ? 24 : 36,
+                fontWeight: 400, color: C.accent, letterSpacing: "-0.02em",
+                lineHeight: 1, fontStyle: "italic",
+              }}>{it.n}</div>
+              <h3 style={{
+                fontFamily: SERIF, fontWeight: 500,
+                fontSize: mob ? 13 : 22,
+                lineHeight: 1.2, letterSpacing: "-0.01em", margin: 0,
+              }}>{it.t}</h3>
+              {!mob && (
+                <>
+                  <p style={{ fontSize: 13, color: C.sub, lineHeight: 1.6, margin: 0 }}>{it.p}</p>
+                  <div style={{
+                    marginTop: "auto", paddingTop: 14, borderTop: `1px solid ${C.rule}`,
+                    fontSize: 11, color: C.mute, letterSpacing: "0.08em", textTransform: "uppercase",
+                  }}>{it.r} ↗</div>
+                </>
+              )}
             </div>
           ))}
         </div>
@@ -784,23 +852,45 @@ function SourcesSection({ mob, med }: { mob: boolean; med: boolean }) {
               Where the <em style={{ fontStyle: "italic", color: C.accent }}>numbers come from.</em>
             </h2>
           </div>
-          <p style={{ fontSize: 17, color: C.sub, maxWidth: "56ch", lineHeight: 1.5 }}>
-            Every data point on Vote Unbiased is traceable to a single federal statistical
-            agency or official market index. Click any chart cell to follow the citation trail.
-          </p>
+          {/* Sources intro paragraph removed per design — headline only. */}
         </div>
 
+        {/* Sources grid. Mobile is a 4-up compact tile layout (acronym only,
+            descriptions hidden) so all 12 sources fit in 3 rows instead of 12
+            and the page stops feeling endlessly scrollable. Desktop keeps the
+            full layout with descriptions since there's room. The hidden
+            descriptions live in `title` attributes so they're still
+            discoverable via long-press on touch / hover on desktop. */}
         <div style={{
-          display: "grid", gridTemplateColumns: mob ? "1fr" : (med ? "repeat(2, 1fr)" : "repeat(3, 1fr)"), gap: 12,
+          display: "grid",
+          gridTemplateColumns: mob ? "repeat(4, 1fr)" : (med ? "repeat(2, 1fr)" : "repeat(3, 1fr)"),
+          gap: mob ? 6 : 12,
         }}>
           {sources.map(s => (
-            <div key={s.src} style={{
-              padding: "14px 16px", background: C.card, border: `1px solid ${C.rule}`,
-              borderRadius: 4, display: "flex", flexDirection: "column", gap: 4,
-              transition: "border-color 0.15s", cursor: "pointer",
-            }}>
-              <span style={{ fontFamily: SERIF, fontWeight: 600, fontSize: 17, letterSpacing: "-0.01em" }}>{s.src}</span>
-              <span style={{ fontSize: 11, color: C.mute, lineHeight: 1.4 }}>{s.d}</span>
+            <div key={s.src}
+              title={mob ? s.d : undefined}
+              style={{
+                padding: mob ? "10px 8px" : "14px 16px",
+                background: C.card, border: `1px solid ${C.rule}`,
+                borderRadius: 4, display: "flex", flexDirection: "column", gap: 4,
+                transition: "border-color 0.15s", cursor: "pointer",
+                minWidth: 0, // allow text to ellipsis inside a tight column
+                textAlign: mob ? "center" : "left",
+                justifyContent: mob ? "center" : "flex-start",
+                alignItems: mob ? "center" : "stretch",
+                minHeight: mob ? 56 : undefined,
+              }}>
+              <span style={{
+                fontFamily: SERIF, fontWeight: 600,
+                fontSize: mob ? 13 : 17,
+                letterSpacing: "-0.01em",
+                lineHeight: 1.15,
+                whiteSpace: mob ? "normal" : "nowrap",
+                overflow: "hidden", textOverflow: "ellipsis",
+              }}>{s.src}</span>
+              {!mob && (
+                <span style={{ fontSize: 11, color: C.mute, lineHeight: 1.4 }}>{s.d}</span>
+              )}
             </div>
           ))}
         </div>
@@ -848,17 +938,8 @@ function AnimatedWaveform({ mob }: { mob: boolean }) {
   );
 }
 
-/* ── Coming Soon — Two-card layout ── */
+/* ── Coming Soon — single card (State Atlas shipped Q2 2026) ── */
 function ComingSoonSection({ mob, med }: { mob: boolean; med: boolean }) {
-  // Deterministic cartogram opacities (avoid hydration mismatch with Math.random)
-  const cartogramOpacities = [
-    0.18, 0.55, 0.32, 0.7, 0.22, 0.48, 0.65, 0.14, 0.58, 0.4,
-    0.25, 0.72, 0.35, 0.5, 0.15, 0.62, 0.3, 0.68, 0.42, 0.2,
-    0.56, 0.38, 0.75, 0.28, 0.6, 0.17, 0.52, 0.44, 0.66, 0.33,
-    0.7, 0.24, 0.58, 0.36, 0.48, 0.13, 0.64, 0.42, 0.54, 0.29,
-    0.72, 0.19, 0.46, 0.61, 0.37, 0.55, 0.23, 0.68, 0.31, 0.5,
-  ];
-
   const dotStyle = (color: string): React.CSSProperties => ({
     width: 8, height: 8, borderRadius: "50%", background: color, display: "inline-block", marginRight: 8,
   });
@@ -876,53 +957,17 @@ function ComingSoonSection({ mob, med }: { mob: boolean; med: boolean }) {
       <div style={{ maxWidth: 1280, margin: "0 auto", padding: mob ? "0 20px" : "0 32px", textAlign: "center" }}>
         <div style={{ fontFamily: SANS, fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: C.sub, fontWeight: 500, marginBottom: 16 }}>Coming Soon</div>
         <h2 style={{ fontFamily: SERIF, fontSize: mob ? 32 : 48, lineHeight: 1.05, letterSpacing: "-0.022em", fontWeight: 400, margin: "0 auto 16px", maxWidth: 700 }}>
-          Two new ways to <em style={{ fontStyle: "italic", color: C.accent }}>see the data.</em>
+          A new way to <em style={{ fontStyle: "italic", color: C.accent }}>see the data.</em>
         </h2>
-        <p style={{ fontSize: 17, color: C.sub, maxWidth: "56ch", lineHeight: 1.5, margin: "0 auto 40px" }}>
-          National averages and quarterly snapshots only get you so far.
-          We&apos;re building two complements: one for the map, one for the moment.
-        </p>
+        {/* Coming Soon intro paragraph removed per design — headline only. */}
 
         <div style={{
-          display: "grid",
-          gridTemplateColumns: med ? "1fr" : "1fr 1fr",
-          gap: mob ? 20 : 24,
-          textAlign: "left",
+          // Centered single card now that State Atlas has shipped. Capped width
+          // keeps the card from stretching uncomfortably wide on desktop.
+          display: "flex", justifyContent: "center", textAlign: "left",
         }}>
-          {/* ── State Atlas card ── */}
-          <div style={cardStyle}>
-            <div style={{ ...labelStyle, marginBottom: 16 }}>
-              <span style={dotStyle(C.improveStrong)} />THE STATE ATLAS
-            </div>
-            <h3 style={{ fontFamily: SERIF, fontSize: mob ? 26 : 32, lineHeight: 1.1, fontWeight: 700, margin: "0 0 12px" }}>
-              Fifty states.<br />One square <em style={{ fontStyle: "italic", color: C.accent, fontWeight: 400 }}>each.</em>
-            </h3>
-            <p style={{ fontSize: 15, color: C.sub, lineHeight: 1.55, margin: "0 0 24px", maxWidth: "48ch" }}>
-              National averages hide everything interesting. Explore every state,
-              every year since 2015, on the metrics that actually move families —
-              sorted so the outliers are visible at a glance.
-            </p>
-            <div style={{
-              padding: "32px 24px", background: C.paper, border: `1px solid ${C.rule}`,
-              borderRadius: 4, display: "flex", flexDirection: "column", alignItems: "center", gap: 12, marginTop: "auto",
-            }}>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(10, 1fr)", gap: 3 }}>
-                {cartogramOpacities.map((op, i) => (
-                  <div key={i} style={{
-                    width: mob ? 16 : 20, height: mob ? 16 : 20, borderRadius: 2,
-                    background: `rgba(13,115,119,${op})`,
-                  }} />
-                ))}
-              </div>
-              <div style={{ fontFamily: SANS, fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: C.mute, marginTop: 4 }}>
-                Interactive cartogram
-              </div>
-            </div>
-            <div style={{ fontFamily: SANS, fontSize: 13, color: C.mute, marginTop: 16 }}>Q2 &middot; 2026</div>
-          </div>
-
           {/* ── Live Broadcast card ── */}
-          <div style={cardStyle}>
+          <div style={{ ...cardStyle, maxWidth: 560, width: "100%" }}>
             <div style={{ ...labelStyle, marginBottom: 16 }}>
               <span style={dotStyle(C.accent)} />LIVE BROADCAST
             </div>
@@ -1104,6 +1149,13 @@ export default function LandingPage() {
     <div style={{ background: C.bg, color: C.ink, fontFamily: SANS, fontSize: 15, lineHeight: 1.5, minHeight: "100vh" }}>
       <Nav mob={mob} />
       <Hero mob={mob} med={med} />
+      {/* Auto-generated insights strip — surfaces what's notable in the
+          current data so readers who don't want to scan the whole heatmap
+          still get a quick "what's happening." Pure-function logic in
+          lib/insights, no LLM, no API call, computed at render time. */}
+      <div style={{ maxWidth: 1280, margin: "0 auto", padding: mob ? "0 20px" : "0 32px", borderBottom: `1px solid ${C.rule}` }}>
+        <InsightsStrip mob={mob} limit={3} eyebrow="What's notable right now" />
+      </div>
       <ScorecardSection mob={mob} med={med} />
       <DeepDiveSection mob={mob} med={med} />
       <ComingSoonSection mob={mob} med={med} />

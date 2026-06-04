@@ -47,7 +47,27 @@ interface Claim {
   explanation: string;
   timestamp: string;
   videoTime?: number; // seconds into the video
+  // ── Data-layer integration (lib/live-verify) ──
+  // When the claim mentions one of our 6 anchored metrics, these are
+  // populated and the card renders a "See full data" link to the dashboard.
+  metricKey?: string | null;
+  year?: number | null;
+  admin?: string | null;
+  claimedValue?: number | null;
+  verifiedFromSource?: boolean;
+  groundTruth?: { value: number; year: number; metricKey: string; source: string };
 }
+
+// Display labels for the 6 anchored metrics, used on the "See full data" link.
+// Kept in sync with lib/metrics-data.ts METRICS_DATA[key].label.
+const METRIC_LABELS: Record<string, string> = {
+  gdp: "GDP Growth",
+  unemployment: "Unemployment",
+  inflation: "Inflation (CPI)",
+  sp500: "S&P 500",
+  debt_gdp: "Debt-to-GDP",
+  median_income: "Median Income",
+};
 
 interface LiveConfig {
   status: "live" | "off";
@@ -96,6 +116,139 @@ function fmtTime(sec: number): string {
   const m = Math.floor(sec / 60);
   const s = Math.floor(sec % 60);
   return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
+/* ── Parse YouTube timedtext XML into 15-second segments ──────── */
+// Module-level so server-side prerender doesn't TDZ when other useCallbacks
+// (startDemo, startFromUrl) reference it.
+function parseTranscriptXml(xml: string): { time: number; text: string }[] {
+  const items: { startSec: number; text: string }[] = [];
+  const decode = (s: string) => s
+    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&apos;/g, "'")
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, h: string) => String.fromCodePoint(parseInt(h, 16)))
+    .replace(/&#(\d+);/g, (_, d: string) => String.fromCodePoint(parseInt(d, 10)))
+    .replace(/\n/g, " ").trim();
+
+  // srv3 format: <p t="ms" d="ms"><s>word</s>...</p>
+  const pRe = /<p\s+t="(\d+)"\s+d="(\d+)"[^>]*>([\s\S]*?)<\/p>/g;
+  let m;
+  while ((m = pRe.exec(xml)) !== null) {
+    const inner = m[3];
+    let text = "";
+    const sRe = /<s[^>]*>([^<]*)<\/s>/g;
+    let s;
+    while ((s = sRe.exec(inner)) !== null) text += s[1];
+    if (!text) text = inner.replace(/<[^>]+>/g, "");
+    text = decode(text).trim();
+    if (text) items.push({ startSec: parseInt(m[1], 10) / 1000, text });
+  }
+  if (items.length === 0) {
+    // Classic format: <text start="s" dur="s">content</text>
+    const tRe = /<text start="([^"]*)" dur="([^"]*)">([^<]*)<\/text>/g;
+    while ((m = tRe.exec(xml)) !== null) {
+      const text = decode(m[3]);
+      if (text) items.push({ startSec: parseFloat(m[1]), text });
+    }
+  }
+
+  // Group into 15-second segments
+  if (items.length === 0) return [];
+  const segments: { time: number; text: string }[] = [];
+  let winStart = Math.floor(items[0].startSec);
+  let buf: string[] = [];
+  for (const item of items) {
+    const sec = Math.floor(item.startSec);
+    if (sec - winStart >= 15 && buf.length > 0) {
+      segments.push({ time: winStart, text: buf.join(" ") });
+      buf = [];
+      winStart = sec;
+    }
+    if (item.text.trim()) buf.push(item.text.trim());
+  }
+  if (buf.length > 0) segments.push({ time: winStart, text: buf.join(" ") });
+  return segments;
+}
+
+/* ── Fuzzy-match a quote against YouTube captions ─────────────── */
+// Finds the time in captions where the quote most likely occurs.
+// Approach: sliding window across captions (~20s wide), compute word-overlap
+// (Jaccard) between window text and quote words; return window start time
+// of the best-overlap window above a confidence threshold.
+//
+// Demo claims have human-written paraphrases of the speech ("Auto plants are
+// opening up all over the place") while YouTube captions are verbatim and
+// often broken across multiple short lines. Word-overlap is robust to both
+// — we don't need exact substring match.
+export function findCaptionTimeForQuote(
+  quote: string,
+  captions: { time: number; text: string }[],
+  minOverlap = 0.5,
+): number | null {
+  if (!captions.length) return null;
+  // Normalize: lowercase, drop punctuation, drop short stopwords. "Stop"
+  // words filter raises signal because "the", "of", etc. appear everywhere
+  // and would inflate overlap on unrelated windows.
+  const STOPWORDS = new Set([
+    "the", "and", "of", "to", "a", "in", "is", "it", "you", "that", "we",
+    "for", "on", "are", "as", "with", "this", "be", "at", "have", "or", "not",
+    "but", "by", "from", "they", "an", "i", "my", "your", "their",
+  ]);
+  const tokens = (s: string) => s.toLowerCase()
+    .replace(/[^\w\s]/g, " ")
+    .split(/\s+/)
+    .filter(w => w.length > 2 && !STOPWORDS.has(w));
+
+  const qWords = tokens(quote);
+  if (qWords.length < 3) return null;
+  const qSet = new Set(qWords);
+
+  let best: { score: number; time: number | null } = { score: 0, time: null };
+  for (let i = 0; i < captions.length; i++) {
+    // Window: forward through captions until we cover ~20s of speech.
+    let windowText = "";
+    for (let j = i; j < captions.length && captions[j].time - captions[i].time < 20; j++) {
+      windowText += " " + captions[j].text;
+    }
+    const wSet = new Set(tokens(windowText));
+    let overlap = 0;
+    for (const w of qSet) if (wSet.has(w)) overlap++;
+    const score = overlap / qSet.size;
+    if (score > best.score) best = { score, time: captions[i].time };
+  }
+  return best.score >= minOverlap ? best.time : null;
+}
+
+/* ── Format a "starts in" countdown for scheduled broadcasts ──── */
+// Picks the right precision based on remaining time so the label feels right
+// at every scale — "in 3 days", "in 4h 12m", "in 14:32", "Live now".
+function fmtCountdown(secondsUntil: number): string {
+  if (secondsUntil <= 0) return "Live now";
+  const days = Math.floor(secondsUntil / 86400);
+  if (days >= 2) return `in ${days} days`;
+  const hours = Math.floor(secondsUntil / 3600);
+  if (hours >= 2) {
+    const m = Math.floor((secondsUntil % 3600) / 60);
+    return `in ${hours}h ${m}m`;
+  }
+  const m = Math.floor(secondsUntil / 60);
+  const s = secondsUntil % 60;
+  return `in ${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+}
+
+/* ── Pretty event date for the schedule list — local time, contextual ─ */
+function fmtEventDate(iso: string): string {
+  const d = new Date(iso);
+  const now = new Date();
+  const sameDay = d.toDateString() === now.toDateString();
+  if (sameDay) {
+    return `Today, ${d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
+  }
+  const tomorrow = new Date(now); tomorrow.setDate(tomorrow.getDate() + 1);
+  if (d.toDateString() === tomorrow.toDateString()) {
+    return `Tomorrow, ${d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
+  }
+  return d.toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
 /* ── Fact-Check Card ──────────────────────────────────────────── */
@@ -162,12 +315,46 @@ function FactCard({ claim, isNew, onSeek }: { claim: Claim; isNew: boolean; onSe
       {/* Actual data + source citation */}
       <div style={{ fontSize: 11, color: T.sub, marginBottom: 4, lineHeight: 1.5 }}>
         <strong style={{ color: T.ink }}>Data:</strong> {claim.actual}
+        {claim.verifiedFromSource && claim.groundTruth && (
+          <span style={{
+            display: "inline-flex", alignItems: "center", gap: 3,
+            marginLeft: 6, padding: "1px 6px", borderRadius: 3,
+            background: "#0d737715", color: "#0d7377",
+            fontSize: 9, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase",
+            fontFamily: "'DM Sans',sans-serif", verticalAlign: "middle",
+          }} title={`Cross-checked against Vote Unbiased's ${claim.groundTruth.source} data — not LLM memory`}>
+            ✓ Sourced
+          </span>
+        )}
       </div>
 
       {/* Explanation */}
       <div style={{ fontSize: 11, color: T.mute, lineHeight: 1.4 }}>
         {claim.explanation}
       </div>
+
+      {/* Data-layer deep link — when the claim maps to one of our 6 anchored
+          metrics, surface a link to the dashboard's detail view for that
+          metric + admin. This is the unique loop: live claim → sourced data
+          → full historical context on the dashboard. */}
+      {claim.metricKey && METRIC_LABELS[claim.metricKey] && (
+        <Link
+          href={`/dashboard?metric=${claim.metricKey}${claim.admin ? `&admin=${claim.admin}` : ""}`}
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 4,
+            marginTop: 8, padding: "5px 10px",
+            background: T.paper, border: `1px solid ${T.rule}`, borderRadius: 4,
+            fontSize: 10, fontWeight: 600, color: T.ink,
+            fontFamily: "'DM Sans',sans-serif", textDecoration: "none",
+            transition: "all 0.15s",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = T.card; e.currentTarget.style.borderColor = T.blue; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = T.paper; e.currentTarget.style.borderColor = T.rule; }}
+        >
+          See full data: {METRIC_LABELS[claim.metricKey]} <span style={{ color: T.blue }}>→</span>
+        </Link>
+      )}
 
       {/* Expanded: source links */}
       {expanded && sources.length > 0 && (
@@ -267,12 +454,37 @@ export default function LiveFactCheckPage() {
 
   /* ── State ── */
   const [config, setConfig] = useState<LiveConfig | null>(null);
+  // Public broadcast schedule (public/live-schedule.json via /api/live-schedule).
+  // Refetched every 30s so adding an event to the JSON and redeploying
+  // shows up without a hard reload, and so a freshly-started event appears
+  // here within 30s without needing the user to refresh.
+  const [schedule, setSchedule] = useState<{
+    active: { id: string; title: string; speaker: string; source: string; youtubeUrl: string; scheduledStart: string; scheduledEnd: string } | null;
+    next: { id: string; title: string; speaker: string; source: string; youtubeUrl: string; scheduledStart: string; scheduledEnd: string } | null;
+    nextSecondsUntilStart: number | null;
+    upcoming: { id: string; title: string; speaker: string; source: string; youtubeUrl: string; scheduledStart: string; scheduledEnd: string }[];
+  } | null>(null);
+  // Wall-clock tick used to drive the countdown re-render once per second.
+  // We only use this for display — the source of truth is the scheduledStart
+  // ISO strings so missing a tick doesn't drift the countdown.
+  const [, setClockTick] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isDemo, setIsDemo] = useState(false);
   const [videoId, setVideoId] = useState("");
   const [title, setTitle] = useState("");
   const [claims, setClaims] = useState<Claim[]>([]);
   const [liveTranscript, setLiveTranscript] = useState("");
+  // Real YouTube captions for the currently-loaded demo speech.
+  // Demo JSONs have paraphrased segment.text + approximate segment.time
+  // (hand-curated, often on round-minute marks), which means:
+  //   (a) the subtitle line below the video doesn't match what's spoken, and
+  //   (b) fact-check timestamps are off from where the words actually occur.
+  // When we have real captions we use them as the subtitle source AND we
+  // fuzzy-match each demo claim's quote against the captions to derive an
+  // accurate videoTime. If the fetch fails we fall back to the segment-
+  // based behavior gracefully (the demo still works, just less synced).
+  const [realCaptions, setRealCaptions] = useState<{ time: number; text: string }[] | null>(null);
+  const [captionsLoading, setCaptionsLoading] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
   const [isManualChecking, setIsManualChecking] = useState(false);
   const [manualResult, setManualResult] = useState<Claim[] | null>(null);
@@ -349,8 +561,45 @@ export default function LiveFactCheckPage() {
     loadConfig();
   }, []);
 
+  /* ── Fetch broadcast schedule + tick clock for countdown ── */
+  // The schedule comes from /api/live-schedule, which reads public/live-schedule.json.
+  // We refetch every 30s so newly-added events appear without a hard refresh
+  // and so an event transitioning to "active" surfaces near-real-time.
+  useEffect(() => {
+    let cancelled = false;
+    async function loadSchedule() {
+      try {
+        const resp = await fetch("/api/live-schedule");
+        if (!resp.ok) return;
+        const data = await resp.json();
+        if (!cancelled) setSchedule(data);
+      } catch { /* schedule is decorative — silent failure is OK */ }
+    }
+    loadSchedule();
+    const id = setInterval(loadSchedule, 30000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, []);
+
+  // 1-second tick to drive the countdown re-render. Cheap — only updates a
+  // single state value, the actual time math reads from Date.now() each render.
+  useEffect(() => {
+    const id = setInterval(() => setClockTick(t => t + 1), 1000);
+    return () => clearInterval(id);
+  }, []);
+
   /* ── Poll live-feed API during live broadcasts (not demos) ── */
+  // lastPollTime tracks the newest claim timestamp we've already seen, so we
+  // can ask the feed for only claims newer than that. Previously this was
+  // set from feed.claims[0].timestamp which assumed newest-first ordering —
+  // if the server returns chronological order, that points to the OLDEST claim
+  // and we re-fetch the same claims forever. Now we always take the max.
   const lastPollTime = useRef<string | null>(null);
+  // Surfaces poll failures (network down, KV missing, etc.) to the user
+  // instead of silently logging to console. Audit finding #2 + #5.
+  const [pollError, setPollError] = useState<string | null>(null);
+  // Set of claim IDs we've already rendered — defensive dedup in case
+  // lastPollTime gets reset by a race condition (StrictMode etc).
+  const seenClaimIds = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (!isPlaying || isDemo) return;
@@ -361,26 +610,36 @@ export default function LiveFactCheckPage() {
           ? `/api/live-feed?since=${encodeURIComponent(lastPollTime.current)}`
           : "/api/live-feed";
         const resp = await fetch(url);
-        if (!resp.ok) return;
+        if (!resp.ok) {
+          setPollError(`Live feed error ${resp.status}`);
+          return;
+        }
         const feed = await resp.json();
+        // Clear stale error on a successful poll.
+        if (pollError) setPollError(null);
 
         // Update transcript
         if (feed.transcript) {
           setLiveTranscript(feed.transcript);
         }
 
-        // Append new claims
+        // Append new claims, deduped against both prior state and our
+        // running seen-set (cheap second line of defense vs race conditions).
         if (feed.claims?.length > 0) {
-          const ids = new Set(feed.claims.map((c: Claim) => c.id));
-          setNewClaimIds(ids);
-          setClaims(prev => {
-            // Deduplicate by id
-            const existingIds = new Set(prev.map(c => c.id));
-            const brandNew = feed.claims.filter((c: Claim) => !existingIds.has(c.id));
-            return [...brandNew, ...prev];
-          });
-          // Track the latest timestamp for next poll
-          lastPollTime.current = feed.claims[0].timestamp;
+          const brandNew: Claim[] = feed.claims.filter(
+            (c: Claim) => !seenClaimIds.current.has(c.id)
+          );
+          if (brandNew.length > 0) {
+            for (const c of brandNew) seenClaimIds.current.add(c.id);
+            setNewClaimIds(new Set(brandNew.map(c => c.id)));
+            setClaims(prev => [...brandNew, ...prev]);
+          }
+          // Take the MAX timestamp, not the first — server may return either order.
+          for (const c of feed.claims as Claim[]) {
+            if (!lastPollTime.current || c.timestamp > lastPollTime.current) {
+              lastPollTime.current = c.timestamp;
+            }
+          }
         }
 
         // Check if broadcast ended
@@ -390,6 +649,7 @@ export default function LiveFactCheckPage() {
         }
       } catch (e) {
         console.error("Live feed poll error:", e);
+        setPollError(e instanceof Error ? e.message : "Live feed unreachable");
       }
     };
 
@@ -397,7 +657,7 @@ export default function LiveFactCheckPage() {
     // Initial poll immediately
     poll();
     return () => clearInterval(interval);
-  }, [isPlaying, isDemo]);
+  }, [isPlaying, isDemo, pollError]);
 
   /* ── Animate new claims ── */
   useEffect(() => {
@@ -416,6 +676,14 @@ export default function LiveFactCheckPage() {
     setClaims([]);
     setLiveTranscript("");
     setShowSummary(false);
+    // Flush any stale claim IDs / poll cursor from a prior session — otherwise
+    // claims persisted in Upstash from a previous broadcast would surface as
+    // brand-new on the first poll (audit finding #4).
+    seenClaimIds.current = new Set();
+    // Set the poll cursor to "now" so we only pick up claims ingested AFTER
+    // this user pressed start, not whatever's stored from the last session.
+    lastPollTime.current = new Date().toISOString();
+    setPollError(null);
 
     contextRef.current = "";
     demoStartTime.current = Date.now();
@@ -477,17 +745,31 @@ export default function LiveFactCheckPage() {
         try { vt = ytPlayerRef.current.getCurrentTime(); } catch {}
       }
 
-      // Update transcript with recent segments
-      let latestIdx = -1;
-      for (let i = demoSpeech.segments.length - 1; i >= 0; i--) {
-        if (vt >= demoSpeech.segments[i].time) { latestIdx = i; break; }
-      }
-      if (latestIdx >= 0) {
-        const recent = demoSpeech.segments
-          .filter((_, i) => i <= latestIdx)
-          .slice(-3)
-          .map(s => s.text);
-        setLiveTranscript(recent.join(" "));
+      // Update transcript. Prefer real YouTube captions (verbatim, synced)
+      // over the demo JSON's paraphrased segment.text — the segment text is
+      // a human-written summary, not what's actually spoken in the audio.
+      // Falls back to segment text if captions weren't fetched (offline, or
+      // YouTube returned no timedtext, or the speech is on a non-YouTube source).
+      if (realCaptions && realCaptions.length > 0) {
+        // Show the most recent ~60s of real captions, joined and truncated
+        // for display further down in the JSX (slice(-40) trim).
+        const recent = realCaptions
+          .filter(c => c.time <= vt && c.time >= vt - 60)
+          .map(c => c.text);
+        if (recent.length > 0) setLiveTranscript(recent.join(" "));
+      } else {
+        // Legacy fallback: segment-text-based subtitle.
+        let latestIdx = -1;
+        for (let i = demoSpeech.segments.length - 1; i >= 0; i--) {
+          if (vt >= demoSpeech.segments[i].time) { latestIdx = i; break; }
+        }
+        if (latestIdx >= 0) {
+          const recent = demoSpeech.segments
+            .filter((_, i) => i <= latestIdx)
+            .slice(-3)
+            .map(s => s.text);
+          setLiveTranscript(recent.join(" "));
+        }
       }
 
       // Show claims when video reaches each segment + delay
@@ -541,6 +823,13 @@ export default function LiveFactCheckPage() {
             .then(r => r.json())
             .then(data => {
               contextRef.current = (contextRef.current + " " + capturedText).slice(-500);
+              // Surface upstream errors as a banner instead of silently
+              // failing — audit finding #3 (ANTHROPIC_API_KEY missing was
+              // invisible to demo users).
+              if (data.error) {
+                setPollError(`Fact-check unavailable: ${data.error}${data.detail ? ` (${data.detail.slice(0, 80)})` : ""}`);
+                return;
+              }
               if (data.claims?.length > 0) {
                 const enriched: Claim[] = data.claims.map((c: Claim) => ({
                   ...c,
@@ -552,7 +841,10 @@ export default function LiveFactCheckPage() {
                 setClaims(prev => [...enriched, ...prev]);
               }
             })
-            .catch(e => console.error("Auto fact-check error:", e));
+            .catch(e => {
+              console.error("Auto fact-check error:", e);
+              setPollError(e instanceof Error ? e.message : "Auto fact-check failed");
+            });
         }
       }
 
@@ -564,7 +856,7 @@ export default function LiveFactCheckPage() {
     }, 800);
 
     return () => clearInterval(interval);
-  }, [isDemo, isPlaying, demoSpeech]);
+  }, [isDemo, isPlaying, demoSpeech, realCaptions]);
 
   /* ── Start demo — loads speech data into state ── */
   const startDemo = useCallback(async (speechFile?: string) => {
@@ -578,6 +870,7 @@ export default function LiveFactCheckPage() {
     setDemoSpeech(null);
 
     contextRef.current = "";
+    setRealCaptions(null);
 
     const file = speechFile || "sotu-2024.json";
     try {
@@ -588,60 +881,67 @@ export default function LiveFactCheckPage() {
       demoStartTime.current = Date.now();
       // Setting state triggers the polling effect above
       setDemoSpeech(speech);
+
+      // Fire-and-forget: pull real YouTube captions, then re-time the demo's
+      // segments by fuzzy-matching each segment's first claim (or the segment
+      // text itself) against the captions. Once this lands:
+      //   - the subtitle line shows ACTUAL spoken words (not paraphrased)
+      //   - the fact card timestamps line up with where the words occur
+      // If it fails the demo still plays — just with the original approximate
+      // timestamps and paraphrased subtitle.
+      setCaptionsLoading(true);
+      fetch("/api/fetch-transcript", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: `https://www.youtube.com/watch?v=${speech.videoId}` }),
+      })
+        .then(r => r.json())
+        .then(async (data) => {
+          let captions: { time: number; text: string }[] | null = null;
+          if (Array.isArray(data.segments) && data.segments.length > 0) {
+            captions = data.segments;
+          } else if (data.clientFetch && data.captionUrl) {
+            // Server couldn't get the XML; try fetching the timedtext URL ourselves.
+            try {
+              const xmlResp = await fetch(data.captionUrl);
+              const xml = await xmlResp.text();
+              captions = parseTranscriptXml(xml);
+            } catch (e) {
+              console.warn("[demo] client-side timedtext fetch failed:", e);
+            }
+          }
+          if (!captions || captions.length === 0) {
+            console.warn("[demo] no captions available; subtitle and timing will be approximate");
+            return;
+          }
+
+          // Re-time each segment by matching its first-claim quote (most
+          // discriminating) against the captions. If no claim, fall back to
+          // matching the segment's own text.
+          const retimedSegments = speech.segments.map(seg => {
+            const probe = seg.claims?.[0]?.quote || seg.text;
+            const matched = findCaptionTimeForQuote(probe, captions!);
+            return matched != null ? { ...seg, time: matched } : seg;
+          });
+          // Re-sort by time so the firing loop's "skip if past" logic works.
+          retimedSegments.sort((a, b) => a.time - b.time);
+
+          setRealCaptions(captions);
+          setDemoSpeech({ ...speech, segments: retimedSegments });
+          const fixedCount = retimedSegments.filter((s, i) => s.time !== speech.segments[i]?.time).length;
+          console.log(`[demo] re-timed ${fixedCount}/${speech.segments.length} segments against real captions`);
+        })
+        .catch(e => console.warn("[demo] caption fetch failed; using approximate timing:", e))
+        .finally(() => setCaptionsLoading(false));
     } catch (e) {
       console.error("Demo error:", e);
     }
   }, []);
 
   /* ── Client-side XML transcript parser (mirrors server logic) ── */
-  const parseTranscriptXml = useCallback((xml: string): { time: number; text: string }[] => {
-    const items: { startSec: number; text: string }[] = [];
-    const decode = (s: string) => s
-      .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
-      .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&apos;/g, "'")
-      .replace(/&#x([0-9a-fA-F]+);/g, (_, h: string) => String.fromCodePoint(parseInt(h, 16)))
-      .replace(/&#(\d+);/g, (_, d: string) => String.fromCodePoint(parseInt(d, 10)))
-      .replace(/\n/g, " ").trim();
-
-    // srv3 format: <p t="ms" d="ms"><s>word</s>...</p>
-    const pRe = /<p\s+t="(\d+)"\s+d="(\d+)"[^>]*>([\s\S]*?)<\/p>/g;
-    let m;
-    while ((m = pRe.exec(xml)) !== null) {
-      const inner = m[3];
-      let text = "";
-      const sRe = /<s[^>]*>([^<]*)<\/s>/g;
-      let s;
-      while ((s = sRe.exec(inner)) !== null) text += s[1];
-      if (!text) text = inner.replace(/<[^>]+>/g, "");
-      text = decode(text).trim();
-      if (text) items.push({ startSec: parseInt(m[1], 10) / 1000, text });
-    }
-    if (items.length === 0) {
-      // Classic format: <text start="s" dur="s">content</text>
-      const tRe = /<text start="([^"]*)" dur="([^"]*)">([^<]*)<\/text>/g;
-      while ((m = tRe.exec(xml)) !== null) {
-        const text = decode(m[3]);
-        if (text) items.push({ startSec: parseFloat(m[1]), text });
-      }
-    }
-
-    // Group into 15-second segments
-    if (items.length === 0) return [];
-    const segments: { time: number; text: string }[] = [];
-    let winStart = Math.floor(items[0].startSec);
-    let buf: string[] = [];
-    for (const item of items) {
-      const sec = Math.floor(item.startSec);
-      if (sec - winStart >= 15 && buf.length > 0) {
-        segments.push({ time: winStart, text: buf.join(" ") });
-        buf = [];
-        winStart = sec;
-      }
-      if (item.text.trim()) buf.push(item.text.trim());
-    }
-    if (buf.length > 0) segments.push({ time: winStart, text: buf.join(" ") });
-    return segments;
-  }, []);
+  // parseTranscriptXml is now a module-level function (hoisted above the
+  // component) so startDemo can reference it without TDZ issues during
+  // server-side prerendering. Function lives further up in the file.
 
   /* ── Start from URL — fetch transcript then reuse demo machinery ── */
   const startFromUrl = useCallback(async (url: string) => {
@@ -778,7 +1078,7 @@ export default function LiveFactCheckPage() {
     } finally {
       setUrlLoading(false);
     }
-  }, [parseTranscriptXml]);
+  }, []);
 
   /* ── Stop ── */
   const stopSession = useCallback(() => {
@@ -786,6 +1086,8 @@ export default function LiveFactCheckPage() {
     setIsPlaying(false);
     setIsDemo(false);
     setDemoSpeech(null);
+    setRealCaptions(null);
+    setCaptionsLoading(false);
     setManualResult(null);
     shownSegmentsRef.current = new Set();
     if (ytPlayerRef.current?.destroy) {
@@ -938,6 +1240,28 @@ export default function LiveFactCheckPage() {
 
       <div style={{ maxWidth: 1400, margin: "0 auto", padding: mob ? "16px" : "24px 32px" }}>
 
+        {/* Surfaces fact-check pipeline failures (missing API key, KV down,
+            poll errors) so the user can see why claims aren't appearing,
+            instead of staring at an empty list. Auto-clears on next successful
+            poll. */}
+        {pollError && (
+          <div style={{
+            background: "#fef2f2", border: `1px solid #fecaca`, borderLeft: `4px solid ${T.accent}`,
+            borderRadius: 4, padding: "10px 14px", marginBottom: 14,
+            display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12,
+            fontSize: 12, fontFamily: "'DM Sans',sans-serif",
+          }}>
+            <div>
+              <strong style={{ color: T.accent, marginRight: 6 }}>Fact-check unavailable</strong>
+              <span style={{ color: T.sub }}>{pollError}</span>
+            </div>
+            <button onClick={() => setPollError(null)} style={{
+              background: "none", border: "none", color: T.mute, cursor: "pointer",
+              fontSize: 18, lineHeight: 1, padding: "0 4px",
+            }} aria-label="Dismiss">×</button>
+          </div>
+        )}
+
         {/* ── Idle State: broadcast-centric ── */}
         {!isPlaying && !showSummary && (
           <div>
@@ -1036,27 +1360,98 @@ export default function LiveFactCheckPage() {
                   Watch a past speech from the archive below,<br />or analyze any YouTube video.
                 </div>
 
-                {/* Upcoming schedule */}
-                {config?.upcoming && config.upcoming.length > 0 && (
+                {/* Upcoming schedule — driven by public/live-schedule.json
+                    via /api/live-schedule. The GitHub Action reads the same
+                    endpoint, so what's shown here is exactly what will
+                    auto-trigger when its scheduledStart hits. */}
+                {schedule && (schedule.active || (schedule.upcoming && schedule.upcoming.length > 0)) && (
                   <div style={{
-                    marginTop: 16, padding: "12px 16px", background: T.paper,
+                    marginTop: 16, padding: "14px 18px", background: T.paper,
                     borderRadius: 8, border: `1px solid ${T.rule}`,
-                    display: "inline-flex", flexDirection: "column", gap: 6,
+                    display: "inline-flex", flexDirection: "column", gap: 10,
+                    minWidth: 280, textAlign: "left",
                   }}>
+                    {/* Currently live (auto-triggered by the GitHub Action) */}
+                    {schedule.active && (() => {
+                      const startMs = Date.parse(schedule.active!.scheduledStart);
+                      const nowMs = Date.now();
+                      const hasStarted = nowMs >= startMs;
+                      return (
+                        <div>
+                          <div style={{
+                            display: "flex", alignItems: "center", gap: 6,
+                            fontFamily: "'DM Sans',sans-serif", fontSize: 10, fontWeight: 700,
+                            textTransform: "uppercase", letterSpacing: 1.5,
+                            color: hasStarted ? "#dc2626" : T.gold,
+                          }}>
+                            <span style={{
+                              width: 6, height: 6, borderRadius: "50%",
+                              background: hasStarted ? "#dc2626" : T.gold,
+                              animation: hasStarted ? "pulse 2s infinite" : "none",
+                            }} />
+                            {hasStarted ? "LIVE NOW" : "STARTING SOON"}
+                          </div>
+                          <div style={{ fontFamily: "'Source Serif 4',serif", fontSize: 16, fontWeight: 600, color: T.ink, marginTop: 4 }}>
+                            {schedule.active!.title}
+                          </div>
+                          <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: T.sub, marginTop: 2 }}>
+                            {schedule.active!.speaker} · {schedule.active!.source}
+                          </div>
+                          {!hasStarted && (
+                            <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: T.gold, marginTop: 4, fontWeight: 600 }}>
+                              Starts {fmtCountdown(Math.floor((startMs - nowMs) / 1000))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+
+                    {/* Next scheduled (or all upcoming if nothing's live yet) */}
+                    {(schedule.active ? schedule.upcoming.filter(e => e.id !== schedule.active!.id).slice(0, 2) : schedule.upcoming.slice(0, 3)).map((ev) => {
+                      const secs = Math.floor((Date.parse(ev.scheduledStart) - Date.now()) / 1000);
+                      return (
+                        <div key={ev.id} style={{
+                          paddingTop: schedule.active ? 8 : 0,
+                          borderTop: schedule.active ? `1px solid ${T.rule}` : "none",
+                        }}>
+                          {(!schedule.active) && (
+                            <div style={{
+                              fontFamily: "'DM Sans',sans-serif", fontSize: 10, fontWeight: 700,
+                              textTransform: "uppercase", letterSpacing: 1.5, color: T.sub, marginBottom: 4,
+                            }}>NEXT BROADCAST</div>
+                          )}
+                          <div style={{
+                            fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: T.ink,
+                            display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap",
+                          }}>
+                            <span style={{ fontWeight: 600 }}>{ev.title}</span>
+                            <span style={{ color: T.mute, fontSize: 11 }}>· {ev.speaker}</span>
+                          </div>
+                          <div style={{
+                            fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: T.sub, marginTop: 2,
+                            display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap",
+                          }}>
+                            <span>{fmtEventDate(ev.scheduledStart)}</span>
+                            {secs > 0 && (
+                              <>
+                                <span style={{ color: T.mute }}>·</span>
+                                <span style={{ color: T.accent, fontWeight: 600 }}>{fmtCountdown(secs)}</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {/* Tiny footer reassuring viewers this isn't manually
+                        operated — sets expectations correctly. */}
                     <div style={{
-                      fontFamily: "'DM Sans',sans-serif", fontSize: 10, fontWeight: 700,
-                      textTransform: "uppercase", letterSpacing: 1.5, color: T.sub,
-                    }}>NEXT BROADCAST</div>
-                    {config.upcoming.slice(0, 2).map((u, i) => (
-                      <div key={i} style={{
-                        fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: T.ink,
-                        display: "flex", alignItems: "center", gap: 8,
-                      }}>
-                        <span style={{ color: T.accent, fontWeight: 700, fontSize: 11 }}>{formatTime(u.date)}</span>
-                        <span style={{ color: T.mute }}>—</span>
-                        <span style={{ fontWeight: 600 }}>{u.title}</span>
-                      </div>
-                    ))}
+                      fontFamily: "'DM Sans',sans-serif", fontSize: 9, color: T.mute,
+                      letterSpacing: 0.5, marginTop: 4, paddingTop: 6,
+                      borderTop: `1px solid ${T.rule}`,
+                    }}>
+                      Auto-broadcast · fact-checks appear in real time when the event begins
+                    </div>
                   </div>
                 )}
               </div>
@@ -1291,6 +1686,37 @@ export default function LiveFactCheckPage() {
                 <span style={{ fontWeight: 700 }}>{isDemo ? "DEMO" : "LIVE"}</span>
                 <span style={{ color: "#9a9490" }}>|</span>
                 <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title}</span>
+                {/* Caption sync indicator (demo only). 'Synced' = real
+                    YouTube captions loaded; subtitles + claim timestamps
+                    are aligned to actual audio. 'Approximate' = fallback to
+                    the demo JSON's hand-curated round-number timestamps. */}
+                {isDemo && (
+                  captionsLoading ? (
+                    <span style={{
+                      flexShrink: 0, fontSize: 9, color: "#9a9490",
+                      padding: "2px 6px", border: "1px solid #3a3a3a", borderRadius: 3,
+                      letterSpacing: 0.5, textTransform: "uppercase", fontWeight: 600,
+                    }} title="Fetching real YouTube captions to sync subtitle + fact-check timing">
+                      syncing…
+                    </span>
+                  ) : realCaptions ? (
+                    <span style={{
+                      flexShrink: 0, fontSize: 9, color: "#0d7377",
+                      padding: "2px 6px", background: "#0d737722", border: "1px solid #0d7377",
+                      borderRadius: 3, letterSpacing: 0.5, textTransform: "uppercase", fontWeight: 700,
+                    }} title="Subtitle text + fact-check timestamps aligned to real YouTube captions">
+                      ✓ synced
+                    </span>
+                  ) : (
+                    <span style={{
+                      flexShrink: 0, fontSize: 9, color: "#ca8a04",
+                      padding: "2px 6px", background: "#ca8a0422", border: "1px solid #ca8a04",
+                      borderRadius: 3, letterSpacing: 0.5, textTransform: "uppercase", fontWeight: 700,
+                    }} title="Could not fetch real captions — subtitle + timestamps are approximate">
+                      approx.
+                    </span>
+                  )
+                )}
                 <span style={{ color: "#9a9490", flexShrink: 0 }}>{claims.length} claims</span>
               </div>
 

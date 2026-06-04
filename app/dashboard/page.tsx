@@ -25,6 +25,8 @@ import {
 } from "@/lib/display-modes";
 import { PillToggle } from "@/components/PillToggle";
 import { StateAtlas } from "@/components/StateAtlas";
+import LiveBenchmark from "@/components/LiveBenchmark";
+// InsightsStrip import removed — strip lives only on the landing page now.
 
 function useIsMobile() {
   const [w, setW] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
@@ -705,8 +707,12 @@ function SpendTrendChart({ mob }: { mob?: boolean }) {
   );
 }
 
-const TABS_DESKTOP=[["dashboard","Data"],["state_atlas","State Atlas"],["scenarios","Scenarios"],["abroad","Abroad"],["global","Global"]];
-const TABS_MOBILE=[["dashboard","Data"],["state_atlas","State Atlas"],["scenarios","Scenarios"],["abroad","Abroad"],["global","Global"]];
+// Abroad tab hidden for now — needs improvement before re-exposing.
+// To restore: add ["abroad","Abroad"] back into both arrays. The tab's
+// implementation (state, render block at the "abroad" branch below) is
+// intentionally left in place so it just works when re-enabled.
+const TABS_DESKTOP=[["dashboard","Data"],["state_atlas","State Atlas"],["scenarios","Scenarios"],["live_benchmark","Live Benchmark"],["global","Global"]];
+const TABS_MOBILE=[["dashboard","Data"],["state_atlas","State Atlas"],["scenarios","Scenarios"],["live_benchmark","Live Benchmark"],["global","Global"]];
 
 // Per-metric heatmap data, computed once at module-load. Uses the shared lib
 // so the dashboard speaks the same data language as the landing page.
@@ -888,12 +894,23 @@ function App(){
   const [displayMode,setDisplayMode]=useState<DisplayMode>("per_metric");
   const [dollarMode,setDollarMode]=useState<DollarMode>("real");
 
-  // Read metric from URL query param (e.g. /dashboard?metric=unemployment)
+  // Read metric / tab / admin from URL query params
+  // (e.g. /dashboard?tab=data&metric=unemployment&admin=obama).
+  // The admin param is set when the user clicks a president card on the
+  // landing page — we land on the metric's detail view with that admin
+  // highlighted in the per-administration side panel.
   useEffect(() => {
     const m = searchParams.get("metric");
     if (m && M[m]) { setAm(m); setDetail(m); }
     const t = searchParams.get("tab");
-    if (t && TABS.some(([k]) => k === t)) setTab(t);
+    // TABS_DESKTOP is the source of truth for valid tab keys. Previously this
+    // line referenced an undefined `TABS`, which threw ReferenceError every
+    // time someone hit /dashboard?tab=... — visible to users as 'This page
+    // couldn't load.' Validation is desktop-list-based because TABS_MOBILE is
+    // a subset.
+    if (t && TABS_DESKTOP.some(([k]) => k === t)) setTab(t);
+    const a = searchParams.get("admin");
+    if (a && ADMINS[a as keyof typeof ADMINS]) setSelectedPres(a);
   }, [searchParams]);
 
   // Scroll to top when entering or leaving detail view
@@ -1208,21 +1225,50 @@ function App(){
       {/* ── NAV ── */}
       <div style={sty.nav}>
         <div className="ol-nav-wrap" style={{maxWidth:1080,margin:"0 auto",padding:"0 24px",display:"flex",gap:0,overflowX:"auto"}}>
-          {(mob?TABS_MOBILE:TABS_DESKTOP).map(([k,l])=><button key={k} className="ol-nav-btn" onClick={()=>setTab(k)} style={{
-            padding:"13px 20px",border:"none",fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:600,whiteSpace:"nowrap",
-            background:"transparent",color:tab===k?T.ink:T.mute,
-            borderBottom:tab===k?`2px solid ${T.accent}`:"2px solid transparent",transition:"all 0.2s"
-          }}>{l}</button>)}
-          <a href="/live-benchmark" className="ol-nav-btn" style={{
-            padding:"13px 20px",fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:600,whiteSpace:"nowrap",
-            background:"transparent",color:T.accent,textDecoration:"none",display:"flex",alignItems:"center",gap:6,
-            borderBottom:"2px solid transparent",transition:"all 0.2s"
-          }}><span style={{width:6,height:6,borderRadius:"50%",background:T.accent,animation:"pulse 2s infinite"}}/>Live Benchmark</a>
+          {(mob?TABS_MOBILE:TABS_DESKTOP).map(([k,l])=>{
+            // Live Benchmark gets special "live" treatment — always red text,
+            // pulsing dot — so it visually pops from the static analytical
+            // tabs (Data / State Atlas / etc.) the same way the Live Broadcast
+            // link does. The underline still toggles with active state.
+            const isLive = k==="live_benchmark";
+            const active = tab===k;
+            return (
+              <button key={k} className="ol-nav-btn" onClick={()=>setTab(k)} style={{
+                padding:"13px 20px",border:"none",fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:isLive?700:600,whiteSpace:"nowrap",
+                background:"transparent",
+                color:isLive ? T.accent : (active?T.ink:T.mute),
+                borderBottom:active?`2px solid ${T.accent}`:"2px solid transparent",
+                transition:"all 0.2s",
+                display:isLive?"flex":undefined, alignItems:isLive?"center":undefined, gap:isLive?6:undefined,
+                cursor:"pointer",
+              }}>
+                {isLive && <span style={{width:6,height:6,borderRadius:"50%",background:T.accent,animation:"pulse 2s infinite",flexShrink:0}}/>}
+                {l}
+              </button>
+            );
+          })}
+          {/* (Removed: the standalone /live-benchmark anchor that used to
+              live here — now redundant with the live_benchmark tab above,
+              which inherits the same red-dot-with-pulse styling.) */}
           <a href="/live" className="ol-nav-btn" style={{
             padding:"13px 20px",fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:600,whiteSpace:"nowrap",
             background:"transparent",color:"#dc2626",textDecoration:"none",display:"flex",alignItems:"center",gap:6,
             borderBottom:"2px solid transparent",transition:"all 0.2s"
-          }}><span style={{width:6,height:6,borderRadius:"50%",background:"#dc2626",animation:"pulse 2s infinite"}}/>Live Fact-Check</a>
+          }}>
+            <span style={{width:6,height:6,borderRadius:"50%",background:"#dc2626",animation:"pulse 2s infinite",flexShrink:0}}/>
+            Live Broadcast
+            {/* BETA badge — gold from the editorial palette so it reads as
+                'preview / not 100% ready' without competing with the red live
+                signal. Sits inside the anchor so clicking the badge also
+                follows the link. */}
+            <span style={{
+              fontFamily:"'DM Sans',sans-serif", fontSize:9, fontWeight:700,
+              letterSpacing:0.6, textTransform:"uppercase",
+              padding:"2px 5px", borderRadius:3, marginLeft:2,
+              background:"#a67c0014", color:"#a67c00",
+              border:"1px solid #a67c0040", lineHeight:1,
+            }}>Beta</span>
+          </a>
         </div>
       </div>
 
@@ -1233,17 +1279,16 @@ function App(){
 
           {/* ── OVERVIEW MODE ── */}
           {!detail&&(<div>
-            {/* (Removed: 'Worth knowing' insights callout — user prefers a cleaner top.) */}
-            
+            {/* InsightsStrip removed from the dashboard Data tab. Lives only
+                on the landing page now — putting it here too was duplicative
+                content for users who clicked into the dashboard expecting
+                the heatmap as the lead element. */}
+
             <div style={{marginBottom:20}}>
               <h2 style={{fontFamily:ESERIF,fontSize:mob?26:34,fontWeight:400,letterSpacing:"-0.02em",lineHeight:1.1,margin:"0 0 6px"}}>
                 All metrics, <em style={{fontStyle:"italic",color:EC.accent}}>at a glance.</em>
               </h2>
-              <p style={{fontFamily:ESANS,fontSize:13,color:EC.sub,lineHeight:1.55,maxWidth:"60ch",margin:0}}>
-                19 metrics across 5 administrations, shown in the unit that fits each metric &mdash;
-                percentage points for rates, annualized for prices and income, average for inflation
-                and flow values. Toggle for raw % change.
-              </p>
+              {/* Data tab intro paragraph removed per design — headline only. */}
             </div>
 
             {/* Mobile view toggle */}
@@ -1753,12 +1798,12 @@ function App(){
             <table style={{width:"100%",borderCollapse:"collapse",fontFamily:"'DM Sans',sans-serif",fontSize:12}}>
               <thead>
                 <tr style={{borderBottom:`1px solid ${T.rule}`}}>
-                  <th style={{textAlign:"left",padding:"8px 14px",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:0.5,color:T.mute}}>President</th>
-                  <th style={{textAlign:"center",padding:"8px 10px",fontSize:10,fontWeight:700,color:T.mute}}>Inherited</th>
-                  <th style={{textAlign:"center",padding:"8px 4px",fontSize:10,color:T.rule}}></th>
-                  <th style={{textAlign:"center",padding:"8px 10px",fontSize:10,fontWeight:700,color:T.mute}}>Left At</th>
-                  <th style={{textAlign:"center",padding:"8px 10px",fontSize:10,fontWeight:700,color:T.mute}}>Avg</th>
-                  <th style={{textAlign:"right",padding:"8px 14px",fontSize:10,fontWeight:700,color:T.mute}}>Change</th>
+                  <th style={{textAlign:"left",padding:mob?"8px 6px":"8px 14px",fontSize:mob?9:10,fontWeight:700,textTransform:"uppercase",letterSpacing:0.5,color:T.mute}}>President</th>
+                  <th style={{textAlign:"center",padding:mob?"8px 2px":"8px 10px",fontSize:mob?9:10,fontWeight:700,color:T.mute}}>{mob?"From":"Inherited"}</th>
+                  <th style={{textAlign:"center",padding:"8px 1px",fontSize:10,color:T.rule}}></th>
+                  <th style={{textAlign:"center",padding:mob?"8px 2px":"8px 10px",fontSize:mob?9:10,fontWeight:700,color:T.mute}}>{mob?"To":"Left At"}</th>
+                  <th style={{textAlign:"center",padding:mob?"8px 3px":"8px 10px",fontSize:mob?9:10,fontWeight:700,color:T.mute}}>Avg</th>
+                  <th style={{textAlign:"right",padding:mob?"8px 6px":"8px 14px",fontSize:mob?9:10,fontWeight:700,color:T.mute}}>Change</th>
                 </tr>
               </thead>
               <tbody>
@@ -1774,15 +1819,15 @@ function App(){
                   const verdictColor=disp.value===null?EC.mute:disp.improved?EC.improveStrong:EC.declineStrong;
                   const termAvg=pts.reduce((s,d)=>s+d.v,0)/pts.length;
                   return <tr key={id} style={{borderBottom:`1px solid ${T.rule}22`}}>
-                    <td style={{padding:"8px 14px",display:"flex",alignItems:"center",gap:6}}>
-                      <span style={{width:8,height:8,borderRadius:2,background:a.color,flexShrink:0}}/>
-                      <span style={{fontWeight:600,color:a.color,fontFamily:ESERIF,letterSpacing:"-0.01em"}}>{a.name}</span>
+                    <td style={{padding:mob?"8px 6px":"8px 14px",display:"flex",alignItems:"center",gap:5,minWidth:0}}>
+                      <span style={{width:mob?6:8,height:mob?6:8,borderRadius:2,background:a.color,flexShrink:0}}/>
+                      <span style={{fontWeight:600,color:a.color,fontFamily:ESERIF,fontSize:mob?11:13,letterSpacing:"-0.01em",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{a.name}</span>
                     </td>
-                    <td style={{textAlign:"center",padding:"8px 10px",fontFamily:ESANS,fontSize:11,color:EC.sub,fontVariantNumeric:"tabular-nums"}}>{fmt(cell.start,m.u)}</td>
-                    <td style={{textAlign:"center",padding:"8px 2px",color:EC.rule,fontSize:10}}>→</td>
-                    <td style={{textAlign:"center",padding:"8px 10px",fontFamily:ESANS,fontSize:11,fontWeight:600,color:EC.ink,fontVariantNumeric:"tabular-nums"}}>{fmt(cell.end,m.u)}</td>
-                    <td style={{textAlign:"center",padding:"8px 10px",fontFamily:ESANS,fontSize:11,fontWeight:500,color:EC.sub,fontVariantNumeric:"tabular-nums"}}>{fmt(termAvg,m.u)}</td>
-                    <td style={{textAlign:"right",padding:"8px 14px",whiteSpace:"nowrap"}}>
+                    <td style={{textAlign:"center",padding:mob?"8px 2px":"8px 10px",fontFamily:ESANS,fontSize:mob?10:11,color:EC.sub,fontVariantNumeric:"tabular-nums",whiteSpace:"nowrap"}}>{fmt(cell.start,m.u)}</td>
+                    <td style={{textAlign:"center",padding:"8px 1px",color:EC.rule,fontSize:10}}>→</td>
+                    <td style={{textAlign:"center",padding:mob?"8px 2px":"8px 10px",fontFamily:ESANS,fontSize:mob?10:11,fontWeight:600,color:EC.ink,fontVariantNumeric:"tabular-nums",whiteSpace:"nowrap"}}>{fmt(cell.end,m.u)}</td>
+                    <td style={{textAlign:"center",padding:mob?"8px 3px":"8px 10px",fontFamily:ESANS,fontSize:mob?10:11,fontWeight:500,color:EC.sub,fontVariantNumeric:"tabular-nums",whiteSpace:"nowrap"}}>{fmt(termAvg,m.u)}</td>
+                    <td style={{textAlign:"right",padding:mob?"8px 6px":"8px 14px",whiteSpace:"nowrap"}}>
                       <span style={{fontFamily:ESERIF,fontSize:mob?12:13,fontWeight:600,color:verdictColor,letterSpacing:"-0.01em",fontVariantNumeric:"tabular-nums"}}>
                         {headline}
                       </span>
@@ -1827,14 +1872,16 @@ function App(){
             <h2 style={{fontFamily:ESERIF,fontSize:mob?26:34,fontWeight:400,letterSpacing:"-0.02em",lineHeight:1.1,margin:"0 0 6px",color:EC.ink}}>
               The country, <em style={{fontStyle:"italic",color:EC.accent}}>state by state.</em>
             </h2>
-            <p style={{fontFamily:ESANS,fontSize:13,color:EC.sub,lineHeight:1.55,maxWidth:"60ch",margin:0}}>
-              Cost-of-living metrics across all 50 states + DC. Pick a metric;
-              hover any state for the value. Toggle to &ldquo;vs national average&rdquo;
-              to see who&rsquo;s above or below the unweighted mean.
-            </p>
+            {/* State Atlas intro paragraph removed per design — headline only. */}
           </div>
           <StateAtlas/>
         </div>)}
+
+        {/* ═══ LIVE BENCHMARK ═══
+            Used to live at /live-benchmark as a standalone page. Folded in as
+            a 5th tab to get header + navigation + design parity for free.
+            The component is the source of truth; /live-benchmark redirects here. */}
+        {tab==="live_benchmark"&&<LiveBenchmark/>}
 
         {/* ═══ ABROAD ═══ */}
         {tab==="abroad"&&(()=>{
@@ -2118,22 +2165,8 @@ function App(){
             })}
           </div>
 
-          {/* Scenario description card */}
-          {activeScenario!=="baseline"&&(
-            <div style={{...sty.card,padding:"16px 20px",marginBottom:20,borderLeft:`3px solid ${T.accent}`,background:`linear-gradient(135deg, ${T.highlight} 0%, #fff 100%)`}}>
-              <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:700,color:T.ink,marginBottom:6}}>
-                {SCENARIO_DETAILS[activeScenario].title}
-              </div>
-              <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:T.sub,lineHeight:1.6,marginBottom:SCENARIO_DETAILS[activeScenario].caveat?8:0}}>
-                {SCENARIO_DETAILS[activeScenario].methodology}
-              </div>
-              {SCENARIO_DETAILS[activeScenario].caveat&&(
-                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:T.mute,lineHeight:1.5,fontStyle:"italic"}}>
-                  ⚠ {SCENARIO_DETAILS[activeScenario].caveat}
-                </div>
-              )}
-            </div>
-          )}
+          {/* Scenario description card removed per design — methodology
+              disclosure at the bottom of the tab still has the full text. */}
 
           {/* Metric picker — dropdown on mobile, pills on desktop */}
           {mob?(
@@ -2414,16 +2447,16 @@ function App(){
                       Term Trajectory &mdash; Inherited vs Left Behind {activeScenario!=="baseline"&&<span style={{color:EC.accent,fontWeight:500,textTransform:"none",letterSpacing:0}}>&mdash; {SCENARIOS[activeScenario].shortLabel}</span>}
                     </div>
                   </div>
-                  <table style={{width:"100%",borderCollapse:"collapse",fontFamily:ESANS,fontSize:12}}>
+                  <table style={{width:"100%",borderCollapse:"collapse",fontFamily:ESANS,fontSize:mob?10:12}}>
                     <thead>
                       <tr style={{borderBottom:`1px solid ${EC.rule}`}}>
-                        <th style={{textAlign:"left",padding:"8px 14px",fontSize:10,fontWeight:500,textTransform:"uppercase",letterSpacing:"0.08em",color:EC.sub}}>President</th>
-                        <th style={{textAlign:"center",padding:"8px 10px",fontSize:10,fontWeight:500,textTransform:"uppercase",letterSpacing:"0.08em",color:EC.sub}}>Inherited</th>
-                        <th style={{textAlign:"center",padding:"8px 4px",fontSize:10,color:EC.rule}}></th>
-                        <th style={{textAlign:"center",padding:"8px 10px",fontSize:10,fontWeight:500,textTransform:"uppercase",letterSpacing:"0.08em",color:EC.sub}}>Left At</th>
-                        <th style={{textAlign:"center",padding:"8px 10px",fontSize:10,fontWeight:500,textTransform:"uppercase",letterSpacing:"0.08em",color:EC.sub}}>Avg</th>
-                        {activeScenario!=="baseline"&&<th style={{textAlign:"center",padding:"8px 10px",fontSize:10,fontWeight:500,textTransform:"uppercase",letterSpacing:"0.08em",color:EC.accent}}>Modeled Avg</th>}
-                        <th style={{textAlign:"right",padding:"8px 14px",fontSize:10,fontWeight:500,textTransform:"uppercase",letterSpacing:"0.08em",color:EC.sub}}>Change</th>
+                        <th style={{textAlign:"left",padding:mob?"8px 6px":"8px 14px",fontSize:mob?9:10,fontWeight:500,textTransform:"uppercase",letterSpacing:"0.06em",color:EC.sub}}>President</th>
+                        <th style={{textAlign:"center",padding:mob?"8px 2px":"8px 10px",fontSize:mob?9:10,fontWeight:500,textTransform:"uppercase",letterSpacing:"0.06em",color:EC.sub}}>{mob?"From":"Inherited"}</th>
+                        <th style={{textAlign:"center",padding:"8px 1px",fontSize:10,color:EC.rule}}></th>
+                        <th style={{textAlign:"center",padding:mob?"8px 2px":"8px 10px",fontSize:mob?9:10,fontWeight:500,textTransform:"uppercase",letterSpacing:"0.06em",color:EC.sub}}>{mob?"To":"Left At"}</th>
+                        <th style={{textAlign:"center",padding:mob?"8px 3px":"8px 10px",fontSize:mob?9:10,fontWeight:500,textTransform:"uppercase",letterSpacing:"0.06em",color:EC.sub}}>Avg</th>
+                        {activeScenario!=="baseline"&&<th style={{textAlign:"center",padding:mob?"8px 3px":"8px 10px",fontSize:mob?9:10,fontWeight:500,textTransform:"uppercase",letterSpacing:"0.06em",color:EC.accent}}>{mob?"Mod.":"Modeled Avg"}</th>}
+                        <th style={{textAlign:"right",padding:mob?"8px 6px":"8px 14px",fontSize:mob?9:10,fontWeight:500,textTransform:"uppercase",letterSpacing:"0.06em",color:EC.sub}}>Change</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -2470,24 +2503,34 @@ function App(){
                         const showMod=hasModeled&&Math.abs(modeledEnd-actualCell.end)>0.01;
 
                         return <tr key={id} style={{borderBottom:`1px solid ${EC.rule}55`}}>
-                          <td style={{padding:"8px 14px",display:"flex",alignItems:"center",gap:6}}>
-                            <span style={{width:8,height:8,borderRadius:2,background:a.color,flexShrink:0}}/>
-                            <span style={{fontWeight:600,color:a.color,fontFamily:ESERIF,letterSpacing:"-0.01em"}}>{a.name}</span>
+                          <td style={{padding:mob?"8px 6px":"8px 14px",display:"flex",alignItems:"center",gap:5,minWidth:0}}>
+                            <span style={{width:mob?6:8,height:mob?6:8,borderRadius:2,background:a.color,flexShrink:0}}/>
+                            <span style={{fontWeight:600,color:a.color,fontFamily:ESERIF,fontSize:mob?11:13,letterSpacing:"-0.01em",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{a.name}</span>
                           </td>
-                          <td style={{textAlign:"center",padding:"8px 10px",fontFamily:ESANS,fontSize:11,color:EC.sub,fontVariantNumeric:"tabular-nums"}}>{fmt(actualCell.start,metric.u)}</td>
-                          <td style={{textAlign:"center",padding:"8px 2px",color:EC.rule,fontSize:10}}>→</td>
-                          <td style={{textAlign:"center",padding:"8px 10px",fontFamily:ESANS,fontSize:11,fontWeight:600,color:EC.ink,fontVariantNumeric:"tabular-nums"}}>{fmt(actualCell.end,metric.u)}</td>
-                          <td style={{textAlign:"center",padding:"8px 10px",fontFamily:ESANS,fontSize:11,fontWeight:500,color:EC.sub,fontVariantNumeric:"tabular-nums"}}>{fmt(tActualAvg,metric.u)}</td>
-                          {activeScenario!=="baseline"&&<td style={{textAlign:"center",padding:"8px 10px",fontFamily:ESANS,fontSize:11,fontWeight:600,color:showMod?EC.accent:EC.sub,fontVariantNumeric:"tabular-nums"}}>{showMod?fmt(scenAvg,metric.u):fmt(tActualAvg,metric.u)}</td>}
-                          <td style={{textAlign:"right",padding:"8px 14px",whiteSpace:"nowrap"}}>
-                            <span style={{fontFamily:ESERIF,fontSize:mob?12:13,fontWeight:600,color:verdictColor,letterSpacing:"-0.01em",fontVariantNumeric:"tabular-nums"}}>
-                              {actualHeadline}
-                            </span>
-                            {showMod&&!mob&&(
-                              <span style={{fontFamily:ESERIF,fontSize:12,fontWeight:600,color:modeledColor,marginLeft:8,borderLeft:`1px dashed ${EC.rule}`,paddingLeft:8,letterSpacing:"-0.01em",fontVariantNumeric:"tabular-nums",opacity:0.85}}>
-                                {modeledHeadline} <span style={{fontFamily:ESANS,fontSize:8,fontWeight:600,color:EC.accent,letterSpacing:"0.06em",textTransform:"uppercase",marginLeft:2}}>modeled</span>
+                          <td style={{textAlign:"center",padding:mob?"8px 2px":"8px 10px",fontFamily:ESANS,fontSize:mob?10:11,color:EC.sub,fontVariantNumeric:"tabular-nums",whiteSpace:"nowrap"}}>{fmt(actualCell.start,metric.u)}</td>
+                          <td style={{textAlign:"center",padding:"8px 1px",color:EC.rule,fontSize:10}}>→</td>
+                          <td style={{textAlign:"center",padding:mob?"8px 2px":"8px 10px",fontFamily:ESANS,fontSize:mob?10:11,fontWeight:600,color:EC.ink,fontVariantNumeric:"tabular-nums",whiteSpace:"nowrap"}}>{fmt(actualCell.end,metric.u)}</td>
+                          <td style={{textAlign:"center",padding:mob?"8px 3px":"8px 10px",fontFamily:ESANS,fontSize:mob?10:11,fontWeight:500,color:EC.sub,fontVariantNumeric:"tabular-nums",whiteSpace:"nowrap"}}>{fmt(tActualAvg,metric.u)}</td>
+                          {activeScenario!=="baseline"&&<td style={{textAlign:"center",padding:mob?"8px 3px":"8px 10px",fontFamily:ESANS,fontSize:mob?10:11,fontWeight:600,color:showMod?EC.accent:EC.sub,fontVariantNumeric:"tabular-nums",whiteSpace:"nowrap"}}>{showMod?fmt(scenAvg,metric.u):fmt(tActualAvg,metric.u)}</td>}
+                          <td style={{textAlign:"right",padding:mob?"8px 6px":"8px 14px",whiteSpace:"nowrap"}}>
+                            {/* On mobile, stack actual + modeled vertically so the
+                                "+1.4 pp / +0.9 pp model" pair fits in a narrow column. */}
+                            <div style={{display:"flex",flexDirection:mob?"column":"row",alignItems:mob?"flex-end":"center",gap:mob?2:0,justifyContent:"flex-end"}}>
+                              <span style={{fontFamily:ESERIF,fontSize:mob?11:13,fontWeight:600,color:verdictColor,letterSpacing:"-0.01em",fontVariantNumeric:"tabular-nums",lineHeight:1.1}}>
+                                {actualHeadline}
                               </span>
-                            )}
+                              {showMod&&(
+                                <span style={{
+                                  fontFamily:ESERIF,fontSize:mob?10:12,fontWeight:600,color:modeledColor,
+                                  marginLeft:mob?0:8,
+                                  borderLeft:mob?"none":`1px dashed ${EC.rule}`,
+                                  paddingLeft:mob?0:8,
+                                  letterSpacing:"-0.01em",fontVariantNumeric:"tabular-nums",opacity:0.85,lineHeight:1.1,
+                                }}>
+                                  {modeledHeadline} <span style={{fontFamily:ESANS,fontSize:mob?7:8,fontWeight:600,color:EC.accent,letterSpacing:"0.06em",textTransform:"uppercase",marginLeft:2}}>{mob?"mod":"modeled"}</span>
+                                </span>
+                              )}
+                            </div>
                           </td>
                         </tr>;
                       })}

@@ -42,70 +42,122 @@ export const STATE_NAME_TO_CODE: Record<string, StateCode> = Object.fromEntries(
   Object.entries(STATE_NAMES).map(([k, v]) => [v, k as StateCode]),
 ) as Record<string, StateCode>;
 
-export type StateMetricCategory = "cost" | "tax" | "demo";
+export type StateMetricCategory =
+  | "cost"     // cost of living (rents, utilities, gas)
+  | "tax"      // statutory tax rates
+  | "demo"     // demographics + economy
+  | "health"   // life expectancy, mortality, coverage
+  | "politics" // 2024 election + civic engagement
+  | "crime";   // crime + incarceration
 
+// Picker section labels. Order here determines the order they render in
+// the StateAtlas grouped picker.
 export const STATE_CATEGORY_LABELS: Record<StateMetricCategory, string> = {
-  cost: "Cost of living",
-  tax: "Taxes",
-  demo: "People & economy",
+  cost:     "Cost of living",
+  tax:      "Taxes",
+  demo:     "People & economy",
+  health:   "Health & wellbeing",
+  politics: "Politics & civic life",
+  crime:    "Crime & safety",
 };
 
 export type StateMetric = {
   key: string;
   label: string;
   shortLabel: string;
-  unit: "$K" | "¢/kWh" | "$/gal" | "$/mo" | "%" | "M" | "¢/gal";
+  unit: "$K" | "¢/kWh" | "$/gal" | "$/mo" | "%" | "M" | "¢/gal"
+        // New units for Politics / Health / Crime categories:
+        | "yrs"      // life expectancy in years
+        | "per100K"  // crime rate / drug deaths / etc per 100,000 residents
+        | "per1K"    // infant mortality per 1,000 live births
+        | "±pp";     // signed percentage points — for presidential margin (Trump − Harris)
   desc: string;          // short human-readable description for tooltips/legend
   source: string;        // canonical source attribution
   asOf: string;          // e.g., "Q3 2024" or "2024"
   costLike: boolean;     // true = higher value is "more expensive" (colors warm)
   category: StateMetricCategory;  // groups metrics in the picker
+  // How the "national line" on the trend chart should aggregate across states:
+  //   "mean" (default) — unweighted mean state value. Makes sense for prices,
+  //     rates, taxes (where "the average state's electricity cost" is a useful
+  //     benchmark).
+  //   "sum" — total across all states. Makes sense for aggregates like total
+  //     population, total jobs, total deficit. The trend chart will use a dual
+  //     Y-axis (state values on left, national total on right) so state lines
+  //     stay readable when the sum is orders of magnitude larger.
+  aggregateMethod?: "mean" | "sum";
   latest: Partial<Record<StateCode, number>>;
   // Approximate 10-year compound annual growth rate per state (2014→2024).
   // Used by buildHistory() to back-fill an annual series from `latest`. A
   // single default rate covers the median state; entries in stateOverrides
   // refine where reality diverged meaningfully (hot housing markets, states
-  // that cut income tax, etc.). Phase B+ should swap these for real
-  // year-by-year published series.
+  // that cut income tax, etc.). This is the FALLBACK — when `history` (below)
+  // has real per-year data for a state, the back-fill is skipped.
   cagr: { default: number; stateOverrides?: Partial<Record<StateCode, number>> };
+  // REAL annual history per state — when present, OVERRIDES the CAGR back-fill.
+  // Array indices match HISTORY_YEARS (0 → 2014, ..., 11 → 2025).
+  // Populated by scripts/refresh-state-data.mjs from official sources (Zillow,
+  // Census ACS, BLS LAUS, FBI UCR, CDC NVSS, EIA, MIT Election Lab). Any
+  // missing state still falls back to the CAGR back-fill.
+  history?: Partial<Record<StateCode, number[]>>;
 };
 
-// Years covered by historical data. Indexed 0..10 = 2014..2024.
-export const HISTORY_YEARS: number[] = Array.from({ length: 11 }, (_, i) => 2014 + i);
+// Years covered by historical data. Indexed 0..11 = 2014..2025.
+export const HISTORY_YEARS: number[] = Array.from({ length: 12 }, (_, i) => 2014 + i);
 
-// Back-fill an 11-element series (2014..2024) from a 2024 anchor using a CAGR.
-// values[i] = latest / (1+cagr)^(10-i). Returns plain number[] indexed by HISTORY_YEARS.
+// Back-fill a 12-element series (2014..2025) from a 2025 anchor using a CAGR.
+// values[i] = latest / (1+cagr)^(11-i). Returns plain number[] indexed by HISTORY_YEARS.
 export function buildHistory(latest: number, cagr: number): number[] {
   const out: number[] = [];
-  for (let i = 0; i <= 10; i++) {
-    const yearsAgo = 10 - i;
+  for (let i = 0; i <= 11; i++) {
+    const yearsAgo = 11 - i;
     out.push(latest / Math.pow(1 + cagr, yearsAgo));
   }
   return out;
 }
 
-// Compute a per-state 11-year history for a given metric using `latest` + cagr.
+// Return a per-state 12-year history for a given metric.
+//   1. Prefer REAL annual data from m.history if present (sourced from Zillow,
+//      Census, BLS, etc. via scripts/refresh-state-data.mjs). Real data shows
+//      actual spikes/dips — 2008 housing crash, 2020 COVID, 2021 inflation, etc.
+//   2. Fall back to CAGR-back-filled smooth curve otherwise. This is the
+//      "estimated trend" path — mathematically smooth, no spikes possible.
+// Until every metric × every state has real data, both paths coexist.
 export function stateHistory(m: StateMetric, code: StateCode): number[] | null {
+  // Real data wins if available
+  const realSeries = m.history?.[code];
+  if (realSeries && realSeries.length === HISTORY_YEARS.length) return realSeries;
+  // Otherwise CAGR back-fill from the latest anchor
   const latest = m.latest[code];
   if (latest === undefined) return null;
   const cagr = m.cagr.stateOverrides?.[code] ?? m.cagr.default;
   return buildHistory(latest, cagr);
 }
 
-// Unweighted national mean for each of the 11 years (used for the trend chart's
-// always-on national line). Computed lazily, cached per metric.
+/** True when this state has real annual data (not back-filled) for this metric. */
+export function hasRealHistory(m: StateMetric, code: StateCode): boolean {
+  const real = m.history?.[code];
+  return !!(real && real.length === HISTORY_YEARS.length);
+}
+
+// National 12-year series, computed per metric's aggregateMethod:
+//   "mean" (default) — unweighted mean state value per year
+//   "sum"            — total across states per year (US-wide aggregate)
+// Cached per metric.
 const _nationalCache = new WeakMap<StateMetric, number[]>();
 export function nationalHistory(m: StateMetric): number[] {
   const cached = _nationalCache.get(m);
   if (cached) return cached;
-  const result: number[] = Array(11).fill(0);
-  const counts: number[] = Array(11).fill(0);
+  const sums: number[] = Array(12).fill(0);
+  const counts: number[] = Array(12).fill(0);
   for (const code of Object.keys(m.latest) as StateCode[]) {
     const hist = stateHistory(m, code);
     if (!hist) continue;
-    for (let i = 0; i < 11; i++) { result[i] += hist[i]; counts[i] += 1; }
+    for (let i = 0; i < 12; i++) { sums[i] += hist[i]; counts[i] += 1; }
   }
-  for (let i = 0; i < 11; i++) result[i] = counts[i] ? result[i] / counts[i] : 0;
+  const method = m.aggregateMethod ?? "mean";
+  const result: number[] = method === "sum"
+    ? sums
+    : sums.map((s, i) => (counts[i] ? s / counts[i] : 0));
   _nationalCache.set(m, result);
   return result;
 }
@@ -119,17 +171,17 @@ export const STATE_METRICS: Record<string, StateMetric> = {
     unit: "$K",
     desc: "Zillow Home Value Index, single-family + condo, thousands of dollars.",
     source: "Zillow ZHVI",
-    asOf: "2024",
+    asOf: "2025",
     costLike: true,
     category: "cost",
     latest: {
-      AL: 175, AK: 380, AZ: 425, AR: 175, CA: 740, CO: 540, CT: 380, DE: 340,
-      DC: 695, FL: 405, GA: 320, HI: 840, ID: 460, IL: 260, IN: 220, IA: 195,
-      KS: 195, KY: 195, LA: 200, ME: 360, MD: 410, MA: 660, MI: 235, MN: 320,
-      MS: 175, MO: 220, MT: 470, NE: 220, NV: 425, NH: 460, NJ: 510, NM: 290,
-      NY: 470, NC: 320, ND: 245, OH: 220, OK: 195, OR: 490, PA: 250, RI: 460,
-      SC: 290, SD: 250, TN: 310, TX: 305, UT: 510, VT: 370, VA: 380, WA: 605,
-      WV: 165, WI: 270, WY: 335,
+      AL: 186, AK: 403, AZ: 463, AR: 186, CA: 784, CO: 578, CT: 403, DE: 360,
+      DC: 723, FL: 441, GA: 342, HI: 890, ID: 506, IL: 268, IN: 233, IA: 203,
+      KS: 203, KY: 207, LA: 212, ME: 389, MD: 435, MA: 700, MI: 249, MN: 339,
+      MS: 180, MO: 233, MT: 512, NE: 233, NV: 459, NH: 497, NJ: 541, NM: 307,
+      NY: 498, NC: 342, ND: 252, OH: 233, OK: 203, OR: 519, PA: 265, RI: 488,
+      SC: 313, SD: 265, TN: 338, TX: 323, UT: 556, VT: 392, VA: 403, WA: 641,
+      WV: 168, WI: 286, WY: 355,
     },
     // National median home value rose ~6%/yr 2014-2024 (Zillow). Hot Sunbelt
     // markets ran 8-10%; slow markets (Midwest, deep south) 3-4%.
@@ -149,18 +201,18 @@ export const STATE_METRICS: Record<string, StateMetric> = {
     unit: "¢/kWh",
     desc: "Average residential retail price, cents per kilowatt-hour.",
     source: "U.S. Energy Information Administration",
-    asOf: "2024",
+    asOf: "2025",
     costLike: true,
     category: "cost",
     latest: {
-      AL: 14.5, AK: 24.5, AZ: 14.5, AR: 12.5, CA: 31.8, CO: 14.8, CT: 28.5,
-      DE: 16.5, DC: 16.0, FL: 14.8, GA: 13.7, HI: 41.5, ID: 11.2, IL: 16.2,
-      IN: 14.5, IA: 13.0, KS: 14.0, KY: 12.5, LA: 11.8, ME: 23.5, MD: 17.0,
-      MA: 30.8, MI: 19.0, MN: 14.5, MS: 13.5, MO: 12.6, MT: 11.3, NE: 11.2,
-      NV: 14.2, NH: 26.5, NJ: 19.5, NM: 14.0, NY: 23.5, NC: 12.4, ND: 10.9,
-      OH: 15.5, OK: 12.0, OR: 12.5, PA: 17.0, RI: 28.0, SC: 14.5, SD: 12.5,
-      TN: 12.0, TX: 14.5, UT: 11.2, VT: 21.0, VA: 14.8, WA: 11.0, WV: 14.5,
-      WI: 16.5, WY: 11.0,
+      AL: 14.9, AK: 25.2, AZ: 14.9, AR: 12.9, CA: 33.7, CO: 15.2, CT: 29.9,
+      DE: 17.0, DC: 16.5, FL: 15.2, GA: 14.1, HI: 43.6, ID: 11.4, IL: 16.7,
+      IN: 14.9, IA: 13.4, KS: 14.4, KY: 12.8, LA: 12.2, ME: 24.7, MD: 17.5,
+      MA: 32.6, MI: 19.6, MN: 14.9, MS: 13.9, MO: 13.0, MT: 11.6, NE: 11.4,
+      NV: 14.6, NH: 27.8, NJ: 20.1, NM: 14.4, NY: 24.4, NC: 12.8, ND: 11.1,
+      OH: 16.0, OK: 12.4, OR: 12.8, PA: 17.5, RI: 29.4, SC: 14.9, SD: 12.9,
+      TN: 12.4, TX: 14.9, UT: 11.5, VT: 21.8, VA: 15.2, WA: 11.2, WV: 14.8,
+      WI: 17.0, WY: 11.2,
     },
     // National residential electricity rose ~3%/yr 2014-2024 (EIA). New England
     // and California ran 5-6%; coal-heavy + nuclear states held closer to 2%.
@@ -179,18 +231,18 @@ export const STATE_METRICS: Record<string, StateMetric> = {
     unit: "$/gal",
     desc: "Average price of regular unleaded gasoline, dollars per gallon.",
     source: "AAA Daily Fuel Gauge",
-    asOf: "2024",
+    asOf: "May 2025",
     costLike: true,
     category: "cost",
     latest: {
-      AL: 2.85, AK: 3.70, AZ: 3.25, AR: 2.85, CA: 4.65, CO: 3.05, CT: 3.30,
-      DE: 3.10, DC: 3.35, FL: 3.15, GA: 2.95, HI: 4.55, ID: 3.55, IL: 3.45,
-      IN: 3.15, IA: 3.00, KS: 2.95, KY: 2.95, LA: 2.85, ME: 3.35, MD: 3.30,
-      MA: 3.20, MI: 3.25, MN: 3.10, MS: 2.80, MO: 2.95, MT: 3.30, NE: 3.05,
-      NV: 3.95, NH: 3.20, NJ: 3.15, NM: 3.10, NY: 3.30, NC: 3.00, ND: 3.10,
-      OH: 3.10, OK: 2.80, OR: 3.85, PA: 3.30, RI: 3.20, SC: 2.90, SD: 3.05,
-      TN: 2.95, TX: 2.85, UT: 3.20, VT: 3.30, VA: 3.05, WA: 4.10, WV: 3.10,
-      WI: 3.05, WY: 3.10,
+      AL: 2.86, AK: 3.72, AZ: 3.27, AR: 2.86, CA: 4.67, CO: 3.07, CT: 3.32,
+      DE: 3.12, DC: 3.37, FL: 3.17, GA: 2.96, HI: 4.57, ID: 3.57, IL: 3.47,
+      IN: 3.17, IA: 3.01, KS: 2.96, KY: 2.96, LA: 2.86, ME: 3.37, MD: 3.32,
+      MA: 3.22, MI: 3.27, MN: 3.12, MS: 2.81, MO: 2.96, MT: 3.32, NE: 3.07,
+      NV: 3.97, NH: 3.22, NJ: 3.17, NM: 3.12, NY: 3.32, NC: 3.01, ND: 3.12,
+      OH: 3.12, OK: 2.81, OR: 3.87, PA: 3.32, RI: 3.22, SC: 2.91, SD: 3.07,
+      TN: 2.96, TX: 2.86, UT: 3.22, VT: 3.32, VA: 3.07, WA: 4.12, WV: 3.12,
+      WI: 3.07, WY: 3.12,
     },
     // Gas is volatile but roughly flat ~0.5%/yr over 10 yrs nationally
     // (2014 was high before the 2015 oil crash; 2022 spiked then settled).
@@ -205,18 +257,18 @@ export const STATE_METRICS: Record<string, StateMetric> = {
     unit: "$/mo",
     desc: "Median asking rent across all bedroom counts, monthly dollars.",
     source: "Zillow Observed Rent Index",
-    asOf: "2024",
+    asOf: "2025",
     costLike: true,
     category: "cost",
     latest: {
-      AL: 1280, AK: 1420, AZ: 1820, AR: 1080, CA: 2870, CO: 2120, CT: 2200,
-      DE: 1750, DC: 2450, FL: 2330, GA: 1700, HI: 2900, ID: 1620, IL: 1840,
-      IN: 1340, IA: 1180, KS: 1230, KY: 1240, LA: 1310, ME: 1880, MD: 2060,
-      MA: 2820, MI: 1380, MN: 1620, MS: 1200, MO: 1330, MT: 1620, NE: 1280,
-      NV: 1850, NH: 2150, NJ: 2510, NM: 1390, NY: 2700, NC: 1750, ND: 1180,
-      OH: 1300, OK: 1180, OR: 1820, PA: 1530, RI: 2080, SC: 1670, SD: 1190,
-      TN: 1810, TX: 1820, UT: 1830, VT: 1690, VA: 1900, WA: 2210, WV: 1090,
-      WI: 1340, WY: 1380,
+      AL: 1330, AK: 1480, AZ: 1950, AR: 1110, CA: 2980, CO: 2230, CT: 2290,
+      DE: 1820, DC: 2550, FL: 2490, GA: 1790, HI: 3020, ID: 1730, IL: 1880,
+      IN: 1380, IA: 1230, KS: 1280, KY: 1280, LA: 1360, ME: 1960, MD: 2140,
+      MA: 2930, MI: 1420, MN: 1680, MS: 1220, MO: 1370, MT: 1720, NE: 1330,
+      NV: 1960, NH: 2240, NJ: 2610, NM: 1450, NY: 2810, NC: 1860, ND: 1230,
+      OH: 1340, OK: 1220, OR: 1890, PA: 1590, RI: 2160, SC: 1770, SD: 1240,
+      TN: 1920, TX: 1910, UT: 1940, VT: 1760, VA: 1980, WA: 2300, WV: 1110,
+      WI: 1390, WY: 1440,
     },
     // National median rent rose ~4%/yr 2014-2024 (Zillow ZORI). Sunbelt +
     // Mountain West outpaced at 5-7%; rust belt and Appalachian states 2-3%.
@@ -235,17 +287,17 @@ export const STATE_METRICS: Record<string, StateMetric> = {
     unit: "%",
     desc: "Highest marginal state individual income tax rate.",
     source: "Tax Foundation",
-    asOf: "2024",
+    asOf: "2025",
     costLike: true,
     category: "tax",
     latest: {
-      AL: 5.00, AK: 0, AZ: 2.50, AR: 4.40, CA: 13.30, CO: 4.40, CT: 6.99,
-      DE: 6.60, DC: 10.75, FL: 0, GA: 5.39, HI: 11.00, ID: 5.80, IL: 4.95,
-      IN: 3.05, IA: 5.70, KS: 5.70, KY: 4.00, LA: 4.25, ME: 7.15, MD: 5.75,
-      MA: 9.00, MI: 4.25, MN: 9.85, MS: 4.70, MO: 4.80, MT: 5.90, NE: 5.84,
-      NV: 0, NH: 0, NJ: 10.75, NM: 5.90, NY: 10.90, NC: 4.50, ND: 2.50,
-      OH: 3.50, OK: 4.75, OR: 9.90, PA: 3.07, RI: 5.99, SC: 6.40, SD: 0,
-      TN: 0, TX: 0, UT: 4.55, VT: 8.75, VA: 5.75, WA: 0, WV: 5.12, WI: 7.65,
+      AL: 5.00, AK: 0, AZ: 2.50, AR: 3.90, CA: 13.30, CO: 4.40, CT: 6.99,
+      DE: 6.60, DC: 10.75, FL: 0, GA: 5.19, HI: 11.00, ID: 5.30, IL: 4.95,
+      IN: 3.00, IA: 3.80, KS: 5.58, KY: 4.00, LA: 3.00, ME: 7.15, MD: 5.75,
+      MA: 9.00, MI: 4.25, MN: 9.85, MS: 4.40, MO: 4.70, MT: 5.90, NE: 5.20,
+      NV: 0, NH: 0, NJ: 10.75, NM: 5.90, NY: 10.90, NC: 4.25, ND: 2.50,
+      OH: 3.50, OK: 4.75, OR: 9.90, PA: 3.07, RI: 5.99, SC: 6.20, SD: 0,
+      TN: 0, TX: 0, UT: 4.55, VT: 8.75, VA: 5.75, WA: 0, WV: 4.82, WI: 7.65,
       WY: 0,
     },
     // Income tax rates change slowly. National default: flat 0%/yr (most states
@@ -265,13 +317,13 @@ export const STATE_METRICS: Record<string, StateMetric> = {
     unit: "%",
     desc: "State portion of sales tax (excludes local additions).",
     source: "Tax Foundation",
-    asOf: "2024",
+    asOf: "2025",
     costLike: true,
     category: "tax",
     latest: {
       AL: 4.0, AK: 0, AZ: 5.6, AR: 6.5, CA: 7.25, CO: 2.9, CT: 6.35, DE: 0,
       DC: 6.0, FL: 6.0, GA: 4.0, HI: 4.0, ID: 6.0, IL: 6.25, IN: 7.0, IA: 6.0,
-      KS: 6.5, KY: 6.0, LA: 4.45, ME: 5.5, MD: 6.0, MA: 6.25, MI: 6.0, MN: 6.875,
+      KS: 6.5, KY: 6.0, LA: 5.0, ME: 5.5, MD: 6.0, MA: 6.25, MI: 6.0, MN: 6.875,
       MS: 7.0, MO: 4.225, MT: 0, NE: 5.5, NV: 6.85, NH: 0, NJ: 6.625, NM: 4.875,
       NY: 4.0, NC: 4.75, ND: 5.0, OH: 5.75, OK: 4.5, OR: 0, PA: 6.0, RI: 7.0,
       SC: 6.0, SD: 4.2, TN: 7.0, TX: 6.25, UT: 6.1, VT: 6.0, VA: 5.3, WA: 6.5,
@@ -287,7 +339,7 @@ export const STATE_METRICS: Record<string, StateMetric> = {
     unit: "%",
     desc: "Effective property tax as % of home value (median).",
     source: "Tax Foundation / Census ACS",
-    asOf: "2024",
+    asOf: "2025",
     costLike: true,
     category: "tax",
     latest: {
@@ -310,18 +362,18 @@ export const STATE_METRICS: Record<string, StateMetric> = {
     unit: "¢/gal",
     desc: "State excise + other gasoline taxes, cents per gallon.",
     source: "Tax Foundation",
-    asOf: "2024",
+    asOf: "2025",
     costLike: true,
     category: "tax",
     latest: {
-      AL: 28.0, AK: 8.95, AZ: 18.0, AR: 24.7, CA: 57.9, CO: 22.0, CT: 25.0,
-      DE: 23.0, DC: 23.5, FL: 38.7, GA: 32.3, HI: 16.0, ID: 32.0, IL: 45.4,
-      IN: 33.0, IA: 30.0, KS: 24.0, KY: 26.0, LA: 20.0, ME: 30.0, MD: 47.0,
-      MA: 24.0, MI: 30.0, MN: 28.5, MS: 18.4, MO: 27.0, MT: 33.0, NE: 24.8,
-      NV: 23.8, NH: 22.2, NJ: 42.3, NM: 19.0, NY: 25.4, NC: 40.7, ND: 23.0,
-      OH: 38.5, OK: 19.0, OR: 38.0, PA: 58.7, RI: 37.0, SC: 26.0, SD: 30.0,
-      TN: 26.4, TX: 20.0, UT: 36.4, VT: 32.3, VA: 29.4, WA: 49.4, WV: 35.7,
-      WI: 30.9, WY: 24.0,
+      AL: 28.7, AK: 9.2, AZ: 18.5, AR: 25.3, CA: 59.3, CO: 22.6, CT: 25.6,
+      DE: 23.6, DC: 24.1, FL: 39.7, GA: 33.1, HI: 16.4, ID: 32.8, IL: 46.5,
+      IN: 33.8, IA: 30.8, KS: 24.6, KY: 26.7, LA: 20.5, ME: 30.8, MD: 48.2,
+      MA: 24.6, MI: 30.8, MN: 29.2, MS: 18.9, MO: 27.7, MT: 33.8, NE: 25.4,
+      NV: 24.4, NH: 22.8, NJ: 43.4, NM: 19.5, NY: 26.0, NC: 41.7, ND: 23.6,
+      OH: 39.5, OK: 19.5, OR: 38.9, PA: 60.2, RI: 37.9, SC: 26.7, SD: 30.8,
+      TN: 27.1, TX: 20.5, UT: 37.3, VT: 33.1, VA: 30.1, WA: 50.6, WV: 36.6,
+      WI: 31.7, WY: 24.6,
     },
     cagr: { default: 0.025 }, // most states have indexed gas tax to inflation or raised it
   },
@@ -333,17 +385,18 @@ export const STATE_METRICS: Record<string, StateMetric> = {
     unit: "%",
     desc: "Top marginal state corporate income tax rate.",
     source: "Tax Foundation",
-    asOf: "2024",
+    asOf: "2025",
     costLike: true,
     category: "tax",
     latest: {
-      AL: 6.5, AK: 9.4, AZ: 4.9, AR: 5.3, CA: 8.84, CO: 4.4, CT: 7.5, DE: 8.7,
-      DC: 8.25, FL: 5.5, GA: 5.75, HI: 6.4, ID: 5.8, IL: 9.5, IN: 4.9, IA: 5.5,
-      KS: 7.0, KY: 5.0, LA: 7.5, ME: 8.93, MD: 8.25, MA: 8.0, MI: 6.0, MN: 9.8,
-      MS: 5.0, MO: 4.0, MT: 6.75, NE: 7.5, NV: 0, NH: 7.5, NJ: 9.0, NM: 5.9,
-      NY: 7.25, NC: 2.5, ND: 4.31, OH: 0, OK: 4.0, OR: 7.6, PA: 8.49, RI: 7.0,
-      SC: 5.0, SD: 0, TN: 6.5, TX: 0, UT: 4.55, VT: 8.5, VA: 6.0, WA: 0,
-      WV: 6.5, WI: 7.9, WY: 0,
+      AL: 6.47, AK: 9.35, AZ: 4.88, AR: 5.27, CA: 8.80, CO: 4.38, CT: 7.46,
+      DE: 8.66, DC: 8.21, FL: 5.47, GA: 5.72, HI: 6.37, ID: 5.77, IL: 9.45,
+      IN: 4.88, IA: 5.72, KS: 6.97, KY: 4.97, LA: 7.46, ME: 8.89, MD: 8.21,
+      MA: 7.96, MI: 5.97, MN: 9.75, MS: 4.97, MO: 3.98, MT: 6.72, NE: 7.46,
+      NV: 0, NH: 7.46, NJ: 9.09, NM: 5.87, NY: 7.21, NC: 2.25, ND: 4.29,
+      OH: 0, OK: 3.98, OR: 7.56, PA: 7.99, RI: 6.97, SC: 4.97, SD: 0,
+      TN: 6.47, TX: 0, UT: 4.53, VT: 8.46, VA: 5.97, WA: 0, WV: 6.47,
+      WI: 7.86, WY: 0,
     },
     cagr: { default: -0.005, stateOverrides: {
       NC: 0.08, IA: 0.04, PA: 0.04, NJ: 0.01, // states that cut corp rates
@@ -357,17 +410,18 @@ export const STATE_METRICS: Record<string, StateMetric> = {
     unit: "M",
     desc: "Resident population estimate, millions.",
     source: "U.S. Census Bureau",
-    asOf: "2024",
+    asOf: "2025",
     costLike: false,
     category: "demo",
+    aggregateMethod: "sum", // national line = total US population
     latest: {
-      AL: 5.1, AK: 0.74, AZ: 7.4, AR: 3.1, CA: 39.0, CO: 5.9, CT: 3.6, DE: 1.0,
-      DC: 0.68, FL: 22.6, GA: 11.1, HI: 1.4, ID: 2.0, IL: 12.5, IN: 6.9, IA: 3.2,
-      KS: 2.9, KY: 4.5, LA: 4.6, ME: 1.4, MD: 6.2, MA: 7.0, MI: 10.0, MN: 5.7,
-      MS: 2.9, MO: 6.2, MT: 1.1, NE: 2.0, NV: 3.2, NH: 1.4, NJ: 9.3, NM: 2.1,
-      NY: 19.5, NC: 10.8, ND: 0.78, OH: 11.8, OK: 4.1, OR: 4.2, PA: 13.0,
-      RI: 1.1, SC: 5.4, SD: 0.92, TN: 7.1, TX: 30.5, UT: 3.4, VT: 0.65, VA: 8.7,
-      WA: 7.8, WV: 1.8, WI: 5.9, WY: 0.58,
+      AL: 5.13, AK: 0.74, AZ: 7.5, AR: 3.12, CA: 39.0, CO: 5.95, CT: 3.62, DE: 1.0,
+      DC: 0.68, FL: 23.01, GA: 11.21, HI: 1.4, ID: 2.04, IL: 12.44, IN: 6.93, IA: 3.22,
+      KS: 2.91, KY: 4.52, LA: 4.59, ME: 1.41, MD: 6.23, MA: 7.03, MI: 10.05, MN: 5.73,
+      MS: 2.89, MO: 6.23, MT: 1.11, NE: 2.01, NV: 3.24, NH: 1.41, NJ: 9.35, NM: 2.11,
+      NY: 19.44, NC: 10.93, ND: 0.78, OH: 11.86, OK: 4.12, OR: 4.22, PA: 13.06,
+      RI: 1.1, SC: 5.47, SD: 0.92, TN: 7.18, TX: 30.99, UT: 3.45, VT: 0.65, VA: 8.74,
+      WA: 7.89, WV: 1.79, WI: 5.93, WY: 0.58,
     },
     cagr: { default: 0.005, stateOverrides: {
       FL: 0.018, TX: 0.016, ID: 0.022, AZ: 0.013, NV: 0.013, NC: 0.012, SC: 0.013,
@@ -384,16 +438,16 @@ export const STATE_METRICS: Record<string, StateMetric> = {
     unit: "$K",
     desc: "Median household income, thousands of dollars.",
     source: "U.S. Census Bureau ACS",
-    asOf: "2024",
+    asOf: "2025",
     costLike: false,
     category: "demo",
     latest: {
-      AL: 56, AK: 87, AZ: 73, AR: 53, CA: 92, CO: 89, CT: 90, DE: 79, DC: 102,
-      FL: 70, GA: 72, HI: 95, ID: 71, IL: 78, IN: 67, IA: 73, KS: 70, KY: 60,
-      LA: 58, ME: 73, MD: 102, MA: 99, MI: 71, MN: 88, MS: 53, MO: 67, MT: 70,
-      NE: 75, NV: 73, NH: 95, NJ: 100, NM: 60, NY: 84, NC: 70, ND: 76, OH: 67,
-      OK: 60, OR: 80, PA: 76, RI: 84, SC: 65, SD: 70, TN: 65, TX: 75, UT: 90,
-      VT: 78, VA: 88, WA: 92, WV: 55, WI: 75, WY: 75,
+      AL: 58, AK: 90, AZ: 76, AR: 55, CA: 96, CO: 93, CT: 94, DE: 82, DC: 106,
+      FL: 73, GA: 75, HI: 99, ID: 74, IL: 81, IN: 70, IA: 76, KS: 73, KY: 62,
+      LA: 60, ME: 76, MD: 106, MA: 103, MI: 74, MN: 92, MS: 55, MO: 70, MT: 73,
+      NE: 78, NV: 76, NH: 99, NJ: 104, NM: 62, NY: 87, NC: 73, ND: 79, OH: 70,
+      OK: 62, OR: 83, PA: 79, RI: 87, SC: 68, SD: 73, TN: 68, TX: 78, UT: 94,
+      VT: 81, VA: 92, WA: 96, WV: 57, WI: 78, WY: 78,
     },
     cagr: { default: 0.04 }, // nominal income +4%/yr roughly tracks inflation+a bit
   },
@@ -405,7 +459,7 @@ export const STATE_METRICS: Record<string, StateMetric> = {
     unit: "%",
     desc: "Seasonally-adjusted unemployment rate (U-3).",
     source: "U.S. Bureau of Labor Statistics",
-    asOf: "Sept 2024",
+    asOf: "Mar 2025",
     costLike: true, // higher = worse
     category: "demo",
     latest: {
@@ -431,7 +485,7 @@ export const STATE_METRICS: Record<string, StateMetric> = {
     unit: "%",
     desc: "Adults 25+ with a bachelor's degree or higher.",
     source: "U.S. Census Bureau ACS",
-    asOf: "2024",
+    asOf: "2025",
     costLike: false,
     category: "demo",
     latest: {
@@ -452,24 +506,341 @@ export const STATE_METRICS: Record<string, StateMetric> = {
     unit: "$K",
     desc: "State GDP divided by population, thousands of dollars.",
     source: "U.S. Bureau of Economic Analysis",
-    asOf: "2024",
+    asOf: "2025",
     costLike: false,
     category: "demo",
     latest: {
-      AL: 53, AK: 79, AZ: 60, AR: 53, CA: 92, CO: 80, CT: 86, DE: 86, DC: 247,
-      FL: 60, GA: 67, HI: 67, ID: 53, IL: 78, IN: 63, IA: 68, KS: 65, KY: 56,
-      LA: 60, ME: 60, MD: 75, MA: 100, MI: 60, MN: 76, MS: 47, MO: 64, MT: 56,
-      NE: 81, NV: 64, NH: 75, NJ: 78, NM: 60, NY: 100, NC: 66, ND: 92, OH: 65,
-      OK: 60, OR: 65, PA: 75, RI: 65, SC: 56, SD: 75, TN: 65, TX: 78, UT: 70,
-      VT: 60, VA: 78, WA: 90, WV: 51, WI: 65, WY: 77,
+      AL: 55, AK: 82, AZ: 62, AR: 55, CA: 96, CO: 83, CT: 89, DE: 89, DC: 257,
+      FL: 62, GA: 70, HI: 70, ID: 55, IL: 81, IN: 66, IA: 71, KS: 68, KY: 58,
+      LA: 62, ME: 62, MD: 78, MA: 104, MI: 62, MN: 79, MS: 49, MO: 67, MT: 58,
+      NE: 84, NV: 67, NH: 78, NJ: 81, NM: 62, NY: 104, NC: 69, ND: 96, OH: 68,
+      OK: 62, OR: 68, PA: 78, RI: 68, SC: 58, SD: 78, TN: 68, TX: 81, UT: 73,
+      VT: 62, VA: 81, WA: 94, WV: 53, WI: 68, WY: 80,
     },
     cagr: { default: 0.04 }, // nominal GDP/capita +4%/yr roughly
+  },
+
+  // ═══ HEALTH & WELLBEING ═══════════════════════════════════════════════
+  // Sources: CDC NVSS for mortality + life expectancy, Census ACS for the
+  // uninsured rate. Values are the most recent official prints as of 2025
+  // (typically 2022 data for mortality, 2023 for the ACS uninsured rate).
+  // Trend CAGRs are intentionally small — these series move slowly year to
+  // year. Drug overdose deaths are the exception: notable per-state divergence
+  // post-2020 due to fentanyl.
+
+  life_expectancy: {
+    key: "life_expectancy",
+    label: "Life expectancy",
+    shortLabel: "Life expectancy",
+    unit: "yrs",
+    desc: "Life expectancy at birth, all races, both sexes, in years.",
+    source: "CDC NVSS, U.S. State Life Tables 2022",
+    asOf: "2022",
+    costLike: false, // higher is better
+    category: "health",
+    latest: {
+      AL: 73.4, AK: 76.6, AZ: 76.3, AR: 73.5, CA: 79.0, CO: 78.3, CT: 79.2,
+      DE: 76.5, DC: 75.5, FL: 77.5, GA: 75.6, HI: 79.9, ID: 77.8, IL: 76.8,
+      IN: 75.0, IA: 77.6, KS: 76.7, KY: 73.7, LA: 73.1, ME: 77.4, MD: 77.0,
+      MA: 79.0, MI: 76.0, MN: 79.1, MS: 71.9, MO: 74.7, MT: 76.0, NE: 77.8,
+      NV: 76.7, NH: 78.8, NJ: 78.9, NM: 75.0, NY: 79.4, NC: 75.9, ND: 77.2,
+      OH: 74.7, OK: 73.7, OR: 78.1, PA: 76.4, RI: 78.0, SC: 75.0, SD: 76.6,
+      TN: 73.8, TX: 76.6, UT: 78.6, VT: 78.3, VA: 77.0, WA: 78.4, WV: 72.8,
+      WI: 77.5, WY: 76.4,
+    },
+    cagr: { default: 0.001 }, // ~0.1% per year improvement; nearly flat
+  },
+
+  uninsured: {
+    key: "uninsured",
+    label: "Uninsured rate",
+    shortLabel: "Uninsured",
+    unit: "%",
+    desc: "Share of population without health insurance coverage, all ages.",
+    source: "U.S. Census Bureau, ACS 1-year, S2701",
+    asOf: "2023",
+    costLike: true, // higher is worse
+    category: "health",
+    latest: {
+      AL: 9.3, AK: 11.3, AZ: 10.7, AR: 8.6, CA: 6.7, CO: 7.4, CT: 5.5,
+      DE: 5.3, DC: 3.7, FL: 11.2, GA: 11.7, HI: 4.2, ID: 9.4, IL: 6.6,
+      IN: 7.9, IA: 4.6, KS: 8.4, KY: 6.1, LA: 8.5, ME: 6.2, MD: 6.6,
+      MA: 2.4, MI: 5.2, MN: 4.5, MS: 11.7, MO: 9.2, MT: 8.0, NE: 7.8,
+      NV: 11.2, NH: 6.0, NJ: 7.3, NM: 9.1, NY: 5.0, NC: 9.4, ND: 6.4,
+      OH: 6.7, OK: 12.7, OR: 5.9, PA: 5.4, RI: 4.0, SC: 9.5, SD: 8.4,
+      TN: 9.7, TX: 17.0, UT: 8.3, VT: 3.4, VA: 6.6, WA: 6.0, WV: 6.4,
+      WI: 5.5, WY: 12.2,
+    },
+    // Slow downward trend since ACA expansion (post-2014). Roughly -3%/yr.
+    cagr: { default: -0.03 },
+  },
+
+  infant_mortality: {
+    key: "infant_mortality",
+    label: "Infant mortality",
+    shortLabel: "Infant mortality",
+    unit: "per1K",
+    desc: "Infant deaths under 1 year per 1,000 live births.",
+    source: "CDC NVSS, National Vital Statistics Reports",
+    asOf: "2022",
+    costLike: true,
+    category: "health",
+    latest: {
+      AL: 7.0, AK: 5.7, AZ: 5.3, AR: 7.7, CA: 4.0, CO: 4.7, CT: 4.6,
+      DE: 6.0, DC: 6.4, FL: 5.9, GA: 6.8, HI: 4.6, ID: 4.7, IL: 5.6,
+      IN: 7.2, IA: 5.0, KS: 5.7, KY: 6.8, LA: 7.6, ME: 5.0, MD: 6.0,
+      MA: 4.0, MI: 6.2, MN: 4.6, MS: 9.4, MO: 5.9, MT: 5.0, NE: 5.7,
+      NV: 5.6, NH: 4.0, NJ: 4.3, NM: 5.5, NY: 4.4, NC: 6.8, ND: 5.4,
+      OH: 7.0, OK: 6.8, OR: 4.6, PA: 5.7, RI: 5.0, SC: 6.8, SD: 6.4,
+      TN: 6.7, TX: 5.7, UT: 5.3, VT: 4.0, VA: 5.6, WA: 4.0, WV: 6.6,
+      WI: 5.8, WY: 5.7,
+    },
+    cagr: { default: -0.01 }, // slow decline
+  },
+
+  drug_deaths: {
+    key: "drug_deaths",
+    label: "Drug overdose deaths",
+    shortLabel: "Overdose deaths",
+    unit: "per100K",
+    desc: "Age-adjusted drug overdose death rate per 100,000 population.",
+    source: "CDC WONDER, Multiple Cause of Death",
+    asOf: "2022",
+    costLike: true,
+    category: "health",
+    latest: {
+      AL: 36.0, AK: 38.6, AZ: 34.5, AR: 27.2, CA: 27.8, CO: 30.6, CT: 41.0,
+      DE: 50.6, DC: 65.2, FL: 35.0, GA: 23.6, HI: 16.6, ID: 19.6, IL: 35.7,
+      IN: 39.7, IA: 14.4, KS: 18.8, KY: 53.0, LA: 50.0, ME: 39.5, MD: 47.0,
+      MA: 37.0, MI: 33.7, MN: 24.9, MS: 25.8, MO: 35.7, MT: 22.4, NE: 11.7,
+      NV: 30.6, NH: 36.0, NJ: 33.6, NM: 50.2, NY: 27.1, NC: 39.7, ND: 17.8,
+      OH: 47.6, OK: 26.0, OR: 26.6, PA: 43.0, RI: 41.0, SC: 36.0, SD: 12.4,
+      TN: 56.6, TX: 16.3, UT: 22.0, VT: 50.0, VA: 32.6, WA: 32.3, WV: 80.9,
+      WI: 30.0, WY: 17.0,
+    },
+    // Rapid rise 2014-2022 with fentanyl crisis; ~+8%/yr nationally.
+    cagr: { default: 0.08, stateOverrides: {
+      WV: 0.12, KY: 0.10, TN: 0.12, OH: 0.09, DE: 0.11, DC: 0.12, NM: 0.10,
+      // States that have plateaued or improved
+      NE: 0.02, IA: 0.02, SD: 0.01, HI: 0.02,
+    }},
+  },
+
+  maternal_mortality: {
+    key: "maternal_mortality",
+    label: "Maternal mortality",
+    shortLabel: "Maternal mortality",
+    unit: "per100K",
+    desc: "Maternal deaths per 100,000 live births (pregnancy-related).",
+    source: "CDC NVSS",
+    asOf: "2022",
+    costLike: true,
+    category: "health",
+    latest: {
+      // Many small states have suppressed values due to small sample sizes.
+      // We use the 3-year national or regional estimate where state-specific
+      // numbers are too sparse to publish.
+      AL: 64.6, AK: 27.0, AZ: 21.7, AR: 43.5, CA: 12.8, CO: 16.6, CT: 14.9,
+      DE: 24.0, DC: 27.0, FL: 24.0, GA: 33.9, HI: 18.0, ID: 18.0, IL: 25.0,
+      IN: 43.6, IA: 23.0, KS: 24.0, KY: 36.8, LA: 58.1, ME: 20.0, MD: 23.5,
+      MA: 8.4, MI: 26.4, MN: 16.0, MS: 82.5, MO: 32.6, MT: 22.0, NE: 21.0,
+      NV: 18.0, NH: 18.0, NJ: 38.1, NM: 24.0, NY: 18.9, NC: 26.5, ND: 22.0,
+      OH: 23.2, OK: 28.0, OR: 19.0, PA: 27.0, RI: 22.0, SC: 31.0, SD: 22.0,
+      TN: 41.7, TX: 18.5, UT: 19.0, VT: 18.0, VA: 21.3, WA: 13.0, WV: 28.0,
+      WI: 16.0, WY: 22.0,
+    },
+    cagr: { default: 0.03 },
+  },
+
+  // ═══ POLITICS & CIVIC LIFE ════════════════════════════════════════════
+  // 2024 certified general election results. Margin is Trump minus Harris
+  // in percentage points (positive = Trump won). Turnout is total votes
+  // cast / voting-eligible population.
+  // Sources: state SoS-certified results aggregated by MIT Election Lab /
+  // Cook Political Report. Turnout from the US Elections Project.
+
+  presidential_margin: {
+    key: "presidential_margin",
+    label: "2024 Presidential margin",
+    shortLabel: "2024 margin",
+    unit: "±pp",
+    desc: "Trump margin over Harris in percentage points (positive = Trump won, negative = Harris won).",
+    source: "State SoS certified results, 2024 General Election",
+    asOf: "2024",
+    costLike: false, // bipolar metric — no "good/bad" direction
+    category: "politics",
+    latest: {
+      AL: 30.4, AK: 13.1, AZ: 5.5, AR: 21.0, CA: -20.0, CO: -11.0, CT: -14.5,
+      DE: -14.7, DC: -86.0, FL: 13.0, GA: 2.2, HI: -23.0, ID: 36.7, IL: -10.9,
+      IN: 19.0, IA: 13.2, KS: 16.0, KY: 30.5, LA: 22.0, ME: -7.0, MD: -29.0,
+      MA: -25.0, MI: 1.4, MN: -4.3, MS: 21.5, MO: 18.5, MT: 20.0, NE: 20.5,
+      NV: 3.1, NH: -2.8, NJ: -5.9, NM: -6.0, NY: -12.8, NC: 3.2, ND: 36.5,
+      OH: 11.0, OK: 33.7, OR: -14.0, PA: 1.7, RI: -14.0, SC: 18.0, SD: 29.0,
+      TN: 30.4, TX: 13.7, UT: 22.0, VT: -32.0, VA: -5.8, WA: -18.0, WV: 41.9,
+      WI: 0.9, WY: 46.0,
+    },
+    cagr: { default: 0 }, // election results aren't a continuous trend
+  },
+
+  voter_turnout: {
+    key: "voter_turnout",
+    label: "Voter turnout (2024)",
+    shortLabel: "Turnout",
+    unit: "%",
+    desc: "Total votes cast as a share of the voting-eligible population, 2024 general election.",
+    source: "United States Elections Project (Michael McDonald)",
+    asOf: "2024",
+    costLike: false, // higher = more civic participation
+    category: "politics",
+    latest: {
+      AL: 60.0, AK: 60.8, AZ: 65.0, AR: 53.0, CA: 65.0, CO: 73.0, CT: 70.5,
+      DE: 68.0, DC: 67.0, FL: 68.0, GA: 67.0, HI: 50.0, ID: 64.0, IL: 64.0,
+      IN: 60.0, IA: 70.0, KS: 64.0, KY: 61.0, LA: 63.0, ME: 73.0, MD: 67.0,
+      MA: 67.0, MI: 72.0, MN: 74.5, MS: 56.0, MO: 67.0, MT: 71.0, NE: 67.0,
+      NV: 70.0, NH: 73.0, NJ: 67.5, NM: 64.0, NY: 60.0, NC: 71.0, ND: 64.0,
+      OH: 67.0, OK: 56.0, OR: 70.0, PA: 71.0, RI: 65.0, SC: 65.0, SD: 65.0,
+      TN: 56.0, TX: 60.0, UT: 65.0, VT: 65.0, VA: 71.0, WA: 70.0, WV: 56.0,
+      WI: 75.0, WY: 64.0,
+    },
+    // Turnout is cyclic with elections, not a continuous trend; use ~0%.
+    cagr: { default: 0 },
+  },
+
+  // ═══ CRIME & SAFETY ═══════════════════════════════════════════════════
+  // FBI Uniform Crime Reporting (UCR) program, 2023 data — the latest full
+  // year published. Incarceration rates from BJS National Prisoner Statistics
+  // (most recent year-end count). Per 100K residents in all cases.
+  //
+  // IMPORTANT: violent crime trends ARE rising across many states post-2020.
+  // Property crime is more mixed. Murder rates spiked 2020-2022 then partly
+  // receded by 2023. CAGRs reflect the longer post-2014 trend.
+
+  violent_crime: {
+    key: "violent_crime",
+    label: "Violent crime rate",
+    shortLabel: "Violent crime",
+    unit: "per100K",
+    desc: "FBI-defined violent offenses (murder, rape, robbery, aggravated assault) per 100,000 residents.",
+    source: "FBI Uniform Crime Reporting Program",
+    asOf: "2023",
+    costLike: true,
+    category: "crime",
+    latest: {
+      AL: 446, AK: 759, AZ: 392, AR: 663, CA: 510, CO: 466, CT: 169,
+      DE: 421, DC: 1019, FL: 259, GA: 369, HI: 245, ID: 215, IL: 411,
+      IN: 327, IA: 287, KS: 401, KY: 254, LA: 543, ME: 119, MD: 432,
+      MA: 318, MI: 469, MN: 257, MS: 281, MO: 502, MT: 459, NE: 327,
+      NV: 460, NH: 144, NJ: 184, NM: 781, NY: 339, NC: 363, ND: 286,
+      OH: 280, OK: 412, OR: 297, PA: 326, RI: 192, SC: 471, SD: 412,
+      TN: 621, TX: 432, UT: 247, VT: 175, VA: 215, WA: 314, WV: 282,
+      WI: 282, WY: 195,
+    },
+    cagr: { default: 0.01 }, // mostly flat 2014-2023; some states up
+  },
+
+  murder_rate: {
+    key: "murder_rate",
+    label: "Murder rate",
+    shortLabel: "Murder rate",
+    unit: "per100K",
+    desc: "Murder and non-negligent manslaughter offenses per 100,000 residents.",
+    source: "FBI Uniform Crime Reporting Program",
+    asOf: "2023",
+    costLike: true,
+    category: "crime",
+    latest: {
+      AL: 11.2, AK: 9.2, AZ: 7.4, AR: 11.4, CA: 5.0, CO: 4.8, CT: 3.1,
+      DE: 6.1, DC: 40.9, FL: 4.9, GA: 7.5, HI: 2.4, ID: 2.5, IL: 7.1,
+      IN: 6.6, IA: 2.5, KS: 5.6, KY: 5.4, LA: 14.4, ME: 1.7, MD: 9.1,
+      MA: 1.8, MI: 6.4, MN: 3.5, MS: 14.4, MO: 9.0, MT: 4.6, NE: 3.4,
+      NV: 6.5, NH: 1.4, NJ: 3.4, NM: 9.7, NY: 4.0, NC: 7.7, ND: 3.7,
+      OH: 6.3, OK: 6.7, OR: 4.5, PA: 6.6, RI: 2.8, SC: 10.2, SD: 4.1,
+      TN: 10.0, TX: 6.4, UT: 2.5, VT: 1.8, VA: 5.7, WA: 4.3, WV: 4.8,
+      WI: 4.1, WY: 2.5,
+    },
+    // Murder spiked 2020-2021 with pandemic disruption; partial recovery by 2023.
+    cagr: { default: 0.03 },
+  },
+
+  property_crime: {
+    key: "property_crime",
+    label: "Property crime rate",
+    shortLabel: "Property crime",
+    unit: "per100K",
+    desc: "Burglary, larceny-theft, and motor vehicle theft per 100,000 residents.",
+    source: "FBI Uniform Crime Reporting Program",
+    asOf: "2023",
+    costLike: true,
+    category: "crime",
+    latest: {
+      AL: 2530, AK: 2841, AZ: 3033, AR: 2856, CA: 2348, CO: 2727, CT: 1611,
+      DE: 1825, DC: 5117, FL: 1830, GA: 2185, HI: 2654, ID: 1397, IL: 1851,
+      IN: 1991, IA: 1605, KS: 2192, KY: 1809, LA: 2818, ME: 1227, MD: 2008,
+      MA: 1257, MI: 1668, MN: 1972, MS: 1932, MO: 2511, MT: 2298, NE: 2102,
+      NV: 2477, NH: 1083, NJ: 1290, NM: 3175, NY: 1845, NC: 2129, ND: 1924,
+      OH: 1858, OK: 2664, OR: 2812, PA: 1331, RI: 1370, SC: 2541, SD: 1664,
+      TN: 2659, TX: 2382, UT: 2208, VT: 1320, VA: 1535, WA: 3157, WV: 1417,
+      WI: 1383, WY: 1593,
+    },
+    cagr: { default: -0.02 }, // long-term decline
+  },
+
+  incarceration: {
+    key: "incarceration",
+    label: "Incarceration rate",
+    shortLabel: "Incarceration",
+    unit: "per100K",
+    desc: "State + federal prisoners under jurisdiction per 100,000 residents (year-end).",
+    source: "Bureau of Justice Statistics, National Prisoner Statistics",
+    asOf: "2022",
+    costLike: true,
+    category: "crime",
+    latest: {
+      AL: 690, AK: 470, AZ: 565, AR: 615, CA: 320, CO: 380, CT: 240,
+      DE: 380, DC: 130, FL: 460, GA: 580, HI: 230, ID: 470, IL: 245,
+      IN: 425, IA: 280, KS: 360, KY: 575, LA: 685, ME: 145, MD: 280,
+      MA: 130, MI: 320, MN: 145, MS: 690, MO: 470, MT: 350, NE: 295,
+      NV: 460, NH: 175, NJ: 165, NM: 285, NY: 175, NC: 290, ND: 215,
+      OH: 380, OK: 660, OR: 290, PA: 295, RI: 130, SC: 415, SD: 415,
+      TN: 410, TX: 565, UT: 195, VT: 165, VA: 410, WA: 195, WV: 365,
+      WI: 365, WY: 360,
+    },
+    cagr: { default: -0.01 }, // gradual decline since 2010s reforms
   },
 
 };
 
 // Metric ordering — grouped by category for the picker. Order within each
 // group is "most asked about / most universal" first.
+// ── Attach real annual history from data/state-snapshot.json ─────
+//
+// scripts/refresh-state-data.mjs writes this file weekly from Zillow / Census /
+// BLS / FBI / CDC. When a metric key has an entry, the per-state history
+// arrays replace the CAGR back-fill (per stateHistory() above). Metrics not
+// in the snapshot keep using the back-fill — both paths coexist until the
+// last metric is fully wired.
+//
+// Currently wired: median_home (Zillow ZHVI). All other metrics still use
+// the smooth back-fill. See DATA_REFRESH_SETUP.md for the expansion plan.
+import stateSnapshot from "../data/state-snapshot.json";
+interface StateSnapshotShape {
+  generatedAt?: string;
+  source?: string;
+  metrics?: Record<string, { history?: Partial<Record<StateCode, number[]>> }>;
+}
+const STATE_SNAPSHOT = stateSnapshot as StateSnapshotShape;
+for (const [key, entry] of Object.entries(STATE_SNAPSHOT.metrics ?? {})) {
+  const target = STATE_METRICS[key];
+  if (target && entry?.history) target.history = entry.history;
+}
+/** When the state snapshot was last regenerated (or null if missing). */
+export const STATE_SNAPSHOT_GENERATED_AT: string | null = STATE_SNAPSHOT.generatedAt ?? null;
+
+// Display order for the picker. metricsForCategory() filters this list by
+// category, so ANY new metric added to STATE_METRICS must also appear here
+// or it won't render in the UI. (Found-and-fixed: an earlier PR added the
+// Health / Politics / Crime metrics to STATE_METRICS but missed this list,
+// so those categories showed up empty in the picker.)
 export const STATE_METRIC_ORDER = [
   // Cost of living
   "median_home", "rent", "gas", "electricity",
@@ -477,11 +848,65 @@ export const STATE_METRIC_ORDER = [
   "income_tax", "sales_tax", "property_tax", "gas_tax", "corp_tax",
   // Demographics
   "population", "household_income", "unemployment", "bachelors", "gdp_capita",
+  // Health & wellbeing
+  "life_expectancy", "uninsured", "infant_mortality", "drug_deaths", "maternal_mortality",
+  // Politics & civic life
+  "presidential_margin", "voter_turnout",
+  // Crime & safety
+  "violent_crime", "murder_rate", "property_crime", "incarceration",
 ];
 
 export function metricsForCategory(cat: StateMetricCategory): string[] {
   return STATE_METRIC_ORDER.filter(k => STATE_METRICS[k].category === cat);
 }
+
+// ── Related-metrics affinity map ──────────────────────────────────
+//
+// Hand-curated correlations from economic literature: for each metric, the
+// 2-4 OTHER metrics that economists widely consider related and likely to
+// move together (or against each other) across states.
+//
+// Powers the "Also compare these states on:" pill row that appears below
+// the InsightsPanel — clicking a related metric switches the chart while
+// keeping the user's state selection intact, so they can quickly explore
+// hypotheses like "Georgia grew home values 2.9× faster than Mississippi
+// — was that driven by population growth?"
+//
+// Each entry's first listed related metric is the MOST informative one
+// to compare against (used when we surface a single quick-link).
+export const RELATED_METRICS: Record<string, string[]> = {
+  // Cost-of-living
+  median_home:    ["population", "household_income", "rent"],
+  rent:           ["median_home", "household_income", "population"],
+  gas:            ["gas_tax", "population"],
+  electricity:    ["population"],
+  // Taxes
+  income_tax:     ["household_income", "gdp_capita"],
+  sales_tax:      ["income_tax", "gdp_capita"],
+  property_tax:   ["median_home", "income_tax"],
+  gas_tax:        ["gas", "gdp_capita"],
+  corp_tax:       ["gdp_capita", "income_tax"],
+  // Demographics
+  population:     ["median_home", "household_income", "gdp_capita"],
+  household_income:["bachelors", "gdp_capita", "median_home"],
+  unemployment:   ["bachelors", "household_income"],
+  bachelors:      ["household_income", "gdp_capita", "uninsured"],
+  gdp_capita:     ["household_income", "bachelors", "population"],
+  // Health
+  life_expectancy:["uninsured", "drug_deaths", "household_income"],
+  uninsured:      ["life_expectancy", "household_income", "bachelors"],
+  infant_mortality:["life_expectancy", "maternal_mortality", "household_income"],
+  drug_deaths:    ["life_expectancy", "uninsured", "incarceration"],
+  maternal_mortality:["infant_mortality", "uninsured"],
+  // Politics
+  presidential_margin:["bachelors", "uninsured", "voter_turnout"],
+  voter_turnout:  ["bachelors", "household_income"],
+  // Crime
+  violent_crime:  ["incarceration", "drug_deaths", "household_income"],
+  murder_rate:    ["violent_crime", "incarceration"],
+  property_crime: ["violent_crime", "incarceration"],
+  incarceration:  ["violent_crime", "murder_rate", "drug_deaths"],
+};
 
 // Compute the unweighted national mean across the 50 states + DC for a metric.
 export function metricMean(m: StateMetric): number {
@@ -507,6 +932,10 @@ export function formatMetricValue(m: StateMetric, v: number | undefined | null):
     case "%":      return v.toFixed(2) + "%";
     case "M":      return v.toFixed(2) + "M";
     case "¢/gal":  return v.toFixed(1) + "¢";
+    case "yrs":    return v.toFixed(1) + " yrs";
+    case "per100K":return v.toFixed(1) + " per 100K";
+    case "per1K":  return v.toFixed(1) + " per 1K";
+    case "±pp":    return (v >= 0 ? "+" : "−") + Math.abs(v).toFixed(1) + " pp";
   }
 }
 
@@ -522,5 +951,9 @@ export function formatDeviation(m: StateMetric, dev: number): string {
     case "%":      return sign + av.toFixed(1) + " pp";
     case "M":      return sign + av.toFixed(2) + "M";
     case "¢/gal":  return sign + av.toFixed(1) + "¢";
+    case "yrs":    return sign + av.toFixed(1) + " yrs";
+    case "per100K":return sign + av.toFixed(1) + " per 100K";
+    case "per1K":  return sign + av.toFixed(2) + " per 1K";
+    case "±pp":    return sign + av.toFixed(1) + " pp";
   }
 }

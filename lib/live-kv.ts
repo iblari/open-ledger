@@ -26,6 +26,17 @@ export interface LiveClaim {
   explanation: string;
   videoTime: number;
   timestamp: string;
+  // ── Data-layer integration (lib/live-verify) ──
+  // Populated when the claim matches one of the 6 anchored economic metrics
+  // (gdp, unemployment, inflation, sp500, debt_gdp, median_income). When
+  // present, the UI deep-links to /dashboard?metric=<key>&admin=<id> and the
+  // server verifier may have overridden 'actual' with a sourced ground-truth.
+  metricKey?: string | null;
+  year?: number | null;
+  admin?: string | null;
+  claimedValue?: number | null;
+  verifiedFromSource?: boolean;
+  groundTruth?: { value: number; year: number; metricKey: string; source: string };
 }
 
 // ── Upstash REST helpers ──────────────────────────────────────────

@@ -15,7 +15,26 @@ const T = {
 
 type Feedback = "yes" | "meh" | "no" | null;
 
-const DISMISS_KEY = "vu_banner_dismissed";
+// localStorage keys. Bumped from the previous single "dismissed" flag so we
+// can store WHICH answer was given and the email if subscribed.
+const DISMISS_KEY = "vu_banner_dismissed";          // "1" once dismissed
+const FEEDBACK_KEY = "vu_banner_feedback";          // "yes" | "meh" | "no"
+const EMAIL_KEY = "vu_banner_email";                // email if they subscribed
+
+/** Persist that the user has engaged with the banner — used to suppress it on
+ *  return visits. Wrapped in try/catch so private-mode or storage-disabled
+ *  browsers don't crash the component. */
+function persistDismiss() {
+  try { window.localStorage.setItem(DISMISS_KEY, "1"); } catch { /* ignore */ }
+}
+function persistFeedback(val: Feedback) {
+  if (!val) return;
+  try { window.localStorage.setItem(FEEDBACK_KEY, val); } catch { /* ignore */ }
+}
+function persistEmail(addr: string) {
+  if (!addr) return;
+  try { window.localStorage.setItem(EMAIL_KEY, addr); } catch { /* ignore */ }
+}
 
 export default function FeedbackBanner() {
   const [mounted, setMounted] = useState(false);
@@ -29,13 +48,23 @@ export default function FeedbackBanner() {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Check dismissed-state on mount
+  // Check engagement state on mount. We suppress the banner if ANY of:
+  //   - DISMISS_KEY is set (explicit close, or completed flow in the past)
+  //   - FEEDBACK_KEY is set (they tapped Yes/Meh/No — that's a real signal,
+  //     no need to re-ask just because they didn't enter an email)
+  //   - EMAIL_KEY is set (they've already subscribed; they're "in")
+  // This is the fix for "the banner keeps showing me this every visit even
+  // though I already answered." Old DISMISS_KEY flag is still respected for
+  // back-compat with users who dismissed under the previous behavior.
   useEffect(() => {
     setMounted(true);
     if (typeof window === "undefined") return;
     try {
-      if (window.localStorage.getItem(DISMISS_KEY) === "1") setDismissed(true);
-    } catch {}
+      const ls = window.localStorage;
+      if (ls.getItem(DISMISS_KEY) === "1") { setDismissed(true); return; }
+      if (ls.getItem(FEEDBACK_KEY))         { setDismissed(true); return; }
+      if (ls.getItem(EMAIL_KEY))            { setDismissed(true); return; }
+    } catch { /* ignore — show banner if storage unreadable */ }
   }, []);
 
   // Scroll trigger — show when past 60% of the page
@@ -57,7 +86,7 @@ export default function FeedbackBanner() {
 
   const dismiss = () => {
     setClosing(true);
-    try { window.localStorage.setItem(DISMISS_KEY, "1"); } catch {}
+    persistDismiss();
     setTimeout(() => {
       setDismissed(true);
       setShowBanner(false);
@@ -69,13 +98,18 @@ export default function FeedbackBanner() {
     if (!val || feedback) return; // don't double-submit
     setFeedback(val);
     setFeedbackPopping(true);
+    // KEY FIX: persist immediately so the banner won't reappear on next visit
+    // even if the user closes the tab without entering email. Email is a
+    // bonus, not the price of admission.
+    persistFeedback(val);
+    persistDismiss();
     // fire-and-forget; don't block UX on network
     fetch("/api/subscribe", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: "", feedback: val, source: "banner-feedback" }),
     }).catch(() => {});
-    // After a short beat, advance to stage 2
+    // After a short beat, advance to stage 2 for optional email
     setTimeout(() => setStage(2), 1200);
   };
 
@@ -89,12 +123,15 @@ export default function FeedbackBanner() {
         body: JSON.stringify({ email, feedback: feedback || "", source: "banner" }),
       });
     } catch {}
+    persistEmail(email);
     setSubmitted(true);
     setLoading(false);
-    // Auto-hide after 3s
+    // Auto-hide after 3s. Dismiss key is already set from saveFeedback, but
+    // be defensive in case someone reaches this path without going through
+    // stage 1 (shouldn't happen today; future-proof).
     setTimeout(() => {
       setClosing(true);
-      try { window.localStorage.setItem(DISMISS_KEY, "1"); } catch {}
+      persistDismiss();
       setTimeout(() => {
         setShowBanner(false);
         setDismissed(true);
