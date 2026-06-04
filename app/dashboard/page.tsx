@@ -26,7 +26,7 @@ import {
 import { PillToggle } from "@/components/PillToggle";
 import { StateAtlas } from "@/components/StateAtlas";
 import LiveBenchmark from "@/components/LiveBenchmark";
-import { InsightsStrip } from "@/components/InsightsStrip";
+// InsightsStrip import removed — strip lives only on the landing page now.
 
 function useIsMobile() {
   const [w, setW] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
@@ -1279,12 +1279,10 @@ function App(){
 
           {/* ── OVERVIEW MODE ── */}
           {!detail&&(<div>
-            {/* Auto-generated insights — desktop-only on the dashboard.
-                Mobile users get the same strip on the landing page; showing
-                it here too is redundant + competes with the heatmap for the
-                limited mobile screen. Logic still lives in lib/insights /
-                lib/insights-live so the landing render is unaffected. */}
-            {!mob && <InsightsStrip mob={mob} limit={3} eyebrow="What's notable right now" />}
+            {/* InsightsStrip removed from the dashboard Data tab. Lives only
+                on the landing page now — putting it here too was duplicative
+                content for users who clicked into the dashboard expecting
+                the heatmap as the lead element. */}
 
             <div style={{marginBottom:20}}>
               <h2 style={{fontFamily:ESERIF,fontSize:mob?26:34,fontWeight:400,letterSpacing:"-0.02em",lineHeight:1.1,margin:"0 0 6px"}}>
