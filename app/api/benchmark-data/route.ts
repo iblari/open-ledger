@@ -6,6 +6,14 @@ import { NextResponse } from 'next/server';
 // day instead of 1, which is well within FRED's free-tier rate limit.
 export const revalidate = 3600;
 
+// IMPORTANT: skip prerendering at build time. Without this, Next.js tries to
+// statically generate this route during `next build`, which fires 13 parallel
+// FRED requests during the build itself. FRED's free tier accepts the burst
+// most of the time but occasionally rate-limits with a 429, which then poisons
+// the build's cached output. force-dynamic guarantees the route only runs at
+// request time, where we can retry-and-recover gracefully.
+export const dynamic = "force-dynamic";
+
 // ── Administrations aligned to inauguration ──
 const ADMINS = [
   { id: 'nixon',   name: 'Nixon',    inaug: '1969-01-20', party: 'R' },
@@ -85,14 +93,36 @@ function monthsDiff(a: Date, b: Date): number {
   return (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth());
 }
 
+/** Small sleep helper for retry backoff. */
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+
 async function fetchFRED(seriesId: string, apiKey: string, start: string): Promise<{ date: string; value: string }[]> {
   const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${seriesId}&api_key=${apiKey}&file_type=json&observation_start=${start}`;
   // Keep per-FRED-call cache aligned with the route-level revalidate above
   // (1h) so the two layers don't disagree and serve mismatched freshness.
-  const res = await fetch(url, { next: { revalidate: 3600 } });
-  if (!res.ok) throw new Error(`FRED ${seriesId}: ${res.status}`);
-  const json = await res.json();
-  return (json.observations || []).filter((o: { value: string }) => o.value !== '.');
+  // Retry on 429 (rate limit) and 5xx (FRED transient flake) with exponential
+  // backoff. FRED's free tier allows 120 calls/min — we send 13 in a burst
+  // which usually fits but occasionally trips the limiter under load. Two
+  // retries with 400ms then 1.2s jitter recovers cleanly in practice.
+  const MAX_ATTEMPTS = 3;
+  let lastStatus = 0;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    const res = await fetch(url, { next: { revalidate: 3600 } });
+    if (res.ok) {
+      const json = await res.json();
+      return (json.observations || []).filter((o: { value: string }) => o.value !== '.');
+    }
+    lastStatus = res.status;
+    // Only retry on rate-limit + upstream errors. 4xx other than 429 means our
+    // request is bad (wrong series id, bad key), so retry is pointless.
+    const retryable = res.status === 429 || res.status >= 500;
+    if (!retryable || attempt === MAX_ATTEMPTS) break;
+    // 400ms, 1200ms — plus ±50ms jitter so 13 simultaneous calls don't all
+    // wake up at the same instant and re-stampede FRED.
+    const baseMs = attempt === 1 ? 400 : 1200;
+    await sleep(baseMs + Math.floor(Math.random() * 100) - 50);
+  }
+  throw new Error(`FRED ${seriesId}: ${lastStatus}`);
 }
 
 function parseObs(obs: { date: string; value: string }[]): { date: Date; value: number }[] {
