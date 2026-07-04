@@ -23,7 +23,36 @@ import path from "path";
  * doesn't hammer YouTube (4 channels × 1 fetch/min worst case).
  */
 
-interface ChannelDef { id: string; label: string; url: string }
+interface ChannelDef { id: string; label: string; url: string; officialOnly?: boolean }
+
+/* ── Editorial relevance filter ───────────────────────────────────
+ *
+ * The product surfaces OFFICIAL EXECUTIVE VOICES: President, Vice
+ * President, press briefings, cabinet secretaries. Broad channels
+ * (C-SPAN) stream concerts, pro-forma sessions, and unrelated hearings
+ * — those must never appear on the site (observed: the July 4th Capitol
+ * Fourth concert surfaced as a "C-SPAN — Live broadcast" card).
+ *
+ * Channels with officialOnly:true only surface streams whose title
+ * matches this pattern; a null title fails closed. The White House
+ * channel is exempt — everything it streams is official by definition.
+ */
+const OFFICIAL_SPEAKER_RE = new RegExp(
+  [
+    "\\bpresident\\b", "\\bpotus\\b", "vice president", "\\bvp\\b",
+    "white house", "press briefing", "press secretary", "press conference",
+    "\\bcabinet\\b", "secretary", "attorney general",
+    "state of the union", "address to", "oval office", "joint session",
+    "inaugurat",
+  ].join("|"),
+  "i"
+);
+
+function passesOfficialFilter(ch: ChannelDef, title: string | null): boolean {
+  if (!ch.officialOnly) return true;
+  if (!title) return false; // can't judge → fail closed on broad channels
+  return OFFICIAL_SPEAKER_RE.test(title);
+}
 interface LiveHit {
   channelId: string;
   channelLabel: string;
@@ -88,6 +117,12 @@ async function probeChannel(ch: ChannelDef): Promise<LiveHit | null> {
           if (typeof j.title === "string" && j.title.trim()) title = j.title.trim();
         }
       } catch { /* title stays null → UI uses channel-label fallback */ }
+    }
+
+    // Editorial gate: on broad channels, only official-executive-speaker
+    // streams surface anywhere (display, coverage, autopilot schedule).
+    if (!passesOfficialFilter(ch, title)) {
+      return { live: null, upcoming: null };
     }
 
     return {

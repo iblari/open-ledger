@@ -1,10 +1,11 @@
 {
   "_comment": "Vote Unbiased — channels probed by /api/live-discover for live streams. Each entry's url must be a YouTube /live channel URL. Detection is keyless (no YouTube API quota): the endpoint fetches the page and reads ytInitialPlayerResponse.",
   "_autoCover": "autoCover: true lets the Live Broadcast GitHub Action start the Deepgram→Claude fact-check worker AUTOMATICALLY when this channel goes live (no schedule entry needed). Guardrails: maxCoverMinutes caps each auto-session (~$0.36/hr Deepgram + Claude); the next cron tick re-covers if still live. Leave autoCover false for channels that stream near-24/7 (C-SPAN) — enabling it there means paying for continuous coverage.",
+  "_officialOnly": "officialOnly: true = a stream on this channel only surfaces (display, coverage, autopilot) when its TITLE indicates an official executive-branch speaker — President, VP, press briefing, cabinet secretary. Filters out concerts, pro-forma sessions, and non-cabinet hearings on broad channels like C-SPAN. The White House channel is officialOnly:false because everything it streams IS official.",
   "channels": [
-    { "id": "whitehouse", "label": "The White House", "url": "https://www.youtube.com/@WhiteHouse/live", "autoCover": true, "maxCoverMinutes": 180 },
-    { "id": "cspan", "label": "C-SPAN", "url": "https://www.youtube.com/@CSPAN/live", "autoCover": false, "maxCoverMinutes": 180 },
-    { "id": "houseoversight", "label": "House Oversight Committee", "url": "https://www.youtube.com/@OversightCommittee/live", "autoCover": true, "maxCoverMinutes": 240 },
-    { "id": "senatebanking", "label": "Senate Banking Committee", "url": "https://www.youtube.com/@SenateBankingHousingandUrbanAffairs/live", "autoCover": true, "maxCoverMinutes": 240 }
+    { "id": "whitehouse", "label": "The White House", "url": "https://www.youtube.com/@WhiteHouse/live", "autoCover": true, "maxCoverMinutes": 180, "officialOnly": false },
+    { "id": "cspan", "label": "C-SPAN", "url": "https://www.youtube.com/@CSPAN/live", "autoCover": false, "maxCoverMinutes": 180, "officialOnly": true },
+    { "id": "houseoversight", "label": "House Oversight Committee", "url": "https://www.youtube.com/@OversightCommittee/live", "autoCover": true, "maxCoverMinutes": 240, "officialOnly": true },
+    { "id": "senatebanking", "label": "Senate Banking Committee", "url": "https://www.youtube.com/@SenateBankingHousingandUrbanAffairs/live", "autoCover": true, "maxCoverMinutes": 240, "officialOnly": true }
   ]
 }
