@@ -224,6 +224,21 @@ export function findCaptionTimeForQuote(
   return best.score >= minOverlap ? best.time : null;
 }
 
+/* ── "Add to calendar" links for scheduled broadcasts ─────────── */
+// Zero-infrastructure reminders: Google Calendar prefill link + a per-event
+// .ics (Apple/Outlook, with a built-in 15-min alarm via /api/schedule.ics).
+function gcalUrl(ev: { title: string; scheduledStart: string; scheduledEnd: string }): string {
+  const f = (iso: string) => new Date(iso).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+  const p = new URLSearchParams({
+    action: "TEMPLATE",
+    text: `🔴 ${ev.title} — live fact-check`,
+    dates: `${f(ev.scheduledStart)}/${f(ev.scheduledEnd)}`,
+    details: "Watch with real-time AI fact-checking against official data: https://voteunbiased.org/live",
+    location: "https://voteunbiased.org/live",
+  });
+  return `https://calendar.google.com/calendar/render?${p.toString()}`;
+}
+
 /* ── Format a "starts in" countdown for scheduled broadcasts ──── */
 // Picks the right precision based on remaining time so the label feels right
 // at every scale — "in 3 days", "in 4h 12m", "in 14:32", "Live now".
@@ -1732,6 +1747,29 @@ export default function LiveFactCheckPage() {
                               </>
                             )}
                           </div>
+                          {/* Reminder links — Google prefill + .ics (Apple/
+                              Outlook) with a built-in 15-min alarm. */}
+                          {secs > 0 && (
+                            <div style={{
+                              display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap",
+                              fontFamily: "'DM Sans',sans-serif",
+                            }}>
+                              {[
+                                { label: "📅 Google", href: gcalUrl(ev), ext: true },
+                                { label: "📅 Apple / Outlook", href: `/api/schedule.ics?event=${encodeURIComponent(ev.id)}`, ext: false },
+                              ].map(l => (
+                                <a key={l.label} href={l.href}
+                                  {...(l.ext ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+                                  style={{
+                                    fontSize: 10, fontWeight: 600, color: T.sub, textDecoration: "none",
+                                    padding: "3px 8px", borderRadius: 4,
+                                    border: `1px solid ${T.rule}`, background: T.card,
+                                  }}>
+                                  {l.label}
+                                </a>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -1742,8 +1780,17 @@ export default function LiveFactCheckPage() {
                       fontFamily: "'DM Sans',sans-serif", fontSize: 9, color: T.mute,
                       letterSpacing: 0.5, marginTop: 4, paddingTop: 6,
                       borderTop: `1px solid ${T.rule}`,
+                      display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap",
                     }}>
-                      Auto-broadcast · fact-checks appear in real time when the event begins
+                      <span>Auto-broadcast · fact-checks appear in real time when the event begins</span>
+                      {/* Subscribe once → every future event lands in the
+                          viewer's calendar app with a 15-min reminder. */}
+                      <a href="/api/schedule.ics" style={{
+                        color: T.blue, textDecoration: "none", fontWeight: 700, fontSize: 9,
+                        letterSpacing: 0.5, whiteSpace: "nowrap",
+                      }}>
+                        📅 SUBSCRIBE TO BROADCAST CALENDAR
+                      </a>
                     </div>
                   </div>
                 )}
