@@ -800,7 +800,17 @@ export default function LiveFactCheckPage() {
       }
       ytPlayerRef.current = new YT.Player("yt-player-div", {
         videoId,
-        playerVars: { autoplay: 1, rel: 0 },
+        // CRITICAL for mobile: YT.Player REPLACES the target div with an
+        // iframe. Without explicit dimensions it creates that iframe at the
+        // API default 640×360 — the inline width:100% styles on our div are
+        // destroyed with it. On phones (~390px viewport) the 640px iframe
+        // set the grid column's min-content width and dragged the ENTIRE
+        // page wider than the screen: clipped title, unwrappable chips,
+        // cards cut mid-word. The #yt-player-div CSS rule below is the
+        // second layer of the same fix (the iframe inherits the div's id).
+        width: "100%",
+        height: "100%",
+        playerVars: { autoplay: 1, rel: 0, playsinline: 1 },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         events: { onReady: (e: any) => { e.target.playVideo(); } },
       });
@@ -1330,12 +1340,19 @@ export default function LiveFactCheckPage() {
 
   /* ── Render ── */
   return (
-    <div style={{ minHeight: "100vh", background: T.bg }}>
+    // overflowX clip: hard guarantee that no child can widen the page past
+    // the viewport on mobile (the failure mode behind the clipped-everything
+    // screenshots). Root-cause fixes exist above; this is the seatbelt.
+    <div style={{ minHeight: "100vh", background: T.bg, overflowX: "clip" }}>
       {/* CSS Animations */}
       <style>{`
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
         @keyframes cardSlideIn { from{transform:translateX(20px);opacity:0} to{transform:translateX(0);opacity:1} }
         @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+        /* The YT IFrame API replaces #yt-player-div with an iframe that keeps
+           the same id but loses the div's inline styles. Pin it to fill the
+           16:9 wrapper regardless of what the API sets on it. */
+        #yt-player-div { position:absolute; inset:0; width:100% !important; height:100% !important; border:none; }
         @import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@400;600;700;900&family=DM+Sans:wght@400;500;600;700;800;900&display=swap');
       `}</style>
 
@@ -1847,7 +1864,16 @@ export default function LiveFactCheckPage() {
             gap: mob ? 0 : 20,
           }}>
             {/* LEFT: Video + Controls */}
-            <div>
+            {/* minWidth 0: grid items default to min-width auto and refuse to
+                shrink below their content's intrinsic width — one oversized
+                child (e.g. the YT iframe) would push the whole page wider
+                than the viewport. */}
+            <div style={{ minWidth: 0 }}>
+              {/* On mobile, pin the status bar + player while the transcript,
+                  controls, and fact feed scroll beneath — keeps the video in
+                  view when reading claims (the panel is below the fold on
+                  phones). top:48 clears the sticky nav. */}
+              <div style={mob ? { position: "sticky", top: 48, zIndex: 30 } : undefined}>
               {/* Status bar */}
               <div style={{
                 display: "flex", alignItems: "center", gap: 8, padding: "8px 14px",
@@ -1915,6 +1941,7 @@ export default function LiveFactCheckPage() {
                   </div>
                 )}
               </div>
+              </div>{/* end mobile sticky wrapper */}
 
               {/* Transcript Strip */}
               {liveTranscript && (
@@ -2059,7 +2086,7 @@ export default function LiveFactCheckPage() {
 
             {/* RIGHT: Fact-check panel */}
             <div style={{
-              display: "flex", flexDirection: "column",
+              display: "flex", flexDirection: "column", minWidth: 0,
               maxHeight: mob ? "none" : "calc(100vh - 100px)",
               overflow: mob ? "visible" : "hidden",
             }}>
