@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { ProxyAgent, type Dispatcher } from "undici";
+import { fetch as undiciFetch, ProxyAgent, type Dispatcher } from "undici";
 
 // Use Node.js runtime (default Vercel serverless)
 
@@ -17,11 +17,17 @@ const ytDispatcher: Dispatcher | undefined = YT_PROXY_URL
   ? new ProxyAgent(YT_PROXY_URL)
   : undefined;
 
-/** fetch() with the YouTube egress proxy applied when configured. */
+/** fetch() with the YouTube egress proxy applied when configured.
+ *  IMPORTANT: uses the npm undici package's OWN fetch for proxied calls —
+ *  passing its ProxyAgent into Next's built-in fetch fails with
+ *  UND_ERR_INVALID_ARG ("invalid onRequestStart method") because they are
+ *  two different undici copies (verified in production logs). */
 function ytFetch(url: string, init: RequestInit = {}): Promise<Response> {
-  // Node's fetch is undici; `dispatcher` is honored though absent from the
-  // standard RequestInit type.
-  return fetch(url, { ...init, ...(ytDispatcher ? { dispatcher: ytDispatcher } : {}) } as RequestInit);
+  if (ytDispatcher) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return undiciFetch(url, { ...(init as any), dispatcher: ytDispatcher }) as unknown as Promise<Response>;
+  }
+  return fetch(url, init);
 }
 
 /** GET /api/fetch-transcript — capability probe for the UI. */
