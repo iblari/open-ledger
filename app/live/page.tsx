@@ -1,6 +1,7 @@
 "use client";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import Link from "next/link";
+import { isDuplicateQuote } from "@/lib/claim-utils";
 
 /* ── Design Tokens (matching dashboard) ───────────────────────── */
 const T = {
@@ -495,6 +496,15 @@ export default function LiveFactCheckPage() {
 
   const [demoSpeech, setDemoSpeech] = useState<DemoSpeech | null>(null);
 
+  // Rating filter for the fact-check feed. null = show everything. Long
+  // broadcasts accumulate dozens of cards; "show me just the FALSE ones"
+  // is the most common way to read the feed.
+  const [ratingFilter, setRatingFilter] = useState<string | null>(null);
+  const filteredClaims = useMemo(
+    () => (ratingFilter ? claims.filter(c => c.rating === ratingFilter) : claims),
+    [claims, ratingFilter]
+  );
+
   const contextRef = useRef("");
   const demoAbortRef = useRef(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -526,14 +536,20 @@ export default function LiveFactCheckPage() {
     }
   }, []);
 
-  /* ── Load config on mount — check live-feed API first, fall back to static JSON ── */
+  /* ── Load config — check live-feed API first, fall back to static JSON ── */
+  // Re-polled every 30s while idle: previously this ran once on mount, so a
+  // broadcast going live while someone sat on the idle page never surfaced
+  // without a hard refresh. Now the LIVE card appears within 30s.
   useEffect(() => {
+    if (isPlaying) return; // the live-feed poll effect owns this while playing
+    let cancelled = false;
     async function loadConfig() {
       try {
         // Check if there's a live broadcast via the API
         const feedResp = await fetch("/api/live-feed");
         if (feedResp.ok) {
           const feed = await feedResp.json();
+          if (cancelled) return;
           if (feed.state?.status === "live" && feed.state.videoId) {
             // Live broadcast active — build config from API state
             setConfig({
@@ -555,11 +571,36 @@ export default function LiveFactCheckPage() {
       try {
         const resp = await fetch("/live-config.json");
         const data = await resp.json();
-        setConfig(data);
+        if (!cancelled) setConfig(data);
       } catch {}
     }
     loadConfig();
-  }, []);
+    const id = setInterval(loadConfig, 30000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, [isPlaying]);
+
+  /* ── Keyless live-stream discovery (/api/live-discover) ── */
+  // Covers the "unscheduled presser" gap: even with nothing in
+  // live-schedule.json and no worker running, streams detected on watched
+  // channels (public/live-channels.json) surface on the idle page within ~60s.
+  const [discovered, setDiscovered] = useState<{
+    channelId: string; channelLabel: string; videoId: string; title: string | null;
+  }[]>([]);
+  useEffect(() => {
+    if (isPlaying) return;
+    let cancelled = false;
+    async function discover() {
+      try {
+        const resp = await fetch("/api/live-discover");
+        if (!resp.ok) return;
+        const data = await resp.json();
+        if (!cancelled && Array.isArray(data.live)) setDiscovered(data.live);
+      } catch { /* discovery is best-effort */ }
+    }
+    discover();
+    const id = setInterval(discover, 60000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, [isPlaying]);
 
   /* ── Fetch broadcast schedule + tick clock for countdown ── */
   // The schedule comes from /api/live-schedule, which reads public/live-schedule.json.
@@ -600,6 +641,13 @@ export default function LiveFactCheckPage() {
   // Set of claim IDs we've already rendered — defensive dedup in case
   // lastPollTime gets reset by a race condition (StrictMode etc).
   const seenClaimIds = useRef<Set<string>>(new Set());
+  // Quotes of the most recent claims on screen, mirrored into a ref so the
+  // poll/auto-check closures can (a) drop near-duplicate re-statements
+  // client-side and (b) tell the server what we already have (recentQuotes).
+  const recentQuotesRef = useRef<string[]>([]);
+  useEffect(() => {
+    recentQuotesRef.current = claims.slice(0, 30).map(c => c.quote);
+  }, [claims]);
 
   useEffect(() => {
     if (!isPlaying || isDemo) return;
@@ -627,7 +675,12 @@ export default function LiveFactCheckPage() {
         // running seen-set (cheap second line of defense vs race conditions).
         if (feed.claims?.length > 0) {
           const brandNew: Claim[] = feed.claims.filter(
-            (c: Claim) => !seenClaimIds.current.has(c.id)
+            (c: Claim) =>
+              !seenClaimIds.current.has(c.id) &&
+              // Near-duplicate re-statements (same line repeated later in the
+              // speech, or a chunk-boundary overlap) — skip; the first card
+              // already carries the verdict.
+              !isDuplicateQuote(c.quote, recentQuotesRef.current)
           );
           if (brandNew.length > 0) {
             for (const c of brandNew) seenClaimIds.current.add(c.id);
@@ -675,6 +728,7 @@ export default function LiveFactCheckPage() {
     setIsDemo(false);
     setClaims([]);
     setLiveTranscript("");
+    setRatingFilter(null);
     setShowSummary(false);
     // Flush any stale claim IDs / poll cursor from a prior session — otherwise
     // claims persisted in Upstash from a previous broadcast would surface as
@@ -818,6 +872,8 @@ export default function LiveFactCheckPage() {
             body: JSON.stringify({
               text: capturedText,
               context: contextRef.current,
+              // Let the server dedupe against what's already on screen.
+              recentQuotes: recentQuotesRef.current,
             }),
           })
             .then(r => r.json())
@@ -866,6 +922,7 @@ export default function LiveFactCheckPage() {
     setIsPlaying(true);
     setClaims([]);
     setLiveTranscript("");
+    setRatingFilter(null);
     setShowSummary(false);
     setDemoSpeech(null);
 
@@ -1063,6 +1120,7 @@ export default function LiveFactCheckPage() {
       setIsPlaying(true);
       setClaims([]);
       setLiveTranscript("");
+      setRatingFilter(null);
       setShowSummary(false);
       setDemoSpeech(null);
   
@@ -1342,8 +1400,54 @@ export default function LiveFactCheckPage() {
               </div>
             )}
 
+            {/* ── Detected live streams (keyless channel discovery) ── */}
+            {/* Streams found by /api/live-discover on watched channels that
+                aren't in the schedule and have no worker running. Viewers can
+                still watch here; the fact-check feed attaches automatically
+                if/when the ingest pipeline starts for the same broadcast. */}
+            {(!config || config.status !== "live") && discovered.length > 0 && discovered.map(d => (
+              <div key={d.videoId} style={{
+                maxWidth: 700, margin: "0 auto 20px",
+                background: `linear-gradient(135deg, ${T.ink} 0%, #2d2520 100%)`,
+                borderRadius: 16, padding: mob ? 18 : 24, color: "#fff",
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+                  <span style={{
+                    width: 10, height: 10, borderRadius: "50%", background: "#dc2626",
+                    animation: "pulse 2s infinite", boxShadow: "0 0 8px rgba(220,38,38,0.5)",
+                  }} />
+                  <span style={{
+                    fontFamily: "'DM Sans',sans-serif", fontSize: 12, fontWeight: 800,
+                    textTransform: "uppercase", letterSpacing: 2, color: "#dc2626",
+                  }}>LIVE ON {d.channelLabel.toUpperCase()}</span>
+                </div>
+                <div style={{
+                  fontFamily: "'Source Serif 4',serif", fontSize: mob ? 18 : 22, fontWeight: 700,
+                  marginBottom: 14, lineHeight: 1.25,
+                }}>{d.title || `${d.channelLabel} — Live broadcast`}</div>
+                <button
+                  onClick={() => startLive(d.videoId, d.title || `${d.channelLabel} — Live`)}
+                  style={{
+                    background: "#dc2626", color: "#fff", border: "none", borderRadius: 10,
+                    padding: "12px 28px", fontFamily: "'DM Sans',sans-serif", fontSize: 14,
+                    fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 8,
+                    boxShadow: "0 4px 16px rgba(220,38,38,0.3)",
+                  }}
+                >
+                  <span style={{ fontSize: 16 }}>&#9654;</span> Watch Live
+                </button>
+                <div style={{
+                  fontFamily: "'DM Sans',sans-serif", fontSize: 10, color: "#9a9490", marginTop: 12,
+                }}>
+                  Detected automatically on a watched channel · fact-checks attach in real time when the analysis pipeline is running
+                </div>
+              </div>
+            ))}
+
             {/* ── Nothing live — editorial message ── */}
-            {(!config || config.status !== "live") && (
+            {/* Hidden when a discovered stream card is showing above — saying
+                "no live broadcast" next to a LIVE card reads as a bug. */}
+            {(!config || config.status !== "live") && discovered.length === 0 && (
               <div style={{
                 maxWidth: 700, margin: "0 auto 28px", textAlign: "center",
                 background: T.card, border: `1px solid ${T.rule}`, borderRadius: 14,
@@ -1917,11 +2021,49 @@ export default function LiveFactCheckPage() {
                 }}>{claims.length} claims</span>
               </div>
 
+              {/* Rating filter chips — visible once there's something to filter */}
+              {claims.length > 0 && (
+                <div style={{
+                  display: "flex", flexWrap: "wrap", gap: 5, padding: "8px 10px",
+                  background: T.card, borderLeft: `1px solid ${T.rule}`, borderRight: `1px solid ${T.rule}`,
+                }}>
+                  {[null, ...Object.keys(RATING_COLORS)].map(r => {
+                    const count = r === null
+                      ? claims.length
+                      : claims.filter(c => c.rating === r).length;
+                    if (r !== null && count === 0) return null;
+                    const isActive = ratingFilter === r;
+                    const chipColor = r === null ? T.ink : RATING_COLORS[r].bg;
+                    return (
+                      <button
+                        key={r ?? "all"}
+                        onClick={() => setRatingFilter(isActive ? null : r)}
+                        style={{
+                          fontFamily: "'DM Sans',sans-serif", fontSize: 10, fontWeight: 700,
+                          padding: "3px 9px", borderRadius: 12, cursor: "pointer",
+                          letterSpacing: 0.3,
+                          border: `1px solid ${isActive ? chipColor : T.rule}`,
+                          background: isActive ? chipColor : T.card,
+                          color: isActive ? "#fff" : T.sub,
+                          transition: "all 0.15s",
+                        }}
+                      >
+                        {r === null ? "ALL" : r} {count}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
               {/* Claims list */}
               <div style={{
                 flex: 1, overflowY: "auto", padding: "8px 0",
                 background: T.paper, border: `1px solid ${T.rule}`, borderTop: "none",
                 borderRadius: "0 0 8px 8px",
+                // On mobile the panel sits below the video in normal flow;
+                // give the list its own scroll so a long feed doesn't turn
+                // the page into an endless scroll past the summary.
+                maxHeight: mob ? 420 : undefined,
               }}>
                 <div style={{ padding: "0 8px" }}>
                   {claims.length === 0 && (
@@ -1934,7 +2076,15 @@ export default function LiveFactCheckPage() {
                       <div style={{ fontSize: 11 }}>Fact-check cards will appear here as economic claims are detected.</div>
                     </div>
                   )}
-                  {claims.map(c => (
+                  {claims.length > 0 && filteredClaims.length === 0 && (
+                    <div style={{
+                      textAlign: "center", padding: "24px 16px",
+                      fontFamily: "'DM Sans',sans-serif", color: T.mute, fontSize: 11,
+                    }}>
+                      No {ratingFilter} claims yet.
+                    </div>
+                  )}
+                  {filteredClaims.map(c => (
                     <FactCard key={c.id} claim={c} isNew={newClaimIds.has(c.id)} onSeek={seekVideo} />
                   ))}
                 </div>
