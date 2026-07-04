@@ -74,6 +74,22 @@ async function probeChannel(ch: ChannelDef): Promise<LiveHit | null> {
       : null;
     if (!title || title.toLowerCase() === ch.label.toLowerCase()) title = null;
 
+    // The channel /live page served to datacenter IPs sometimes omits the
+    // title metas entirely (observed for C-SPAN in production). YouTube's
+    // official oEmbed endpoint is keyless, cheap, and authoritative.
+    if (!title) {
+      try {
+        const oe = await fetch(
+          `https://www.youtube.com/oembed?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3D${vidMatch[1]}&format=json`,
+          { signal: AbortSignal.timeout(4000) }
+        );
+        if (oe.ok) {
+          const j = await oe.json();
+          if (typeof j.title === "string" && j.title.trim()) title = j.title.trim();
+        }
+      } catch { /* title stays null → UI uses channel-label fallback */ }
+    }
+
     return {
       channelId: ch.id,
       channelLabel: ch.label,
