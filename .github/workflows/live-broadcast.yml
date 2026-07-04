@@ -67,6 +67,14 @@ jobs:
         with:
           node-version: "20"
 
+      # Deno gives yt-dlp a JS runtime to solve YouTube's player challenges —
+      # without one, the web client's formats are gated and datacenter IPs
+      # hit the "confirm you're not a bot" wall more often.
+      - name: Install Deno (yt-dlp JS runtime)
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
       # The ubuntu-latest runner has ffmpeg pre-installed; yt-dlp is not.
       - name: Install yt-dlp
         run: |

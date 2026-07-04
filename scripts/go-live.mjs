@@ -134,6 +134,63 @@ if (durationSec) {
 }
 console.log(``);
 
+// ── Step 1: Get audio stream URL via yt-dlp ────────────────────
+//
+// ORDER MATTERS: extract audio BEFORE flipping the site to live. The old
+// order set the site live first, so a yt-dlp failure (e.g. YouTube's
+// "confirm you're not a bot" challenge on datacenter IPs) left the site
+// stuck showing a phantom live card with a stale transcript.
+//
+// Bot-check mitigation: YouTube gates the default web client behind PO
+// tokens on datacenter IPs (GitHub runners). The android/tv/ios players
+// usually aren't gated — try a sequence of client configs before giving
+// up. Extra args can be injected via YT_DLP_EXTRA_ARGS (space-separated,
+// e.g. "--cookies /path/cookies.txt") without a code change.
+
+function tryYtDlp(extraArgs) {
+  return new Promise((resolve) => {
+    const args = ["-f", "bestaudio", "--get-url", ...extraArgs, YOUTUBE_URL];
+    const proc = spawn("yt-dlp", args);
+    let url = "";
+    let errText = "";
+    proc.stdout.on("data", (d) => { url += d.toString().trim(); });
+    proc.stderr.on("data", (d) => { errText += d.toString(); });
+    proc.on("error", () => resolve({ url: null, errText: "yt-dlp not installed (brew install yt-dlp)" }));
+    proc.on("close", (code) => {
+      resolve({ url: code === 0 && url ? url : null, errText });
+    });
+  });
+}
+
+console.log("→ Extracting audio stream URL...");
+const userExtra = (process.env.YT_DLP_EXTRA_ARGS || "").split(/\s+/).filter(Boolean);
+const CLIENT_ATTEMPTS = [
+  ...(userExtra.length ? [userExtra] : []),                  // user-supplied escalation first
+  [],                                                        // default client
+  ["--extractor-args", "youtube:player_client=android,tv"],  // usually skips PO-token gate
+  ["--extractor-args", "youtube:player_client=ios"],
+  ["--extractor-args", "youtube:player_client=tv_embedded"],
+];
+let audioUrl = null;
+for (const attempt of CLIENT_ATTEMPTS) {
+  const label = attempt.length ? attempt.join(" ") : "(default client)";
+  const { url, errText } = await tryYtDlp(attempt);
+  if (url) {
+    console.log(`  ✓ Got audio stream URL via ${label}`);
+    audioUrl = url;
+    break;
+  }
+  const firstErr = (errText.split("\n").find(l => l.includes("ERROR")) || errText.split("\n")[0] || "").trim();
+  console.error(`  ✗ ${label}: ${firstErr.slice(0, 160)}`);
+}
+if (!audioUrl) {
+  console.error("  ERROR: all yt-dlp client attempts failed. On a datacenter IP,");
+  console.error("  YouTube may require cookies: set YT_DLP_EXTRA_ARGS='--cookies <file>'.");
+  process.exit(1);
+}
+
+// ── Step 2: Set the site LIVE (only now that we have audio) ────
+
 console.log("→ Setting site to LIVE...");
 const goLiveResp = await adminCall("/api/admin/go-live", {
   action: "start",
@@ -147,32 +204,28 @@ if (goLiveResp.error) {
 }
 console.log("  ✓ Site is now LIVE");
 
-// ── Step 2: Get audio stream URL via yt-dlp ────────────────────
-
-console.log("→ Extracting audio stream URL...");
-const ytdlp = spawn("yt-dlp", [
-  "-f", "bestaudio",
-  "--get-url",
-  YOUTUBE_URL,
-]);
-
-let audioUrl = "";
-ytdlp.stdout.on("data", (d) => { audioUrl += d.toString().trim(); });
-ytdlp.stderr.on("data", (d) => {
-  const msg = d.toString().trim();
-  if (msg && !msg.startsWith("[")) console.error("  yt-dlp:", msg);
+// From here on, ANY exit — crash, rejection — must flip the site back to
+// off, or viewers see a phantom live card until the next successful run.
+let siteStopped = false;
+async function emergencyStop(reason) {
+  if (siteStopped) return;
+  siteStopped = true;
+  try {
+    await adminCall("/api/admin/go-live", { action: "stop" });
+    console.log(`\n✓ Site set to OFF (${reason})`);
+  } catch (e) {
+    console.error("  WARNING: failed to stop site:", e?.message || e);
+  }
+}
+process.on("uncaughtException", async (e) => {
+  console.error("UNCAUGHT:", e);
+  await emergencyStop("uncaught exception");
+  process.exit(1);
 });
-
-await new Promise((resolve, reject) => {
-  ytdlp.on("close", (code) => {
-    if (code !== 0 || !audioUrl) {
-      console.error("  ERROR: yt-dlp failed. Is it installed? (brew install yt-dlp)");
-      reject(new Error("yt-dlp failed"));
-    } else {
-      console.log("  ✓ Got audio stream URL");
-      resolve(undefined);
-    }
-  });
+process.on("unhandledRejection", async (e) => {
+  console.error("UNHANDLED REJECTION:", e);
+  await emergencyStop("unhandled rejection");
+  process.exit(1);
 });
 
 // ── Step 3: Connect to Deepgram ─────────────────────────────────
