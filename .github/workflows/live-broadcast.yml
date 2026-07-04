@@ -75,14 +75,23 @@ jobs:
         with:
           deno-version: v2.x
 
-      # The ubuntu-latest runner has ffmpeg pre-installed; yt-dlp is not.
-      - name: Install yt-dlp
+      # YouTube requires PO (proof-of-origin) tokens from datacenter IPs —
+      # without one, EVERY player client gets "Sign in to confirm you're not
+      # a bot" (verified: default/android/tv/ios all rejected from a GitHub
+      # runner). bgutil-ytdlp-pot-provider is the community-standard fix: a
+      # local token-generator sidecar + a yt-dlp plugin that consumes it.
+      # The plugin requires pip-installed yt-dlp (standalone binary can't
+      # load pip plugins), so we install via pip instead of the release
+      # binary.
+      - name: Start PO-token provider + install yt-dlp with plugin
         run: |
-          sudo curl -L -o /usr/local/bin/yt-dlp \
-            https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp
-          sudo chmod a+rx /usr/local/bin/yt-dlp
+          docker run -d --name pot-provider -p 4416:4416 brainicism/bgutil-ytdlp-pot-provider
+          pip install -U yt-dlp bgutil-ytdlp-pot-provider
           yt-dlp --version
           ffmpeg -version | head -1
+          # Give the provider a moment to boot, then confirm it's answering.
+          sleep 3
+          curl -sf http://127.0.0.1:4416/ping && echo " — pot provider up"
 
       - name: Install ws (Deepgram WebSocket dep)
         run: npm install ws --no-save --no-audit --no-fund
@@ -195,3 +204,20 @@ jobs:
           set -e
           echo "Starting worker for event $EV_ID"
           node scripts/go-live.mjs "$EV_URL" "$EV_TITLE" --duration "$EV_DURATION"
+
+      # Safety net: whatever happened above, make sure the site isn't left
+      # showing a phantom live card. go-live.mjs handles its own failures,
+      # but a hard runner kill (timeout, cancellation) can't be caught in
+      # the script — this step runs even then. Stopping an already-off
+      # site is a harmless no-op.
+      - name: Ensure site is not left in live state
+        if: always() && (steps.schedule.outputs.has_event == 'true' || steps.discover.outputs.has_event == 'true')
+        env:
+          ADMIN_KEY: ${{ secrets.ADMIN_KEY }}
+          API_URL: ${{ secrets.API_URL || 'https://voteunbiased.org' }}
+        run: |
+          curl -s -X POST "$API_URL/api/admin/go-live" \
+            -H "Authorization: Bearer $ADMIN_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{"action":"stop"}' | head -c 200
+          echo " — live state cleared"
