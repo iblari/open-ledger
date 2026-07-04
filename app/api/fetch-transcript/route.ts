@@ -150,9 +150,43 @@ function pickBestTrack(tracks: CaptionTrack[]): CaptionTrack {
 }
 
 /**
- * Call InnerTube ANDROID client to get caption track URLs.
- * Forwards the real client IP via X-Forwarded-For to help bypass datacenter IP blocks.
+ * Call InnerTube to get caption track URLs, trying a LADDER of player
+ * clients — YouTube gates each differently by IP reputation. Verified in
+ * production logs: the ANDROID client returns LOGIN_REQUIRED from Vercel's
+ * (AWS) egress, while TVHTML5_SIMPLY_EMBEDDED_PLAYER — the client that
+ * exists for embeds on third-party sites — historically bypasses the login
+ * gate. Forwards the real client IP via X-Forwarded-For as an extra hint.
  */
+const INNERTUBE_CLIENTS: {
+  label: string;
+  userAgent: string;
+  context: Record<string, unknown>;
+}[] = [
+  {
+    label: "ANDROID",
+    userAgent: INNERTUBE_USER_AGENT,
+    context: { client: { clientName: "ANDROID", clientVersion: INNERTUBE_CLIENT_VERSION } },
+  },
+  {
+    label: "TV_EMBEDDED",
+    userAgent: WEB_USER_AGENT,
+    context: {
+      client: { clientName: "TVHTML5_SIMPLY_EMBEDDED_PLAYER", clientVersion: "2.0" },
+      thirdParty: { embedUrl: "https://www.youtube.com" },
+    },
+  },
+  {
+    label: "IOS",
+    userAgent: "com.google.ios.youtube/20.10.4 (iPhone16,2; U; CPU iOS 17_5_1 like Mac OS X)",
+    context: { client: { clientName: "IOS", clientVersion: "20.10.4" } },
+  },
+  {
+    label: "WEB",
+    userAgent: WEB_USER_AGENT,
+    context: { client: { clientName: "WEB", clientVersion: "2.20250101.00.00" } },
+  },
+];
+
 async function getInnerTubeData(
   videoId: string,
   clientIp?: string
@@ -160,57 +194,50 @@ async function getInnerTubeData(
   title: string;
   captionTracks: CaptionTrack[];
 } | null> {
-  try {
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-      "User-Agent": INNERTUBE_USER_AGENT,
-    };
-    // Forward the real client IP — YouTube may use this instead of the server IP
-    if (clientIp) {
-      headers["X-Forwarded-For"] = clientIp;
+  for (const client of INNERTUBE_CLIENTS) {
+    try {
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        "User-Agent": client.userAgent,
+      };
+      // Forward the real client IP — YouTube may use this instead of the server IP
+      if (clientIp) {
+        headers["X-Forwarded-For"] = clientIp;
+      }
+
+      const resp = await fetch(INNERTUBE_API_URL, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ context: client.context, videoId }),
+      });
+
+      if (!resp.ok) {
+        console.log(`[${videoId}] InnerTube(${client.label}) returned ${resp.status}`);
+        continue;
+      }
+
+      const data = await resp.json();
+      const status = data?.playabilityStatus?.status;
+
+      const title = data?.videoDetails?.title || "YouTube Video";
+      const captionTracks: CaptionTrack[] | undefined =
+        data?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
+
+      if (!Array.isArray(captionTracks) || captionTracks.length === 0) {
+        console.log(`[${videoId}] InnerTube(${client.label}): status=${status}, no caption tracks`);
+        continue;
+      }
+
+      console.log(
+        `[${videoId}] InnerTube(${client.label}): ${captionTracks.length} tracks, first: ${captionTracks[0].languageCode} (${captionTracks[0].kind || "manual"})`
+      );
+
+      return { title, captionTracks };
+    } catch (e) {
+      console.error(`[${videoId}] InnerTube(${client.label}) error:`, e);
     }
-
-    const resp = await fetch(INNERTUBE_API_URL, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        context: {
-          client: {
-            clientName: "ANDROID",
-            clientVersion: INNERTUBE_CLIENT_VERSION,
-          },
-        },
-        videoId,
-      }),
-    });
-
-    if (!resp.ok) {
-      console.log(`[${videoId}] InnerTube API returned ${resp.status}`);
-      return null;
-    }
-
-    const data = await resp.json();
-    const status = data?.playabilityStatus?.status;
-    console.log(`[${videoId}] InnerTube status: ${status}`);
-
-    const title = data?.videoDetails?.title || "YouTube Video";
-    const captionTracks: CaptionTrack[] | undefined =
-      data?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
-
-    if (!Array.isArray(captionTracks) || captionTracks.length === 0) {
-      console.log(`[${videoId}] InnerTube: no caption tracks`);
-      return null;
-    }
-
-    console.log(
-      `[${videoId}] InnerTube: ${captionTracks.length} tracks, first: ${captionTracks[0].languageCode} (${captionTracks[0].kind || "manual"})`
-    );
-
-    return { title, captionTracks };
-  } catch (e) {
-    console.error(`[${videoId}] InnerTube error:`, e);
-    return null;
   }
+  return null;
 }
 
 /**
