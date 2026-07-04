@@ -1,10 +1,16 @@
 # Vote Unbiased — Live Broadcast auto-trigger.
 #
-# Every 5 minutes, this workflow checks /api/live-schedule. If an event is
-# currently within its "active window" (scheduled start - 10 min pre-roll
-# through scheduled end + 30 min post-roll), it runs scripts/go-live.mjs
-# for the remaining duration. The transcript pipeline (yt-dlp → ffmpeg →
-# Deepgram → /api/admin/ingest) does the rest.
+# Every 5 minutes, this workflow:
+#   1. Checks /api/live-schedule. If an event is within its active window
+#      (start - 10 min pre-roll → end + 30 min post-roll), covers it.
+#   2. OTHERWISE checks /api/live-discover: if a watched channel with
+#      "autoCover": true (public/live-channels.json) is streaming, covers
+#      it automatically — no schedule entry needed. Capped per session by
+#      the channel's maxCoverMinutes; re-covered by the next tick if the
+#      stream outlives the cap.
+# Either way it runs scripts/go-live.mjs for the computed duration and the
+# transcript pipeline (yt-dlp → ffmpeg → Deepgram → /api/admin/ingest)
+# does the rest.
 #
 # The script also auto-stops itself via --duration so the GitHub Action
 # runner exits cleanly when the event ends — no orphan workers.
@@ -47,11 +53,12 @@ jobs:
     timeout-minutes: 350
 
     steps:
-      - name: Check out repo (only need scripts/)
+      - name: Check out repo (only need scripts/ + channel config)
         uses: actions/checkout@v4
         with:
           sparse-checkout: |
             scripts/
+            public/live-channels.json
             package.json
             package-lock.json
 
@@ -116,16 +123,67 @@ jobs:
           echo "Found event: $(echo "$RESP" | jq -r '.active.title')"
           echo "Will run for ${DURATION}s (~$((DURATION/60)) min)"
 
+      # ── Discovery fallback ──────────────────────────────────────
+      # No scheduled event? Ask /api/live-discover whether any WATCHED
+      # channel is streaming right now. Channels opt in to automatic
+      # coverage via "autoCover": true in public/live-channels.json —
+      # channels that stream near-24/7 (C-SPAN) stay opt-out so a cron
+      # can't silently buy continuous transcription. Each auto-session is
+      # capped by the channel's maxCoverMinutes; if the stream is still
+      # live afterwards, the next cron tick starts a fresh session, so
+      # long events get covered in capped blocks.
+      - name: Check discovered streams
+        id: discover
+        if: steps.schedule.outputs.has_event != 'true'
+        env:
+          API_URL: ${{ secrets.API_URL || 'https://voteunbiased.org' }}
+        run: |
+          set -e
+          echo "No scheduled event — checking /api/live-discover..."
+          RESP=$(curl -fsSL "$API_URL/api/live-discover" || echo '{"live":[]}')
+          echo "$RESP" | head -c 800
+          echo
+          # Join discovered streams against the channel config: keep only
+          # autoCover channels, preserve config order as priority.
+          PICK=$(jq -n \
+            --argjson disc "$(echo "$RESP" | jq '.live // []')" \
+            --argjson conf "$(jq '.channels' public/live-channels.json)" \
+            '[ $conf[] | select(.autoCover == true) as $c
+               | $disc[] | select(.channelId == $c.id)
+               | { videoId, title, channelId, channelLabel,
+                   maxMin: ($c.maxCoverMinutes // 180) } ] | first // empty')
+          if [ -z "$PICK" ]; then
+            echo "No auto-cover channel is live. Exiting cleanly."
+            echo "has_event=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          MAX_MIN="${{ github.event.inputs.max_duration_min || '300' }}"
+          CH_MIN=$(echo "$PICK" | jq -r '.maxMin')
+          DUR_MIN=$(( CH_MIN < MAX_MIN ? CH_MIN : MAX_MIN ))
+          VID=$(echo "$PICK" | jq -r '.videoId')
+          LABEL=$(echo "$PICK" | jq -r '.channelLabel')
+          TITLE=$(echo "$PICK" | jq -r 'if (.title // "") == "" then .channelLabel + " — Live" else .title end')
+          {
+            echo "has_event=true"
+            echo "youtube_url=https://www.youtube.com/watch?v=$VID"
+            echo "title=$TITLE"
+            echo "event_id=discovered-$VID"
+            echo "duration_sec=$((DUR_MIN * 60))"
+          } >> "$GITHUB_OUTPUT"
+          echo "Auto-covering: $TITLE ($LABEL) for ${DUR_MIN}min"
+
       - name: Run live broadcast worker
-        if: steps.schedule.outputs.has_event == 'true'
+        if: steps.schedule.outputs.has_event == 'true' || steps.discover.outputs.has_event == 'true'
         env:
           DEEPGRAM_API_KEY: ${{ secrets.DEEPGRAM_API_KEY }}
           ADMIN_KEY: ${{ secrets.ADMIN_KEY }}
           API_URL: ${{ secrets.API_URL || 'https://voteunbiased.org' }}
+          # Scheduled event wins; discovery only fires when schedule was empty.
+          EV_URL: ${{ steps.schedule.outputs.has_event == 'true' && steps.schedule.outputs.youtube_url || steps.discover.outputs.youtube_url }}
+          EV_TITLE: ${{ steps.schedule.outputs.has_event == 'true' && steps.schedule.outputs.title || steps.discover.outputs.title }}
+          EV_ID: ${{ steps.schedule.outputs.has_event == 'true' && steps.schedule.outputs.event_id || steps.discover.outputs.event_id }}
+          EV_DURATION: ${{ steps.schedule.outputs.has_event == 'true' && steps.schedule.outputs.duration_sec || steps.discover.outputs.duration_sec }}
         run: |
           set -e
-          echo "Starting worker for event ${{ steps.schedule.outputs.event_id }}"
-          node scripts/go-live.mjs \
-            "${{ steps.schedule.outputs.youtube_url }}" \
-            "${{ steps.schedule.outputs.title }}" \
-            --duration "${{ steps.schedule.outputs.duration_sec }}"
+          echo "Starting worker for event $EV_ID"
+          node scripts/go-live.mjs "$EV_URL" "$EV_TITLE" --duration "$EV_DURATION"

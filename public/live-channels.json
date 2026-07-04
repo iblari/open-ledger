@@ -1,9 +1,10 @@
 {
   "_comment": "Vote Unbiased — channels probed by /api/live-discover for live streams. Each entry's url must be a YouTube /live channel URL. Detection is keyless (no YouTube API quota): the endpoint fetches the page and reads ytInitialPlayerResponse.",
+  "_autoCover": "autoCover: true lets the Live Broadcast GitHub Action start the Deepgram→Claude fact-check worker AUTOMATICALLY when this channel goes live (no schedule entry needed). Guardrails: maxCoverMinutes caps each auto-session (~$0.36/hr Deepgram + Claude); the next cron tick re-covers if still live. Leave autoCover false for channels that stream near-24/7 (C-SPAN) — enabling it there means paying for continuous coverage.",
   "channels": [
-    { "id": "whitehouse", "label": "The White House", "url": "https://www.youtube.com/@WhiteHouse/live" },
-    { "id": "cspan", "label": "C-SPAN", "url": "https://www.youtube.com/@CSPAN/live" },
-    { "id": "houseoversight", "label": "House Oversight Committee", "url": "https://www.youtube.com/@OversightCommittee/live" },
-    { "id": "senatebanking", "label": "Senate Banking Committee", "url": "https://www.youtube.com/@SenateBankingHousingandUrbanAffairs/live" }
+    { "id": "whitehouse", "label": "The White House", "url": "https://www.youtube.com/@WhiteHouse/live", "autoCover": true, "maxCoverMinutes": 180 },
+    { "id": "cspan", "label": "C-SPAN", "url": "https://www.youtube.com/@CSPAN/live", "autoCover": false, "maxCoverMinutes": 180 },
+    { "id": "houseoversight", "label": "House Oversight Committee", "url": "https://www.youtube.com/@OversightCommittee/live", "autoCover": true, "maxCoverMinutes": 240 },
+    { "id": "senatebanking", "label": "Senate Banking Committee", "url": "https://www.youtube.com/@SenateBankingHousingandUrbanAffairs/live", "autoCover": true, "maxCoverMinutes": 240 }
   ]
 }

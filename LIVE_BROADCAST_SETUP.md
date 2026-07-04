@@ -86,6 +86,28 @@ Should return:
 
 If `ok: false`, the JSON is malformed — fix `public/live-schedule.json`.
 
+## Automatic coverage (no schedule needed)
+
+Channels listed in `public/live-channels.json` with `"autoCover": true` are
+covered **automatically**: the same 5-minute cron checks `/api/live-discover`
+whenever the schedule is empty, and if a watched channel is streaming, the
+worker starts on its own. The White House goes live → the site notices within
+~60s → the worker spins up on the next cron tick → viewers get fact-checks.
+Zero manual steps.
+
+Guardrails (read before enabling a channel):
+
+- **`autoCover: false` for near-24/7 channels.** C-SPAN streams most of the
+  day; auto-covering it means paying for continuous transcription
+  (~$0.36/hr Deepgram + Claude). It ships disabled — flip it deliberately.
+- **`maxCoverMinutes`** caps each auto-session. If the stream outlives the
+  cap, the next cron tick starts a fresh session, so long events are covered
+  in capped blocks and a runaway stream can't hold a worker for 6 hours.
+- **Priority = order in the file.** If two auto-cover channels are live at
+  once, the one listed first wins (one worker at a time by design).
+- **Scheduled events always win** over discovery — the discovery check only
+  runs when the schedule has nothing active.
+
 ## Adding a broadcast
 
 Edit `public/live-schedule.json`:
