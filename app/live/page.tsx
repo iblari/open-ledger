@@ -746,6 +746,9 @@ export default function LiveFactCheckPage() {
   // Set of claim IDs we've already rendered — defensive dedup in case
   // lastPollTime gets reset by a race condition (StrictMode etc).
   const seenClaimIds = useRef<Set<string>>(new Set());
+  // Whether THIS viewing session ever saw the ingest pipeline live. Guards
+  // the end-of-broadcast check: a feed that was never live isn't "ended".
+  const sawPipelineLive = useRef(false);
   // Quotes of the most recent claims on screen, mirrored into a ref so the
   // poll/auto-check closures can (a) drop near-duplicate re-statements
   // client-side and (b) tell the server what we already have (recentQuotes).
@@ -800,8 +803,15 @@ export default function LiveFactCheckPage() {
           }
         }
 
-        // Check if broadcast ended
-        if (feed.state?.status === "off") {
+        // Check if broadcast ended. ONLY treat "off" as an ending if this
+        // session actually saw the pipeline live at some point — discovered
+        // streams (channel-watcher) play without a worker, so the feed
+        // reports "off" from the very first poll; ending on that killed the
+        // viewer's session instantly with a "0 claims" summary.
+        if (feed.state?.status === "live") {
+          sawPipelineLive.current = true;
+        }
+        if (feed.state?.status === "off" && sawPipelineLive.current) {
           setShowSummary(true);
           setIsPlaying(false);
         }
@@ -859,6 +869,7 @@ export default function LiveFactCheckPage() {
     // Set the poll cursor to "now" so we only pick up claims ingested AFTER
     // this user pressed start, not whatever's stored from the last session.
     lastPollTime.current = new Date().toISOString();
+    sawPipelineLive.current = false;
     setPollError(null);
 
     contextRef.current = "";
