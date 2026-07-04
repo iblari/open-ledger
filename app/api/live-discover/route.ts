@@ -31,11 +31,16 @@ interface LiveHit {
   title: string | null;
   url: string;
 }
+interface UpcomingHit extends LiveHit {
+  /** ISO timestamp YouTube says the stream is scheduled to start. */
+  scheduledStart: string;
+}
+interface ProbeResult { live: LiveHit | null; upcoming: UpcomingHit | null }
 
 const CACHE_TTL_MS = 60_000;
-let cache: { at: number; hits: LiveHit[] } | null = null;
+let cache: { at: number; hits: LiveHit[]; upcoming: UpcomingHit[] } | null = null;
 
-async function probeChannel(ch: ChannelDef): Promise<LiveHit | null> {
+async function probeChannel(ch: ChannelDef): Promise<ProbeResult> {
   try {
     const resp = await fetch(ch.url, {
       headers: {
@@ -47,17 +52,11 @@ async function probeChannel(ch: ChannelDef): Promise<LiveHit | null> {
       redirect: "follow",
       signal: AbortSignal.timeout(6000),
     });
-    if (!resp.ok) return null;
+    if (!resp.ok) return { live: null, upcoming: null };
     const html = await resp.text();
 
-    // Live check: player response marks the stream live.
-    if (!/"isLive"\s*:\s*true/.test(html)) return null;
-    // Some "upcoming" pages also embed isLive-adjacent flags; require absence
-    // of the explicit upcoming marker.
-    if (/"isUpcoming"\s*:\s*true/.test(html) && !/"isLiveNow"\s*:\s*true/.test(html)) return null;
-
     const vidMatch = html.match(/"videoId"\s*:\s*"([A-Za-z0-9_-]{11})"/);
-    if (!vidMatch) return null;
+    if (!vidMatch) return { live: null, upcoming: null };
 
     const titleMatch =
       html.match(/<meta\s+name="title"\s+content="([^"]+)"/) ||
@@ -66,23 +65,46 @@ async function probeChannel(ch: ChannelDef): Promise<LiveHit | null> {
       ? titleMatch[1].replace(/ - YouTube$/, "").trim()
       : null;
 
-    return {
+    const base = {
       channelId: ch.id,
       channelLabel: ch.label,
       videoId: vidMatch[1],
       title,
       url: `https://www.youtube.com/watch?v=${vidMatch[1]}`,
     };
+
+    const isUpcoming =
+      /"isUpcoming"\s*:\s*true/.test(html) && !/"isLiveNow"\s*:\s*true/.test(html);
+
+    if (isUpcoming) {
+      // Scheduled-but-not-started stream: YouTube embeds the start time as
+      // epoch seconds in liveStreamability / upcomingEventData. This is the
+      // autopilot's raw material — a machine-readable "tune in at HH:MM".
+      const t = html.match(/"scheduledStartTime"\s*:\s*"?(\d{10,13})"?/);
+      if (t) {
+        const ms = t[1].length >= 13 ? Number(t[1]) : Number(t[1]) * 1000;
+        return {
+          live: null,
+          upcoming: { ...base, scheduledStart: new Date(ms).toISOString() },
+        };
+      }
+      return { live: null, upcoming: null };
+    }
+
+    if (/"isLive"\s*:\s*true/.test(html)) {
+      return { live: base, upcoming: null };
+    }
+    return { live: null, upcoming: null };
   } catch {
     // Timeouts / blocks are expected occasionally — treat as "not live".
-    return null;
+    return { live: null, upcoming: null };
   }
 }
 
 export async function GET() {
   if (cache && Date.now() - cache.at < CACHE_TTL_MS) {
     return NextResponse.json(
-      { ok: true, cached: true, live: cache.hits },
+      { ok: true, cached: true, live: cache.hits, upcoming: cache.upcoming },
       { headers: { "Cache-Control": "s-maxage=60, stale-while-revalidate=120" } }
     );
   }
@@ -100,11 +122,12 @@ export async function GET() {
   }
 
   const results = await Promise.all(channels.map(probeChannel));
-  const hits = results.filter((h): h is LiveHit => h !== null);
+  const hits = results.map(r => r.live).filter((h): h is LiveHit => h !== null);
+  const upcoming = results.map(r => r.upcoming).filter((u): u is UpcomingHit => u !== null);
 
-  cache = { at: Date.now(), hits };
+  cache = { at: Date.now(), hits, upcoming };
   return NextResponse.json(
-    { ok: true, cached: false, live: hits },
+    { ok: true, cached: false, live: hits, upcoming },
     { headers: { "Cache-Control": "s-maxage=60, stale-while-revalidate=120" } }
   );
 }

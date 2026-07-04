@@ -11,18 +11,16 @@
 // with 20 events), so re-parsing per request is fine.
 
 import { NextResponse } from "next/server";
-import { promises as fs } from "fs";
-import path from "path";
-import { computeStatus, type LiveSchedule } from "@/lib/schedule";
+import { computeStatus } from "@/lib/schedule";
+import { loadAllScheduleEvents } from "@/lib/schedule-store";
 
 export const dynamic = "force-dynamic"; // never cache; schedule changes mid-day
 
 export async function GET() {
   try {
-    const file = path.join(process.cwd(), "public", "live-schedule.json");
-    const raw = await fs.readFile(file, "utf8");
-    const data: LiveSchedule = JSON.parse(raw);
-    const status = computeStatus(data.events ?? [], Date.now());
+    // File events (repo) + KV events (autopilot) merged — see schedule-store.
+    const events = await loadAllScheduleEvents();
+    const status = computeStatus(events, Date.now());
     return NextResponse.json({
       ok: true,
       now: new Date().toISOString(),

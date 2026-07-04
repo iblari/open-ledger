@@ -161,3 +161,69 @@ export async function getLiveTranscript(): Promise<string> {
   }
   return raw || "";
 }
+
+// ── KV-backed schedule events (autopilot) ─────────────────────────
+//
+// Events discovered automatically (upcoming livestreams on watched
+// channels, later: official calendars) are stored HERE, not in
+// public/live-schedule.json — a JSON-file write would require a commit +
+// deploy, while a KV write is live on the site within seconds and needs
+// no human. /api/live-schedule and /api/schedule.ics merge both sources.
+
+const SCHEDULE_EVENTS_KEY = "live:schedule-events";
+
+export interface KvScheduledEvent {
+  id: string;
+  title: string;
+  speaker: string;
+  source: string;
+  youtubeUrl?: string;
+  streamUrl?: string;
+  scheduledStart: string;
+  scheduledEnd: string;
+  /** Where the autopilot got this event from, e.g. "youtube-upcoming". */
+  discoveredVia?: string;
+}
+
+export async function getKvScheduleEvents(): Promise<KvScheduledEvent[]> {
+  let raw: string | null | undefined;
+  if (hasUpstash()) {
+    raw = (await upstashCmd("GET", SCHEDULE_EVENTS_KEY)) as string | null;
+  } else {
+    raw = mem.get(SCHEDULE_EVENTS_KEY);
+  }
+  if (!raw) return [];
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return [];
+  }
+}
+
+export async function setKvScheduleEvents(events: KvScheduledEvent[]): Promise<void> {
+  const json = JSON.stringify(events);
+  if (hasUpstash()) {
+    await upstashCmd("SET", SCHEDULE_EVENTS_KEY, json);
+  } else {
+    mem.set(SCHEDULE_EVENTS_KEY, json);
+  }
+}
+
+/** Upsert events by id and prune anything that ended >48h ago. */
+export async function upsertKvScheduleEvents(
+  incoming: KvScheduledEvent[]
+): Promise<{ total: number; added: number; updated: number; pruned: number }> {
+  const existing = await getKvScheduleEvents();
+  const byId = new Map(existing.map(e => [e.id, e]));
+  let added = 0, updated = 0;
+  for (const ev of incoming) {
+    if (!ev.id || !ev.scheduledStart || !ev.scheduledEnd) continue;
+    if (byId.has(ev.id)) updated++; else added++;
+    byId.set(ev.id, ev);
+  }
+  const cutoff = Date.now() - 48 * 3600 * 1000;
+  const kept = [...byId.values()].filter(e => Date.parse(e.scheduledEnd) > cutoff);
+  const pruned = byId.size - kept.length;
+  await setKvScheduleEvents(kept);
+  return { total: kept.length, added, updated, pruned };
+}

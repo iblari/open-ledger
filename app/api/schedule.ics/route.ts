@@ -1,6 +1,5 @@
-import { readFile } from "fs/promises";
-import path from "path";
 import { type ScheduledEvent } from "@/lib/schedule";
+import { loadAllScheduleEvents } from "@/lib/schedule-store";
 
 /**
  * GET /api/schedule.ics            — iCalendar feed of ALL upcoming broadcasts
@@ -46,11 +45,11 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const only = searchParams.get("event");
 
+  // File events (repo) + KV events (autopilot) merged — anything the
+  // autopilot schedules lands in subscribers' calendars automatically.
   let events: ScheduledEvent[] = [];
   try {
-    const file = path.join(process.cwd(), "public", "live-schedule.json");
-    const parsed = JSON.parse(await readFile(file, "utf8"));
-    events = Array.isArray(parsed.events) ? parsed.events : [];
+    events = await loadAllScheduleEvents();
   } catch {
     /* empty calendar below */
   }
