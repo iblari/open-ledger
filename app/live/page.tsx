@@ -792,8 +792,12 @@ export default function LiveFactCheckPage() {
         // Clear stale error on a successful poll.
         if (pollError) setPollError(null);
 
-        // Update transcript
-        if (feed.transcript) {
+        // Update transcript — ONLY while the ingest pipeline is actually
+        // live. The KV transcript persists after a broadcast (and after
+        // tests), so unconditionally displaying it put months-old test
+        // text under an unrelated stream (observed: May test transcript
+        // under the July 4th concert).
+        if (feed.transcript && feed.state?.status === "live") {
           setLiveTranscript(feed.transcript);
         }
 
