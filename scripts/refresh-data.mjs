@@ -25,7 +25,7 @@
  *     a = admin id ("clinton" | "bush" | "obama" | "trump1" | "biden" | "trump2")
  */
 
-import { writeFileSync, mkdirSync } from "node:fs";
+import { writeFileSync, mkdirSync, readFileSync, existsSync } from "node:fs";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -58,12 +58,12 @@ function adminForYear(year) {
 
 // ── FRED helper ──────────────────────────────────────────────────
 
-async function fredObservations(seriesId) {
+async function fredObservations(seriesId, startYear = FIRST_YEAR) {
   const url = `https://api.stlouisfed.org/fred/series/observations`
     + `?series_id=${seriesId}`
     + `&api_key=${FRED_API_KEY}`
     + `&file_type=json`
-    + `&observation_start=${FIRST_YEAR}-01-01`;
+    + `&observation_start=${startYear}-01-01`;
   const res = await fetch(url);
   if (!res.ok) {
     throw new Error(`FRED ${seriesId}: HTTP ${res.status} — ${await res.text().catch(() => "")}`);
@@ -141,16 +141,20 @@ const round1 = (rows) => rows.map(p => ({ ...p, v: Math.round(p.v * 10) / 10 }))
 const roundInt = (rows) => rows.map(p => ({ ...p, v: Math.round(p.v) }));
 
 const PIPELINES = [
-  // GDP growth — FRED A191RL1Q225SBEA is real GDP % change at annual rate, quarterly.
-  // Annual = mean of the four quarterly readings within the calendar year.
-  { key: "gdp",            series: "A191RL1Q225SBEA", transform: o => round1(annualMean(o)) },
+  // GDP growth — A191RL1A225NBEA is BEA's headline ANNUAL-AVERAGE real GDP
+  // growth (percent change from preceding year, annual frequency). This is
+  // the number press reports ("GDP grew 4.1% in 2000"), and matches the
+  // site's historical values. NOTE: do NOT use A191RL1Q225SBEA + annualMean —
+  // averaging quarterly SAAR rates approximates Q4/Q4 growth, a different
+  // statistic (2000: 3.0 Q4/Q4 vs 4.1 annual-average).
+  { key: "gdp",            series: "A191RL1A225NBEA", transform: o => round1(annualLast(o)) },
 
   // Unemployment — UNRATE is monthly. Annual = 12-month mean.
   { key: "unemployment",   series: "UNRATE",          transform: o => round1(annualMean(o)) },
 
   // Inflation — derive YoY% from CPIAUCSL (CPI-U index level, monthly).
   // Dec(y) vs Dec(y-1) is the conventional "year-over-year" the site shows.
-  { key: "inflation",      series: "CPIAUCSL",        transform: o => cpiYoY(o) },
+  { key: "inflation",      series: "CPIAUCSL",        transform: o => cpiYoY(o), startYear: FIRST_YEAR - 1 },
 
   // S&P 500 — daily index. Annual = the year's last trading day's close.
   { key: "sp500",          series: "SP500",           transform: o => roundInt(annualLast(o)) },
@@ -169,28 +173,43 @@ async function main() {
   console.log(`   ${PIPELINES.length} metrics, FRED start ${FIRST_YEAR}`);
   console.log("");
 
+  // Merge-over-replace: keep last-good values for any year a source can't
+  // provide anymore. Concretely: FRED's SP500 series only licenses ~10 years
+  // of history, so a raw overwrite would silently drop 1993–2015 from the
+  // site. Same invariant as scripts/refresh-state-data.mjs.
+  const here = dirname(fileURLToPath(import.meta.url));
+  const outPath = `${here}/../data/fred-snapshot.json`;
+  const previous = existsSync(outPath)
+    ? JSON.parse(readFileSync(outPath, "utf8")).metrics ?? {}
+    : {};
+
+  // Data through an in-progress year isn't an annual value yet — a July run
+  // would publish "2026 unemployment" as the mean of just Jan–May. Exclude
+  // the current calendar year; it appears in the first refresh of January.
+  const CURRENT_YEAR = new Date().getUTCFullYear();
+
   const metrics = {};
   for (const p of PIPELINES) {
     process.stdout.write(`   pulling ${p.key} (${p.series}) … `);
     try {
-      const observations = await fredObservations(p.series);
-      const rows = p.transform(observations);
-      if (rows.length < 10) {
-        throw new Error(`only ${rows.length} annual rows produced — refusing to write a near-empty series`);
+      const observations = await fredObservations(p.series, p.startYear);
+      const fresh = p.transform(observations).filter(r => r.y < CURRENT_YEAR);
+      if (fresh.length < 10) {
+        throw new Error(`only ${fresh.length} annual rows produced — refusing to write a near-empty series`);
       }
+      const byYear = new Map((previous[p.key] ?? []).map(r => [r.y, r]));
+      for (const r of fresh) byYear.set(r.y, r); // fresh wins where both exist
+      const rows = [...byYear.values()].sort((a, b) => a.y - b.y);
+      const kept = rows.length - fresh.length;
       metrics[p.key] = rows;
       const last = rows[rows.length - 1];
-      console.log(`${rows.length} rows · latest ${last.y}: ${last.v}`);
+      console.log(`${fresh.length} fresh${kept > 0 ? ` + ${kept} kept` : ""} rows · latest ${last.y}: ${last.v}`);
     } catch (e) {
       console.error(`FAILED — ${e.message}`);
       process.exit(2);
     }
   }
 
-  // Resolve target path relative to this script: scripts/refresh-data.mjs →
-  // ../data/fred-snapshot.json. Works regardless of where `node` is invoked from.
-  const here = dirname(fileURLToPath(import.meta.url));
-  const outPath = `${here}/../data/fred-snapshot.json`;
   mkdirSync(dirname(outPath), { recursive: true });
 
   const snapshot = {
