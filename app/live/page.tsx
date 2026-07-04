@@ -256,6 +256,72 @@ function fmtEventDate(iso: string): string {
   return d.toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
+/* ── Caption Karaoke ──────────────────────────────────────────── */
+// Word-synced transcript strip. The embedded captions are ~15s blocks with a
+// start time each; we don't have word-level timings (YouTube doesn't expose
+// them), so the current word is estimated by LINEAR INTERPOLATION: fraction
+// of the block elapsed × word count. Speech rate within a block is near
+// enough to uniform that the highlight tracks within a word or two.
+//
+// Rendering shows a sliding window of words around the highlight — spoken
+// words in ink, current word on an accent chip, upcoming words muted — sized
+// so the strip never clips a line mid-sentence (the old strip stuffed 40
+// words into a 60px overflow:hidden box).
+function CaptionKaraoke({ captions, vt }: {
+  captions: { time: number; text: string }[]; vt: number;
+}) {
+  // Latest caption block that has started.
+  let idx = -1;
+  for (let i = captions.length - 1; i >= 0; i--) {
+    if (vt >= captions[i].time) { idx = i; break; }
+  }
+  if (idx < 0) {
+    return (
+      <span style={{ color: T.mute, fontStyle: "italic" }}>
+        Waiting for speech…
+      </span>
+    );
+  }
+
+  const seg = captions[idx];
+  const nextT = captions[idx + 1]?.time ?? seg.time + 15;
+  const words = seg.text.split(/\s+/).filter(Boolean);
+  const span = Math.max(1, nextT - seg.time);
+  const prog = Math.min(0.999, Math.max(0, (vt - seg.time) / span));
+  const cur = Math.min(words.length - 1, Math.floor(prog * words.length));
+
+  // Sliding window: enough context to read, few enough words to always fit.
+  const BACK = 14, FWD = 10;
+  const start = Math.max(0, cur - BACK);
+  const end = Math.min(words.length, cur + 1 + FWD);
+
+  return (
+    <span>
+      {start > 0 && <span style={{ color: T.mute, opacity: 0.5 }}>… </span>}
+      {words.slice(start, end).map((w, i) => {
+        const wi = start + i;
+        const isCur = wi === cur;
+        const spoken = wi < cur;
+        return (
+          <span
+            key={wi}
+            style={isCur ? {
+              background: T.accent, color: "#fff", borderRadius: 3,
+              padding: "0 4px", fontWeight: 600,
+            } : {
+              color: spoken ? T.ink : T.mute,
+              opacity: spoken ? 1 : 0.55,
+            }}
+          >
+            {w}{" "}
+          </span>
+        );
+      })}
+      {end < words.length && <span style={{ color: T.mute, opacity: 0.5 }}>…</span>}
+    </span>
+  );
+}
+
 /* ── Fact-Check Card ──────────────────────────────────────────── */
 function FactCard({ claim, isNew, onSeek }: { claim: Claim; isNew: boolean; onSeek?: (claim: Claim) => void }) {
   const [expanded, setExpanded] = useState(false);
@@ -748,6 +814,23 @@ export default function LiveFactCheckPage() {
     poll();
     return () => clearInterval(interval);
   }, [isPlaying, isDemo, pollError]);
+
+  /* ── Caption clock — drives the word-synced transcript strip ── */
+  // 300ms tick while captions are loaded: fast enough that the highlighted
+  // word advances smoothly (speech ≈ 2-3 words/sec), cheap enough that the
+  // re-render (one small component) is negligible.
+  const [captionClock, setCaptionClock] = useState(0);
+  useEffect(() => {
+    if (!isPlaying || !realCaptions || realCaptions.length === 0) return;
+    const id = setInterval(() => {
+      let t = (Date.now() - demoStartTime.current) / 1000;
+      if (ytPlayerRef.current?.getCurrentTime) {
+        try { t = ytPlayerRef.current.getCurrentTime(); } catch { /* wall-clock fallback */ }
+      }
+      setCaptionClock(t);
+    }, 300);
+    return () => clearInterval(id);
+  }, [isPlaying, realCaptions]);
 
   /* ── Animate new claims ── */
   useEffect(() => {
@@ -1917,15 +2000,31 @@ export default function LiveFactCheckPage() {
               </div>
 
               {/* Transcript Strip */}
-              {liveTranscript && (
+              {/* Caption-timed videos get the word-synced karaoke strip: the
+                  currently-spoken word rides an accent chip, spoken words in
+                  ink, upcoming muted. Sized by a sliding word window so it
+                  can't clip a line mid-sentence (the old strip crammed 40
+                  words into a 60px overflow:hidden box — ugly on mobile). */}
+              {realCaptions && realCaptions.length > 0 ? (
+                <div style={{
+                  background: T.paper, padding: "10px 14px", fontSize: mob ? 13 : 12.5,
+                  fontFamily: "'DM Sans',sans-serif",
+                  borderBottom: `1px solid ${T.rule}`,
+                  lineHeight: 1.7, minHeight: 46,
+                }}>
+                  <CaptionKaraoke captions={realCaptions} vt={captionClock} />
+                </div>
+              ) : liveTranscript && (
+                /* Live broadcasts (Deepgram feed) have no caption timings —
+                   plain rolling text, faded lead-in, capped to ~2 lines. */
                 <div style={{
                   background: T.paper, padding: "8px 14px", fontSize: 12,
                   fontFamily: "'DM Sans',sans-serif", color: T.sub,
-                  maxHeight: 60, overflow: "hidden", borderBottom: `1px solid ${T.rule}`,
+                  maxHeight: 48, overflow: "hidden", borderBottom: `1px solid ${T.rule}`,
                   lineHeight: 1.6,
                 }}>
                   <span style={{ opacity: 0.5 }}>... </span>
-                  {liveTranscript.split(" ").slice(-40).join(" ")}
+                  {liveTranscript.split(" ").slice(-24).join(" ")}
                   <span style={{ animation: "blink 1s infinite" }}>|</span>
                 </div>
               )}
