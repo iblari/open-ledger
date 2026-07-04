@@ -610,11 +610,20 @@ export default function LiveBenchmark() {
             gridTemplateColumns: mob ? "1fr 1fr" : "1fr 1fr 1fr",
             gap: mob ? 8 : 12, marginBottom: mob ? 14 : 20,
           }}>
+            {/* Label with atMonth — the month of the LATEST AVAILABLE data
+                point — not calendar months in office. Quarterly series
+                (GDP, debt-to-GDP, wages) publish ~3 months behind; showing
+                'Month 18' over a month-14 figure implied fresher data than
+                the agencies have released. The lag hint makes it explicit. */}
             <StatCard
-              label={`Trump II · Month ${currentMonth}`}
+              label={`Trump II · Month ${stats.atMonth}`}
               value={fmtVal(stats.currentValue, md.unit)}
               valueColor={EC.ink}
-              sub={!mob ? md.label : undefined}
+              sub={!mob
+                ? (stats.atMonth < currentMonth
+                    ? `${md.label} · latest print (publication lags ~${currentMonth - stats.atMonth} mo)`
+                    : md.label)
+                : undefined}
               mob={mob}
             />
             <StatCard
