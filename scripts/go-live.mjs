@@ -174,6 +174,10 @@ console.log(``);
 function tryYtDlp(extraArgs) {
   return new Promise((resolve) => {
     const args = ["-f", "bestaudio", "--get-url", ...extraArgs, YOUTUBE_URL];
+    // YT_PROXY_URL (static-residential proxy) routes extraction around
+    // YouTube's datacenter-IP bot-check — set it as a GitHub secret and
+    // every attempt in the ladder uses it automatically.
+    if (process.env.YT_PROXY_URL) args.unshift("--proxy", process.env.YT_PROXY_URL);
     const proc = spawn("yt-dlp", args);
     let url = "";
     let errText = "";

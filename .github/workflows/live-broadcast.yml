@@ -103,6 +103,44 @@ jobs:
       - name: Install ws (Deepgram WebSocket dep)
         run: npm install ws --no-save --no-audit --no-fund
 
+      # ── Schedule autopilot ──────────────────────────────────────
+      # Watched channels announce livestreams hours ahead as "upcoming"
+      # videos; /api/live-discover surfaces them with YouTube's own
+      # scheduledStartTime. Sync them into the KV schedule via the admin
+      # API — no commit, no deploy, no human. They appear on /live and in
+      # subscribers' calendar feeds within seconds, and the schedule check
+      # below auto-covers them when they start. Runs every cron tick, so
+      # the site's schedule trails YouTube's by ≤5 minutes.
+      - name: Sync upcoming streams into schedule (autopilot)
+        env:
+          API_URL: ${{ secrets.API_URL || 'https://voteunbiased.org' }}
+          ADMIN_KEY: ${{ secrets.ADMIN_KEY }}
+        run: |
+          RESP=$(curl -fsSL "$API_URL/api/live-discover" || echo '{}')
+          EVENTS=$(jq -n \
+            --argjson up "$(echo "$RESP" | jq '.upcoming // []')" \
+            --argjson conf "$(jq '.channels' public/live-channels.json)" \
+            '[ $conf[] | select(.autoCover == true) as $c
+               | $up[] | select(.channelId == $c.id)
+               | { id: ("auto-" + .videoId),
+                   title: (if (.title // "") == "" then $c.label + " — Live broadcast" else .title end),
+                   speaker: $c.label,
+                   source: ($c.label + " · YouTube"),
+                   youtubeUrl: ("https://www.youtube.com/watch?v=" + .videoId),
+                   scheduledStart: .scheduledStart,
+                   scheduledEnd: ((.scheduledStart | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601) + 7200 | todateiso8601),
+                   discoveredVia: "youtube-upcoming" } ]')
+          COUNT=$(echo "$EVENTS" | jq 'length')
+          echo "Upcoming auto-cover events found: $COUNT"
+          if [ "$COUNT" -gt 0 ]; then
+            echo "$EVENTS" | jq -c '.[] | {id, title, scheduledStart}'
+            curl -s -X POST "$API_URL/api/admin/schedule" \
+              -H "Authorization: Bearer $ADMIN_KEY" \
+              -H "Content-Type: application/json" \
+              -d "{\"events\":$EVENTS}" | head -c 300
+            echo
+          fi
+
       # Hit /api/live-schedule. If something is active, write its details
       # to a job output so the next step can decide whether to launch the
       # worker. If nothing is active, this step exits 0 (no event) and the
@@ -205,6 +243,10 @@ jobs:
           DEEPGRAM_API_KEY: ${{ secrets.DEEPGRAM_API_KEY }}
           ADMIN_KEY: ${{ secrets.ADMIN_KEY }}
           API_URL: ${{ secrets.API_URL || 'https://voteunbiased.org' }}
+          # Static-residential proxy: routes yt-dlp around YouTube's
+          # datacenter-IP bot-check. Optional — go-live.mjs applies it to
+          # every extraction attempt when present.
+          YT_PROXY_URL: ${{ secrets.YT_PROXY_URL }}
           # Route yt-dlp through the PO-token sidecar explicitly (belt +
           # braces over plugin auto-discovery).
           YT_DLP_EXTRA_ARGS: --extractor-args youtubepot-bgutilhttp:base_url=http://127.0.0.1:4416
