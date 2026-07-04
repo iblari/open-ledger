@@ -164,13 +164,14 @@ function tryYtDlp(extraArgs) {
 
 console.log("→ Extracting audio stream URL...");
 const userExtra = (process.env.YT_DLP_EXTRA_ARGS || "").split(/\s+/).filter(Boolean);
+// userExtra (e.g. the PO-token provider routing, or cookies) applies to
+// EVERY attempt; the ladder only varies the player client.
 const CLIENT_ATTEMPTS = [
-  ...(userExtra.length ? [userExtra] : []),                  // user-supplied escalation first
   [],                                                        // default client
-  ["--extractor-args", "youtube:player_client=android,tv"],  // usually skips PO-token gate
+  ["--extractor-args", "youtube:player_client=android,tv"],
   ["--extractor-args", "youtube:player_client=ios"],
   ["--extractor-args", "youtube:player_client=tv_embedded"],
-];
+].map(a => [...userExtra, ...a]);
 let audioUrl = null;
 for (const attempt of CLIENT_ATTEMPTS) {
   const label = attempt.length ? attempt.join(" ") : "(default client)";

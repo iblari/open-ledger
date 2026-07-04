@@ -92,6 +92,13 @@ jobs:
           # Give the provider a moment to boot, then confirm it's answering.
           sleep 3
           curl -sf http://127.0.0.1:4416/ping && echo " — pot provider up"
+          # Diagnostic: confirm the plugin is discovered and the provider is
+          # actually consulted. Look for "bgutil" in the plugin list and
+          # "[pot]" / "PO Token" lines in the verbose output.
+          yt-dlp -v --simulate --skip-download \
+            --extractor-args "youtubepot-bgutilhttp:base_url=http://127.0.0.1:4416" \
+            "https://www.youtube.com/watch?v=dQw4w9WgXcQ" 2>&1 | \
+            grep -aiE "plugin|pot|token|sign in|error" | head -20 || true
 
       - name: Install ws (Deepgram WebSocket dep)
         run: npm install ws --no-save --no-audit --no-fund
@@ -195,6 +202,9 @@ jobs:
           DEEPGRAM_API_KEY: ${{ secrets.DEEPGRAM_API_KEY }}
           ADMIN_KEY: ${{ secrets.ADMIN_KEY }}
           API_URL: ${{ secrets.API_URL || 'https://voteunbiased.org' }}
+          # Route yt-dlp through the PO-token sidecar explicitly (belt +
+          # braces over plugin auto-discovery).
+          YT_DLP_EXTRA_ARGS: --extractor-args youtubepot-bgutilhttp:base_url=http://127.0.0.1:4416
           # Scheduled event wins; discovery only fires when schedule was empty.
           EV_URL: ${{ steps.schedule.outputs.has_event == 'true' && steps.schedule.outputs.youtube_url || steps.discover.outputs.youtube_url }}
           EV_TITLE: ${{ steps.schedule.outputs.has_event == 'true' && steps.schedule.outputs.title || steps.discover.outputs.title }}
