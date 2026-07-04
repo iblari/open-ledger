@@ -48,16 +48,19 @@ export async function POST(req: Request) {
   }
 
   if (body.action === "start") {
-    if (!body.videoId || !body.title) {
+    // videoId is OPTIONAL: broadcasts ingested from non-embeddable sources
+    // (C-SPAN Radio simulcasts, direct HLS feeds) run in "monitor mode" —
+    // the /live page shows the live fact-check feed without a video player.
+    if (!body.title) {
       return NextResponse.json(
-        { error: "Missing videoId or title" },
+        { error: "Missing title" },
         { status: 400 }
       );
     }
 
     const state: LiveState = {
       status: "live",
-      videoId: body.videoId,
+      videoId: body.videoId || "",
       title: body.title,
       source: body.source || "youtube",
       startedAt: new Date().toISOString(),
@@ -66,7 +69,7 @@ export async function POST(req: Request) {
     await clearLiveClaims();
     await setLiveState(state);
 
-    console.log(`[GO-LIVE] Started: "${state.title}" (${state.videoId})`);
+    console.log(`[GO-LIVE] Started: "${state.title}" (${state.videoId || "monitor mode"})`);
     return NextResponse.json({ ok: true, state });
   }
 

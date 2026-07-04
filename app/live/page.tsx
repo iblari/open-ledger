@@ -224,6 +224,21 @@ export function findCaptionTimeForQuote(
   return best.score >= minOverlap ? best.time : null;
 }
 
+/* ── "Add to calendar" links for scheduled broadcasts ─────────── */
+// Zero-infrastructure reminders: Google Calendar prefill link + a per-event
+// .ics (Apple/Outlook, with a built-in 15-min alarm via /api/schedule.ics).
+function gcalUrl(ev: { title: string; scheduledStart: string; scheduledEnd: string }): string {
+  const f = (iso: string) => new Date(iso).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+  const p = new URLSearchParams({
+    action: "TEMPLATE",
+    text: `🔴 ${ev.title} — live fact-check`,
+    dates: `${f(ev.scheduledStart)}/${f(ev.scheduledEnd)}`,
+    details: "Watch with real-time AI fact-checking against official data: https://voteunbiased.org/live",
+    location: "https://voteunbiased.org/live",
+  });
+  return `https://calendar.google.com/calendar/render?${p.toString()}`;
+}
+
 /* ── Format a "starts in" countdown for scheduled broadcasts ──── */
 // Picks the right precision based on remaining time so the label feels right
 // at every scale — "in 3 days", "in 4h 12m", "in 14:32", "Live now".
@@ -655,13 +670,16 @@ export default function LiveFactCheckPage() {
         if (feedResp.ok) {
           const feed = await feedResp.json();
           if (cancelled) return;
-          if (feed.state?.status === "live" && feed.state.videoId) {
+          // videoId may be EMPTY for monitor-mode broadcasts (audio ingested
+          // from a non-embeddable source) — those are still live and must
+          // surface here; the playing view renders the audio-monitor panel.
+          if (feed.state?.status === "live") {
             // Live broadcast active — build config from API state
             setConfig({
               status: "live",
               title: feed.state.title,
               source: feed.state.source || "youtube",
-              videoId: feed.state.videoId,
+              videoId: feed.state.videoId || "",
               startedAt: feed.state.startedAt,
               upcoming: [],
               recent: [],
@@ -1532,7 +1550,8 @@ export default function LiveFactCheckPage() {
             </div>
 
             {/* ── LIVE NOW — prominent card when a broadcast is active ── */}
-            {config?.status === "live" && config.videoId && (
+            {/* videoId may be empty (monitor mode) — still show the card. */}
+            {config?.status === "live" && (
               <div style={{
                 maxWidth: 700, margin: "0 auto 28px",
                 background: `linear-gradient(135deg, ${T.ink} 0%, #2d2520 100%)`,
@@ -1648,17 +1667,29 @@ export default function LiveFactCheckPage() {
                 }}>
                   Watch a past speech from the archive below,<br />or analyze any YouTube video.
                 </div>
+              </div>
+            )}
 
-                {/* Upcoming schedule — driven by public/live-schedule.json
-                    via /api/live-schedule. The GitHub Action reads the same
-                    endpoint, so what's shown here is exactly what will
-                    auto-trigger when its scheduledStart hits. */}
-                {schedule && (schedule.active || (schedule.upcoming && schedule.upcoming.length > 0)) && (
+            {/* ── Upcoming schedule + calendar subscribe — STANDALONE ── */}
+            {/* Always visible on the idle page. It used to render inside the
+                'no live broadcast' card, which is hidden whenever a
+                discovered-stream card shows — and C-SPAN streams nearly
+                24/7, so the schedule (and the subscribe button) were almost
+                never visible. Driven by public/live-schedule.json via
+                /api/live-schedule; the GitHub Action reads the same
+                endpoint, so what's shown is exactly what auto-triggers. */}
+            {(() => {
+              const upcomingReal = (schedule?.upcoming || []).filter(
+                e => !(e.youtubeUrl || "").includes("REPLACE_WITH")
+              );
+              if (!schedule || (!schedule.active && upcomingReal.length === 0)) return null;
+              return (
+                <div style={{ maxWidth: 700, margin: "0 auto 28px", textAlign: "center" }}>
                   <div style={{
-                    marginTop: 16, padding: "14px 18px", background: T.paper,
+                    padding: "14px 18px", background: T.paper,
                     borderRadius: 8, border: `1px solid ${T.rule}`,
                     display: "inline-flex", flexDirection: "column", gap: 10,
-                    minWidth: 280, textAlign: "left",
+                    minWidth: 300, maxWidth: "100%", textAlign: "left",
                   }}>
                     {/* Currently live (auto-triggered by the GitHub Action) */}
                     {schedule.active && (() => {
@@ -1696,7 +1727,7 @@ export default function LiveFactCheckPage() {
                     })()}
 
                     {/* Next scheduled (or all upcoming if nothing's live yet) */}
-                    {(schedule.active ? schedule.upcoming.filter(e => e.id !== schedule.active!.id).slice(0, 2) : schedule.upcoming.slice(0, 3)).map((ev) => {
+                    {(schedule.active ? upcomingReal.filter(e => e.id !== schedule.active!.id).slice(0, 2) : upcomingReal.slice(0, 3)).map((ev) => {
                       const secs = Math.floor((Date.parse(ev.scheduledStart) - Date.now()) / 1000);
                       return (
                         <div key={ev.id} style={{
@@ -1728,6 +1759,29 @@ export default function LiveFactCheckPage() {
                               </>
                             )}
                           </div>
+                          {/* Reminder links — Google prefill + .ics (Apple/
+                              Outlook) with a built-in 15-min alarm. */}
+                          {secs > 0 && (
+                            <div style={{
+                              display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap",
+                              fontFamily: "'DM Sans',sans-serif",
+                            }}>
+                              {[
+                                { label: "📅 Google", href: gcalUrl(ev), ext: true },
+                                { label: "📅 Apple / Outlook", href: `/api/schedule.ics?event=${encodeURIComponent(ev.id)}`, ext: false },
+                              ].map(l => (
+                                <a key={l.label} href={l.href}
+                                  {...(l.ext ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+                                  style={{
+                                    fontSize: 10, fontWeight: 600, color: T.sub, textDecoration: "none",
+                                    padding: "3px 8px", borderRadius: 4,
+                                    border: `1px solid ${T.rule}`, background: T.card,
+                                  }}>
+                                  {l.label}
+                                </a>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -1738,13 +1792,22 @@ export default function LiveFactCheckPage() {
                       fontFamily: "'DM Sans',sans-serif", fontSize: 9, color: T.mute,
                       letterSpacing: 0.5, marginTop: 4, paddingTop: 6,
                       borderTop: `1px solid ${T.rule}`,
+                      display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap",
                     }}>
-                      Auto-broadcast · fact-checks appear in real time when the event begins
+                      <span>Auto-broadcast · fact-checks appear in real time when the event begins</span>
+                      {/* Subscribe once → every future event lands in the
+                          viewer's calendar app with a 15-min reminder. */}
+                      <a href="/api/schedule.ics" style={{
+                        color: T.blue, textDecoration: "none", fontWeight: 700, fontSize: 9,
+                        letterSpacing: 0.5, whiteSpace: "nowrap",
+                      }}>
+                        📅 SUBSCRIBE TO BROADCAST CALENDAR
+                      </a>
                     </div>
                   </div>
-                )}
-              </div>
-            )}
+                </div>
+              );
+            })()}
 
             {/* ── Speech Archive ── */}
             <div style={{ maxWidth: 900, margin: "0 auto 28px" }}>
@@ -2033,11 +2096,33 @@ export default function LiveFactCheckPage() {
                     style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}
                   />
                 ) : (
+                  /* Monitor mode: the worker is ingesting audio from a
+                     non-embeddable source (C-SPAN Radio, direct HLS). The
+                     fact-check feed is the product here — video plays at
+                     the broadcaster's own site/app. */
                   <div style={{
-                    position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
-                    color: "#666", fontFamily: "'DM Sans',sans-serif", fontSize: 14,
+                    position: "absolute", inset: 0, display: "flex", flexDirection: "column",
+                    alignItems: "center", justifyContent: "center", gap: 10,
+                    background: "linear-gradient(135deg, #1a1a1a 0%, #2d2520 100%)",
+                    color: "#e8e2d8", fontFamily: "'DM Sans',sans-serif", padding: 24, textAlign: "center",
                   }}>
-                    No video source
+                    <div style={{ fontSize: 40 }}>🎙️</div>
+                    <div style={{ fontFamily: "'Source Serif 4',serif", fontSize: mob ? 17 : 22, fontWeight: 700 }}>
+                      Live audio monitor
+                    </div>
+                    <div style={{ fontSize: mob ? 11 : 12.5, color: "#b8b0a8", maxWidth: 420, lineHeight: 1.6 }}>
+                      We&rsquo;re listening to this broadcast&rsquo;s audio feed and fact-checking
+                      every economic claim in real time — watch the claims arrive on the right.
+                      Video for this event isn&rsquo;t embeddable; tune in on the broadcaster&rsquo;s
+                      own site or TV coverage.
+                    </div>
+                    <div style={{
+                      display: "flex", alignItems: "center", gap: 6, marginTop: 4,
+                      fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", color: "#dc2626",
+                    }}>
+                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#dc2626", animation: "pulse 2s infinite" }} />
+                      Listening live
+                    </div>
                   </div>
                 )}
               </div>

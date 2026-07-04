@@ -128,6 +128,27 @@ Edit `public/live-schedule.json`:
 }
 ```
 
+**Non-YouTube sources (recommended for reliability):** add a `streamUrl`
+field with any direct audio source ffmpeg can read — an HLS `.m3u8`, a
+radio/Icecast stream. C-SPAN Radio simulcasts most official events and is
+ideal. When `streamUrl` is present it's used for INGESTION (no yt-dlp, no
+YouTube datacenter-IP bot-checks — this sidesteps the biggest reliability
+problem in the pipeline); `youtubeUrl` is then only used for the embedded
+player, and may be omitted entirely — the event runs in "monitor mode"
+(live fact-check feed, no embedded video).
+
+```json
+{
+  "id": "potus-remarks-2026-08-01",
+  "title": "Presidential Remarks on the Economy",
+  "speaker": "President",
+  "source": "C-SPAN Radio",
+  "streamUrl": "https://.../cspan-radio/playlist.m3u8",
+  "scheduledStart": "2026-08-01T18:00:00Z",
+  "scheduledEnd": "2026-08-01T19:00:00Z"
+}
+```
+
 **Field notes:**
 - `id` — any stable slug. Used for dedup; if you rename it after the event has
   started, the worker will think it's a different event.

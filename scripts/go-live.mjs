@@ -52,6 +52,7 @@ const API_URL = process.env.API_URL || "https://voteunbiased.org";
 //                           (broadcaster ends stream) or Ctrl+C.
 const rawArgs = process.argv.slice(2);
 let durationSec = null;
+let displayArg = null; // --display: what the SITE shows (YouTube URL/id, or "none")
 const positionals = [];
 for (let i = 0; i < rawArgs.length; i++) {
   if (rawArgs[i] === "--duration") {
@@ -60,6 +61,8 @@ for (let i = 0; i < rawArgs.length; i++) {
       console.error("ERROR: --duration must be a positive number of seconds");
       process.exit(1);
     }
+  } else if (rawArgs[i] === "--display") {
+    displayArg = rawArgs[++i] || "none";
   } else if (rawArgs[i].startsWith("--")) {
     console.error(`ERROR: unknown flag ${rawArgs[i]}`);
     process.exit(1);
@@ -121,9 +124,30 @@ function extractVideoId(url) {
   return url.trim();
 }
 
-// ── Step 1: Go live ─────────────────────────────────────────────
+// ── Source detection ────────────────────────────────────────────
+//
+// The pipeline is SOURCE-AGNOSTIC: the positional URL is whatever ffmpeg
+// should listen to. YouTube URLs go through the yt-dlp ladder (bot-check
+// mitigation and all); anything else — an HLS .m3u8, a radio/Icecast
+// stream, any URL ffmpeg can read — is fed to ffmpeg directly, which
+// entirely sidesteps the YouTube datacenter-IP problem for sources like
+// C-SPAN Radio that simulcast most official events.
+//
+// What the SITE displays is a separate concern (--display):
+//   --display <youtube-url-or-id>  embed that YouTube player
+//   --display none                 "monitor mode": fact-check feed only
+// Default: for YouTube sources, the same video; for direct streams, none.
 
-const videoId = extractVideoId(YOUTUBE_URL);
+function isYouTubeUrl(u) {
+  return /(?:youtube\.com|youtu\.be)\//i.test(u) || /^[A-Za-z0-9_-]{11}$/.test(u.trim());
+}
+
+// ── Step 1: Resolve display + go live ──────────────────────────
+
+const sourceIsYouTube = isYouTubeUrl(YOUTUBE_URL);
+const videoId = displayArg
+  ? (displayArg === "none" ? "" : extractVideoId(displayArg))
+  : (sourceIsYouTube ? extractVideoId(YOUTUBE_URL) : "");
 console.log(`\n📡 Vote Unbiased — Live Broadcast Pipeline`);
 console.log(`   Video:    ${videoId}`);
 console.log(`   Title:    ${TITLE}`);
@@ -162,32 +186,41 @@ function tryYtDlp(extraArgs) {
   });
 }
 
-console.log("→ Extracting audio stream URL...");
-const userExtra = (process.env.YT_DLP_EXTRA_ARGS || "").split(/\s+/).filter(Boolean);
-// userExtra (e.g. the PO-token provider routing, or cookies) applies to
-// EVERY attempt; the ladder only varies the player client.
-const CLIENT_ATTEMPTS = [
-  [],                                                        // default client
-  ["--extractor-args", "youtube:player_client=android,tv"],
-  ["--extractor-args", "youtube:player_client=ios"],
-  ["--extractor-args", "youtube:player_client=tv_embedded"],
-].map(a => [...userExtra, ...a]);
 let audioUrl = null;
-for (const attempt of CLIENT_ATTEMPTS) {
-  const label = attempt.length ? attempt.join(" ") : "(default client)";
-  const { url, errText } = await tryYtDlp(attempt);
-  if (url) {
-    console.log(`  ✓ Got audio stream URL via ${label}`);
-    audioUrl = url;
-    break;
+if (!sourceIsYouTube) {
+  // Direct stream (HLS .m3u8, radio/Icecast, anything ffmpeg reads):
+  // no extraction step needed at all.
+  console.log("→ Direct stream source — skipping yt-dlp, ffmpeg will ingest it.");
+  audioUrl = YOUTUBE_URL;
+} else {
+  console.log("→ Extracting audio stream URL...");
+  const userExtra = (process.env.YT_DLP_EXTRA_ARGS || "").split(/\s+/).filter(Boolean);
+  // userExtra (e.g. the PO-token provider routing, or cookies) applies to
+  // EVERY attempt; the ladder only varies the player client.
+  const CLIENT_ATTEMPTS = [
+    [],                                                        // default client
+    ["--extractor-args", "youtube:player_client=android,tv"],
+    ["--extractor-args", "youtube:player_client=ios"],
+    ["--extractor-args", "youtube:player_client=tv_embedded"],
+  ].map(a => [...userExtra, ...a]);
+  for (const attempt of CLIENT_ATTEMPTS) {
+    const label = attempt.length ? attempt.join(" ") : "(default client)";
+    const { url, errText } = await tryYtDlp(attempt);
+    if (url) {
+      console.log(`  ✓ Got audio stream URL via ${label}`);
+      audioUrl = url;
+      break;
+    }
+    const firstErr = (errText.split("\n").find(l => l.includes("ERROR")) || errText.split("\n")[0] || "").trim();
+    console.error(`  ✗ ${label}: ${firstErr.slice(0, 160)}`);
   }
-  const firstErr = (errText.split("\n").find(l => l.includes("ERROR")) || errText.split("\n")[0] || "").trim();
-  console.error(`  ✗ ${label}: ${firstErr.slice(0, 160)}`);
-}
-if (!audioUrl) {
-  console.error("  ERROR: all yt-dlp client attempts failed. On a datacenter IP,");
-  console.error("  YouTube may require cookies: set YT_DLP_EXTRA_ARGS='--cookies <file>'.");
-  process.exit(1);
+  if (!audioUrl) {
+    console.error("  ERROR: all yt-dlp client attempts failed. On a datacenter IP,");
+    console.error("  YouTube may require cookies: set YT_DLP_EXTRA_ARGS='--cookies <file>'.");
+    console.error("  TIP: if the event is simulcast on a direct stream (C-SPAN Radio, an");
+    console.error("  HLS .m3u8), pass THAT as the source URL — no extraction needed.");
+    process.exit(1);
+  }
 }
 
 // ── Step 2: Set the site LIVE (only now that we have audio) ────
