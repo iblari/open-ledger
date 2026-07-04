@@ -1196,7 +1196,10 @@ export default function LiveFactCheckPage() {
   // server-side prerendering. Function lives further up in the file.
 
   /* ── Start from URL — fetch transcript then reuse demo machinery ── */
-  const startFromUrl = useCallback(async (url: string) => {
+  // Returns true when caption-driven fact-checking started, false when no
+  // transcript could be loaded. quiet: suppress the idle-page error banner
+  // (used by the discovered-stream fallback, which handles failure itself).
+  const startFromUrl = useCallback(async (url: string, opts?: { quiet?: boolean }): Promise<boolean> => {
     setUrlError("");
     setUrlLoading(true);
     try {
@@ -1231,9 +1234,9 @@ export default function LiveFactCheckPage() {
           console.warn("[clientFetch] Browser timedtext fetch failed:", e);
         }
       } else if (data.error && !data.clientFetch) {
-        setUrlError(data.error);
+        if (!opts?.quiet) setUrlError(data.error);
         setUrlLoading(false);
-        return;
+        return false;
       }
 
       // If we still don't have segments, try client-side InnerTube as last resort
@@ -1280,12 +1283,14 @@ export default function LiveFactCheckPage() {
       }
 
       if (segments.length === 0) {
-        setUrlError(
-          "Could not load transcript. YouTube may be blocking automated access. " +
-          "Try a different video, or open the video on YouTube → click '...' → 'Show transcript' to verify captions exist."
-        );
+        if (!opts?.quiet) {
+          setUrlError(
+            "Could not load transcript. YouTube may be blocking automated access. " +
+            "Try a different video, or open the video on YouTube → click '...' → 'Show transcript' to verify captions exist."
+          );
+        }
         setUrlLoading(false);
-        return;
+        return false;
       }
 
       // Calculate duration from segments
@@ -1330,9 +1335,11 @@ export default function LiveFactCheckPage() {
       setRealCaptions(segments);
       setDemoSpeech(speech);
       setUrlInput("");
+      return true;
     } catch (e) {
       console.error("URL fetch error:", e);
-      setUrlError("Network error — could not reach the server.");
+      if (!opts?.quiet) setUrlError("Network error — could not reach the server.");
+      return false;
     } finally {
       setUrlLoading(false);
     }
@@ -1634,15 +1641,30 @@ export default function LiveFactCheckPage() {
                   marginBottom: 14, lineHeight: 1.25,
                 }}>{d.title || `${d.channelLabel} — Live broadcast`}</div>
                 <button
-                  onClick={() => startLive(d.videoId, d.title || `${d.channelLabel} — Live`)}
+                  onClick={async () => {
+                    // Captions-first: streams that have ENDED (or VODs)
+                    // usually expose captions, which power the full
+                    // client-side fact-check pipeline — no worker needed.
+                    // Truly-live streams have no captions; fall back to the
+                    // live path (fact-checks attach if the worker covers it).
+                    const ok = await startFromUrl(
+                      `https://www.youtube.com/watch?v=${d.videoId}`,
+                      { quiet: true }
+                    );
+                    if (!ok) startLive(d.videoId, d.title || `${d.channelLabel} — Live`);
+                  }}
+                  disabled={urlLoading}
                   style={{
                     background: "#dc2626", color: "#fff", border: "none", borderRadius: 10,
                     padding: "12px 28px", fontFamily: "'DM Sans',sans-serif", fontSize: 14,
-                    fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 8,
+                    fontWeight: 700, cursor: urlLoading ? "default" : "pointer",
+                    opacity: urlLoading ? 0.7 : 1,
+                    display: "flex", alignItems: "center", gap: 8,
                     boxShadow: "0 4px 16px rgba(220,38,38,0.3)",
                   }}
                 >
-                  <span style={{ fontSize: 16 }}>&#9654;</span> Watch Live
+                  <span style={{ fontSize: 16 }}>&#9654;</span>
+                  {urlLoading ? "Checking for transcript…" : "Watch Live"}
                 </button>
                 <div style={{
                   fontFamily: "'DM Sans',sans-serif", fontSize: 10, color: "#9a9490", marginTop: 12,
@@ -2365,8 +2387,14 @@ export default function LiveFactCheckPage() {
                       fontFamily: "'DM Sans',sans-serif", color: T.mute,
                     }}>
                       <div style={{ fontSize: 32, marginBottom: 8 }}>📡</div>
-                      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Listening for claims...</div>
-                      <div style={{ fontSize: 11 }}>Fact-check cards will appear here as economic claims are detected.</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>
+                        {isDemo ? "Listening for claims..." : "Waiting for the analysis pipeline…"}
+                      </div>
+                      <div style={{ fontSize: 11 }}>
+                        {isDemo
+                          ? "Fact-check cards will appear here as economic claims are detected."
+                          : "Fact-checks attach when our pipeline is transcribing this broadcast. If nothing appears, this stream isn't being analyzed — official events on watched channels are covered automatically."}
+                      </div>
                     </div>
                   )}
                   {claims.length > 0 && filteredClaims.length === 0 && (
