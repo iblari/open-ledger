@@ -1,0 +1,9 @@
+{
+  "_comment": "Vote Unbiased — channels probed by /api/live-discover for live streams. Each entry's url must be a YouTube /live channel URL. Detection is keyless (no YouTube API quota): the endpoint fetches the page and reads ytInitialPlayerResponse.",
+  "channels": [
+    { "id": "whitehouse", "label": "The White House", "url": "https://www.youtube.com/@WhiteHouse/live" },
+    { "id": "cspan", "label": "C-SPAN", "url": "https://www.youtube.com/@CSPAN/live" },
+    { "id": "houseoversight", "label": "House Oversight Committee", "url": "https://www.youtube.com/@OversightCommittee/live" },
+    { "id": "senatebanking", "label": "Senate Banking Committee", "url": "https://www.youtube.com/@SenateBankingHousingandUrbanAffairs/live" }
+  ]
+}
