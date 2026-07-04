@@ -353,7 +353,15 @@ await new Promise((resolve) => {
   else dgWs.on("open", resolve);
 });
 
+// The audio download must ALSO go through the proxy when one is set:
+// YouTube binds stream URLs to the IP that requested them, so a URL
+// extracted via proxy 403s if fetched from the runner's own IP.
+// (Direct streamUrl sources — C-SPAN Radio etc — don't need this, but
+// routing them through the proxy is harmless.)
 const ffmpeg = spawn("ffmpeg", [
+  ...(process.env.YT_PROXY_URL && /^https?:/i.test(audioUrl)
+    ? ["-http_proxy", process.env.YT_PROXY_URL]
+    : []),
   "-i", audioUrl,
   "-f", "s16le",        // raw PCM
   "-acodec", "pcm_s16le",
