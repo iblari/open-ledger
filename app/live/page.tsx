@@ -580,6 +580,19 @@ export default function LiveFactCheckPage() {
   const [urlInput, setUrlInput] = useState("");
   const [urlLoading, setUrlLoading] = useState(false);
   const [urlError, setUrlError] = useState("");
+  // Whether server-side transcript fetching is CAPABLE right now. YouTube
+  // blocks caption access from datacenter IPs; the server reports true only
+  // when an egress proxy (YT_PROXY_URL) is configured. When false, the
+  // Analyze-any-speech box is hidden — offering a feature that fails on
+  // every input is worse than not offering it. Flips on automatically the
+  // moment the env var is set; no code change needed.
+  const [transcriptCapable, setTranscriptCapable] = useState(false);
+  useEffect(() => {
+    fetch("/api/fetch-transcript")
+      .then(r => r.json())
+      .then(d => setTranscriptCapable(Boolean(d.enabled)))
+      .catch(() => setTranscriptCapable(false));
+  }, []);
 
   const [demoSpeech, setDemoSpeech] = useState<DemoSpeech | null>(null);
 
@@ -1647,7 +1660,10 @@ export default function LiveFactCheckPage() {
                     // client-side fact-check pipeline — no worker needed.
                     // Truly-live streams have no captions; fall back to the
                     // live path (fact-checks attach if the worker covers it).
-                    const ok = await startFromUrl(
+                    // Skip the caption probe entirely when the server can't
+                    // fetch transcripts (no egress proxy) — it would fail on
+                    // every input and just delay playback.
+                    const ok = transcriptCapable && await startFromUrl(
                       `https://www.youtube.com/watch?v=${d.videoId}`,
                       { quiet: true }
                     );
@@ -1948,6 +1964,11 @@ export default function LiveFactCheckPage() {
             </div>
 
             {/* ── Analyze Any Speech (secondary) ── */}
+            {/* Rendered only when the server can actually fetch transcripts
+                (capability probe above) — YouTube blocks caption access from
+                datacenter IPs, so without an egress proxy this feature fails
+                on every input. Hidden beats broken. */}
+            {transcriptCapable && (
             <div style={{
               maxWidth: 600, margin: "0 auto 24px", padding: mob ? "16px" : "18px 24px",
               background: T.card, border: `1px solid ${T.rule}`, borderRadius: 10,
@@ -2011,6 +2032,7 @@ export default function LiveFactCheckPage() {
                 Paste any YouTube video with captions — the AI reads the transcript and fact-checks economic claims as the speech plays.
               </div>
             </div>
+            )}
 
             {/* ── Editorial explanation ── */}
             <div style={{

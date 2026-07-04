@@ -1,6 +1,38 @@
 import { NextResponse } from "next/server";
+import { ProxyAgent, type Dispatcher } from "undici";
 
 // Use Node.js runtime (default Vercel serverless)
+
+// ── Egress proxy ─────────────────────────────────────────────────
+// Production reality (verified via runtime logs): YouTube returns
+// LOGIN_REQUIRED to ALL InnerTube clients from Vercel's AWS egress, and
+// the watch-page fallback serves no caption tracks either — datacenter
+// IP-reputation gating. Set YT_PROXY_URL (a static-residential/ISP proxy,
+// e.g. http://user:pass@host:port) and every YouTube fetch in this route
+// goes through it, which restores the Analyze-any-speech feature. The
+// GET handler below reports the capability so the UI can hide the feature
+// when it cannot work.
+const YT_PROXY_URL = process.env.YT_PROXY_URL;
+const ytDispatcher: Dispatcher | undefined = YT_PROXY_URL
+  ? new ProxyAgent(YT_PROXY_URL)
+  : undefined;
+
+/** fetch() with the YouTube egress proxy applied when configured. */
+function ytFetch(url: string, init: RequestInit = {}): Promise<Response> {
+  // Node's fetch is undici; `dispatcher` is honored though absent from the
+  // standard RequestInit type.
+  return fetch(url, { ...init, ...(ytDispatcher ? { dispatcher: ytDispatcher } : {}) } as RequestInit);
+}
+
+/** GET /api/fetch-transcript — capability probe for the UI. */
+export async function GET() {
+  return NextResponse.json({
+    enabled: Boolean(YT_PROXY_URL),
+    reason: YT_PROXY_URL
+      ? "proxy configured"
+      : "no YT_PROXY_URL — YouTube blocks caption access from datacenter IPs",
+  });
+}
 
 /**
  * POST /api/fetch-transcript
@@ -205,7 +237,7 @@ async function getInnerTubeData(
         headers["X-Forwarded-For"] = clientIp;
       }
 
-      const resp = await fetch(INNERTUBE_API_URL, {
+      const resp = await ytFetch(INNERTUBE_API_URL, {
         method: "POST",
         headers,
         body: JSON.stringify({ context: client.context, videoId }),
@@ -248,7 +280,7 @@ async function fetchTimedtext(
   baseUrl: string
 ): Promise<TranscriptItem[] | null> {
   try {
-    const txResp = await fetch(baseUrl, {
+    const txResp = await ytFetch(baseUrl, {
       headers: { "User-Agent": WEB_USER_AGENT },
     });
 
@@ -282,7 +314,7 @@ async function getWebPageCaptionTracks(
   videoId: string
 ): Promise<{ title: string; captionTracks: CaptionTrack[] } | null> {
   try {
-    const resp = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
+    const resp = await ytFetch(`https://www.youtube.com/watch?v=${videoId}`, {
       headers: {
         "User-Agent": WEB_USER_AGENT,
         "Accept-Language": "en-US,en;q=0.9",
