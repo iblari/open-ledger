@@ -99,6 +99,10 @@ interface DemoSpeech {
   title: string; speaker: string; date: string;
   videoId: string; duration: string;
   segments: DemoSegment[];
+  // Verbatim caption track baked in offline by scripts/retime-speeches.mjs.
+  // When present, segment times are already caption-aligned and the page
+  // skips the runtime transcript fetch entirely.
+  captions?: { time: number; text: string }[];
 }
 
 /* ── Responsive hook ──────────────────────────────────────────── */
@@ -989,6 +993,18 @@ export default function LiveFactCheckPage() {
       demoStartTime.current = Date.now();
       // Setting state triggers the polling effect above
       setDemoSpeech(speech);
+
+      // Preferred path: captions + aligned segment times baked into the
+      // speech JSON offline by scripts/retime-speeches.mjs. The runtime
+      // fetch below exists only for speeches that haven't been baked —
+      // YouTube regularly blocks datacenter IPs (Vercel), which is exactly
+      // how production ended up on the "APPROX." fallback with fact-check
+      // timestamps pointing at the wrong moments.
+      if (speech.captions && speech.captions.length > 0) {
+        setRealCaptions(speech.captions);
+        console.log(`[demo] using ${speech.captions.length} embedded caption segments (pre-aligned offline)`);
+        return;
+      }
 
       // Fire-and-forget: pull real YouTube captions, then re-time the demo's
       // segments by fuzzy-matching each segment's first claim (or the segment

@@ -6,86 +6,14 @@
   "duration": "99 minutes",
   "segments": [
     {
-      "time": 5,
+      "time": 1349,
       "text": "Thank you very much. This is a great honor. We've accomplished more in 43 days than most administrations accomplish in four years, maybe even eight years.",
       "claims": []
     },
     {
-      "time": 180,
-      "text": "America is back, open for business, and stronger than ever before. We will very quickly make America greater than ever before.",
+      "time": 1401,
+      "text": "Our country is going to be bigger, better, and stronger than ever before. The best is yet to come. God bless you, and God bless America.",
       "claims": []
-    },
-    {
-      "time": 480,
-      "text": "When I took office, we inherited a mess. We inherited an economic catastrophe and an inflation nightmare.",
-      "claims": [
-        {
-          "quote": "We inherited an economic catastrophe and an inflation nightmare",
-          "rating": "MISLEADING",
-          "actual": "BEA/BLS: The economy grew 2.5%+ annually since 2021. Unemployment was 4.0% in Jan 2025, well below historical norms. Inflation had declined from 9.1% peak to ~3% by inauguration.",
-          "explanation": "Economy was growing steadily with low unemployment when Trump took office."
-        }
-      ]
-    },
-    {
-      "time": 600,
-      "text": "We suffered the worst inflation in 48 years, but perhaps even in the history of our country. Americans saw their grocery bills skyrocket and everything go through the roof.",
-      "claims": [
-        {
-          "quote": "Worst inflation in 48 years, but perhaps even in the history of our country",
-          "rating": "FALSE",
-          "actual": "BLS CPI: Peak was 9.1% in June 2022 — the highest since November 1981 (41 years, not 48). Inflation exceeded 12-15% in the 1970s-80s and 18% in 1946.",
-          "explanation": "Inflation was high but far from the worst in U.S. history."
-        }
-      ]
-    },
-    {
-      "time": 720,
-      "text": "Joe Biden, especially, let the price of eggs get out of control. Everyone knows it. Under my leadership, we will bring the price of eggs and everything else back down.",
-      "claims": [
-        {
-          "quote": "Joe Biden let the price of eggs get out of control",
-          "rating": "MISLEADING",
-          "actual": "BLS/USDA: Egg prices spiked due to bird flu killing 100+ million chickens — a supply shock, not policy. Egg prices are higher under Trump than Biden's peak, rising ~$2 since inauguration.",
-          "explanation": "Bird flu drove egg prices; they actually rose further under Trump."
-        }
-      ]
-    },
-    {
-      "time": 900,
-      "text": "We have more liquid gold under our feet than any nation on earth, and by far. We are going to use it. Drill, baby, drill.",
-      "claims": [
-        {
-          "quote": "We have more liquid gold under our feet than any nation on earth",
-          "rating": "FALSE",
-          "actual": "EIA/OPEC: U.S. ranks 9th-11th globally in proven crude oil reserves behind Venezuela, Saudi Arabia, Iran, Canada, Iraq, and others. U.S. leads in production but not reserves.",
-          "explanation": "U.S. is a top producer but does not have the most oil reserves."
-        }
-      ]
-    },
-    {
-      "time": 1020,
-      "text": "The previous administration closed more than 100 power plants. They were shutting down our energy. We are now opening them back up.",
-      "claims": [
-        {
-          "quote": "Closed more than 100 power plants",
-          "rating": "MISLEADING",
-          "actual": "EIA: Total U.S. electric power plants increased by 2,187 from 2020–2023. Coal plants decreased by 57, petroleum by 23. Renewable and natural gas plants far offset closures.",
-          "explanation": "Some fossil fuel plants closed but total plants increased significantly."
-        }
-      ]
-    },
-    {
-      "time": 1200,
-      "text": "We are taking on waste, fraud, and abuse in the federal government. We found hundreds of billions of dollars of fraud. DOGE is doing an incredible job saving taxpayer money.",
-      "claims": [
-        {
-          "quote": "We found hundreds of billions of dollars of fraud",
-          "rating": "MISLEADING",
-          "actual": "DOGE website: Claimed $105B in estimated savings as of March 2025. Only $19.8B documented on their 'wall of receipts.' Most identified items were program cuts, not proven fraud.",
-          "explanation": "Documented savings are far less than claimed; 'fraud' conflated with spending cuts."
-        }
-      ]
     },
     {
       "time": 1500,
@@ -100,7 +28,79 @@
       ]
     },
     {
-      "time": 1920,
+      "time": 1982,
+      "text": "I ended the last administration's insane electric vehicle mandate. You can buy any car you want. You can buy a gasoline-powered car, a hybrid, electric, anything.",
+      "claims": [
+        {
+          "quote": "I ended the last administration's insane electric vehicle mandate",
+          "rating": "FALSE",
+          "actual": "EPA/DOT: The Biden administration never imposed an EV mandate. EPA set tailpipe emission standards; automakers could meet them with any technology mix including hybrids.",
+          "explanation": "No EV mandate existed — emission standards allowed multiple compliance paths."
+        }
+      ]
+    },
+    {
+      "time": 2425,
+      "text": "When I took office, we inherited a mess. We inherited an economic catastrophe and an inflation nightmare.",
+      "claims": [
+        {
+          "quote": "We inherited an economic catastrophe and an inflation nightmare",
+          "rating": "MISLEADING",
+          "actual": "BEA/BLS: The economy grew 2.5%+ annually since 2021. Unemployment was 4.0% in Jan 2025, well below historical norms. Inflation had declined from 9.1% peak to ~3% by inauguration.",
+          "explanation": "Economy was growing steadily with low unemployment when Trump took office."
+        }
+      ]
+    },
+    {
+      "time": 2441,
+      "text": "We suffered the worst inflation in 48 years, but perhaps even in the history of our country. Americans saw their grocery bills skyrocket and everything go through the roof.",
+      "claims": [
+        {
+          "quote": "Worst inflation in 48 years, but perhaps even in the history of our country",
+          "rating": "FALSE",
+          "actual": "BLS CPI: Peak was 9.1% in June 2022 — the highest since November 1981 (41 years, not 48). Inflation exceeded 12-15% in the 1970s-80s and 18% in 1946.",
+          "explanation": "Inflation was high but far from the worst in U.S. history."
+        }
+      ]
+    },
+    {
+      "time": 2474,
+      "text": "Joe Biden, especially, let the price of eggs get out of control. Everyone knows it. Under my leadership, we will bring the price of eggs and everything else back down.",
+      "claims": [
+        {
+          "quote": "Joe Biden let the price of eggs get out of control",
+          "rating": "MISLEADING",
+          "actual": "BLS/USDA: Egg prices spiked due to bird flu killing 100+ million chickens — a supply shock, not policy. Egg prices are higher under Trump than Biden's peak, rising ~$2 since inauguration.",
+          "explanation": "Bird flu drove egg prices; they actually rose further under Trump."
+        }
+      ]
+    },
+    {
+      "time": 2506,
+      "text": "The previous administration closed more than 100 power plants. They were shutting down our energy. We are now opening them back up.",
+      "claims": [
+        {
+          "quote": "Closed more than 100 power plants",
+          "rating": "MISLEADING",
+          "actual": "EIA: Total U.S. electric power plants increased by 2,187 from 2020–2023. Coal plants decreased by 57, petroleum by 23. Renewable and natural gas plants far offset closures.",
+          "explanation": "Some fossil fuel plants closed but total plants increased significantly."
+        }
+      ]
+    },
+    {
+      "time": 2554,
+      "text": "We have more liquid gold under our feet than any nation on earth, and by far. We are going to use it. Drill, baby, drill.",
+      "claims": [
+        {
+          "quote": "We have more liquid gold under our feet than any nation on earth",
+          "rating": "FALSE",
+          "actual": "EIA/OPEC: U.S. ranks 9th-11th globally in proven crude oil reserves behind Venezuela, Saudi Arabia, Iran, Canada, Iraq, and others. U.S. leads in production but not reserves.",
+          "explanation": "U.S. is a top producer but does not have the most oil reserves."
+        }
+      ]
+    },
+    {
+      "time": 2595,
       "text": "On April 2nd, reciprocal tariffs kick in. We will take in trillions and trillions of dollars that create jobs like we have never seen before.",
       "claims": [
         {
@@ -112,7 +112,7 @@
       ]
     },
     {
-      "time": 2040,
+      "time": 2890,
       "text": "I did it with China, and nobody thought that was possible. We took in hundreds of billions of dollars from China. They paid dearly, not us.",
       "claims": [
         {
@@ -124,7 +124,36 @@
       ]
     },
     {
-      "time": 2280,
+      "time": 2905,
+      "text": "We are taking on waste, fraud, and abuse in the federal government. We found hundreds of billions of dollars of fraud. DOGE is doing an incredible job saving taxpayer money.",
+      "claims": [
+        {
+          "quote": "We found hundreds of billions of dollars of fraud",
+          "rating": "MISLEADING",
+          "actual": "DOGE website: Claimed $105B in estimated savings as of March 2025. Only $19.8B documented on their 'wall of receipts.' Most identified items were program cuts, not proven fraud.",
+          "explanation": "Documented savings are far less than claimed; 'fraud' conflated with spending cuts."
+        }
+      ]
+    },
+    {
+      "time": 3120,
+      "text": "I brought back the TikTok ban, saved it, and now we're going to get a deal where the United States gets 50 percent of TikTok.",
+      "claims": []
+    },
+    {
+      "time": 3425,
+      "text": "We're going to have no tax on tips, no tax on overtime, and no tax on Social Security. People on Social Security have been treated very unfairly.",
+      "claims": [
+        {
+          "quote": "No tax on tips, no tax on overtime, and no tax on Social Security",
+          "rating": "UNVERIFIABLE",
+          "actual": "Congress: These are proposals requiring legislation. CBO has not scored the combined revenue impact. Estimates suggest $1.5-2T in revenue loss over 10 years if all three pass.",
+          "explanation": "Campaign promises requiring Congressional action — not yet law."
+        }
+      ]
+    },
+    {
+      "time": 3465,
       "text": "Auto plants are opening up all over the place. They're coming back to Michigan, they're coming back to South Carolina, Ohio, and many other states.",
       "claims": [
         {
@@ -136,7 +165,19 @@
       ]
     },
     {
-      "time": 2520,
+      "time": 3572,
+      "text": "We are going to make the Trump tax cuts permanent. If we don't, you will have the biggest tax increase in the history of our country.",
+      "claims": [
+        {
+          "quote": "If we don't, you will have the biggest tax increase in the history of our country",
+          "rating": "MOSTLY TRUE",
+          "actual": "CBO/Tax Policy Center: The 2017 TCJA individual provisions expire after 2025. If not extended, taxes would increase by ~$4 trillion over 10 years — one of the largest increases by value, though not as a share of GDP.",
+          "explanation": "Expiration would be a large tax increase in dollar terms."
+        }
+      ]
+    },
+    {
+      "time": 3805,
       "text": "Before the end of my first full business day, we secured nearly $3 trillion of new investments in the United States. SoftBank committed $200 billion. Apple committed $500 billion. TSMC is investing $165 billion.",
       "claims": [
         {
@@ -150,47 +191,6 @@
           "rating": "MOSTLY TRUE",
           "actual": "Apple announced a $500B five-year U.S. spending plan in Feb 2025, including a Houston AI server factory. However, Apple already spends ~$80B/year in the U.S., making this partly a repackaging of existing plans.",
           "explanation": "Apple confirmed the pledge, but much reflects continuation of existing spending."
-        }
-      ]
-    },
-    {
-      "time": 2760,
-      "text": "We're going to have no tax on tips, no tax on overtime, and no tax on Social Security. People on Social Security have been treated very unfairly.",
-      "claims": [
-        {
-          "quote": "No tax on tips, no tax on overtime, and no tax on Social Security",
-          "rating": "UNVERIFIABLE",
-          "actual": "Congress: These are proposals requiring legislation. CBO has not scored the combined revenue impact. Estimates suggest $1.5-2T in revenue loss over 10 years if all three pass.",
-          "explanation": "Campaign promises requiring Congressional action — not yet law."
-        }
-      ]
-    },
-    {
-      "time": 3120,
-      "text": "I brought back the TikTok ban, saved it, and now we're going to get a deal where the United States gets 50 percent of TikTok.",
-      "claims": []
-    },
-    {
-      "time": 3360,
-      "text": "The previous administration spent perhaps $350 billion on Ukraine, like taking candy from a baby. And we never got a thank you.",
-      "claims": [
-        {
-          "quote": "Spent perhaps $350 billion on Ukraine",
-          "rating": "FALSE",
-          "actual": "Congressional Research Service: Congress appropriated $174.2B for Ukraine since 2022. Ukraine Oversight Inspector General reported $183B allocated as of Sept 2024.",
-          "explanation": "Actual amount is roughly half what Trump claimed."
-        }
-      ]
-    },
-    {
-      "time": 3600,
-      "text": "I ended the last administration's insane electric vehicle mandate. You can buy any car you want. You can buy a gasoline-powered car, a hybrid, electric, anything.",
-      "claims": [
-        {
-          "quote": "I ended the last administration's insane electric vehicle mandate",
-          "rating": "FALSE",
-          "actual": "EPA/DOT: The Biden administration never imposed an EV mandate. EPA set tailpipe emission standards; automakers could meet them with any technology mix including hybrids.",
-          "explanation": "No EV mandate existed — emission standards allowed multiple compliance paths."
         }
       ]
     },
@@ -219,26 +219,1516 @@
       ]
     },
     {
-      "time": 4800,
-      "text": "We are going to make the Trump tax cuts permanent. If we don't, you will have the biggest tax increase in the history of our country.",
-      "claims": [
-        {
-          "quote": "If we don't, you will have the biggest tax increase in the history of our country",
-          "rating": "MOSTLY TRUE",
-          "actual": "CBO/Tax Policy Center: The 2017 TCJA individual provisions expire after 2025. If not extended, taxes would increase by ~$4 trillion over 10 years — one of the largest increases by value, though not as a share of GDP.",
-          "explanation": "Expiration would be a large tax increase in dollar terms."
-        }
-      ]
-    },
-    {
       "time": 5400,
       "text": "We will rebuild our military, take care of our veterans, and always put America first. We are respected again all over the world.",
       "claims": []
     },
     {
-      "time": 5700,
-      "text": "Our country is going to be bigger, better, and stronger than ever before. The best is yet to come. God bless you, and God bless America.",
+      "time": 6513,
+      "text": "The previous administration spent perhaps $350 billion on Ukraine, like taking candy from a baby. And we never got a thank you.",
+      "claims": [
+        {
+          "quote": "Spent perhaps $350 billion on Ukraine",
+          "rating": "FALSE",
+          "actual": "Congressional Research Service: Congress appropriated $174.2B for Ukraine since 2022. Ukraine Oversight Inspector General reported $183B allocated as of Sept 2024.",
+          "explanation": "Actual amount is roughly half what Trump claimed."
+        }
+      ]
+    },
+    {
+      "time": 6917,
+      "text": "America is back, open for business, and stronger than ever before. We will very quickly make America greater than ever before.",
       "claims": []
+    }
+  ],
+  "captions": [
+    {
+      "time": 28,
+      "text": "e"
+    },
+    {
+      "time": 58,
+      "text": "e"
+    },
+    {
+      "time": 88,
+      "text": "e"
+    },
+    {
+      "time": 118,
+      "text": "e"
+    },
+    {
+      "time": 148,
+      "text": "e e"
+    },
+    {
+      "time": 196,
+      "text": "any"
+    },
+    {
+      "time": 213,
+      "text": "now I"
+    },
+    {
+      "time": 241,
+      "text": "ke"
+    },
+    {
+      "time": 324,
+      "text": "I get a video w"
+    },
+    {
+      "time": 384,
+      "text": "Mr Speaker the president's cabinet"
+    },
+    {
+      "time": 409,
+      "text": "that's true I I should have done way better secretary can't wait to connect with you we have so much"
+    },
+    {
+      "time": 465,
+      "text": "[Music] all right"
+    },
+    {
+      "time": 485,
+      "text": "[Music]"
+    },
+    {
+      "time": 500,
+      "text": "the"
+    },
+    {
+      "time": 534,
+      "text": "to see"
+    },
+    {
+      "time": 578,
+      "text": "e"
+    },
+    {
+      "time": 629,
+      "text": "e"
+    },
+    {
+      "time": 659,
+      "text": "St"
+    },
+    {
+      "time": 700,
+      "text": "a"
+    },
+    {
+      "time": 747,
+      "text": "I know what's going on I know where are"
+    },
+    {
+      "time": 779,
+      "text": "actually I saw on like a"
+    },
+    {
+      "time": 836,
+      "text": "Marg"
+    },
+    {
+      "time": 858,
+      "text": "see that Mar"
+    },
+    {
+      "time": 886,
+      "text": "let's swing"
+    },
+    {
+      "time": 910,
+      "text": "it's going to be time"
+    },
+    {
+      "time": 942,
+      "text": "Mr Speaker the president of the United States"
+    },
+    {
+      "time": 970,
+      "text": "only guy I wait for is"
+    },
+    {
+      "time": 988,
+      "text": "[Applause] terrible"
+    },
+    {
+      "time": 1020,
+      "text": "got back up guys back up"
+    },
+    {
+      "time": 1060,
+      "text": "IM [Applause]"
+    },
+    {
+      "time": 1079,
+      "text": "[Applause] com"
+    },
+    {
+      "time": 1097,
+      "text": "[Applause] you"
+    },
+    {
+      "time": 1165,
+      "text": "us us us us us us us us us"
+    },
+    {
+      "time": 1198,
+      "text": "w"
+    },
+    {
+      "time": 1244,
+      "text": "[Applause] thank you"
+    },
+    {
+      "time": 1274,
+      "text": "thank you very much thank you very much it's great honor thank you very much speaker Johnson vice president Vance the first lady of the United States"
+    },
+    {
+      "time": 1314,
+      "text": "members of the United States Congress thank you very much much and to my fellow citizens America is back"
+    },
+    {
+      "time": 1349,
+      "text": "6 weeks ago I stood beneath the Dome of this capital and proclaimed the dawn of the golden age of America from that moment on it has been nothing but Swift and unrelenting action to usher in the"
+    },
+    {
+      "time": 1367,
+      "text": "greatest and most successful era in the history of our country we have accomplished more in 43 days than most administrations accomplished in four years or eight years and we are just"
+    },
+    {
+      "time": 1382,
+      "text": "getting [Applause]"
+    },
+    {
+      "time": 1401,
+      "text": "started I returned to this chamber tonight to report that America's momentum is back our spirit is back our pride is back our confidence is back and the American dream is surging bigger and"
+    },
+    {
+      "time": 1416,
+      "text": "better than ever before the American dream is Unstoppable and our country is on the verge of a comeback the likes of which the world"
+    },
+    {
+      "time": 1432,
+      "text": "has never witnessed and perhaps will never witness again there never been anything like the presidential election of November 5th was a mandate like has not been seen"
+    },
+    {
+      "time": 1449,
+      "text": "in many decades we won all seven swing States giving us an electoral college victory of 312 votes"
+    },
+    {
+      "time": 1473,
+      "text": "we won the popular vote by big numbers and one counties in our country"
+    },
+    {
+      "time": 1498,
+      "text": "USA US USA USAA and one counties in our country 2,700 to 525 but a map that reads almost"
+    },
+    {
+      "time": 1515,
+      "text": "completely red for Republican now for the first time in modern history more Americans believe believe that our country is headed in the right direction than the wrong"
+    },
+    {
+      "time": 1532,
+      "text": "direction in fact it's an astonishing record 27 point swing the most"
+    },
+    {
+      "time": 1551,
+      "text": "ever likewise small business optimism so it single largest one month gain ever recorded a 41"
+    },
+    {
+      "time": 1567,
+      "text": "jump members are directed to uphold and maintain the Corum in the house and to cease any further disruptions that's your warning members are engaging in willful"
+    },
+    {
+      "time": 1584,
+      "text": "in continuing breach of the Quorum and the chair is prepared to direct the sergeant at arms to restore order to the Joint"
+    },
+    {
+      "time": 1612,
+      "text": "session Mr Green take your seat take your seat sir take your seat finding that members continue to engage in willful and concerted disruption of proper decorum the chair now directs the"
+    },
+    {
+      "time": 1627,
+      "text": "sergeant at- arms to restore order remove this gentleman from the chamber"
+    },
+    {
+      "time": 1649,
+      "text": "[Applause] [Music]"
+    },
+    {
+      "time": 1668,
+      "text": "members are directed to uphold and maintain the Quorum in the house Mr President you continue thank you over the past 6 weeks I have signed nearly 100 executive orders and taken"
+    },
+    {
+      "time": 1683,
+      "text": "more than 400 executive actions a record to restore Common Sense safety optimism and wealth all across our wonderful land the people elected me to do the job and I'm doing it"
+    },
+    {
+      "time": 1717,
+      "text": "in fact it has been stated by many that the first month of our presidency it's our presidency is the most successful in the history of our nation by many"
+    },
+    {
+      "time": 1742,
+      "text": "and what makes it even more impressive is that do you know who number two is George Washington how about that how about I don't know about that list but but we'll take it within hours of taking"
+    },
+    {
+      "time": 1757,
+      "text": "the oath of office I declared a National Emergency on our Southern border and I deployed the US Military and border patrol to repel the invasion of our country and what a job they've done as a"
+    },
+    {
+      "time": 1772,
+      "text": "result illegal border crossings last month were by far the lowest ever recorded"
+    },
+    {
+      "time": 1794,
+      "text": "ever they heard my words and they chose not to come much easier that way in comparison under Joe Biden the worst president in American history there were hundreds of thousands of illegal Crossings a month"
+    },
+    {
+      "time": 1811,
+      "text": "and virtually all of them including murderers drug dealers gang members and people from mental institutions and insane asylums were released into our country who would want to do that this is my fifth such speech to Congress and"
+    },
+    {
+      "time": 1829,
+      "text": "once again I look at the Democrats in front of me and I realize there is absolutely nothing I can say to make them happy or to make them stand or smile or applaud nothing I can do I could find a cure to the most"
+    },
+    {
+      "time": 1845,
+      "text": "devastating disease a disease that would wipe out entire nations or announce the answers to the greatest economy in history or the stoppage of crime to the low levels ever recorded and these"
+    },
+    {
+      "time": 1860,
+      "text": "people sitting right here will not clap will not stand and certainly will not cheer for these astronomical achievements they won't do it no matter what five five times I've been up here it's very"
+    },
+    {
+      "time": 1875,
+      "text": "sad and it just shouldn't be this way"
+    },
+    {
+      "time": 1896,
+      "text": "so Democrats sitting before me for just this one night why not join us in celebrating so many incredible wins for America for the good of our nation let's work together and let's truly make"
+    },
+    {
+      "time": 1911,
+      "text": "America great again"
+    },
+    {
+      "time": 1930,
+      "text": "every day my Administration is fighting to deliver the change America needs to bring a future that America deserves and we're doing it this is a time for Big Dreams and bold action upon taking"
+    },
+    {
+      "time": 1946,
+      "text": "office I imposed an immediate freeze on all federal hiring a freeze on all new federal regulations and a freeze on all foreign"
+    },
+    {
+      "time": 1966,
+      "text": "aid I terminated the ridiculous green news scam I withdrew from the unfair Paris climate Accord which was costing us trillions of dollars that other countries were not paying I"
+    },
+    {
+      "time": 1982,
+      "text": "withdrew from the corrupt World Health Organization and I also withdrew from the anti-American UN Human Rights"
+    },
+    {
+      "time": 2001,
+      "text": "Council we ended all of Biden's environmental restrictions that were making our country far less safe and totally unaffordable and importantly we ended the last administration's insane electric vehicle mandate saving our Auto"
+    },
+    {
+      "time": 2018,
+      "text": "Workers and companies from economic destruction to unshackle our economy I"
+    },
+    {
+      "time": 2036,
+      "text": "have directed that that for every one new regulation 10 old regulations must be eliminated just like I did in my very successful first"
+    },
+    {
+      "time": 2055,
+      "text": "day and in that first term we set records on ending unnecessary rules and regulations like no other president had done before we ordered all federal workers to to return to the office they will either show up for work in person"
+    },
+    {
+      "time": 2072,
+      "text": "or be removed from their job and we have ended weaponized"
+    },
+    {
+      "time": 2087,
+      "text": "government where as an example a sitting president is allowed to viciously prosecute his political opponent like me how did that work out not too good not too"
+    },
+    {
+      "time": 2114,
+      "text": "good and I have stopped all government censorship and brought back free speech in America it's back"
+    },
+    {
+      "time": 2131,
+      "text": "and two days ago I signed an order making English the official language of the United States of"
+    },
+    {
+      "time": 2146,
+      "text": "America I renamed the Gulf of Mexico the Gulf of America"
+    },
+    {
+      "time": 2161,
+      "text": "and likewise I renamed for a great President William McKinley Mount McKinley again beautiful Alaska we love"
+    },
+    {
+      "time": 2178,
+      "text": "Alaska We've Ended the tyranny of so-called diversity equity and inclusion policies all across the entire Federal government and indeed the private sector and our"
+    },
+    {
+      "time": 2195,
+      "text": "military and our country will be woke no longer we believe that whether you are a doctor an accountant a lawyer or an air"
+    },
+    {
+      "time": 2213,
+      "text": "traffic controller you should be hired and promoted based on skill and competence not race or gender very"
+    },
+    {
+      "time": 2230,
+      "text": "important you should be hired based on Merit and the Supreme Court in A Brave and very powerful decision has allowed us to do so thank you thank you very much"
+    },
+    {
+      "time": 2245,
+      "text": "you we have remove removed the poison of critical race Theory from our public schools and I signed an order making it the official policy of the United States government that there are only two genders male and"
+    },
+    {
+      "time": 2275,
+      "text": "female I also saw an executive order to ban men from playing in women's"
+    },
+    {
+      "time": 2295,
+      "text": "sports three years ago Payton McNab was an Allstar High School athlete one of the best preparing for a future in college sports but when her girls volleyball match was invaded by a male he smashed"
+    },
+    {
+      "time": 2311,
+      "text": "the ball so hard in Payton's face causing traumatic brain injury partially paralyzing her right side and ending her athletic career it was a shot like she's never seen before she's never seen"
+    },
+    {
+      "time": 2326,
+      "text": "anything like it pton is here tonight in the gallery and pton from now on schools will kick the men off the girls team or they will lose all federal"
+    },
+    {
+      "time": 2364,
+      "text": "funding and if you really want to see numbers just take a look at what happened in the woman's boxing weightlifting track and field swimming or cycling where a male recently finished a longdistance race 5 hours and 14 minutes ahead of a woman"
+    },
+    {
+      "time": 2382,
+      "text": "for a new record by five hours broke the record by five hours it's demeaning for women and it's very bad for our country we're not going to put up with it any longer"
+    },
+    {
+      "time": 2410,
+      "text": "what I have just described is only a small fraction of the Common Sense Revolution that is now because of us sweeping the entire world Common Sense has become a common theme and we will never go back never ever going to let"
+    },
+    {
+      "time": 2425,
+      "text": "that happen among my very highest priorities is to rescue our economy and get dramatic and immediate relief to Working Families as you know we inherited from the last"
+    },
+    {
+      "time": 2441,
+      "text": "Administration an economic catastrophe and an inflation nightmare their policies drove up Energy prices pushed up grocery costs and drove the necessities of life Out Of Reach for"
+    },
+    {
+      "time": 2457,
+      "text": "millions and millions of Americans they've not never had anything like it we suffered the worst inflation in 48 years but perhaps even in the history of our country they're not sure as president I'm fighting every day to reverse this damage and make America"
+    },
+    {
+      "time": 2474,
+      "text": "affordable again"
+    },
+    {
+      "time": 2490,
+      "text": "Joe Biden especially let the price of eggs get out of control the egg price is out of control and we're working hard to get it back down secretary do a good job on that you inherited a total mess from the"
+    },
+    {
+      "time": 2506,
+      "text": "previous administration do a good job a major focus of our fight to defeat inflation is rapidly reducing the cost"
+    },
+    {
+      "time": 2523,
+      "text": "of energy the previous administration cut the number of new oil and gas leases by 95% slowed pipeline construction to a halt and closed more than 100 power plants we are opening up many of those"
+    },
+    {
+      "time": 2539,
+      "text": "power plants right now and frankly we have never seen anything"
+    },
+    {
+      "time": 2554,
+      "text": "like it that's why on my first day in office I declared a national Energy emergency as you've heard me say many times we have more Liquid Gold under our"
+    },
+    {
+      "time": 2569,
+      "text": "feet than any Nation on Earth and by far and now I fully authorize the most talented team ever assembled to go and get it it's called drill baby"
+    },
+    {
+      "time": 2595,
+      "text": "drill my Administration is also working on a gigantic natural gas pipeline in Alaska among the largest in the world where Japan South Korea and other nations want to be our partner with Investments of trillions of dollars each"
+    },
+    {
+      "time": 2610,
+      "text": "there's never been anything like that one it will be truly spectacular it's all set to go the permitting is gotten and later this week I will also take historic action to dramatically expand production of critical minerals and rare"
+    },
+    {
+      "time": 2625,
+      "text": "Earths here in the USA"
+    },
+    {
+      "time": 2641,
+      "text": "to further combat inflation we will not only be reducing the cost of energy but will be ending the flagrant waste of taxpayer"
+    },
+    {
+      "time": 2658,
+      "text": "dollars and to that end I have created the brand new Department of government efficiency go perhaps you've heard of it"
+    },
+    {
+      "time": 2676,
+      "text": "perhaps which is headed by Elon Musk who is in the gallery tonight"
+    },
+    {
+      "time": 2700,
+      "text": "thank you Elon he's working very hard he didn't need this he didn't need this thank you very much we appreciate it everybody here even this side appreciates it I believe they just don't want to admit"
+    },
+    {
+      "time": 2715,
+      "text": "that just listen to some of the appalling waste we have already identified $22 billion from HHS to provide free housing and cars for illegal aliens $45 million"
+    },
+    {
+      "time": 2732,
+      "text": "for diversity equity and inclusion Scholarships in Burma $40 million to improve the social and economic inclusion of sedentary migrants nobody knows what that"
+    },
+    {
+      "time": 2747,
+      "text": "is $8 million to promote lgbtqi Plus in the African nation of luto which nobody has ever heard of $60 million for indigenous peoples"
+    },
+    {
+      "time": 2762,
+      "text": "and afro Colombian empowerment in Central America $60 million $8 million for making mice transgender this is"
+    },
+    {
+      "time": 2777,
+      "text": "real $32 million for a leftwing propaganda operation in mova $10 million for male circumcision in mosm Beek $20 million for the Arab Sesame"
+    },
+    {
+      "time": 2793,
+      "text": "Street in the Middle East it's a program $20 million for a program $1.9 billion to recently created decarbonization of homes committee headed up and we know she's"
+    },
+    {
+      "time": 2810,
+      "text": "involved just at the last moment the money was passed over by a woman named Stacy Abrams have you ever heard of her a $3.5 million Consulting contract for lavish fish"
+    },
+    {
+      "time": 2826,
+      "text": "monitoring $1.5 million for voter confidence in Liberia $14 million for social cohesion in Mali $59 million for illegal alien hotel rooms in New York"
+    },
+    {
+      "time": 2844,
+      "text": "City he's a real estate developer he's done very well $250,000 to increase vegan local climate action innovation in Zambia $42 million for social and"
+    },
+    {
+      "time": 2859,
+      "text": "behavior change in Uganda $14 million for improving public procurement in Serbia $47 million for improving learning outcomes in Asia Asia is doing very well with"
+    },
+    {
+      "time": 2875,
+      "text": "learning you know what we're doing we should use it ourselves and $11 million for Dei contracts at the Department of Education the most ever paid nothing even like it under the Trump"
+    },
+    {
+      "time": 2890,
+      "text": "Administration all of these scams and they're far worse but I didn't think it was appropriate to talk about them they're so bad many more have been found out and exposed and swiftly terminated by a group of very intelligent mostly"
+    },
+    {
+      "time": 2905,
+      "text": "young people headed up by Elon and we appreciate it we found hundreds of billions of dollars of"
+    },
+    {
+      "time": 2928,
+      "text": "Fraud and we've taken back the money and reduced our debt to fight inflation and other things taking back a lot of without money we got it just in time this is just the beginning the government accountability"
+    },
+    {
+      "time": 2944,
+      "text": "office federal government office has estimated annual fraud of over $500 billion doll in our nation and we are working very hard to stop it we're going to we're also identifying shocking levels of incompetence and probable"
+    },
+    {
+      "time": 2960,
+      "text": "fraud in the Social Security program for our seniors and that our seniors and people that we love rely on Believe It or Not government databases list 4.7 million Social Security members from"
+    },
+    {
+      "time": 2975,
+      "text": "people aged 100 to 109 years old it lists 3.6 million people from ages"
+    },
+    {
+      "time": 2990,
+      "text": "110 to 119 I don't know any of them I know some people that are rather elderly but not quite that elderly 3.47 million people from ages 120 to"
+    },
+    {
+      "time": 3007,
+      "text": "129 3.9 million people from ages 130 to39 3.5 million people from ages 140 to"
+    },
+    {
+      "time": 3023,
+      "text": "149 and money is being paid to many of them and we're searching right now fact Pam good luck good luck you're going to find it but a lot of money is paid out to people because it just keeps getting"
+    },
+    {
+      "time": 3040,
+      "text": "paid and paid and nobody does and it really hurts Social Security and hurts our country 1.3 million people from ages 150 to9 and over 130,000 people according to the Social"
+    },
+    {
+      "time": 3058,
+      "text": "Security databases are age over 160 years old we have a healthier country than I thought"
+    },
+    {
+      "time": 3084,
+      "text": "Bobby including to finish 1,039 people between the ages of 220 and 229 one person between the age of 240 and 249 and one person is listed at"
+    },
+    {
+      "time": 3101,
+      "text": "360 years of age more than 100 years more than 100 years older than our country but we're going to find out where that money is going"
+    },
+    {
+      "time": 3117,
+      "text": "and it's not going to be pretty by slashing all of the fraud waste and theft we can find we will defeat inflation bring down mortgage rates lower car payments and grocery prices protect our seniors and put more money in the pockets of American families"
+    },
+    {
+      "time": 3147,
+      "text": "and today interest rates took a beautiful Drop big beautiful Drop it's about time and in the near future I want to do what has not been done in 24 years balance the federal budget we're going"
+    },
+    {
+      "time": 3162,
+      "text": "to balance"
+    },
+    {
+      "time": 3183,
+      "text": "with that goal in mind we have developed in great detail what we are calling the gold card which goes on sale very very soon for $5 million we will allow the most successful job creating people from"
+    },
+    {
+      "time": 3198,
+      "text": "all over the world to buy a path to US citizenship it's like the green card but better and more sophisticated and these people will have to pay tax in our country they won't have to pay tax from where they came the money that"
+    },
+    {
+      "time": 3214,
+      "text": "they've made you wouldn't want to do that but they have to pay tax create jobs they'll also be taking people out of colleges and paying for them so that we can keep them in our country instead of having them be being forced out number one at the top school as an example being forced out and not being"
+    },
+    {
+      "time": 3231,
+      "text": "allowed to stay and create tremendous numbers of jobs and great success for a company out there so while we take out the criminals killers traffickers and child Predators who are allowed to enter our country under the open border policy"
+    },
+    {
+      "time": 3246,
+      "text": "of these people the Democrats the Biden Administration the open border insane policies that you've allowed to destroy our country we will now bring in brilliant hardworking job creating people they're going to pay a lot of"
+    },
+    {
+      "time": 3262,
+      "text": "money and we're going to reduce our debt with that money"
+    },
+    {
+      "time": 3278,
+      "text": "Americans have given us a mandate for bold and profound change for nearly 100 years the federal bureaucracy has grown until it has crushed our freedoms ballooned our deficits and held back America's potential in every possible"
+    },
+    {
+      "time": 3295,
+      "text": "way the nation founded by pioneers and Risk Takers now drowns under millions and millions of pages of regulations and debt approvals that should take 10 days to get instead take 10 years 15 years"
+    },
+    {
+      "time": 3312,
+      "text": "and even 20 years before you're rejected meanwhile we have hundreds of thousands of federal workers who have not been showing up to work my Administration will reclaim power from this unaccountable bureaucracy and we will restore true democracy to"
+    },
+    {
+      "time": 3329,
+      "text": "America again and any federal bureaucrat who"
+    },
+    {
+      "time": 3346,
+      "text": "resists this change will be removed from office [Applause] immediately because we are draining the swamp it's very simple and the days of rule by unelected bureaucrats are"
+    },
+    {
+      "time": 3378,
+      "text": "over and the next phase of our plan to deliver the greatest economy in history is for this Congress to pass tax cuts for everybody they're in there they're waiting for you to vote and I'm sure that the people on my right I don't mean"
+    },
+    {
+      "time": 3394,
+      "text": "the Republican right but my right right here I'm sure you're going to vote for those tax cuts because otherwise I don't believe the people will ever vote you into office so I'm doing you a big favor by telling you that but I know this group is going to"
+    },
+    {
+      "time": 3409,
+      "text": "be voting for the TAC"
+    },
+    {
+      "time": 3425,
+      "text": "thank you it's a very very big part of our plan we had tremendous success in our first term with it a very big part of our plan we're seeking permanent income tax cuts all across the board and to get urgently needed relief to Americans hit especially hard by"
+    },
+    {
+      "time": 3441,
+      "text": "inflation I'm calling for no tax on tips no tax on overtime and no tax on Social Security benefits for our great"
+    },
+    {
+      "time": 3465,
+      "text": "seniors and I also want to make interest payments on car loans tax deductible but only if the car is made in"
+    },
+    {
+      "time": 3487,
+      "text": "America and by the way we're going to have growth in the Auto industry like nobody's ever seen plants are opening up all over the place deals are being made never seen that's a combination of the election win and tariffs it's a beautiful word isn't it that along with"
+    },
+    {
+      "time": 3502,
+      "text": "our other policies will allow our Auto denry to absolutely boom it's going to Boom spoke to the majors today all three the top people and they're so excited in fact already numerous car companies have"
+    },
+    {
+      "time": 3517,
+      "text": "announced that they will be building massive automobile plants in America with Honda just announcing a new plant in Indiana one of the largest anywhere in the world"
+    },
+    {
+      "time": 3540,
+      "text": "and this has taken place since our great Victory on November 5th a date which will hopefully go down as one of the most important in the history of our country in addition as part of our tax"
+    },
+    {
+      "time": 3557,
+      "text": "cuts we want to cut taxes on domestic production and all manufacturing and just as we did before we will provide 100% expensing it will be retroactive to January 20th"
+    },
+    {
+      "time": 3572,
+      "text": "2025 and it was one of the main reasons why our tax cuts were so successful in our first term giving us the most successful economy in the history of our country first turn we had a great first"
+    },
+    {
+      "time": 3592,
+      "text": "turn if you don't make your product in America however under the the Trump Administration you will pay a tariff and in some cases a rather large one other countries have used tariffs against us for decades and now it's our turn to start using them against those other"
+    },
+    {
+      "time": 3609,
+      "text": "countries on average the European Union China Brazil India Mexico and Canada have you heard of them and countless other nations charge us tremendously higher tariffs"
+    },
+    {
+      "time": 3624,
+      "text": "than we charge them it's very unfair India charges us Auto tariffs higher than 100% China's average tariff on our products is twice what we charge them and South Korea's average tariff is four"
+    },
+    {
+      "time": 3640,
+      "text": "times higher think of that four times higher and we give so much help militarily and in so many other ways to South Korea but that's what happens this is happening by friend and foe this system is not fair to the United States"
+    },
+    {
+      "time": 3656,
+      "text": "never was and so on April 2nd I wanted to make it April 1st but I didn't want to be accused of April Fool's Day that's what that's not this one day was cost us a lot of money but we're going to do it in April"
+    },
+    {
+      "time": 3673,
+      "text": "I'm a very superstitious person April 2nd reciprocal tariffs kick in and whatever they tariff us other countries we will tar of them that's reciprocal back and forth whatever they tax us we"
+    },
+    {
+      "time": 3691,
+      "text": "will tax them if they do non-monetary tariffs to keep us out of their market then we will do non-monetary barriers to keep them out of our Market there's a"
+    },
+    {
+      "time": 3707,
+      "text": "lot of that too they don't even allow us in their Market we will take in trillions and trillions of dollars and create jobs like we have never seen before I did it with China and I did it with others and the Biden Administration couldn't do anything about it because it"
+    },
+    {
+      "time": 3722,
+      "text": "was so much money they couldn't do anything about it we have been ripped off for decades by nearly every country on Earth and we will not let that happen any"
+    },
+    {
+      "time": 3743,
+      "text": "longer much has been said over the last three months about Mexico and Canada but we have very large deficits with both of them but even more importantly they've allowed fentol to come into our country at levels never seen before killing"
+    },
+    {
+      "time": 3759,
+      "text": "hundreds of thousands of our citizens and many very young beautiful people destroying families nobody's ever seen anything like it they are in effect receiving subsidies of hundreds of billions of dollars we pay subsidies to"
+    },
+    {
+      "time": 3774,
+      "text": "Canada and to Mexico of hundreds of billions of dollars and the United States will not be doing that any longer we're not going to do it any longer thanks to our America First"
+    },
+    {
+      "time": 3790,
+      "text": "policies we're putting into place we have had $1.7 trillion dollar of new investment in America in just the past few weeks the combination of the election and our economic policies that"
+    },
+    {
+      "time": 3805,
+      "text": "people of SoftBank one of the most brilliant anywhere in the world announced a $200 billion investment open Ai and Oracle Larry Ellison announced $500 billion investment which they"
+    },
+    {
+      "time": 3821,
+      "text": "wouldn't have done if Kamala had won Apple announced 500 billion doll investment Tim Cook called me he said I cannot spend it fast enough it's going"
+    },
+    {
+      "time": 3836,
+      "text": "to be much higher than that I believe they'll be building their plants here instead of in China and just yesterday Taiwan semiconductor the biggest in the world most powerful in the world has a tremendous amount 97% of the market"
+    },
+    {
+      "time": 3853,
+      "text": "announced a $65 billion investment to build the most powerful chips on earth right here in the USA"
+    },
+    {
+      "time": 3872,
+      "text": "and we're not giving them any money your chips sack is a horrible horrible thing we give hundreds of billions of dollars and it doesn't mean a thing they take our money and they don't spend it all that meant to them we're giving them no"
+    },
+    {
+      "time": 3887,
+      "text": "money all that was important to them was they didn't want to pay the Tariff so they came in their building and many other companies are coming we don't have to give them money we just want to protect our businesses and our people and they will come because they won't have to pay tariffs if they build in America so it's very"
+    },
+    {
+      "time": 3903,
+      "text": "amazing you should get rid of the chipa and whatever is left over Mr Speaker you should use it to reduce debt or any other reason you want to"
+    },
+    {
+      "time": 3927,
+      "text": "our new trade policy will also be great for the American Farmer I love the farmer who will now be selling into our home Market the USA because nobody is going to be able to"
+    },
+    {
+      "time": 3942,
+      "text": "compete with you because there's Goods that come in from other comp countries and companies they're un really really in a bad position in so many different way they're"
+    },
+    {
+      "time": 3957,
+      "text": "uninspected they may be very dirty and disgusting and they come in and they pour in and they hurt our American farmers the tariffs will go on Agricultural Product coming into America and our our Farmers starting on April second it may be a little bit of an"
+    },
+    {
+      "time": 3973,
+      "text": "adjustment period we had that before when I made the deal with China $50 billion of purchases and I said just bear with me and they did they did probably have to bear with me again and this will be even better that was great"
+    },
+    {
+      "time": 3988,
+      "text": "the problem with it was that Biden didn't enforce it he didn't enforce it $50 billion of purchases and we were doing great but Biden did not enforce it and it hurt our Farmers but our farmers are going to have a field day right now so to our Farmers have a lot of fun I"
+    },
+    {
+      "time": 4007,
+      "text": "love you too I love you too it's all going to happen and I have also imposed a 25% tariff on"
+    },
+    {
+      "time": 4022,
+      "text": "foreign aluminum copper Lumber and steel because if we don't have as an example steel and lots of other things we don't have a military and frankly won't have we just won't have a country very long here today is a proud American Steel"
+    },
+    {
+      "time": 4038,
+      "text": "worker fantastic person from decada Alabama Jeff dard has been working at the same steel plant for 27 years in a job that has allowed him to serve as the captain of his local"
+    },
+    {
+      "time": 4054,
+      "text": "volunteer fire department raised seven children with his beautiful wife Nicole and over the years provide a loving home for more than 40 foster children so great Jeff"
+    },
+    {
+      "time": 4075,
+      "text": "thank you thank you jff stories like Jeffs remind us that tariffs are not just about protecting"
+    },
+    {
+      "time": 4091,
+      "text": "American jobs they're about protecting the soul of our country tariffs are about making America Rich again and making America great again and it's happening and it will happen rather quickly there'll be a little"
+    },
+    {
+      "time": 4106,
+      "text": "disturbance but we're okay with that it won't be much no you're not oh and look and look where Biden took us very low the lowest we've ever been Jeff I want to thank you very much and I also"
+    },
+    {
+      "time": 4122,
+      "text": "want to recognize another person who has devoted herself to forer Care Community she worked so hard on it a very loving person our magnificent first lady of the United States"
+    },
+    {
+      "time": 4153,
+      "text": "melania's work has yielded incredible results helping prepare our nation's Future Leaders as they enter the workforce our first lady is joined by two impressive young women very impressive Haley Ferguson who benefited from the first ladies fostering the"
+    },
+    {
+      "time": 4169,
+      "text": "future initiative and is poised to complete her education become a teacher and Ellison Barry who became a victim of an illicit deep fake image produced by a peer with Ellison's help the Senate just"
+    },
+    {
+      "time": 4186,
+      "text": "passed the take it down act and this is so important thank you very much John John th thank you stand up John thank you"
+    },
+    {
+      "time": 4201,
+      "text": "Joe thank you all very much thank you and thank you to John Thun and the Senate great job to criminalize the"
+    },
+    {
+      "time": 4217,
+      "text": "publication of such images online is terrible terrible thing and once it passes the house I look forward to signing that bill into law thank you and I'm going to use that bill for myself too if you don't mind CU nobody gets"
+    },
+    {
+      "time": 4233,
+      "text": "treated worse than I do online nobody that's great thank you very much to the Senate thank you but if we truly care about protecting Americans children no step is more crucial than securing America's"
+    },
+    {
+      "time": 4249,
+      "text": "borders over the past four years 21 million people poured into the United States many of them murderers human traffickers gang members and other criminals from the streets of dangerous cities all throughout the"
+    },
+    {
+      "time": 4264,
+      "text": "world because of Joe Biden's insane and very dangerous open border policies they are now strongly embedded in our country but we are getting them out and getting them out fast"
+    },
+    {
+      "time": 4290,
+      "text": "and I want to thank Tom Holman and Christy I want to thank you and Paul of border patrol I want to thank you what a job they've all done everybody border patrol ice law enforcement in general is incredible we have to take care of our"
+    },
+    {
+      "time": 4305,
+      "text": "law enforcement have to last year a brilliant 22-year-old nursing student"
+    },
+    {
+      "time": 4321,
+      "text": "named lakan Riley the best in her class admired by everybody went out for a jog on the campus of the University of Georgia that morning lakan was viciously attacked assaulted beaten brutalized and"
+    },
+    {
+      "time": 4338,
+      "text": "horrifically murdered Laken was stolen from us by a Savage illegal alien gang member who was arrested while trespassing across Biden's open Southern border and then set loose into the"
+    },
+    {
+      "time": 4353,
+      "text": "United States under the heartless policies of that failed Administration it was indeed a failed Administration he had then been arrested and released in a Democrat run Sanctuary City a disaster before ending the life"
+    },
+    {
+      "time": 4370,
+      "text": "of this beautiful young angel with us this evening are lakens beloved mother Allison and her sister"
+    },
+    {
+      "time": 4402,
+      "text": "Lauren last year I told lakens grieving parents that we would ensure their daughter would not have died in vain that's why the very first bill I signed into law as your 47th president mandates"
+    },
+    {
+      "time": 4419,
+      "text": "the Detention of all dangerous criminal aliens who threaten Public Safety it's very strong powerful Act"
+    },
+    {
+      "time": 4440,
+      "text": "it's called the lakan Riley act so Allison and Lauren America will never ever forget our beautiful Leen hope Riley [Applause]"
+    },
+    {
+      "time": 4459,
+      "text": "[Applause] thank you very much since taking office my Administration has launched the most"
+    },
+    {
+      "time": 4474,
+      "text": "sweeping border and immigration Crackdown in American history and we quickly achieve the lowest numbers of illegal border crosses ever recorded thank you"
+    },
+    {
+      "time": 4504,
+      "text": "the media and our friends in the Democrat Party kept saying we needed new legislation we must have legislation to secure the Border but it turned out that all we really needed was a new president"
+    },
+    {
+      "time": 4539,
+      "text": "thank you Joe Biden didn't just open our borders he flew illegal aliens over them to overwhelm our schools hospitals and communities throughout the country entire towns like Aurora Colorado and"
+    },
+    {
+      "time": 4554,
+      "text": "Springfield Ohio buckled under the weight of the migrant occupation and corruption like nobody's ever seen before beautiful towns destroyed now just as I promised in my inaugural address we are achieving the great"
+    },
+    {
+      "time": 4571,
+      "text": "liberation of America but there's still is much work to be done here tonight is"
+    },
+    {
+      "time": 4588,
+      "text": "a woman I have gotten to know Alexis Nary from Houston wonderful woman last June Alexis's 12-year-old daughter her precious Joselyn walked to a nearby convenience store she was kidnapped tied"
+    },
+    {
+      "time": 4605,
+      "text": "up assaulted for two hours under a bridge and horrifically murdered arrested in charge with his heinous crime are two illegal alien mon ERS from Venezuela released into America by the last Administration through their"
+    },
+    {
+      "time": 4621,
+      "text": "ridiculous open border the death of this beautiful 12-year-old girl and the agony of her mother and family touched our entire nation greatly Alexis I promised that we would always remember your"
+    },
+    {
+      "time": 4636,
+      "text": "daughter your magnificent daughter and earlier tonight I signed an order keeping my word to you one thing I have learned about Joselyn is that she loved animals so much she loved nature across Galveston Bay from where"
+    },
+    {
+      "time": 4652,
+      "text": "Joselyn lived in Houston you will find a magnificent National Wildlife Refuge a pristine peaceful 34,000 acre Sanctuary for all of God's creatures on the edge of the Gulf of"
+    },
+    {
+      "time": 4670,
+      "text": "America Alexis moments ago I formerly renamed that refuge in loving memory of your beautiful daughter Joselyn so Mr Vice President if you would may I have the order"
+    },
+    {
+      "time": 4688,
+      "text": "[Applause] [Applause]"
+    },
+    {
+      "time": 4717,
+      "text": "thank you very much all three Savages charged with Joselyn and leak's murders were members of the Venezuelan prison gang the toughest gang they say in the world known as trendy"
+    },
+    {
+      "time": 4732,
+      "text": "aragua two weeks ago I officially designated this gang along with MS13 and the bloodthirsty Mexican drug cartels as foreign terrorist"
+    },
+    {
+      "time": 4760,
+      "text": "organizations they are now officially in the same category as Isis and that's not good for them countless thousands of these terrorists were welcomed into the US by the Biden Administration but now"
+    },
+    {
+      "time": 4775,
+      "text": "every last one will be rounded up and forcibly removed from our country or if they're too dangerous put in jails standing trial in this country because we don't want them to come back ever with us this evening is a warrior on the"
+    },
+    {
+      "time": 4791,
+      "text": "front lines of that battle border patrol agent Roberto Ortiz great"
+    },
+    {
+      "time": 4822,
+      "text": "guy in January rer and another agent were patrolling by the Rio Grand near an area known as cartel Island doesn't sound too nice to me when heavily armed gunmen started shooting at"
+    },
+    {
+      "time": 4838,
+      "text": "them Roberto saw that his partner was totally exposed in great danger and he leapt into action returning fire and providing crucial seconds for his fellow agent to seek sa safety just and just"
+    },
+    {
+      "time": 4853,
+      "text": "barely I have have some of the prints of that event and it was not good Agent Ortiz We Salute You for Your Great courage and uh for your line of fire that you took and for The Bravery that"
+    },
+    {
+      "time": 4868,
+      "text": "you showed we honor you and we will always honor you thank you Roberto very much"
+    },
+    {
+      "time": 4889,
+      "text": "thank you Roberto and I actually got to know him on my many calls to the Border he's a great great gentleman the territory to the immediate south of our border is now dominated"
+    },
+    {
+      "time": 4904,
+      "text": "entirely by criminal cartels that murder rape torture and exercise total control they have total control over a whole nation posing a grave threat to our national security the cartels are Waging War in America and it's time for America"
+    },
+    {
+      "time": 4921,
+      "text": "to wage war on the cartels which we are here five nights ago Mexican authorities"
+    },
+    {
+      "time": 4939,
+      "text": "because of our tariff policies being imposed on them think of at this handed over to US 29 of the biggest cartel leaders in their country that has never happened before they want to make us"
+    },
+    {
+      "time": 4954,
+      "text": "happy first time ever but we need Mexico and Canada to do much more than they've done and they have to stop the Fentanyl and drugs pouring into the USA they're going to"
+    },
+    {
+      "time": 4970,
+      "text": "stop it I have sent Congress a detailed fun requests laying out exactly how we will eliminate these threats to protect our homeland and complete the largest deportation operation in American history larger even than current record"
+    },
+    {
+      "time": 4987,
+      "text": "holder president Dwight D Eisenhower a moderate man but someone who believed very strongly in borders Americans expect Congress to send me this funding without delay so I can sign it into law so Mr Speaker John th both both of you I"
+    },
+    {
+      "time": 5005,
+      "text": "I hope you're going to be able to do that Mr speaker thank you Mr leader thank you thank you very much and let's get it to me I'll sign it so fast you won't even believe"
+    },
+    {
+      "time": 5028,
+      "text": "it and as we reclaim our sovereignty we must also bring back law Law and Order to our cities and"
+    },
+    {
+      "time": 5044,
+      "text": "towns in recent years our justice system has been turned upside down by radical left lunatics many jurisdictions virtually seized enforcing the law against"
+    },
+    {
+      "time": 5060,
+      "text": "dangersous repeat offenders while weaponizing law enforcement against political opponents like me my Administration has acted swiftly and decisively to restore Fair equal and impartial justice under the"
+    },
+    {
+      "time": 5076,
+      "text": "Constitutional rule of law starting at the FBI and the doj Pam good luck cash wherever you may be good luck good luck Pam Bond good luck so important going to do"
+    },
+    {
+      "time": 5094,
+      "text": "a great job cash thank you thank you [Applause]"
+    },
+    {
+      "time": 5109,
+      "text": "cash they've already started very strong they're going to do a fantastic job you're going to be very proud of them we're also once again giving our police officers the support protection and respect they so dearly deserve they have"
+    },
+    {
+      "time": 5124,
+      "text": "to get it they have such a hard dangerous job but we're going to make it less dangerous the problem is the bad guys don't respect the law but they're starting to respect it and they soon will respect it this also includes our great fire departments throughout the"
+    },
+    {
+      "time": 5139,
+      "text": "country our firemen and women are unbelievable people and I will never forget them and besides that they voted for me in record numbers so I have no ch"
+    },
+    {
+      "time": 5159,
+      "text": "one year ago this month 31-year-old New York police officer Jonathan Diller unbelievably wonderful person and a great officer was gunned down at a traffic stop on Long Island I went to his"
+    },
+    {
+      "time": 5176,
+      "text": "funeral The Vicious criminal charged with his murder had 21 prior arrests and they were rough arrests to he was a real bad one the thug in the seat next to him had 14 prior arrests and went by the"
+    },
+    {
+      "time": 5191,
+      "text": "name of killer he was killer he killed other people they say a lot of them I attended officer Diller's service and when I met his wife and one-year-old son Ryan it was very inspirational"
+    },
+    {
+      "time": 5206,
+      "text": "actually his widow's name is Stephanie and she is here tonight Stephanie thank you very much Stephanie thank you very much [Applause]"
+    },
+    {
+      "time": 5231,
+      "text": "Stephanie we're going to make sure that Ryan knows his dad was a true hero New York's finest and we're going to get these coldblooded killers and repeat offenders off our streets and we're going to do it fast got to stop it they"
+    },
+    {
+      "time": 5246,
+      "text": "get out with 28 arrests they push people into subway trains they hit people over the head back of the head with baseball bats we got to get them out of here I've already signed an executive order requiring a mandatory death penalty for"
+    },
+    {
+      "time": 5263,
+      "text": "anyone who murders a police officer and tonight I'm asking Congress to pass that policy into permanent law"
+    },
+    {
+      "time": 5283,
+      "text": "I'm also asking for a new crime Bill getting tough on repeat offenders while enhancing protections for America's police officers so they can do their jobs without fear of their lives being totally destroyed they don't want to be"
+    },
+    {
+      "time": 5299,
+      "text": "killed we're not going to let them be killed joining us in the gallery tonight is a young man who truly loves our police his name is DJ Daniel he is 13 years old and"
+    },
+    {
+      "time": 5315,
+      "text": "he has always dreamed of becoming a police officer"
+    },
+    {
+      "time": 5357,
+      "text": "but in 2018 DJ was diagnosed with brain cancer the doctors gave him five months at most to live that was more than six years [Applause]"
+    },
+    {
+      "time": 5390,
+      "text": "ago since that time DJ and his dad have been on a quest to make his dream come true and DJ has been sworn in as an honorary law enforc officer actually a number of times peace the police love"
+    },
+    {
+      "time": 5407,
+      "text": "him the police departments love him and tonight DJ we're going to do you the biggest honor of them all I am asking our new secret service director sea Curran to officially make you an agent of the United States Secret Service oh"
+    },
+    {
+      "time": 5441,
+      "text": "[Applause]"
+    },
+    {
+      "time": 5469,
+      "text": "thank you DJ DJ's doctors believe his cancer likely came from a chemical he was exposed to when he was younger since 1975 rates of child cancer have increased by more than"
+    },
+    {
+      "time": 5485,
+      "text": "40% reversing this trend is one of the top priorities for our new presidential commission to make America healthy again chaired by our new secretary of Health and Human Services Robert F Kennedy Jr"
+    },
+    {
+      "time": 5505,
+      "text": "[Applause]"
+    },
+    {
+      "time": 5523,
+      "text": "with the name Kennedy you would have thought everybody over here would have been cheer how quickly they forget our goal is to get toxins out of our environment poisons out of our food supply and keep our children healthy and"
+    },
+    {
+      "time": 5538,
+      "text": "strong as an example not long ago and you can't even believe these numbers one in 10,000 children had autism one in 10,000 and now it's 1 in"
+    },
+    {
+      "time": 5554,
+      "text": "36 there's something wrong 1 in 36 think of that so we're going to find out what it is and there's nobody better than Bobby and all of the people that are working with you you have the best to uh figure out what is going on okay Bobby"
+    },
+    {
+      "time": 5570,
+      "text": "good luck it's a very important job thank you"
+    },
+    {
+      "time": 5585,
+      "text": "thank you my Administration is also working to protect our children from toxic ideologies in our schools a few years ago January Little John and her husband discovered that their daughter's school had secretly socially"
+    },
+    {
+      "time": 5600,
+      "text": "transitioned their 13-year-old little girl teachers and administrators conspired to deceive January and her husband while encouraging her daughter to use a new name and pronouns they them pronoun actually all"
+    },
+    {
+      "time": 5617,
+      "text": "without telling January who is here tonight and is now a courageous Advocate against this form of child abuse January thank you thank you thank you very much"
+    },
+    {
+      "time": 5634,
+      "text": "[Applause] thank you stories like this are why shortly after taking office I signed an"
+    },
+    {
+      "time": 5649,
+      "text": "executive order Banning public schools from indoctrinating our children with transgender ideology"
+    },
+    {
+      "time": 5665,
+      "text": "I also signed an order to cut off all taxpayer funding to any institution that engages in the sexual mutilation of our"
+    },
+    {
+      "time": 5681,
+      "text": "youth and now I want Congress to pass a bill permanently Banning and criminalizing sex changes on children and forever ending the lie that any child is trapped in the the wrong body this is a big"
+    },
+    {
+      "time": 5701,
+      "text": "lie and our message to every child in America is that you are perfect exactly the way God Made"
+    },
+    {
+      "time": 5722,
+      "text": "You because we're getting wokeness out of our schools and out of our military and it's already out and it's out of our society we don't want it wokeness is trouble wokeness is bad it's gone it's"
+    },
+    {
+      "time": 5739,
+      "text": "gone and we feel so much better for it don't we don't we feel better our service members won't be activists and ideologues they will be Fighters and warriors they will fight"
+    },
+    {
+      "time": 5755,
+      "text": "for our country and Pete congratulations Secretary of Defense"
+    },
+    {
+      "time": 5771,
+      "text": "congratulations and he's not big into the woke movement I can tell you I know him well I am pleased to report that in January the US Army had its single best recruiting month in 15 years and that all armed services are having among the"
+    },
+    {
+      "time": 5787,
+      "text": "best recruiting results ever in the history of our services what a difference and you know it was just a"
+    },
+    {
+      "time": 5802,
+      "text": "few months ago where the results were exactly the opposite we couldn't recruit anywhere we couldn't recruit now we're having the best results just about that we've ever had what a tremendous"
+    },
+    {
+      "time": 5817,
+      "text": "turnaround it's really a beautiful thing to see people love our country again it's very simple they love our country and they love being in our military again so it's a great thing and thank you very much great"
+    },
+    {
+      "time": 5837,
+      "text": "job we're joined tonight by a young man Jason Hartley who knows the weight of that Call of Duty Jason's father grandfather and great-grandfather all wore the uniform Jason tragically lost"
+    },
+    {
+      "time": 5853,
+      "text": "his dad who was also a Los Angeles County Sheriff's deputy when he was just a boy and now he wants to carry on the family Legacy of service Jason is a senior in high school a six-letter Varsity athlete a really good athlete"
+    },
+    {
+      "time": 5869,
+      "text": "they say a brilliant student with a 4.46 that's good GPA and his greatest dream is to attend the US Military Academy at West Point"
+    },
+    {
+      "time": 5887,
+      "text": "[Applause]"
+    },
+    {
+      "time": 5905,
+      "text": "and J Jason that's a very big deal getting in that's a hard one to get into but I'm pleased to inform you that your application has been accepted you will soon be joining the core of K"
+    },
+    {
+      "time": 5925,
+      "text": "[Applause]"
+    },
+    {
+      "time": 5949,
+      "text": "thank you Jason you're going to be on the long Gray Line Jason as commanderin-chief my focus is on building the most powerful military of the future as a first step I'm asking Congress to f a state-of-the-art golden"
+    },
+    {
+      "time": 5965,
+      "text": "dome missile defense shield to protect our homeland all made in the"
+    },
+    {
+      "time": 5980,
+      "text": "USA and Ronald Reagan wanted to do it long ago but the technology just wasn't there not even closed but now we have the technology it's incredible actually and other plac that have they have it Israel has it other places have it and"
+    },
+    {
+      "time": 5997,
+      "text": "the United States should have it too right Tim right they should have it too so I want to thank you but it's a very very important this is a very dangerous world we should have it we want to be protected and we're going to protect our citizens like never"
+    },
+    {
+      "time": 6012,
+      "text": "before to boost our defense industrial base we are also going to resurrect the American ship building industry including commercial ship building and Military"
+    },
+    {
+      "time": 6029,
+      "text": "ship and for that purpose I am announcing tonight that we will create a new office of ship building in the White House and offer special tax incentives to bring this industry home to America where it belonged we used to make so many ships we don't make them anymore"
+    },
+    {
+      "time": 6046,
+      "text": "very much but we're going to make them very fast very soon it will have a huge impact to further enhance our national security my Administration will be reclaiming the Panama Canal and we've already started doing"
+    },
+    {
+      "time": 6068,
+      "text": "it just today a large American company announced they are buying both ports around the Panama Canal and lots of other things having to do with the Panama Canal and a couple of other canals"
+    },
+    {
+      "time": 6083,
+      "text": "the Panama Canal was built by Americans for Americans not for others but others could use it but it was built a tremendous cost of American blood and treasure 38,000 workers died building"
+    },
+    {
+      "time": 6098,
+      "text": "the Panama Canal they died of malaria they died of snake bites and mosquitoes not a nice place to work they paid them very highly to go there knowing there was a 25% chance that they would die the most expensive project also that"
+    },
+    {
+      "time": 6115,
+      "text": "was ever built in our country's history if you bring it up to modern-day costs it was given away by The Carter Administration for $1 but that agreement has been violated very severely we didn't give it to China"
+    },
+    {
+      "time": 6131,
+      "text": "we gave it to Panama and we're taking it back"
+    },
+    {
+      "time": 6146,
+      "text": "and we have Marco Rubio in charge good luck Marco now we know who to blame if anything goes wrong now Marco's been amazing and he's going to do a great job think of it he got a 100"
+    },
+    {
+      "time": 6163,
+      "text": "votes you know he was approved with actually 99 but the 100th was this gentleman and I feel very certain so let's assume he got 100 votes and I'm either very very happy about that or I'm very concerned about"
+    },
+    {
+      "time": 6178,
+      "text": "it but he's already proven I mean he's a great gentleman he's respected by everybody and we appreciate your voting for Marco he's going to do a fantastic job thank you thank you he's doing a great"
+    },
+    {
+      "time": 6195,
+      "text": "job great job and I also have a message tonight for the incredible people people of Greenland we strongly support your right to determine your own future and if you choose we welcome you"
+    },
+    {
+      "time": 6212,
+      "text": "into the United States of America we need Greenland for National Security and even International Security and we're working with everybody involved to try and get it but we need it really for international World security and I think we're going to get"
+    },
+    {
+      "time": 6228,
+      "text": "it one way or the other we're going to get it we will keep you safe we will make you rich and together we will take Greenland to Heights like you have never thought possible before it's a very small"
+    },
+    {
+      "time": 6243,
+      "text": "population but very very large piece of land and very very important for military security America is once again standing strong against the forces of radical Islamic terrorism 3 and A2 years"
+    },
+    {
+      "time": 6258,
+      "text": "ago Isis terrorists killed 13 American Service members and countless others in the abig gate bombing during the disastrous and incompetent withdrawal from Afghanistan not that they were withdrawing it was the way they"
+    },
+    {
+      "time": 6274,
+      "text": "withdrew perhaps the most embarrassing moment in the history of our country tonight I am pleased to announce that we have just apprehended the top terrorist responsible for that atrocity and he is right now on his way here to face the"
+    },
+    {
+      "time": 6290,
+      "text": "Swift sword of American Justice"
+    },
+    {
+      "time": 6309,
+      "text": "[Applause] jce and I want to thank especially the government of Pakistan for helping arrest this monster this was a very momentous day for those"
+    },
+    {
+      "time": 6325,
+      "text": "13 families who I actually got to know very well most of them whose children were murdered and the many people that were so badly over 42 people so badly injured on that fateful day in Afghanistan what a horrible"
+    },
+    {
+      "time": 6342,
+      "text": "day such incompetence we shown that when Putin saw what happened I guess he said wow maybe this is my chance that's how bad it was should have never happened grossly incompetent people I spoke to many of"
+    },
+    {
+      "time": 6359,
+      "text": "the parents and loved ones and they were all in our hearts tonight just spoke to them on the phone we had a big call every one of them called and everybody was on the line and they did nothing but"
+    },
+    {
+      "time": 6374,
+      "text": "cry with happiness they were very happy as happy as you can be under those circumstances their child brother sister son daughter was killed for no reason whatsoever in"
+    },
+    {
+      "time": 6391,
+      "text": "the Middle East we're bringing back our hostages from Gaza in my first term we achieved one of the most groundbreaking peace agreements in Generations the Abraham Accords"
+    },
+    {
+      "time": 6421,
+      "text": "and now we're going to build on that Foundation to create a more peaceful and prosperous future for the entire region a lot of things are happening in the Middle East people have't been talking about that so much lately with everything going on with Ukraine and Russia but a lot of things are happening"
+    },
+    {
+      "time": 6437,
+      "text": "in the Middle East it's a rough neighborhood actually I'm also working tirelessly to end the Savage conflict in Ukraine millions of ukrainians and Russians have been needlessly killed or wounded in this horrific and brutal"
+    },
+    {
+      "time": 6452,
+      "text": "conflict with no end in sight the United States has sent hundreds of billions of dollars to support Ukraine's defense with no security with no"
+    },
+    {
+      "time": 6467,
+      "text": "[Applause] you want to keep it going for another"
+    },
+    {
+      "time": 6482,
+      "text": "five years yeah yeah you you would say pocah Hunter says"
+    },
+    {
+      "time": 6497,
+      "text": "yes 2,000 people are being killed every single week more than that they're Russian young people they're Ukrainian young people they're not Americans but I wanted to stop meanwhile Europe has sadly spent more"
+    },
+    {
+      "time": 6513,
+      "text": "money buying Russian oil and gas than they have spent on defending Ukraine by far think of that they've spent more buying Russian oil and gas than they have defending and we've spent perhaps"
+    },
+    {
+      "time": 6528,
+      "text": "$350 billion doll like taking candy from a baby that's what happened and they've spent a hundred billion do what a difference that is and we have an ocean separating us and they don't but we're"
+    },
+    {
+      "time": 6545,
+      "text": "getting along very well with them and lots of good things are happening Biden has authorized more money in this fight than Europe has spent by billions and billions of dollars it's hard to believe that they wouldn't have"
+    },
+    {
+      "time": 6560,
+      "text": "stopped it and said at some point Come On Let's equ equalize you got to be equal to us but that didn't happen earlier today I received an important letter from president zinsky of Ukraine the letter reads Ukraine is ready to come to the negotiating table as soon as"
+    },
+    {
+      "time": 6576,
+      "text": "possible to bring lasting peace closer nobody wants peace more than the ukrainians he said my team and I stand ready to work under President Trump's strong leadership to get a peace that"
+    },
+    {
+      "time": 6591,
+      "text": "lasts we do really value how much America has done to help Ukraine maintain its sovereignty and Independence regarding the agreement on minerals and security Ukraine is ready to sign it at any time that is"
+    },
+    {
+      "time": 6607,
+      "text": "convenient for you I appreciate that he sent this letter just got it a little while ago simultaneously we've had serious discussions with Russia and have received strong signals that they are ready for peace wouldn't that be"
+    },
+    {
+      "time": 6622,
+      "text": "beautiful wouldn't that be beautiful wouldn't that be"
+    },
+    {
+      "time": 6643,
+      "text": "beautiful it's time to stop this madness it's time to Halt The Killing it's time to end the senseless War if you want to end Wars you have to talk to both sides nearly four years ago amid Rising"
+    },
+    {
+      "time": 6658,
+      "text": "tensions a history teacher named Mark Fogle was detained in Russia and sentenced to 14 years in a penal colony rough stuff the previous administration barely lifted a finger to help him they"
+    },
+    {
+      "time": 6673,
+      "text": "knew he was innocent but they had no idea where to begin but last summer I promised his 95y old mother Maline that we would bring her boy safely back home after 22 days in office I did just"
+    },
+    {
+      "time": 6690,
+      "text": "that and they are here tonight"
+    },
+    {
+      "time": 6734,
+      "text": "to Mark and his great mom we are delighted to have you safe and sound and with us as fate would have it Mark Fogle was born in a small rural town in Butler Pennsylvania have you heard of it"
+    },
+    {
+      "time": 6750,
+      "text": "where his mother has lived for the past 78 years I just happened to go there last July 13th for a rally that was not pleasant and that is where I met his"
+    },
+    {
+      "time": 6767,
+      "text": "beautiful Mom right before I walked onto that stage and I told her I would not forget what she said about her son and I never did did I never forgot less than 10 minutes later at"
+    },
+    {
+      "time": 6783,
+      "text": "that same rally gunfire rang out and a sick and deranged assassin unloaded eight bullets from his snipers perch into a crowd of many thousands of people my life was saved by a fraction of an inch but some"
+    },
+    {
+      "time": 6800,
+      "text": "were not so lucky Corey comparator was a firefighter a veteran a Christian a husband a devoted father and above all a protector when the sound of gunshots"
+    },
+    {
+      "time": 6816,
+      "text": "pierced the air was a horrible sound Corey knew instantly what it was and what to do he threw himself on top of his wife and daughters and shielded them from the bullets with his own body"
+    },
+    {
+      "time": 6833,
+      "text": "Corey was hit really hard you know the story from there he sacrificed his life to save theirs two others very fine people were also seriously hit but thankfully with the help of two"
+    },
+    {
+      "time": 6848,
+      "text": "great country doctors we thought they were gone and they were saved so those doctors had great talent were joined by Corey's wife Helen who was his high school sweetheart"
+    },
+    {
+      "time": 6863,
+      "text": "and their two beloved daughters Allison and Kaye thank you [Applause]"
+    },
+    {
+      "time": 6902,
+      "text": "to Helen Allison and Kaye Corey is looking down on his three beautiful ladies right now and he is cheering you on he loves you he is cheering you on Cory was taken from us much too soon but"
+    },
+    {
+      "time": 6917,
+      "text": "his Destiny was to leave us all with a shining example of the self devotion of a true American Patriot it was love like cories that built our country and it's love like cories that is going to make our country more"
+    },
+    {
+      "time": 6933,
+      "text": "Majestic than ever before I believe that my life was saved that day in Butler for a very good reason I was saved by God to make America great again I believe that"
+    },
+    {
+      "time": 6967,
+      "text": "thank you very much from the Patriots of Lexington and Concord to the heroes of Gettysburg and Normandy from the Warriors who crossed the Delaware to the Trailblazers who climbed the Rockies and from the Legends who sword at Kittyhawk"
+    },
+    {
+      "time": 6984,
+      "text": "to the astronauts who touched the moon Americans have always been the people who defied all Arts transcended all dangers made the most extraordinary sacrifices and did whatever it took to defend our children our country and our"
+    },
+    {
+      "time": 7001,
+      "text": "freedom and as we have seen in this chamber tonight that same strength Faith love and spirit is still alive and thriving in the hearts of the americ American people despite the best efforts of those who would try to censor us"
+    },
+    {
+      "time": 7017,
+      "text": "silence us break us destroy us Americans are today a proud free Sovereign and independent nation that will always be free and we will fight for it till death"
+    },
+    {
+      "time": 7032,
+      "text": "we will never let anything happen to our Beloved Country because we are a country of doers dreamers Fighters and survivors our an aners crossed a vast ocean strowed into the unknown Wilderness and"
+    },
+    {
+      "time": 7047,
+      "text": "carved their fortunes from The Rock and soil of a perilous and very dangerous Frontier they chased our destiny across a boundless continent they built the railroads laid the highways and graced"
+    },
+    {
+      "time": 7062,
+      "text": "the world with American Marvels like the Empire State Building the mighty Hoover Dam and the Towering Golden Gate Bridge they lit the world with electricity Broke Free of the force of gravity fired"
+    },
+    {
+      "time": 7078,
+      "text": "up the engines of American industry vanquished the Communists fascists and marxists all over the world and gave us countless modern wonders sculptured out of iron glass and steel we stand on the shoulders of these"
+    },
+    {
+      "time": 7095,
+      "text": "Pioneers who won and built the Modern Age these workers who poured their sweat into the sky High lines of our cities these Warriors who shed their blood on fields of battle and gave everything they had for our rights and for our"
+    },
+    {
+      "time": 7111,
+      "text": "freedom now it is our time to take up the righteous cause of American Liberty and it is our turn to take America's Destiny into our own hands and begin the most thrilling days in the history of"
+    },
+    {
+      "time": 7126,
+      "text": "our country this will be our greatest ERA with God's help over the next 4 years we are going to lead this nation even higher and we are going to forge the freest most advanced most dynamic"
+    },
+    {
+      "time": 7142,
+      "text": "and most dominant civilization ever to exist on the face of this Earth we are going to create the highest quality of life build the safest and wealthiest and healthiest and most vital communities"
+    },
+    {
+      "time": 7157,
+      "text": "anywhere in the world we are going to conquer the vast Frontiers of Science and we are going to lead Humanity into space and plant the American flag on the planet Mars and even far"
+    },
+    {
+      "time": 7190,
+      "text": "beyond and through it all we are going to ReDiscover the Unstoppable power of the American Spirit and we are going to renew unlimited promise of the American dream every single day we will stand up"
+    },
+    {
+      "time": 7205,
+      "text": "and we will fight fight fight for the country our citizens believe in and for the country our people deserve"
+    },
+    {
+      "time": 7236,
+      "text": "my fellow Americans get ready for an incredible future because the Golden Age of America has only just begun it will be like nothing that has ever been seen before thank you God bless you and God"
+    },
+    {
+      "time": 7252,
+      "text": "bless America"
+    },
+    {
+      "time": 7299,
+      "text": "[Applause] thank you very much great job thank you"
+    },
+    {
+      "time": 7315,
+      "text": "great honor thank you thank you get this place going all right thank you it's great honor thank you thank you Mr pres thank"
+    },
+    {
+      "time": 7331,
+      "text": "you thank you very much appreciate it thank you see you young people well I'm trying to great thank [Music]"
+    },
+    {
+      "time": 7348,
+      "text": "you thank you very much appreciate it thank you again thank you again W forget so good good so good sir terrific Mr reallying [Applause]"
+    },
+    {
+      "time": 7375,
+      "text": "one of your best thanks again Mr than thanks for the phone call last [Music]"
+    },
+    {
+      "time": 7390,
+      "text": "time I'm thank you everybody best bee ever yes good good good congratulations good job"
     }
   ]
 }
