@@ -13,8 +13,24 @@ import { fetch as undiciFetch, ProxyAgent, type Dispatcher } from "undici";
 // GET handler below reports the capability so the UI can hide the feature
 // when it cannot work.
 const YT_PROXY_URL = process.env.YT_PROXY_URL;
+
+/** Build a ProxyAgent with EXPLICIT Proxy-Authorization — undici does not
+ *  reliably use credentials embedded in the proxy URL (observed: 407 from
+ *  the proxy despite valid user:pass in the URI). */
+function buildProxyAgent(proxyUrl: string): Dispatcher {
+  const u = new URL(proxyUrl);
+  const user = decodeURIComponent(u.username || "");
+  const pass = decodeURIComponent(u.password || "");
+  const uri = `${u.protocol}//${u.host}`;
+  if (user) {
+    const token = "Basic " + Buffer.from(`${user}:${pass}`).toString("base64");
+    return new ProxyAgent({ uri, token });
+  }
+  return new ProxyAgent(uri);
+}
+
 const ytDispatcher: Dispatcher | undefined = YT_PROXY_URL
-  ? new ProxyAgent(YT_PROXY_URL)
+  ? buildProxyAgent(YT_PROXY_URL)
   : undefined;
 
 /** fetch() with the YouTube egress proxy applied when configured.
