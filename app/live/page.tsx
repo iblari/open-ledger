@@ -253,7 +253,7 @@ function fmtEventDate(iso: string): string {
 }
 
 /* ── Fact-Check Card ──────────────────────────────────────────── */
-function FactCard({ claim, isNew, onSeek }: { claim: Claim; isNew: boolean; onSeek?: (t: number) => void }) {
+function FactCard({ claim, isNew, onSeek }: { claim: Claim; isNew: boolean; onSeek?: (claim: Claim) => void }) {
   const [expanded, setExpanded] = useState(false);
   const rc = RATING_COLORS[claim.rating] || RATING_COLORS.UNVERIFIABLE;
   const sources = detectSources(claim.actual);
@@ -287,7 +287,7 @@ function FactCard({ claim, isNew, onSeek }: { claim: Claim; isNew: boolean; onSe
         </div>
         {claim.videoTime != null && claim.videoTime > 0 ? (
           <button
-            onClick={(e) => { e.stopPropagation(); onSeek?.(claim.videoTime!); }}
+            onClick={(e) => { e.stopPropagation(); onSeek?.(claim); }}
             style={{
               fontSize: 10, color: T.blue, background: "none", border: "none",
               cursor: "pointer", fontFamily: "'DM Sans',sans-serif", fontWeight: 600,
@@ -512,6 +512,10 @@ export default function LiveFactCheckPage() {
   const shownSegmentsRef = useRef<Set<number>>(new Set());
   const lastAutoCheckTime = useRef(0);
   const autoCheckBuffer = useRef("");
+  // Caption time of the FIRST segment sitting in autoCheckBuffer. Claims
+  // found in a batch default to this (where the words started) instead of
+  // the flush time (~15-30s after the words) — see the enrichment below.
+  const bufferStartRef = useRef<number | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const ytPlayerRef = useRef<any>(null);
 
@@ -535,6 +539,35 @@ export default function LiveFactCheckPage() {
       );
     }
   }, []);
+
+  /* ── Seek to the moment a claim was spoken ── */
+  // Two timelines exist and they DON'T share an origin:
+  //   - demo/URL claims: videoTime is derived from YouTube captions → it's a
+  //     real position on the player timeline. Seek directly.
+  //   - live claims: videoTime is "seconds since the WORKER started capturing"
+  //     — the viewer's player timeline knows nothing about that origin, which
+  //     is why live seeks used to land in the wrong place. Instead we map via
+  //     wall-clock age: claim.timestamp is when ingest finished, so the words
+  //     were spoken roughly (now - timestamp) + pipeline-delay seconds ago —
+  //     jump that far back from the current playhead. The pipeline delay
+  //     (audio chunking + Deepgram + Claude) is ~8s and roughly constant.
+  const LIVE_PIPELINE_DELAY_S = 8;
+  const seekToClaim = useCallback((claim: Claim) => {
+    if (!isDemo) {
+      const player = ytPlayerRef.current;
+      if (player?.getCurrentTime) {
+        try {
+          const ageSec = (Date.now() - Date.parse(claim.timestamp)) / 1000;
+          if (isFinite(ageSec) && ageSec >= 0) {
+            const target = Math.max(0, player.getCurrentTime() - ageSec - LIVE_PIPELINE_DELAY_S);
+            seekVideo(target);
+            return;
+          }
+        } catch { /* fall through to videoTime */ }
+      }
+    }
+    if (claim.videoTime != null && claim.videoTime > 0) seekVideo(claim.videoTime);
+  }, [isDemo, seekVideo]);
 
   /* ── Load config — check live-feed API first, fall back to static JSON ── */
   // Re-polled every 30s while idle: previously this ran once on mount, so a
@@ -743,9 +776,13 @@ export default function LiveFactCheckPage() {
     demoStartTime.current = Date.now();
   }, []);
 
-  /* ── Initialize YT Player when demo video loads ── */
+  /* ── Initialize YT Player whenever a video is playing ── */
+  // Live mode used to render a plain <iframe> (no YT API instance), which
+  // left seekVideo() on the postMessage fallback and gave us no
+  // getCurrentTime() — the thing live-claim seeking needs (see seekToClaim).
+  // Now both demo and live mount a real YT.Player.
   useEffect(() => {
-    if (!isDemo || !isPlaying || !videoId) return;
+    if (!isPlaying || !videoId) return;
 
     const initPlayer = () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -772,7 +809,7 @@ export default function LiveFactCheckPage() {
         ytPlayerRef.current = null;
       }
     };
-  }, [isDemo, isPlaying, videoId]);
+  }, [isPlaying, videoId]);
 
   /* ── Poll video time → drive transcript + claims ── */
   useEffect(() => {
@@ -850,8 +887,12 @@ export default function LiveFactCheckPage() {
             setClaims(prev => [...newClaims, ...prev]);
           }
         } else {
-          // URL-pasted video: buffer text for AI fact-checking
+          // URL-pasted video: buffer text for AI fact-checking. Remember the
+          // caption time of the first segment in the buffer for timestamping.
           shownSegmentsRef.current.add(si);
+          if (autoCheckBuffer.current.trim().length === 0) {
+            bufferStartRef.current = seg.time;
+          }
           autoCheckBuffer.current += " " + seg.text;
         }
       }
@@ -862,8 +903,12 @@ export default function LiveFactCheckPage() {
         if (textToCheck.length >= 30) {
           lastAutoCheckTime.current = vt;
           const capturedText = textToCheck;
-          const capturedTime = Math.floor(vt);
+          // Where the buffered words STARTED — not the flush time. The flush
+          // happens ≥15s after the first buffered words were spoken, which is
+          // exactly the timestamp skew users notice on the ▶ links.
+          const capturedTime = bufferStartRef.current ?? Math.floor(vt);
           autoCheckBuffer.current = "";
+          bufferStartRef.current = null;
 
           // Fire-and-forget async call to Claude
           fetch("/api/live-fact-check", {
@@ -887,12 +932,18 @@ export default function LiveFactCheckPage() {
                 return;
               }
               if (data.claims?.length > 0) {
-                const enriched: Claim[] = data.claims.map((c: Claim) => ({
-                  ...c,
-                  videoTime: capturedTime,
-                  timestamp: new Date().toISOString(),
-                  id: `ai-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-                }));
+                const enriched: Claim[] = data.claims.map((c: Claim) => {
+                  // Pin the claim to where its words actually occur in the
+                  // captions (same fuzzy match the demo re-timing uses).
+                  // Fallback: start of the buffered window it came from.
+                  const matched = findCaptionTimeForQuote(c.quote, demoSpeech.segments);
+                  return {
+                    ...c,
+                    videoTime: matched ?? capturedTime,
+                    timestamp: new Date().toISOString(),
+                    id: `ai-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+                  };
+                });
                 setNewClaimIds(new Set(enriched.map(c => c.id)));
                 setClaims(prev => [...enriched, ...prev]);
               }
@@ -1128,6 +1179,11 @@ export default function LiveFactCheckPage() {
       setVideoId(speech.videoId);
       setTitle(speech.title);
       demoStartTime.current = Date.now();
+      // These segments ARE real YouTube captions — feed them to the subtitle
+      // renderer so the transcript strip tracks the audio (previously this
+      // path left realCaptions null and fell back to the coarse 3-segment
+      // display, which is why the subtitle drifted from what was spoken).
+      setRealCaptions(segments);
       setDemoSpeech(speech);
       setUrlInput("");
     } catch (e) {
@@ -1829,21 +1885,10 @@ export default function LiveFactCheckPage() {
                 position: "relative", width: "100%", aspectRatio: "16/9",
                 background: "#000",
               }}>
-                {videoId && isDemo ? (
+                {videoId ? (
                   <div
                     id="yt-player-div"
                     style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}
-                  />
-                ) : videoId ? (
-                  <iframe
-                    ref={iframeRef}
-                    id="yt-player"
-                    width="100%"
-                    height="100%"
-                    src={`https://www.youtube.com/embed/${videoId}?autoplay=1&enablejsapi=1&origin=${typeof window !== "undefined" ? window.location.origin : ""}`}
-                    allow="autoplay; encrypted-media"
-                    allowFullScreen
-                    style={{ border: "none", position: "absolute", top: 0, left: 0 }}
                   />
                 ) : (
                   <div style={{
@@ -2085,7 +2130,7 @@ export default function LiveFactCheckPage() {
                     </div>
                   )}
                   {filteredClaims.map(c => (
-                    <FactCard key={c.id} claim={c} isNew={newClaimIds.has(c.id)} onSeek={seekVideo} />
+                    <FactCard key={c.id} claim={c} isNew={newClaimIds.has(c.id)} onSeek={seekToClaim} />
                   ))}
                 </div>
               </div>
@@ -2151,7 +2196,7 @@ export default function LiveFactCheckPage() {
                   fontFamily: "'DM Sans',sans-serif", fontSize: 10, fontWeight: 700,
                   textTransform: "uppercase", letterSpacing: 1, color: T.mute, marginBottom: 8,
                 }}>All Claims</div>
-                {claims.map(c => <FactCard key={c.id} claim={c} isNew={false} onSeek={seekVideo} />)}
+                {claims.map(c => <FactCard key={c.id} claim={c} isNew={false} onSeek={seekToClaim} />)}
               </div>
             )}
           </div>
