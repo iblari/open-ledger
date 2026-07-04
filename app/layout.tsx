@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import Script from 'next/script'
@@ -57,6 +57,17 @@ export const metadata: Metadata = {
     description: '19 economic metrics, 5 administrations, 4 active conflicts, 32 years of data. No spin. No editorial. You interpret.',
     images: ['/og-image.png'],
   },
+}
+
+// maximumScale: 1 stops iOS Safari's automatic zoom-in when focusing an
+// input whose font-size is under 16px — the zoom never reverses on blur,
+// leaving the whole page clipped ~20% on the right (observed on /live).
+// Since iOS 10, Safari still allows manual pinch-zoom regardless of this
+// setting, so accessibility zoom is unaffected.
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
 }
 
 export default function RootLayout({
