@@ -1667,17 +1667,29 @@ export default function LiveFactCheckPage() {
                 }}>
                   Watch a past speech from the archive below,<br />or analyze any YouTube video.
                 </div>
+              </div>
+            )}
 
-                {/* Upcoming schedule — driven by public/live-schedule.json
-                    via /api/live-schedule. The GitHub Action reads the same
-                    endpoint, so what's shown here is exactly what will
-                    auto-trigger when its scheduledStart hits. */}
-                {schedule && (schedule.active || (schedule.upcoming && schedule.upcoming.length > 0)) && (
+            {/* ── Upcoming schedule + calendar subscribe — STANDALONE ── */}
+            {/* Always visible on the idle page. It used to render inside the
+                'no live broadcast' card, which is hidden whenever a
+                discovered-stream card shows — and C-SPAN streams nearly
+                24/7, so the schedule (and the subscribe button) were almost
+                never visible. Driven by public/live-schedule.json via
+                /api/live-schedule; the GitHub Action reads the same
+                endpoint, so what's shown is exactly what auto-triggers. */}
+            {(() => {
+              const upcomingReal = (schedule?.upcoming || []).filter(
+                e => !(e.youtubeUrl || "").includes("REPLACE_WITH")
+              );
+              if (!schedule || (!schedule.active && upcomingReal.length === 0)) return null;
+              return (
+                <div style={{ maxWidth: 700, margin: "0 auto 28px", textAlign: "center" }}>
                   <div style={{
-                    marginTop: 16, padding: "14px 18px", background: T.paper,
+                    padding: "14px 18px", background: T.paper,
                     borderRadius: 8, border: `1px solid ${T.rule}`,
                     display: "inline-flex", flexDirection: "column", gap: 10,
-                    minWidth: 280, textAlign: "left",
+                    minWidth: 300, maxWidth: "100%", textAlign: "left",
                   }}>
                     {/* Currently live (auto-triggered by the GitHub Action) */}
                     {schedule.active && (() => {
@@ -1715,7 +1727,7 @@ export default function LiveFactCheckPage() {
                     })()}
 
                     {/* Next scheduled (or all upcoming if nothing's live yet) */}
-                    {(schedule.active ? schedule.upcoming.filter(e => e.id !== schedule.active!.id).slice(0, 2) : schedule.upcoming.slice(0, 3)).map((ev) => {
+                    {(schedule.active ? upcomingReal.filter(e => e.id !== schedule.active!.id).slice(0, 2) : upcomingReal.slice(0, 3)).map((ev) => {
                       const secs = Math.floor((Date.parse(ev.scheduledStart) - Date.now()) / 1000);
                       return (
                         <div key={ev.id} style={{
@@ -1793,9 +1805,9 @@ export default function LiveFactCheckPage() {
                       </a>
                     </div>
                   </div>
-                )}
-              </div>
-            )}
+                </div>
+              );
+            })()}
 
             {/* ── Speech Archive ── */}
             <div style={{ maxWidth: 900, margin: "0 auto 28px" }}>
