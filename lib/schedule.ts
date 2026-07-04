@@ -20,8 +20,15 @@ export interface ScheduledEvent {
   speaker: string;
   /** Network / channel surfacing the stream, e.g. "White House YouTube". */
   source: string;
-  /** Live stream URL (currently must be a YouTube live link). */
-  youtubeUrl: string;
+  /** YouTube link for the site's embedded player. Optional when streamUrl
+   *  is set — the event then runs in "monitor mode" (fact-check feed, no
+   *  embedded video). */
+  youtubeUrl?: string;
+  /** OPTIONAL direct audio source for the worker: an HLS .m3u8, a radio /
+   *  Icecast stream — anything ffmpeg can read. Takes precedence over
+   *  youtubeUrl for INGESTION (no yt-dlp, no datacenter-IP bot-checks).
+   *  C-SPAN Radio simulcasts most official events and is ideal here. */
+  streamUrl?: string;
   /** ISO timestamp the broadcast is scheduled to start. */
   scheduledStart: string;
   /** ISO timestamp the broadcast is scheduled to end (used to stop the worker). */
@@ -64,8 +71,10 @@ export interface ScheduleStatus {
  *  server (/api/live-schedule) and the client (/live page). */
 export function computeStatus(events: ScheduledEvent[], nowMs: number = Date.now()): ScheduleStatus {
   // Defensive: drop malformed entries (missing required fields, invalid dates).
+  // An event needs at least ONE of youtubeUrl (embed + yt-dlp ingest) or
+  // streamUrl (direct ffmpeg ingest, monitor-mode display).
   const valid = events.filter(e => {
-    if (!e.id || !e.youtubeUrl || !e.scheduledStart || !e.scheduledEnd) return false;
+    if (!e.id || (!e.youtubeUrl && !e.streamUrl) || !e.scheduledStart || !e.scheduledEnd) return false;
     const s = Date.parse(e.scheduledStart);
     const en = Date.parse(e.scheduledEnd);
     return !isNaN(s) && !isNaN(en) && en > s;

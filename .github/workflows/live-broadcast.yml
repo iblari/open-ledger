@@ -139,7 +139,10 @@ jobs:
           fi
           {
             echo "has_event=true"
-            echo "youtube_url=$(echo "$RESP" | jq -r '.active.youtubeUrl')"
+            echo "youtube_url=$(echo "$RESP" | jq -r '.active.youtubeUrl // empty')"
+            # streamUrl (direct HLS/radio) beats youtubeUrl for INGESTION —
+            # ffmpeg reads it natively, no yt-dlp, no bot-checks.
+            echo "ingest_url=$(echo "$RESP" | jq -r '.active.streamUrl // .active.youtubeUrl')"
             echo "title=$(echo "$RESP" | jq -r '.active.title')"
             echo "event_id=$(echo "$RESP" | jq -r '.active.id')"
             echo "duration_sec=$DURATION"
@@ -206,14 +209,19 @@ jobs:
           # braces over plugin auto-discovery).
           YT_DLP_EXTRA_ARGS: --extractor-args youtubepot-bgutilhttp:base_url=http://127.0.0.1:4416
           # Scheduled event wins; discovery only fires when schedule was empty.
-          EV_URL: ${{ steps.schedule.outputs.has_event == 'true' && steps.schedule.outputs.youtube_url || steps.discover.outputs.youtube_url }}
+          # EV_INGEST is what ffmpeg listens to (streamUrl > youtubeUrl);
+          # EV_DISPLAY is what the site embeds (youtubeUrl, or none).
+          EV_INGEST: ${{ steps.schedule.outputs.has_event == 'true' && steps.schedule.outputs.ingest_url || steps.discover.outputs.youtube_url }}
+          EV_DISPLAY: ${{ steps.schedule.outputs.has_event == 'true' && steps.schedule.outputs.youtube_url || steps.discover.outputs.youtube_url }}
           EV_TITLE: ${{ steps.schedule.outputs.has_event == 'true' && steps.schedule.outputs.title || steps.discover.outputs.title }}
           EV_ID: ${{ steps.schedule.outputs.has_event == 'true' && steps.schedule.outputs.event_id || steps.discover.outputs.event_id }}
           EV_DURATION: ${{ steps.schedule.outputs.has_event == 'true' && steps.schedule.outputs.duration_sec || steps.discover.outputs.duration_sec }}
         run: |
           set -e
           echo "Starting worker for event $EV_ID"
-          node scripts/go-live.mjs "$EV_URL" "$EV_TITLE" --duration "$EV_DURATION"
+          node scripts/go-live.mjs "$EV_INGEST" "$EV_TITLE" \
+            --duration "$EV_DURATION" \
+            --display "${EV_DISPLAY:-none}"
 
       # Safety net: whatever happened above, make sure the site isn't left
       # showing a phantom live card. go-live.mjs handles its own failures,

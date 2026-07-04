@@ -655,13 +655,16 @@ export default function LiveFactCheckPage() {
         if (feedResp.ok) {
           const feed = await feedResp.json();
           if (cancelled) return;
-          if (feed.state?.status === "live" && feed.state.videoId) {
+          // videoId may be EMPTY for monitor-mode broadcasts (audio ingested
+          // from a non-embeddable source) — those are still live and must
+          // surface here; the playing view renders the audio-monitor panel.
+          if (feed.state?.status === "live") {
             // Live broadcast active — build config from API state
             setConfig({
               status: "live",
               title: feed.state.title,
               source: feed.state.source || "youtube",
-              videoId: feed.state.videoId,
+              videoId: feed.state.videoId || "",
               startedAt: feed.state.startedAt,
               upcoming: [],
               recent: [],
@@ -1532,7 +1535,8 @@ export default function LiveFactCheckPage() {
             </div>
 
             {/* ── LIVE NOW — prominent card when a broadcast is active ── */}
-            {config?.status === "live" && config.videoId && (
+            {/* videoId may be empty (monitor mode) — still show the card. */}
+            {config?.status === "live" && (
               <div style={{
                 maxWidth: 700, margin: "0 auto 28px",
                 background: `linear-gradient(135deg, ${T.ink} 0%, #2d2520 100%)`,
@@ -2033,11 +2037,33 @@ export default function LiveFactCheckPage() {
                     style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}
                   />
                 ) : (
+                  /* Monitor mode: the worker is ingesting audio from a
+                     non-embeddable source (C-SPAN Radio, direct HLS). The
+                     fact-check feed is the product here — video plays at
+                     the broadcaster's own site/app. */
                   <div style={{
-                    position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
-                    color: "#666", fontFamily: "'DM Sans',sans-serif", fontSize: 14,
+                    position: "absolute", inset: 0, display: "flex", flexDirection: "column",
+                    alignItems: "center", justifyContent: "center", gap: 10,
+                    background: "linear-gradient(135deg, #1a1a1a 0%, #2d2520 100%)",
+                    color: "#e8e2d8", fontFamily: "'DM Sans',sans-serif", padding: 24, textAlign: "center",
                   }}>
-                    No video source
+                    <div style={{ fontSize: 40 }}>🎙️</div>
+                    <div style={{ fontFamily: "'Source Serif 4',serif", fontSize: mob ? 17 : 22, fontWeight: 700 }}>
+                      Live audio monitor
+                    </div>
+                    <div style={{ fontSize: mob ? 11 : 12.5, color: "#b8b0a8", maxWidth: 420, lineHeight: 1.6 }}>
+                      We&rsquo;re listening to this broadcast&rsquo;s audio feed and fact-checking
+                      every economic claim in real time — watch the claims arrive on the right.
+                      Video for this event isn&rsquo;t embeddable; tune in on the broadcaster&rsquo;s
+                      own site or TV coverage.
+                    </div>
+                    <div style={{
+                      display: "flex", alignItems: "center", gap: 6, marginTop: 4,
+                      fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", color: "#dc2626",
+                    }}>
+                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#dc2626", animation: "pulse 2s infinite" }} />
+                      Listening live
+                    </div>
                   </div>
                 )}
               </div>
