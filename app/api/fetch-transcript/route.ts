@@ -211,6 +211,11 @@ function pickBestTrack(tracks: CaptionTrack[]): CaptionTrack {
  * exists for embeds on third-party sites — historically bypasses the login
  * gate. Forwards the real client IP via X-Forwarded-For as an extra hint.
  */
+// Set by getInnerTubeData when the video is (or was) a live stream — used
+// to give an accurate "captions don't exist yet" error instead of the
+// generic one. Reset at the start of each extraction.
+let liveHint = false;
+
 const INNERTUBE_CLIENTS: {
   label: string;
   userAgent: string;
@@ -248,6 +253,7 @@ async function getInnerTubeData(
   title: string;
   captionTracks: CaptionTrack[];
 } | null> {
+  liveHint = false;
   for (const client of INNERTUBE_CLIENTS) {
     try {
       const headers: Record<string, string> = {
@@ -277,8 +283,15 @@ async function getInnerTubeData(
       const captionTracks: CaptionTrack[] | undefined =
         data?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
 
+      // Live / just-ended streams have NO caption tracks (YouTube generates
+      // them hours after a stream ends) — remember that so the user-facing
+      // error can say so instead of the generic "blocked?" message.
+      if (data?.videoDetails?.isLive === true || data?.videoDetails?.isLiveContent === true) {
+        liveHint = true;
+      }
+
       if (!Array.isArray(captionTracks) || captionTracks.length === 0) {
-        console.log(`[${videoId}] InnerTube(${client.label}): status=${status}, no caption tracks`);
+        console.log(`[${videoId}] InnerTube(${client.label}): status=${status}, no caption tracks, liveHint=${liveHint}`);
         continue;
       }
 
@@ -461,6 +474,20 @@ export async function POST(req: Request) {
       title: trackData.title,
       captionUrl: track.baseUrl,
     });
+  }
+
+  // Live / just-ended stream: captions genuinely don't exist yet. Say so —
+  // the generic "blocked?" message sent users chasing the wrong problem.
+  if (liveHint) {
+    return NextResponse.json(
+      {
+        error:
+          "This is a live (or just-ended) stream — YouTube hasn't generated captions for it yet. " +
+          "Live official events are fact-checked automatically by our real-time pipeline; " +
+          "for this video, try Analyze again a few hours after the stream ends.",
+      },
+      { status: 200 }
+    );
   }
 
   // Total server failure — tell client to try its own approach
