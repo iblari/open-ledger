@@ -22,20 +22,39 @@ export async function GET(req: Request) {
   const since = searchParams.get("since");
 
   const state = await getLiveState();
-  const transcript = await getLiveTranscript();
 
-  let claims;
-  if (since) {
-    claims = await getClaimsSince(since);
-  } else {
-    claims = await getLiveClaims();
+  // HOT-PATH OPTIMIZATION: this endpoint is polled by EVERY /live visitor
+  // (every 30s idle, every 3s while watching), and the broadcast is "off"
+  // the vast majority of the time. When off:
+  //   - skip the transcript + claims reads entirely (3 KV reads → 1; the
+  //     client ignores both fields when status is off anyway), and
+  //   - let the CDN absorb the polling fan-out for 15s — with N concurrent
+  //     visitors the function runs ~4×/min total instead of N×2/min.
+  // Worst-case cost: a freshly started broadcast surfaces ≤15s later,
+  // which is under the idle poll interval already.
+  if (!state || state.status !== "live") {
+    return NextResponse.json(
+      { state: state || { status: "off" }, claims: [], transcript: "" },
+      {
+        headers: {
+          "Cache-Control": "public, s-maxage=15, stale-while-revalidate=30",
+        },
+      }
+    );
   }
 
+  // Live: reads in PARALLEL (was sequential — 3 round-trips of latency on
+  // the most latency-sensitive path in the product).
+  const [transcript, claims] = await Promise.all([
+    getLiveTranscript(),
+    since ? getClaimsSince(since) : getLiveClaims(),
+  ]);
+
   return NextResponse.json(
-    { state: state || { status: "off" }, claims, transcript },
+    { state, claims, transcript },
     {
       headers: {
-        // Allow polling without stale caches
+        // During a live broadcast every poll must be fresh.
         "Cache-Control": "no-store, max-age=0",
       },
     }

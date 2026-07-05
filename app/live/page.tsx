@@ -1524,7 +1524,6 @@ export default function LiveFactCheckPage() {
            the same id but loses the div's inline styles. Pin it to fill the
            16:9 wrapper regardless of what the API sets on it. */
         #yt-player-div { position:absolute; inset:0; width:100% !important; height:100% !important; border:none; }
-        @import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@400;600;700;900&family=DM+Sans:wght@400;500;600;700;800;900&display=swap');
       `}</style>
 
       {/* ── Nav Bar ── */}

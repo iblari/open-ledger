@@ -78,6 +78,18 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        {/* Fonts loaded ONCE at the document level with early preconnects.
+            Previously /live injected a CSS @import inside a client component
+            — the browser only discovered the font stylesheet AFTER JS
+            hydration, delaying text render on every visit — and /dashboard
+            carried its own duplicate <link>. One request, discovered in the
+            initial HTML, shared by both pages. */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,300;8..60,400;8..60,600;8..60,700;8..60,900&family=DM+Sans:wght@400;500;600;700;800;900&display=swap"
+          rel="stylesheet"
+        />
         <Script async src="https://www.googletagmanager.com/gtag/js?id=AW-16681848292" strategy="afterInteractive" />
         <Script id="google-ads" strategy="afterInteractive">
           {`
