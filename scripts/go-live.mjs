@@ -173,7 +173,11 @@ console.log(``);
 
 function tryYtDlp(extraArgs) {
   return new Promise((resolve) => {
-    const args = ["-f", "bestaudio", "--get-url", ...extraArgs, YOUTUBE_URL];
+    // bestaudio/best: many LIVE streams expose only muxed (audio+video)
+    // formats — audio-only "bestaudio" fails with "Requested format is not
+    // available" (observed on the July 4th White House stream). The muxed
+    // fallback is fine: ffmpeg extracts the audio track either way.
+    const args = ["-f", "bestaudio/best", "--get-url", ...extraArgs, YOUTUBE_URL];
     // YT_PROXY_URL (static-residential proxy) routes extraction around
     // YouTube's datacenter-IP bot-check — set it as a GitHub secret and
     // every attempt in the ladder uses it automatically.
