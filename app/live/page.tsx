@@ -1756,7 +1756,40 @@ export default function LiveFactCheckPage() {
               const upcomingReal = (schedule?.upcoming || []).filter(
                 e => !(e.youtubeUrl || "").includes("REPLACE_WITH")
               );
-              if (!schedule || (!schedule.active && upcomingReal.length === 0)) return null;
+              // No events scheduled (most of the time — official streams are
+              // usually announced only hours ahead): still show the calendar
+              // block, or nobody ever discovers the subscribe loop. Viewers
+              // who subscribe NOW get every future event automatically.
+              if (!schedule || (!schedule.active && upcomingReal.length === 0)) {
+                return (
+                  <div style={{ maxWidth: 700, margin: "0 auto 28px", textAlign: "center" }}>
+                    <div style={{
+                      padding: "14px 18px", background: T.paper,
+                      borderRadius: 8, border: `1px solid ${T.rule}`,
+                      display: "inline-flex", flexDirection: "column", gap: 8,
+                      minWidth: 300, maxWidth: "100%", textAlign: "left",
+                    }}>
+                      <div style={{
+                        fontFamily: "'DM Sans',sans-serif", fontSize: 10, fontWeight: 700,
+                        textTransform: "uppercase", letterSpacing: 1.5, color: T.sub,
+                      }}>UPCOMING BROADCASTS</div>
+                      <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 12, color: T.sub, lineHeight: 1.6 }}>
+                        Official events (President, VP, cabinet) appear here automatically as
+                        soon as they&rsquo;re announced — usually a few hours ahead. Subscribe once
+                        and every future broadcast lands in your calendar with a 15-minute reminder.
+                      </div>
+                      <a href="/api/schedule.ics" style={{
+                        alignSelf: "flex-start",
+                        fontFamily: "'DM Sans',sans-serif", fontSize: 11, fontWeight: 700,
+                        color: "#fff", background: T.ink, textDecoration: "none",
+                        padding: "7px 14px", borderRadius: 6, letterSpacing: 0.3,
+                      }}>
+                        📅 Subscribe to broadcast calendar
+                      </a>
+                    </div>
+                  </div>
+                );
+              }
               return (
                 <div style={{ maxWidth: 700, margin: "0 auto 28px", textAlign: "center" }}>
                   <div style={{
