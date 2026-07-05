@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSubscribers } from "@/lib/live-kv";
+import { getSubscribers, getCalendarPollStats } from "@/lib/live-kv";
 
 /**
  * GET /api/admin/subscribers — export the subscriber list (ADMIN_KEY).
@@ -28,5 +28,9 @@ export async function GET(req: Request) {
     });
   }
 
-  return NextResponse.json({ count: subs.length, subscribers: subs });
+  // Calendar-feed subscribers are anonymous by design; report approximate
+  // distinct clients (30d). Google fetches centrally for ALL its users, so
+  // "google" means the fetcher is active (≥1 user), not a people-count.
+  const calendar = await getCalendarPollStats();
+  return NextResponse.json({ count: subs.length, subscribers: subs, calendar });
 }

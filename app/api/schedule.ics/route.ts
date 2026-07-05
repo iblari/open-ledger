@@ -1,6 +1,17 @@
-import { readFile } from "fs/promises";
-import path from "path";
+import { createHash } from "crypto";
 import { type ScheduledEvent } from "@/lib/schedule";
+import { loadAllScheduleEvents } from "@/lib/schedule-store";
+import { recordCalendarPoll } from "@/lib/live-kv";
+
+/** Classify the polling calendar client from its User-Agent. */
+function classifyClient(ua: string): string {
+  const u = ua.toLowerCase();
+  if (u.includes("google-calendar") || u.includes("feedfetcher")) return "google";
+  if (u.includes("dataaccessd") || u.includes("iphone") || u.includes("ios") || u.includes("calendaragent") || u.includes("mac os")) return "apple";
+  if (u.includes("outlook") || u.includes("microsoft")) return "outlook";
+  if (u.includes("mozilla")) return "browser";
+  return "other";
+}
 
 /**
  * GET /api/schedule.ics            — iCalendar feed of ALL upcoming broadcasts
@@ -46,11 +57,12 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const only = searchParams.get("event");
 
+  // File events (repo) + KV events (autopilot) merged — WITHOUT this the
+  // feed silently omitted every automatically-scheduled event, breaking the
+  // core promise that subscriptions update themselves.
   let events: ScheduledEvent[] = [];
   try {
-    const file = path.join(process.cwd(), "public", "live-schedule.json");
-    const parsed = JSON.parse(await readFile(file, "utf8"));
-    events = Array.isArray(parsed.events) ? parsed.events : [];
+    events = await loadAllScheduleEvents();
   } catch {
     /* empty calendar below */
   }
@@ -76,6 +88,15 @@ export async function GET(req: Request) {
     "END:VCALENDAR",
   ].join("\r\n") + "\r\n";
 
+  // Track distinct polling clients (anonymous: hashed IP + client class) so
+  // /api/admin/subscribers can report approximate calendar-subscriber counts.
+  try {
+    const ua = req.headers.get("user-agent") || "";
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const ipHash = createHash("sha256").update(ip).digest("hex").slice(0, 16);
+    await recordCalendarPoll(ipHash, classifyClient(ua));
+  } catch { /* tracking must never break the feed */ }
+
   return new Response(ics, {
     headers: {
       "Content-Type": "text/calendar; charset=utf-8",
@@ -84,9 +105,10 @@ export async function GET(req: Request) {
       // hands the calendar straight to the Calendar app. Desktop browsers
       // still save/open it fine. (Subscribe links use webcal:// anyway.)
       "Content-Disposition": `inline; filename="${only ? only : "voteunbiased-live"}.ics"`,
-      // Calendar apps poll subscriptions infrequently anyway; short CDN
-      // cache keeps the endpoint cheap without staleness issues.
-      "Cache-Control": "s-maxage=300, stale-while-revalidate=600",
+      // No CDN cache: calendar clients poll hours apart (tiny traffic), and
+      // each poll must reach the function for subscriber counting AND to
+      // serve freshly-autopiloted events.
+      "Cache-Control": "private, max-age=0",
     },
   });
 }

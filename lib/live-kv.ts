@@ -282,3 +282,68 @@ export async function appendSubscriber(rec: SubscriberRecord): Promise<{ total: 
   }
   return { total: all.length, isNew };
 }
+
+// ── Calendar-feed poll tracking ───────────────────────────────────
+//
+// Calendar subscriptions are anonymous by design (no signup — clients just
+// poll the .ics URL), so "who" is unknowable. "How many" is approximated by
+// counting distinct clients (hashed IP + client class). Caveats: each Apple
+// device polls independently (slight overcount per multi-device user), and
+// Google Calendar fetches ONCE centrally for all its users (undercounts
+// Google subscribers to "≥1"). Records prune after 60 days.
+
+const CAL_POLLS_KEY = "calendar:pollers";
+
+export interface CalendarPollStats {
+  uniqueClients30d: number;
+  byClient: Record<string, number>;
+  googleFetcherActive: boolean;
+}
+
+export async function recordCalendarPoll(ipHash: string, clientClass: string): Promise<void> {
+  let raw: string | null | undefined;
+  if (hasUpstash()) {
+    raw = (await upstashCmd("GET", CAL_POLLS_KEY)) as string | null;
+  } else {
+    raw = mem.get(CAL_POLLS_KEY);
+  }
+  let map: Record<string, string> = {};
+  try { map = raw ? JSON.parse(raw) : {}; } catch { map = {}; }
+  map[`${clientClass}:${ipHash}`] = new Date().toISOString();
+  // Prune entries not seen in 60 days.
+  const cutoff = Date.now() - 60 * 24 * 3600 * 1000;
+  for (const [k, v] of Object.entries(map)) {
+    if (Date.parse(v) < cutoff) delete map[k];
+  }
+  const json = JSON.stringify(map);
+  if (hasUpstash()) {
+    await upstashCmd("SET", CAL_POLLS_KEY, json);
+  } else {
+    mem.set(CAL_POLLS_KEY, json);
+  }
+}
+
+export async function getCalendarPollStats(): Promise<CalendarPollStats> {
+  let raw: string | null | undefined;
+  if (hasUpstash()) {
+    raw = (await upstashCmd("GET", CAL_POLLS_KEY)) as string | null;
+  } else {
+    raw = mem.get(CAL_POLLS_KEY);
+  }
+  let map: Record<string, string> = {};
+  try { map = raw ? JSON.parse(raw) : {}; } catch { map = {}; }
+  const cutoff = Date.now() - 30 * 24 * 3600 * 1000;
+  const byClient: Record<string, number> = {};
+  let total = 0;
+  for (const [k, v] of Object.entries(map)) {
+    if (Date.parse(v) < cutoff) continue;
+    const cls = k.split(":")[0];
+    byClient[cls] = (byClient[cls] || 0) + 1;
+    total++;
+  }
+  return {
+    uniqueClients30d: total,
+    byClient,
+    googleFetcherActive: (byClient["google"] || 0) > 0,
+  };
+}
