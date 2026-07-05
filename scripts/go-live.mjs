@@ -270,29 +270,65 @@ process.on("unhandledRejection", async (e) => {
 
 console.log("→ Connecting to Deepgram...");
 
-const dgUrl = `wss://api.deepgram.com/v1/listen?` +
-  `encoding=linear16&sample_rate=16000&channels=1&` +
-  `model=nova-2&language=en&smart_format=true&` +
-  `interim_results=false&utterance_end_ms=1500&` +
-  `punctuate=true`;
+// First real production run failed here with "Unexpected server response:
+// 400" — two fixable causes: utterance_end_ms REQUIRES interim_results=true
+// (invalid with false), and nova-2 may be deprecated on newer accounts.
+// Fix: drop utterance_end_ms (meaningless without interims), and try a
+// model ladder (nova-3 → nova-2 → base) with the response body logged on
+// failure so the next 400 tells us WHY.
+function dgUrlFor(model) {
+  return `wss://api.deepgram.com/v1/listen?` +
+    `encoding=linear16&sample_rate=16000&channels=1&` +
+    `model=${model}&language=en&smart_format=true&` +
+    `interim_results=false&punctuate=true`;
+}
 
-const dgWs = new WebSocket(dgUrl, {
-  headers: { Authorization: `Token ${DEEPGRAM_KEY}` },
-});
+function connectDeepgram(models) {
+  return new Promise((resolve, reject) => {
+    const tryNext = (i) => {
+      if (i >= models.length) return reject(new Error("all Deepgram models rejected"));
+      const model = models[i];
+      const ws = new WebSocket(dgUrlFor(model), {
+        headers: { Authorization: `Token ${DEEPGRAM_KEY}` },
+      });
+      let settled = false;
+      ws.on("open", () => { settled = true; console.log(`  ✓ Deepgram connected (model=${model})`); resolve(ws); });
+      ws.on("unexpected-response", (_req, res) => {
+        let body = "";
+        res.on("data", (d) => { body += d; });
+        res.on("end", () => {
+          console.error(`  ✗ Deepgram ${model}: HTTP ${res.statusCode} — ${body.slice(0, 300)}`);
+          if (!settled) { settled = true; tryNext(i + 1); }
+        });
+      });
+      ws.on("error", (err) => {
+        if (!settled) { settled = true; console.error(`  ✗ Deepgram ${model}:`, err.message); tryNext(i + 1); }
+      });
+    };
+    tryNext(0);
+  });
+}
 
+let dgWs;
+try {
+  dgWs = await connectDeepgram(["nova-3", "nova-2", "base"]);
+} catch (e) {
+  console.error("  ERROR:", e.message);
+  await adminCall("/api/admin/go-live", { action: "stop" }).catch(() => {});
+  process.exit(13);
+}
+
+// The socket is ALREADY OPEN here (connectDeepgram resolves on open), so
+// initialize timing directly instead of via an "open" handler that would
+// never fire again.
 let startTime = Date.now();
 let transcriptBuffer = "";
 let lastIngestTime = Date.now();
 const INGEST_INTERVAL = 15000; // 15 seconds
 let totalClaims = 0;
 
-dgWs.on("open", () => {
-  console.log("  ✓ Deepgram connected\n");
-  console.log("🎙️  LIVE — transcribing and fact-checking in real-time...");
-  console.log("   Press Ctrl+C to stop.\n");
-  startTime = Date.now();
-  lastIngestTime = Date.now();
-});
+console.log("🎙️  LIVE — transcribing and fact-checking in real-time...");
+console.log("   Press Ctrl+C to stop.\n");
 
 dgWs.on("message", async (data) => {
   try {
