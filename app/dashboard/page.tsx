@@ -3,8 +3,23 @@ import { useState, useMemo, useEffect, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { BarChart, Bar, LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell as RechartsCell } from "recharts";
+import nextDynamic from "next/dynamic";
 import FeedbackBanner from "./FeedbackBanner";
-import GlobeView from "@/components/GlobeView";
+
+// ── Code-split the non-default tabs ─────────────────────────────
+// The dashboard shipped every tab's code (globe, state atlas, live
+// benchmark) in the initial bundle even though visitors land on the
+// ledger tab. next/dynamic puts each behind its own chunk, fetched on
+// first tab open. ssr:false — they're client-interactive views with no
+// SEO value, and skipping server render trims the HTML payload too.
+const tabLoading = () => (
+  <div style={{ padding: 48, textAlign: "center", color: "#9a9490", fontSize: 13, fontFamily: "system-ui" }}>
+    Loading…
+  </div>
+);
+const GlobeView = nextDynamic(() => import("@/components/GlobeView"), {
+  ssr: false, loading: tabLoading,
+});
 import { HEADER_METRICS, THEATERS, PERSONNEL_BY_COUNTRY, POSTURE_ASSETS, ASSET_TYPES, ALERT_COLORS, THEATER_COLORS, POSTURE_FEED, type PostureAsset, type AssetType, type FeedItem } from "@/lib/abroad-data";
 import { CONFLICT_STREAMS, estimateTotal, estimateGrandTotal, formatUSD, formatUSDFull, MONTHLY_SPEND, computeDeltas, type ConflictStream, type SpendRow, type DeltaRow } from "@/lib/war-costs";
 import { SCENARIOS, SCENARIO_ORDER, applyScenario, type ScenarioId, type DataPoint } from "@/lib/scenarios";
@@ -24,8 +39,13 @@ import {
   METRIC_DISPLAY_DASHBOARD,
 } from "@/lib/display-modes";
 import { PillToggle } from "@/components/PillToggle";
-import { StateAtlas } from "@/components/StateAtlas";
-import LiveBenchmark from "@/components/LiveBenchmark";
+const StateAtlas = nextDynamic(
+  () => import("@/components/StateAtlas").then(m => m.StateAtlas),
+  { ssr: false, loading: tabLoading }
+);
+const LiveBenchmark = nextDynamic(() => import("@/components/LiveBenchmark"), {
+  ssr: false, loading: tabLoading,
+});
 // InsightsStrip import removed — strip lives only on the landing page now.
 
 function useIsMobile() {
