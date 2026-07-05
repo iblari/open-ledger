@@ -1380,11 +1380,44 @@ export default function LiveFactCheckPage() {
     setIsManualChecking(true);
     setManualResult(null);
 
-    const recentText = liveTranscript.split(" ").slice(-80).join(" ").trim();
-
+    // Capture the playhead AT CLICK TIME — the window is anchored to this
+    // instant, so the user checks exactly what they just heard.
     let videoTime = Math.floor((Date.now() - demoStartTime.current) / 1000);
     if (ytPlayerRef.current?.getCurrentTime) {
       try { videoTime = Math.floor(ytPlayerRef.current.getCurrentTime()); } catch {}
+    }
+
+    // Words spoken in the last `windowSec` seconds before the playhead.
+    // Captions are ~15s blocks, so we interpolate per-word timing inside
+    // each block (same approximation the karaoke strip uses) rather than
+    // including whole blocks — keeps the window tight and deterministic.
+    const wordsInWindow = (windowSec: number): string => {
+      if (!realCaptions || realCaptions.length === 0) return "";
+      const from = videoTime - windowSec;
+      const out: string[] = [];
+      for (let i = 0; i < realCaptions.length; i++) {
+        const start = realCaptions[i].time;
+        const end = realCaptions[i + 1]?.time ?? start + 15;
+        if (end <= from || start >= videoTime) continue;
+        const words = realCaptions[i].text.split(/\s+/).filter(w => w && w !== ">>" && w !== ">");
+        const span = Math.max(1, end - start);
+        words.forEach((w, k) => {
+          const t = start + span * (k / words.length);
+          if (t >= from && t <= videoTime) out.push(w);
+        });
+      }
+      return out.join(" ").trim();
+    };
+
+    // Caption modes: exactly the last 15s; widen to 30s if that slice was
+    // applause/silence. Live worker mode: the latest ingested chunk IS the
+    // last ~15s of speech — use it directly.
+    let recentText: string;
+    if (realCaptions && realCaptions.length > 0) {
+      recentText = wordsInWindow(15);
+      if (recentText.length < 30) recentText = wordsInWindow(30);
+    } else {
+      recentText = liveTranscript.split(" ").slice(-50).join(" ").trim();
     }
 
     if (recentText.length < 20) {
@@ -1443,7 +1476,7 @@ export default function LiveFactCheckPage() {
     }
 
     setIsManualChecking(false);
-  }, [liveTranscript]);
+  }, [liveTranscript, realCaptions]);
 
   /* ── Share ── */
   const shareResults = useCallback(() => {
