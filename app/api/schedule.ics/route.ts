@@ -1,5 +1,6 @@
+import { readFile } from "fs/promises";
+import path from "path";
 import { type ScheduledEvent } from "@/lib/schedule";
-import { loadAllScheduleEvents } from "@/lib/schedule-store";
 
 /**
  * GET /api/schedule.ics            — iCalendar feed of ALL upcoming broadcasts
@@ -45,11 +46,11 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const only = searchParams.get("event");
 
-  // File events (repo) + KV events (autopilot) merged — anything the
-  // autopilot schedules lands in subscribers' calendars automatically.
   let events: ScheduledEvent[] = [];
   try {
-    events = await loadAllScheduleEvents();
+    const file = path.join(process.cwd(), "public", "live-schedule.json");
+    const parsed = JSON.parse(await readFile(file, "utf8"));
+    events = Array.isArray(parsed.events) ? parsed.events : [];
   } catch {
     /* empty calendar below */
   }
@@ -78,7 +79,11 @@ export async function GET(req: Request) {
   return new Response(ics, {
     headers: {
       "Content-Type": "text/calendar; charset=utf-8",
-      "Content-Disposition": `attachment; filename="${only ? only : "voteunbiased-live"}.ics"`,
+      // INLINE, not attachment: iOS Safari can't "download files" — with
+      // attachment it errors ("Safari cannot download this file"); inline
+      // hands the calendar straight to the Calendar app. Desktop browsers
+      // still save/open it fine. (Subscribe links use webcal:// anyway.)
+      "Content-Disposition": `inline; filename="${only ? only : "voteunbiased-live"}.ics"`,
       // Calendar apps poll subscriptions infrequently anyway; short CDN
       // cache keeps the endpoint cheap without staleness issues.
       "Cache-Control": "s-maxage=300, stale-while-revalidate=600",

@@ -1778,14 +1778,29 @@ export default function LiveFactCheckPage() {
                         soon as they&rsquo;re announced — usually a few hours ahead. Subscribe once
                         and every future broadcast lands in your calendar with a 15-minute reminder.
                       </div>
-                      <a href="/api/schedule.ics" style={{
-                        alignSelf: "flex-start",
-                        fontFamily: "'DM Sans',sans-serif", fontSize: 11, fontWeight: 700,
-                        color: "#fff", background: T.ink, textDecoration: "none",
-                        padding: "7px 14px", borderRadius: 6, letterSpacing: 0.3,
-                      }}>
-                        📅 Subscribe to broadcast calendar
-                      </a>
+                      {/* webcal:// → iOS/macOS open the native Calendar
+                          subscribe dialog (an https .ics link makes Safari
+                          try to "download", which iPhones can't). Google
+                          Calendar subscribes via its add-by-URL cid param. */}
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <a href="webcal://voteunbiased.org/api/schedule.ics" style={{
+                          fontFamily: "'DM Sans',sans-serif", fontSize: 11, fontWeight: 700,
+                          color: "#fff", background: T.ink, textDecoration: "none",
+                          padding: "7px 14px", borderRadius: 6, letterSpacing: 0.3,
+                        }}>
+                          📅 Apple / Outlook
+                        </a>
+                        <a
+                          href={`https://calendar.google.com/calendar/r?cid=${encodeURIComponent("webcal://voteunbiased.org/api/schedule.ics")}`}
+                          target="_blank" rel="noopener noreferrer"
+                          style={{
+                            fontFamily: "'DM Sans',sans-serif", fontSize: 11, fontWeight: 700,
+                            color: T.ink, background: T.card, border: `1px solid ${T.rule}`,
+                            textDecoration: "none", padding: "6px 14px", borderRadius: 6, letterSpacing: 0.3,
+                          }}>
+                          📅 Google Calendar
+                        </a>
+                      </div>
                     </div>
                   </div>
                 );
@@ -1903,8 +1918,9 @@ export default function LiveFactCheckPage() {
                     }}>
                       <span>Auto-broadcast · fact-checks appear in real time when the event begins</span>
                       {/* Subscribe once → every future event lands in the
-                          viewer's calendar app with a 15-min reminder. */}
-                      <a href="/api/schedule.ics" style={{
+                          viewer's calendar app with a 15-min reminder.
+                          webcal:// for the native Apple/Outlook dialog. */}
+                      <a href="webcal://voteunbiased.org/api/schedule.ics" style={{
                         color: T.blue, textDecoration: "none", fontWeight: 700, fontSize: 9,
                         letterSpacing: 0.5, whiteSpace: "nowrap",
                       }}>
