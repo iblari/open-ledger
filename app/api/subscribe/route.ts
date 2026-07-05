@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { appendSubscriber } from "@/lib/live-kv";
 
 const BASE44_APP_ID = "69cef7927e5cceaa129290ca";
 const BASE44_ENTITY = "Subscribers";
@@ -38,14 +39,25 @@ export async function POST(req: Request) {
     source,
   };
 
-  const apiKey = process.env.BASE44_API_KEY;
+  // ALWAYS persist to our own KV first — this is the durable system of
+  // record. (Historic bug: with no BASE44_API_KEY configured, emails only
+  // went to console.log, which Vercel retains ~1 day. Subscribers were
+  // being lost.) Export: GET /api/admin/subscribers.
+  let kvOk = false;
+  try {
+    await appendSubscriber(payload);
+    kvOk = true;
+  } catch (e) {
+    console.error("[SUBSCRIBE] KV persist failed:", e);
+  }
+  // Belt-and-braces: still log, so even a KV outage leaves a trace.
+  console.log(
+    `[NEW SUBSCRIBER] ${payload.email} | feedback: ${payload.feedback || "(none)"} | source: ${payload.source} | ${payload.signed_up_at}`
+  );
 
-  // Fall back to logging if not configured
+  const apiKey = process.env.BASE44_API_KEY;
   if (!apiKey) {
-    console.log(
-      `[NEW SUBSCRIBER] ${payload.email} | feedback: ${payload.feedback || "(none)"} | source: ${payload.source} | ${payload.signed_up_at}`
-    );
-    return NextResponse.json({ success: true, mode: "log" });
+    return NextResponse.json({ success: true, mode: kvOk ? "kv" : "log" });
   }
 
   // Post to Base44
@@ -69,7 +81,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, mode: "log-fallback" });
     }
 
-    return NextResponse.json({ success: true, mode: "base44" });
+    return NextResponse.json({ success: true, mode: kvOk ? "kv+base44" : "base44" });
   } catch (e: any) {
     console.error("[SUBSCRIBE ERROR]", e?.message || e);
     console.log(

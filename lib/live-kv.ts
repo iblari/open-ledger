@@ -227,3 +227,58 @@ export async function upsertKvScheduleEvents(
   await setKvScheduleEvents(kept);
   return { total: kept.length, added, updated, pruned };
 }
+
+// ── Subscriber persistence ────────────────────────────────────────
+//
+// The /api/subscribe route originally forwarded emails to Base44 (never
+// configured in production) or console.log (Vercel retains ~1 day) — so
+// subscriber emails were being lost. Every signup now lands HERE, in the
+// same Upstash store the live pipeline uses, regardless of any external
+// service. Export via /api/admin/subscribers.
+
+const SUBSCRIBERS_KEY = "subscribers:list";
+
+export interface SubscriberRecord {
+  email: string;
+  feedback: string;
+  source: string;
+  signed_up_at: string;
+}
+
+export async function getSubscribers(): Promise<SubscriberRecord[]> {
+  let raw: string | null | undefined;
+  if (hasUpstash()) {
+    raw = (await upstashCmd("GET", SUBSCRIBERS_KEY)) as string | null;
+  } else {
+    raw = mem.get(SUBSCRIBERS_KEY);
+  }
+  if (!raw) return [];
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return [];
+  }
+}
+
+/** Append a subscriber. Dedupes by email (case-insensitive) — a repeat
+ *  signup updates feedback/source but keeps the ORIGINAL signup date. */
+export async function appendSubscriber(rec: SubscriberRecord): Promise<{ total: number; isNew: boolean }> {
+  const all = await getSubscribers();
+  const key = rec.email.trim().toLowerCase();
+  const existing = key ? all.find(s => s.email.trim().toLowerCase() === key) : undefined;
+  let isNew = true;
+  if (existing) {
+    isNew = false;
+    if (rec.feedback) existing.feedback = rec.feedback;
+    existing.source = rec.source;
+  } else {
+    all.push(rec);
+  }
+  const json = JSON.stringify(all);
+  if (hasUpstash()) {
+    await upstashCmd("SET", SUBSCRIBERS_KEY, json);
+  } else {
+    mem.set(SUBSCRIBERS_KEY, json);
+  }
+  return { total: all.length, isNew };
+}
