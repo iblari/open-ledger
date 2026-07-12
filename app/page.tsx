@@ -872,8 +872,7 @@ function PrinciplesSection({ mob, med }: { mob: boolean; med: boolean }) {
 }
 
 /* ── Sources ── */
-function SourcesSection({ mob, med }: { mob: boolean; med: boolean }) {
-  const sources = [
+const SOURCES = [
     { src: "BEA", d: "Bureau of Economic Analysis — GDP, trade balance, national accounts." },
     { src: "BLS", d: "Bureau of Labor Statistics — unemployment, wages, jobs, CPI." },
     { src: "Census", d: "U.S. Census Bureau — median income, poverty, demographics." },
@@ -886,7 +885,10 @@ function SourcesSection({ mob, med }: { mob: boolean; med: boolean }) {
     { src: "CBO", d: "Congressional Budget Office — deficit projections, spending analysis." },
     { src: "S&P Global", d: "S&P 500 index, credit ratings, financial indicators." },
     { src: "CRS", d: "Congressional Research Service — supplemental appropriations, military aid reports." },
-  ];
+];
+
+function SourcesSection({ mob, med }: { mob: boolean; med: boolean }) {
+  const sources = SOURCES;
 
   return (
     <section id="sources" style={{ padding: mob ? "48px 0" : "72px 0", borderBottom: `1px solid ${C.rule}` }}>
@@ -1187,9 +1189,352 @@ function Footer({ mob, med }: { mob: boolean; med: boolean }) {
 /* ═══════════════════════════════════════════════
    APP
 ═══════════════════════════════════════════════ */
+
+/* ═══════════════════════════════════════════════
+   MOBILE LANDING — design 3a "One-Screen Ledger"
+   From design_handoff_mobile_landing_3a: a compressed mobile-first
+   landing (~4 screens instead of ~10). The hero GDP chart, Deep Dive
+   chart, and Deep Dive side panel merged into ONE artifact: the ledger
+   heatmap where tapping a row swaps in that metric's 32-year chart.
+   Desktop rendering is untouched (LandingPage branches on `mob`).
+═══════════════════════════════════════════════ */
+
+const M_UNIT_TAG: Record<string, string> = { pp: "pp", pct_avg: "% avg", pct_yr: "%/yr real" };
+const M_FOOTNOTE: Record<string, string> = {
+  pp: "Percentage-point change: inherited value → last full year in office.",
+  pct_avg: "Average annual rate across the years of each tenure.",
+  pct_yr: "Annualized yearly growth, CPI-adjusted (real). Tap any row above.",
+};
+// Term-start x-axis labels at the same left-% math as the bars.
+const TERM_STARTS: { y: number; idx: number; a: string }[] = [
+  { y: 1993, idx: 0, a: "clinton" }, { y: 2001, idx: 8, a: "bush" },
+  { y: 2009, idx: 16, a: "obama" }, { y: 2017, idx: 24, a: "trump1" },
+  { y: 2021, idx: 28, a: "biden" },
+];
+
+function MobileLanding() {
+  const heat = useMemo(() => computeHeatmap(METRICS, AID), []);
+  const [expandedMetric, setExpandedMetric] = useState<string>("gdp");
+
+  // Newsletter (same /api/subscribe flow as CTASection).
+  const [email, setEmail] = useState("");
+  const [nlStatus, setNlStatus] = useState<"idle" | "loading" | "ok" | "err">("idle");
+  const subscribe = async () => {
+    if (!email.trim() || nlStatus === "loading") return;
+    setNlStatus("loading");
+    try {
+      const r = await fetch("/api/subscribe", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim(), source: "mobile-landing" }),
+      });
+      setNlStatus(r.ok ? "ok" : "err");
+    } catch { setNlStatus("err"); }
+  };
+
+  const m = METRICS[expandedMetric];
+  const cfg = METRIC_DISPLAY_LANDING[expandedMetric];
+  const unitTag = M_UNIT_TAG[cfg?.perMetricUnit || "pp"] || "pp";
+  const series = m.d;
+  const lo = Math.min(0, ...series.map(p => p.v));
+  const hi = Math.max(...series.map(p => p.v));
+  const span = hi - lo || 1;
+  const zeroTopPct = (hi / span) * 100;
+
+  return (
+    <div style={{ paddingBottom: 0 }}>
+      {/* ── 2. Hero (compact — no chart) ── */}
+      <div style={{ padding: "20px 20px 6px" }}>
+        <div style={{
+          display: "inline-flex", alignItems: "center", gap: 6,
+          fontSize: 9.5, textTransform: "uppercase", letterSpacing: "0.08em", color: C.sub,
+          background: "#fff", border: `1px solid ${C.rule}`, borderRadius: 999,
+          padding: "5px 10px", marginBottom: 14, fontWeight: 500,
+        }}>
+          <span style={{ width: 6, height: 6, borderRadius: "50%", background: C.accent, boxShadow: "0 0 0 3px rgba(184,55,45,.2)" }} />
+          No spin · No editorial · You interpret
+        </div>
+        <h1 style={{
+          fontFamily: SERIF, fontSize: 31, lineHeight: 1.02, letterSpacing: "-0.028em",
+          fontWeight: 400, margin: 0,
+        }}>
+          The economy under every president, <em style={{ fontStyle: "italic", color: C.accent }}>in data.</em>
+        </h1>
+        <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
+          <Link href="/dashboard" style={{
+            background: C.ink, color: "#f8f5f0", fontSize: 12.5, fontWeight: 500,
+            padding: "10px 15px", borderRadius: 4, textDecoration: "none",
+          }}>
+            See all 19 metrics →
+          </Link>
+          <a href="#method" style={{
+            background: "#fff", border: `1px solid ${C.rule}`, color: C.ink,
+            fontSize: 12.5, fontWeight: 500, padding: "10px 13px", borderRadius: 4, textDecoration: "none",
+          }}>
+            Methodology
+          </a>
+        </div>
+      </div>
+
+      {/* ── 3. The ledger card (scorecard + deep dive, merged) ── */}
+      <div style={{ background: "#fff", border: `1px solid ${C.rule}`, borderRadius: 6, margin: "16px 14px 0", overflow: "hidden" }}>
+        {/* 3.1 Card header */}
+        <div style={{
+          background: C.paper, padding: "11px 12px 9px", borderBottom: `1px solid ${C.rule}`,
+          display: "flex", justifyContent: "space-between", alignItems: "baseline",
+        }}>
+          <span style={{ fontSize: 12, fontWeight: 600 }}>The ledger, at a glance</span>
+          <span style={{ fontSize: 9, textTransform: "uppercase", color: C.mute, letterSpacing: "0.06em" }}>’93–’24 + live</span>
+        </div>
+
+        {/* 3.2 Column header row */}
+        <div style={{ display: "grid", gridTemplateColumns: "90px repeat(6, 1fr)", padding: "7px 4px 6px", borderBottom: `1px solid ${C.rule}` }}>
+          <div />
+          {[...AID, "trump2"].map(id => {
+            const a = id === "trump2" ? { name: "Trump II", color: "#c1272d" } : ADMINS[id];
+            return (
+              <div key={id} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+                <span style={{ width: 18, height: 3, borderRadius: 2, background: a.color }} />
+                <span style={{ fontSize: 9, fontWeight: 600 }}>{a.name}</span>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* 3.3 Six metric rows */}
+        {METRIC_ORDER.map(mk => {
+          const mm = METRICS[mk];
+          const sel = expandedMetric === mk;
+          const rowCfg = METRIC_DISPLAY_LANDING[mk];
+          const rowUnit = M_UNIT_TAG[rowCfg?.perMetricUnit || "pp"] || "pp";
+          return (
+            <div key={mk}
+              onClick={() => setExpandedMetric(mk)}
+              style={{
+                display: "grid", gridTemplateColumns: "90px repeat(6, 1fr)",
+                borderBottom: "1px solid #efece6", cursor: "pointer",
+                background: sel ? C.paper : "#fff",
+                borderLeft: sel ? `3px solid ${C.accent}` : "3px solid transparent",
+                transition: "background .15s, border-color .15s",
+              }}>
+              <div style={{ padding: "7px 8px 7px 9px", display: "flex", flexDirection: "column", justifyContent: "center", gap: 1 }}>
+                <span style={{ fontSize: 7.5, textTransform: "uppercase", color: C.mute, letterSpacing: "0.05em" }}>{mm.cat}</span>
+                <span style={{ fontSize: 10.5, fontWeight: 600, lineHeight: 1.15 }}>{mm.l}</span>
+              </div>
+              {AID.map(id => {
+                const c = heat[mk]?.[id];
+                const disp = c ? resolveDisplay(c, mk, "per_metric", "real") : null;
+                const st = disp && disp.value !== null
+                  ? cellColorFromMag(colorMagnitude(disp.value, disp.unit, {
+                      pctAvgTarget: rowCfg?.pctAvgTarget, pctAvgRange: rowCfg?.pctAvgRange,
+                    }), disp.improved)
+                  : { bg: C.paper, text: C.mute };
+                const val = disp && disp.value !== null && isFinite(disp.value)
+                  ? `${disp.unit === "pct_avg" ? "" : disp.value >= 0 ? "+" : ""}${disp.value.toFixed(1)}`
+                  : "—";
+                return (
+                  <Link key={id} href={`/dashboard?metric=${mk}`}
+                    onClick={e => e.stopPropagation()}
+                    style={{
+                      margin: 2, height: 42, borderRadius: 3, textDecoration: "none",
+                      display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 1,
+                      background: st.bg, color: st.text,
+                    }}>
+                    <span style={{ fontFamily: SERIF, fontSize: 11.5, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{val}</span>
+                    <span style={{ fontSize: 6.5, textTransform: "uppercase", letterSpacing: "0.05em", opacity: 0.85 }}>{rowUnit}</span>
+                  </Link>
+                );
+              })}
+              {/* LIVE cell */}
+              <Link href="/live-benchmark" onClick={e => e.stopPropagation()} style={{
+                margin: 2, height: 42, borderRadius: 3, textDecoration: "none",
+                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2,
+                border: "1px dashed rgba(193,39,45,.3)",
+                background: "repeating-linear-gradient(-45deg, transparent, transparent 4px, rgba(193,39,45,.05) 4px, rgba(193,39,45,.05) 8px)",
+              }}>
+                <span className="live-pulse" style={{ width: 5, height: 5, borderRadius: "50%", background: "#c1272d" }} />
+                <span style={{ fontSize: 7, fontWeight: 700, letterSpacing: "0.08em", color: "#c1272d" }}>LIVE</span>
+              </Link>
+            </div>
+          );
+        })}
+
+        {/* 3.4 "See all" row */}
+        <div style={{ textAlign: "center", padding: "10px 12px", background: "#fff", borderBottom: `1px solid ${C.rule}` }}>
+          <Link href="/dashboard" style={{
+            fontSize: 11, fontWeight: 600, color: C.accent, textDecoration: "none",
+            borderBottom: "1px solid currentColor", paddingBottom: 1,
+          }}>
+            See all 19 metrics in the ledger →
+          </Link>
+        </div>
+
+        {/* 3.5.1 Legend strip (first, per spec) */}
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+          fontSize: 9, color: C.sub, background: C.paper, padding: "9px 12px", borderTop: `1px solid ${C.rule}`,
+        }}>
+          Worsened
+          <span style={{ display: "inline-flex", border: `1px solid ${C.rule}`, borderRadius: 2, overflow: "hidden" }}>
+            {[
+              "rgba(194,65,12,.8)", "rgba(194,65,12,.45)", "rgba(194,65,12,.2)",
+              C.paper,
+              "rgba(13,115,119,.2)", "rgba(13,115,119,.45)", "rgba(13,115,119,.8)",
+            ].map((bg, i) => <span key={i} style={{ width: 16, height: 10, background: bg }} />)}
+          </span>
+          Improved
+        </div>
+
+        {/* 3.5 Expanded chart panel */}
+        <div style={{ background: "#fbfaf6", padding: "12px 12px 10px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 7 }}>
+            <span style={{ fontFamily: SERIF, fontSize: 14, fontWeight: 500 }}>{m.l} · {unitTag}</span>
+            <span style={{ fontSize: 8.5, textTransform: "uppercase", color: C.mute, letterSpacing: "0.05em" }}>{m.cat} · ’93–’24</span>
+          </div>
+          <div style={{ position: "relative", height: 102, background: "#fff", border: `1px solid ${C.rule}`, borderRadius: 4, overflow: "hidden" }}>
+            {/* zero baseline */}
+            <div style={{ position: "absolute", left: 0, right: 0, top: `${zeroTopPct}%`, borderTop: "1px dashed #d4cfc5" }} />
+            {series.map((p, i) => {
+              const isPos = p.v >= 0;
+              const topPct = isPos ? ((hi - p.v) / span) * 100 : zeroTopPct;
+              const hPct = (Math.abs(p.v) / span) * 100;
+              return (
+                <div key={p.y} style={{
+                  position: "absolute",
+                  left: `${i * 3.06 + 1}%`, width: "2.5%",
+                  top: `${topPct}%`, height: `max(${hPct}%, 2px)`,
+                  background: ADMINS[p.a]?.color || C.mute, borderRadius: 1,
+                  transition: "top .5s ease, height .5s ease, background .5s ease",
+                }} />
+              );
+            })}
+          </div>
+          {/* x-axis term-start labels */}
+          <div style={{ position: "relative", height: 14, marginTop: 3 }}>
+            {TERM_STARTS.map(t => (
+              <span key={t.y} style={{
+                position: "absolute", left: `${t.idx * 3.06 + 1}%`,
+                fontSize: 8.5, fontWeight: 600, color: ADMINS[t.a].color,
+              }}>’{String(t.y).slice(2)}</span>
+            ))}
+          </div>
+          <div style={{ fontSize: 9.5, color: C.mute, marginTop: 4, lineHeight: 1.5 }}>
+            {M_FOOTNOTE[cfg?.perMetricUnit || "pp"]}
+          </div>
+        </div>
+      </div>
+
+      {/* ── 4. Trust strip ── */}
+      <div id="method" style={{ background: "#fff", border: `1px solid ${C.rule}`, borderRadius: 6, margin: "16px 14px 0" }}>
+        {[
+          ["01", "Raw numbers only — straight from BEA, BLS, Treasury, Census, the Fed."],
+          ["02", "No verdicts, no rankings — the chart shows what happened; you decide."],
+          ["03", "Context, not commentary — definitions and benchmarks, no op-eds."],
+        ].map(([n, t], i) => (
+          <div key={n} style={{
+            display: "flex", gap: 10, alignItems: "baseline", padding: "11px 14px",
+            borderBottom: i < 2 ? "1px solid #efece6" : "none",
+          }}>
+            <span style={{ fontFamily: SERIF, fontStyle: "italic", fontSize: 15, color: C.accent }}>{n}</span>
+            <span style={{ fontSize: 11.5, lineHeight: 1.5 }}>
+              <strong>{t.split(" — ")[0]}</strong> — {t.split(" — ")[1]}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {/* ── 5. Sources tile grid ── */}
+      <div style={{ margin: "14px 14px 0" }}>
+        <div style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: "0.12em", color: C.sub, marginBottom: 8, fontWeight: 500 }}>
+          Where the numbers come from
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6 }}>
+          {SOURCES.map(s => (
+            <div key={s.src} title={s.d} style={{
+              minHeight: 44, display: "flex", alignItems: "center", justifyContent: "center",
+              background: "#fff", border: `1px solid ${C.rule}`, borderRadius: 4,
+              fontFamily: SERIF, fontSize: 12, fontWeight: 600, lineHeight: 1.15,
+              textAlign: "center", padding: "4px 3px",
+            }}>{s.src}</div>
+          ))}
+        </div>
+        <div style={{ fontSize: 9, color: C.mute, textAlign: "center", marginTop: 6 }}>
+          Long-press a tile for what it covers.
+        </div>
+      </div>
+
+      {/* ── 6. Newsletter (compact) ── */}
+      <div style={{ background: "#fff", border: `1px solid ${C.rule}`, borderRadius: 6, margin: "16px 14px 0", padding: 14 }}>
+        <div style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: "0.08em", color: C.sub, marginBottom: 8, fontWeight: 500 }}>
+          Monthly dispatch — the ledger, updated
+        </div>
+        {nlStatus === "ok" ? (
+          <div style={{ fontSize: 12.5, color: "#0d7377", fontWeight: 500 }}>You’re in. First update drops next month.</div>
+        ) : (
+          <div style={{ display: "flex", gap: 6 }}>
+            <input
+              type="email" value={email} onChange={e => setEmail(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") subscribe(); }}
+              placeholder="you@example.com"
+              style={{
+                flex: 1, padding: "10px 12px", border: `1px solid ${C.rule}`, borderRadius: 4,
+                background: "#fbfaf6", fontSize: 16, /* ≥16px: prevents iOS focus-zoom */
+                fontFamily: SANS, color: C.ink, outline: "none", minWidth: 0,
+              }}
+            />
+            <button onClick={subscribe} disabled={nlStatus === "loading"} style={{
+              background: C.ink, color: "#f8f5f0", border: "none", borderRadius: 4,
+              padding: "10px 14px", fontSize: 12.5, fontWeight: 500, fontFamily: SANS,
+              cursor: "pointer", opacity: nlStatus === "loading" ? 0.6 : 1,
+            }}>
+              {nlStatus === "loading" ? "…" : "Subscribe"}
+            </button>
+          </div>
+        )}
+        {nlStatus === "err" && <div style={{ fontSize: 10.5, color: C.accent, marginTop: 6 }}>Something went wrong — try again.</div>}
+      </div>
+
+      {/* ── 7. Footer line ── */}
+      <div style={{ fontSize: 9, textTransform: "uppercase", color: C.mute, textAlign: "center", padding: "14px 0 6px", letterSpacing: "0.06em" }}>
+        © 2026 Vote Unbiased · No spin · You interpret
+      </div>
+
+      {/* ── 8. Sticky bottom CTA ── */}
+      <div style={{
+        position: "sticky", bottom: 0, zIndex: 20, padding: "12px 16px 16px",
+        background: "linear-gradient(180deg, rgba(248,245,240,0) 0%, #f8f5f0 42%)",
+      }}>
+        <Link href="/dashboard" style={{
+          display: "flex", justifyContent: "space-between", alignItems: "center",
+          background: C.ink, borderRadius: 6, padding: "13px 16px", textDecoration: "none",
+          boxShadow: "0 10px 26px -10px rgba(0,0,0,.4)",
+        }}>
+          <span>
+            <span style={{ display: "block", fontFamily: SERIF, fontSize: 15, fontWeight: 600, color: "#f8f5f0" }}>Open the ledger</span>
+            <span style={{ display: "block", fontSize: 10.5, color: "rgba(248,245,240,.6)", marginTop: 1 }}>
+              19 metrics · 5 administrations · sources cited
+            </span>
+          </span>
+          <span style={{ fontSize: 18, color: "#f8f5f0" }}>→</span>
+        </Link>
+      </div>
+    </div>
+  );
+}
+
 export default function LandingPage() {
   const mob = useIsMobile();
   const med = useMedium();
+
+  // Design 3a "One-Screen Ledger": on mobile, the entire page is the
+  // compressed MobileLanding above. Desktop keeps the existing sections.
+  if (mob) {
+    return (
+      <div style={{ background: C.bg, color: C.ink, fontFamily: SANS, fontSize: 15, lineHeight: 1.5, minHeight: "100vh" }}>
+        <Nav mob={mob} />
+        <MobileLanding />
+      </div>
+    );
+  }
 
   return (
     <div style={{ background: C.bg, color: C.ink, fontFamily: SANS, fontSize: 15, lineHeight: 1.5, minHeight: "100vh" }}>
