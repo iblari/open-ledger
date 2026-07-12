@@ -1191,32 +1191,130 @@ function Footer({ mob, med }: { mob: boolean; med: boolean }) {
 ═══════════════════════════════════════════════ */
 
 /* ═══════════════════════════════════════════════
-   MOBILE LANDING — design 3a "One-Screen Ledger"
-   From design_handoff_mobile_landing_3a: a compressed mobile-first
-   landing (~4 screens instead of ~10). The hero GDP chart, Deep Dive
-   chart, and Deep Dive side panel merged into ONE artifact: the ledger
-   heatmap where tapping a row swaps in that metric's 32-year chart.
-   Desktop rendering is untouched (LandingPage branches on `mob`).
+   MOBILE LANDING — design 3a "One-Screen Ledger" (handoff v2)
+   Compressed mobile-first landing (~4 screens). v2 changes: LIVE data
+   ticker under the nav (bound to /api/benchmark-data), chart panel
+   ABOVE the table (the table drives it), legend as table footer,
+   trust strip cut, rows (not cells) select on mobile.
+   Desktop rendering untouched (LandingPage branches on `mob`).
 ═══════════════════════════════════════════════ */
 
 const M_UNIT_TAG: Record<string, string> = { pp: "pp", pct_avg: "% avg", pct_yr: "%/yr real" };
 const M_FOOTNOTE: Record<string, string> = {
   pp: "Percentage-point change: inherited value → last full year in office.",
   pct_avg: "Average annual rate across the years of each tenure.",
-  pct_yr: "Annualized yearly growth, CPI-adjusted (real). Tap any row above.",
+  pct_yr: "Annualized yearly growth, CPI-adjusted (real). Tap any row below.",
 };
-// Term-start x-axis labels at the same left-% math as the bars.
 const TERM_STARTS: { y: number; idx: number; a: string }[] = [
   { y: 1993, idx: 0, a: "clinton" }, { y: 2001, idx: 8, a: "bush" },
   { y: 2009, idx: 16, a: "obama" }, { y: 2017, idx: 24, a: "trump1" },
   { y: 2021, idx: 28, a: "biden" },
 ];
 
+/* ── LIVE data ticker ─────────────────────────────
+   Marquee of the latest official prints, bound to the existing
+   /api/benchmark-data FRED pipeline (same freshness pattern as
+   InsightsStrip: fetch after paint, static snapshot fallback, per-item
+   as-of stamps). Never hardcoded — the fallback only bridges the fetch. */
+interface TapeItem { label: string; val: string; delta: string; deltaColor: string; asOf: string }
+
+const TAPE_FALLBACK: TapeItem[] = [
+  { label: "UNEMPLOYMENT", val: "4.2%", delta: "−0.1 pp", deltaColor: "#0d7377", asOf: "JUN ’26" },
+  { label: "INFLATION · CPI YOY", val: "4.2%", delta: "+0.4 m/m", deltaColor: "#c2410c", asOf: "JUN ’26" },
+  { label: "PAYROLLS", val: "+57K", delta: "−72K prior", deltaColor: "#c2410c", asOf: "JUN ’26" },
+  { label: "FED FUNDS", val: "3.63%", delta: "hold", deltaColor: "#9a9490", asOf: "JUN ’26" },
+  { label: "GAS", val: "$3.90", delta: "−$0.43", deltaColor: "#0d7377", asOf: "JUN ’26" },
+];
+
+function tapeAsOf(monthIdx: number): string {
+  // Trump II months are calendar months since inauguration (Jan 2025).
+  const d = new Date(Date.UTC(2025, 0, 15));
+  d.setUTCMonth(d.getUTCMonth() + monthIdx);
+  return `${d.toLocaleString("en-US", { month: "short", timeZone: "UTC" }).toUpperCase()} ’${String(d.getUTCFullYear()).slice(2)}`;
+}
+
+function MobileTicker() {
+  const [tape, setTape] = useState<TapeItem[]>(TAPE_FALLBACK);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/benchmark-data")
+      .then(r => r.json())
+      .then(d => {
+        if (cancelled || !d?.metrics) return;
+        const pick = (k: string) => {
+          const m = d.metrics[k];
+          const t2 = m?.series?.find((s: { id: string }) => s.id === "trump2")?.data;
+          if (!t2 || t2.length < 2) return null;
+          const sorted = [...t2].sort((a: { month: number }, b: { month: number }) => a.month - b.month);
+          return { last: sorted[sorted.length - 1], prev: sorted[sorted.length - 2], lower: !!m.lowerBetter };
+        };
+        const col = (delta: number, lower: boolean) =>
+          Math.abs(delta) < 1e-9 ? "#9a9490" : (delta < 0) === lower ? "#0d7377" : "#c2410c";
+        const sgn = (v: number) => (v >= 0 ? "+" : "−");
+        const items: TapeItem[] = [];
+
+        const u = pick("unemployment");
+        if (u) {
+          const dl = u.last.value - u.prev.value;
+          items.push({ label: "UNEMPLOYMENT", val: `${u.last.value.toFixed(1)}%`, delta: `${sgn(dl)}${Math.abs(dl).toFixed(1)} pp`, deltaColor: col(dl, true), asOf: tapeAsOf(u.last.month) });
+        }
+        const inf = pick("inflation");
+        if (inf) {
+          const dl = inf.last.value - inf.prev.value;
+          items.push({ label: "INFLATION · CPI YOY", val: `${inf.last.value.toFixed(1)}%`, delta: `${sgn(dl)}${Math.abs(dl).toFixed(1)} m/m`, deltaColor: col(dl, true), asOf: tapeAsOf(inf.last.month) });
+        }
+        const j = pick("jobs");
+        if (j) {
+          const dl = j.last.value - j.prev.value;
+          items.push({ label: "PAYROLLS", val: `${sgn(j.last.value)}${Math.abs(Math.round(j.last.value))}K`, delta: `${sgn(dl)}${Math.abs(Math.round(dl))}K prior`, deltaColor: col(dl, false), asOf: tapeAsOf(j.last.month) });
+        }
+        const f = pick("fed_rate");
+        if (f) {
+          const dl = f.last.value - f.prev.value;
+          items.push({ label: "FED FUNDS", val: `${f.last.value.toFixed(2)}%`, delta: Math.abs(dl) < 1e-9 ? "hold" : `${sgn(dl)}${Math.abs(dl).toFixed(2)} pp`, deltaColor: col(dl, true), asOf: tapeAsOf(f.last.month) });
+        }
+        const g = pick("gas");
+        if (g) {
+          const dl = g.last.value - g.prev.value;
+          items.push({ label: "GAS", val: `$${g.last.value.toFixed(2)}`, delta: `${sgn(dl)}$${Math.abs(dl).toFixed(2)}`, deltaColor: col(dl, true), asOf: tapeAsOf(g.last.month) });
+        }
+        if (items.length >= 3) setTape(items);
+      })
+      .catch(() => { /* fallback tape stays */ });
+    return () => { cancelled = true; };
+  }, []);
+
+  return (
+    <div style={{ margin: "-20px -20px 16px", position: "relative", overflow: "hidden", background: "#fff", borderBottom: `1px solid ${C.rule}` }}>
+      <div className="vu-marquee" style={{ display: "flex", width: "max-content", animation: "vuMarquee 32s linear infinite" }}>
+        {[...tape, ...tape].map((t, i) => (
+          <div key={i} style={{ display: "flex", alignItems: "baseline", gap: 6, padding: "8px 13px", whiteSpace: "nowrap" }}>
+            <span style={{ fontSize: 8.5, color: C.mute, letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 600 }}>{t.label}</span>
+            <span style={{ fontFamily: SERIF, fontSize: 12.5, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{t.val}</span>
+            <span style={{ fontSize: 9.5, fontWeight: 600, fontVariantNumeric: "tabular-nums", color: t.deltaColor }}>{t.delta}</span>
+            <span style={{ fontSize: 7.5, color: "#c9c4bc", letterSpacing: "0.06em", fontWeight: 600 }}>{t.asOf}</span>
+          </div>
+        ))}
+      </div>
+      {/* pinned LIVE badge, left */}
+      <div style={{
+        position: "absolute", left: 0, top: 0, bottom: 0, display: "flex", alignItems: "center", gap: 4,
+        padding: "0 14px 0 13px", background: "linear-gradient(90deg,#fff 72%,transparent)",
+      }}>
+        <span className="live-pulse" style={{ width: 5, height: 5, borderRadius: "50%", background: "#c1272d" }} />
+        <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: "0.1em", color: "#c1272d" }}>LIVE</span>
+      </div>
+      {/* right fade */}
+      <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: 24, background: "linear-gradient(270deg,#fff,transparent)" }} />
+    </div>
+  );
+}
+
 function MobileLanding() {
   const heat = useMemo(() => computeHeatmap(METRICS, AID), []);
-  const [expandedMetric, setExpandedMetric] = useState<string>("gdp");
+  const [selectedMetric, setSelectedMetric] = useState<string>("gdp");
 
-  // Newsletter (same /api/subscribe flow as CTASection).
   const [email, setEmail] = useState("");
   const [nlStatus, setNlStatus] = useState<"idle" | "loading" | "ok" | "err">("idle");
   const subscribe = async () => {
@@ -1231,8 +1329,8 @@ function MobileLanding() {
     } catch { setNlStatus("err"); }
   };
 
-  const m = METRICS[expandedMetric];
-  const cfg = METRIC_DISPLAY_LANDING[expandedMetric];
+  const m = METRICS[selectedMetric];
+  const cfg = METRIC_DISPLAY_LANDING[selectedMetric];
   const unitTag = M_UNIT_TAG[cfg?.perMetricUnit || "pp"] || "pp";
   const series = m.d;
   const lo = Math.min(0, ...series.map(p => p.v));
@@ -1241,18 +1339,15 @@ function MobileLanding() {
   const zeroTopPct = (hi / span) * 100;
 
   return (
-    <div style={{ paddingBottom: 0 }}>
-      {/* ── 2. Hero (compact — no chart) ── */}
+    <div>
+      <style>{`
+        @keyframes vuMarquee { from { transform: translateX(0) } to { transform: translateX(-50%) } }
+        .vu-marquee:hover, .vu-marquee:active { animation-play-state: paused !important; }
+      `}</style>
+
+      {/* ── 2+3. Ticker (full-bleed) + compact hero ── */}
       <div style={{ padding: "20px 20px 6px" }}>
-        <div style={{
-          display: "inline-flex", alignItems: "center", gap: 6,
-          fontSize: 9.5, textTransform: "uppercase", letterSpacing: "0.08em", color: C.sub,
-          background: "#fff", border: `1px solid ${C.rule}`, borderRadius: 999,
-          padding: "5px 10px", marginBottom: 14, fontWeight: 500,
-        }}>
-          <span style={{ width: 6, height: 6, borderRadius: "50%", background: C.accent, boxShadow: "0 0 0 3px rgba(184,55,45,.2)" }} />
-          No spin · No editorial · You interpret
-        </div>
+        <MobileTicker />
         <h1 style={{
           fontFamily: SERIF, fontSize: 31, lineHeight: 1.02, letterSpacing: "-0.028em",
           fontWeight: 400, margin: 0,
@@ -1266,27 +1361,63 @@ function MobileLanding() {
           }}>
             See all 19 metrics →
           </Link>
-          <a href="#method" style={{
+          <Link href="/dashboard" style={{
             background: "#fff", border: `1px solid ${C.rule}`, color: C.ink,
             fontSize: 12.5, fontWeight: 500, padding: "10px 13px", borderRadius: 4, textDecoration: "none",
           }}>
             Methodology
-          </a>
+          </Link>
         </div>
       </div>
 
-      {/* ── 3. The ledger card (scorecard + deep dive, merged) ── */}
+      {/* ── 4. Metric chart panel (ABOVE the table; table drives it) ── */}
+      <div style={{ background: "#fbfaf6", border: `1px solid ${C.rule}`, borderRadius: 6, margin: "16px 14px 0", padding: "12px 12px 10px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 7 }}>
+          <span style={{ fontFamily: SERIF, fontSize: 14, fontWeight: 500 }}>{m.l} · {unitTag}</span>
+          <span style={{ fontSize: 8.5, textTransform: "uppercase", color: C.mute, letterSpacing: "0.05em" }}>{m.cat} · ’93–’24</span>
+        </div>
+        <div style={{ position: "relative", height: 102, background: "#fff", border: `1px solid ${C.rule}`, borderRadius: 4, overflow: "hidden" }}>
+          <div style={{ position: "absolute", left: 0, right: 0, top: `${zeroTopPct}%`, borderTop: "1px dashed #d4cfc5" }} />
+          {series.map((p, i) => {
+            const isPos = p.v >= 0;
+            const topPct = isPos ? ((hi - p.v) / span) * 100 : zeroTopPct;
+            const hPct = (Math.abs(p.v) / span) * 100;
+            return (
+              <div key={p.y} style={{
+                position: "absolute",
+                left: `${i * 3.06 + 1}%`, width: "2.5%",
+                top: `${topPct}%`, height: `max(${hPct}%, 2px)`,
+                background: ADMINS[p.a]?.color || C.mute, borderRadius: 1,
+                transition: "top .5s ease, height .5s ease, background .5s ease",
+              }} />
+            );
+          })}
+        </div>
+        <div style={{ position: "relative", height: 14, marginTop: 3 }}>
+          {TERM_STARTS.map(t => (
+            <span key={t.y} style={{
+              position: "absolute", left: `${t.idx * 3.06 + 1}%`,
+              fontSize: 8.5, fontWeight: 600, color: ADMINS[t.a].color,
+            }}>’{String(t.y).slice(2)}</span>
+          ))}
+        </div>
+        <div style={{ fontSize: 9.5, color: C.mute, marginTop: 4, lineHeight: 1.5 }}>
+          {M_FOOTNOTE[cfg?.perMetricUnit || "pp"]}
+        </div>
+      </div>
+
+      {/* ── 5. The ledger table ── */}
       <div style={{ background: "#fff", border: `1px solid ${C.rule}`, borderRadius: 6, margin: "16px 14px 0", overflow: "hidden" }}>
-        {/* 3.1 Card header */}
+        {/* 5.1 header */}
         <div style={{
           background: C.paper, padding: "11px 12px 9px", borderBottom: `1px solid ${C.rule}`,
           display: "flex", justifyContent: "space-between", alignItems: "baseline",
         }}>
-          <span style={{ fontSize: 12, fontWeight: 600 }}>The ledger, at a glance</span>
+          <span style={{ fontSize: 12, fontWeight: 600 }}>Tap any metric below</span>
           <span style={{ fontSize: 9, textTransform: "uppercase", color: C.mute, letterSpacing: "0.06em" }}>’93–’24 + live</span>
         </div>
 
-        {/* 3.2 Column header row */}
+        {/* 5.2 column header */}
         <div style={{ display: "grid", gridTemplateColumns: "90px repeat(6, 1fr)", padding: "7px 4px 6px", borderBottom: `1px solid ${C.rule}` }}>
           <div />
           {[...AID, "trump2"].map(id => {
@@ -1300,15 +1431,15 @@ function MobileLanding() {
           })}
         </div>
 
-        {/* 3.3 Six metric rows */}
+        {/* 5.3 metric rows — whole row selects the chart (mobile semantics) */}
         {METRIC_ORDER.map(mk => {
           const mm = METRICS[mk];
-          const sel = expandedMetric === mk;
+          const sel = selectedMetric === mk;
           const rowCfg = METRIC_DISPLAY_LANDING[mk];
           const rowUnit = M_UNIT_TAG[rowCfg?.perMetricUnit || "pp"] || "pp";
           return (
             <div key={mk}
-              onClick={() => setExpandedMetric(mk)}
+              onClick={() => setSelectedMetric(mk)}
               style={{
                 display: "grid", gridTemplateColumns: "90px repeat(6, 1fr)",
                 borderBottom: "1px solid #efece6", cursor: "pointer",
@@ -1332,19 +1463,16 @@ function MobileLanding() {
                   ? `${disp.unit === "pct_avg" ? "" : disp.value >= 0 ? "+" : ""}${disp.value.toFixed(1)}`
                   : "—";
                 return (
-                  <Link key={id} href={`/dashboard?metric=${mk}`}
-                    onClick={e => e.stopPropagation()}
-                    style={{
-                      margin: 2, height: 42, borderRadius: 3, textDecoration: "none",
-                      display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 1,
-                      background: st.bg, color: st.text,
-                    }}>
+                  <div key={id} style={{
+                    margin: 2, height: 42, borderRadius: 3,
+                    display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 1,
+                    background: st.bg, color: st.text,
+                  }}>
                     <span style={{ fontFamily: SERIF, fontSize: 11.5, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{val}</span>
                     <span style={{ fontSize: 6.5, textTransform: "uppercase", letterSpacing: "0.05em", opacity: 0.85 }}>{rowUnit}</span>
-                  </Link>
+                  </div>
                 );
               })}
-              {/* LIVE cell */}
               <Link href="/live-benchmark" onClick={e => e.stopPropagation()} style={{
                 margin: 2, height: 42, borderRadius: 3, textDecoration: "none",
                 display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2,
@@ -1358,7 +1486,7 @@ function MobileLanding() {
           );
         })}
 
-        {/* 3.4 "See all" row */}
+        {/* 5.4 "See all" row */}
         <div style={{ textAlign: "center", padding: "10px 12px", background: "#fff", borderBottom: `1px solid ${C.rule}` }}>
           <Link href="/dashboard" style={{
             fontSize: 11, fontWeight: 600, color: C.accent, textDecoration: "none",
@@ -1368,10 +1496,10 @@ function MobileLanding() {
           </Link>
         </div>
 
-        {/* 3.5.1 Legend strip (first, per spec) */}
+        {/* 5.5 Legend strip (table footer) */}
         <div style={{
           display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-          fontSize: 9, color: C.sub, background: C.paper, padding: "9px 12px", borderTop: `1px solid ${C.rule}`,
+          fontSize: 9, color: C.sub, background: C.paper, padding: "9px 12px",
         }}>
           Worsened
           <span style={{ display: "inline-flex", border: `1px solid ${C.rule}`, borderRadius: 2, overflow: "hidden" }}>
@@ -1383,66 +1511,9 @@ function MobileLanding() {
           </span>
           Improved
         </div>
-
-        {/* 3.5 Expanded chart panel */}
-        <div style={{ background: "#fbfaf6", padding: "12px 12px 10px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 7 }}>
-            <span style={{ fontFamily: SERIF, fontSize: 14, fontWeight: 500 }}>{m.l} · {unitTag}</span>
-            <span style={{ fontSize: 8.5, textTransform: "uppercase", color: C.mute, letterSpacing: "0.05em" }}>{m.cat} · ’93–’24</span>
-          </div>
-          <div style={{ position: "relative", height: 102, background: "#fff", border: `1px solid ${C.rule}`, borderRadius: 4, overflow: "hidden" }}>
-            {/* zero baseline */}
-            <div style={{ position: "absolute", left: 0, right: 0, top: `${zeroTopPct}%`, borderTop: "1px dashed #d4cfc5" }} />
-            {series.map((p, i) => {
-              const isPos = p.v >= 0;
-              const topPct = isPos ? ((hi - p.v) / span) * 100 : zeroTopPct;
-              const hPct = (Math.abs(p.v) / span) * 100;
-              return (
-                <div key={p.y} style={{
-                  position: "absolute",
-                  left: `${i * 3.06 + 1}%`, width: "2.5%",
-                  top: `${topPct}%`, height: `max(${hPct}%, 2px)`,
-                  background: ADMINS[p.a]?.color || C.mute, borderRadius: 1,
-                  transition: "top .5s ease, height .5s ease, background .5s ease",
-                }} />
-              );
-            })}
-          </div>
-          {/* x-axis term-start labels */}
-          <div style={{ position: "relative", height: 14, marginTop: 3 }}>
-            {TERM_STARTS.map(t => (
-              <span key={t.y} style={{
-                position: "absolute", left: `${t.idx * 3.06 + 1}%`,
-                fontSize: 8.5, fontWeight: 600, color: ADMINS[t.a].color,
-              }}>’{String(t.y).slice(2)}</span>
-            ))}
-          </div>
-          <div style={{ fontSize: 9.5, color: C.mute, marginTop: 4, lineHeight: 1.5 }}>
-            {M_FOOTNOTE[cfg?.perMetricUnit || "pp"]}
-          </div>
-        </div>
       </div>
 
-      {/* ── 4. Trust strip ── */}
-      <div id="method" style={{ background: "#fff", border: `1px solid ${C.rule}`, borderRadius: 6, margin: "16px 14px 0" }}>
-        {[
-          ["01", "Raw numbers only — straight from BEA, BLS, Treasury, Census, the Fed."],
-          ["02", "No verdicts, no rankings — the chart shows what happened; you decide."],
-          ["03", "Context, not commentary — definitions and benchmarks, no op-eds."],
-        ].map(([n, t], i) => (
-          <div key={n} style={{
-            display: "flex", gap: 10, alignItems: "baseline", padding: "11px 14px",
-            borderBottom: i < 2 ? "1px solid #efece6" : "none",
-          }}>
-            <span style={{ fontFamily: SERIF, fontStyle: "italic", fontSize: 15, color: C.accent }}>{n}</span>
-            <span style={{ fontSize: 11.5, lineHeight: 1.5 }}>
-              <strong>{t.split(" — ")[0]}</strong> — {t.split(" — ")[1]}
-            </span>
-          </div>
-        ))}
-      </div>
-
-      {/* ── 5. Sources tile grid ── */}
+      {/* ── 6. Sources tile grid ── */}
       <div style={{ margin: "14px 14px 0" }}>
         <div style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: "0.12em", color: C.sub, marginBottom: 8, fontWeight: 500 }}>
           Where the numbers come from
@@ -1462,7 +1533,7 @@ function MobileLanding() {
         </div>
       </div>
 
-      {/* ── 6. Newsletter (compact) ── */}
+      {/* ── 7. Newsletter (compact) ── */}
       <div style={{ background: "#fff", border: `1px solid ${C.rule}`, borderRadius: 6, margin: "16px 14px 0", padding: 14 }}>
         <div style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: "0.08em", color: C.sub, marginBottom: 8, fontWeight: 500 }}>
           Monthly dispatch — the ledger, updated
@@ -1493,12 +1564,12 @@ function MobileLanding() {
         {nlStatus === "err" && <div style={{ fontSize: 10.5, color: C.accent, marginTop: 6 }}>Something went wrong — try again.</div>}
       </div>
 
-      {/* ── 7. Footer line ── */}
+      {/* ── 8. Footer line ── */}
       <div style={{ fontSize: 9, textTransform: "uppercase", color: C.mute, textAlign: "center", padding: "14px 0 6px", letterSpacing: "0.06em" }}>
         © 2026 Vote Unbiased · No spin · You interpret
       </div>
 
-      {/* ── 8. Sticky bottom CTA ── */}
+      {/* ── 9. Sticky bottom CTA ── */}
       <div style={{
         position: "sticky", bottom: 0, zIndex: 20, padding: "12px 16px 16px",
         background: "linear-gradient(180deg, rgba(248,245,240,0) 0%, #f8f5f0 42%)",
