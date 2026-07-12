@@ -349,7 +349,28 @@ function HeatCell({
         zIndex: hov ? 10 : 1,
       }}
     >
-      <span style={{ fontFamily: SERIF, fontSize: mob ? 13 : 15, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{headline}</span>
+      {/* Design 3a (mobile): every cell carries its exact unit as a tiny
+          sublabel — the ledger reads without a legend. Desktop keeps the
+          inline "+1.4 pp" + range line. */}
+      {mob ? (
+        <span style={{ display: "flex", flexDirection: "column", alignItems: "center", lineHeight: 1.15 }}>
+          <span style={{ fontFamily: SERIF, fontSize: 14, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
+            {disp && disp.value !== null && isFinite(disp.value)
+              ? `${disp.unit === "pct_avg" ? "" : disp.value >= 0 ? "+" : ""}${disp.value.toFixed(1)}`
+              : "—"}
+          </span>
+          <span style={{ fontFamily: SANS, fontSize: 7.5, fontWeight: 600, letterSpacing: "0.07em", opacity: 0.8, textTransform: "uppercase" }}>
+            {disp
+              ? (disp.unit === "pp" ? "pp"
+                : disp.unit === "pct_avg" ? "% avg"
+                : disp.unit === "pct_yr" ? `%/yr ${displayMode === "per_metric" && cfgL?.dollarAware ? (dollarMode === "real" ? "real" : "nom") : ""}`.trim()
+                : "%")
+              : ""}
+          </span>
+        </span>
+      ) : (
+        <span style={{ fontFamily: SERIF, fontSize: 15, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{headline}</span>
+      )}
       {!mob && c && (
         <span style={{ fontSize: 9, letterSpacing: "0.04em", opacity: 0.75, fontVariantNumeric: "tabular-nums" }}>
           {fmt(c.start, unit)} → {fmt(c.end, unit)}
@@ -463,6 +484,19 @@ function ScorecardSection({ mob, med }: { mob: boolean; med: boolean }) {
               ]}
             />
           </div>
+          {/* Design 3a (mobile): one-line "how to read" — with units on every
+              cell and row label, this single line replaces legend-hunting. */}
+          {mob && (
+            <div style={{
+              padding: "8px 12px", fontSize: 10, color: C.sub, background: C.paper,
+              borderBottom: `1px solid ${C.rule}`, minWidth: 800,
+              fontFamily: SANS, letterSpacing: "0.02em", lineHeight: 1.5,
+            }}>
+              How to read — <strong style={{ color: C.ink }}>pp</strong>: point change over the term
+              {" · "}<strong style={{ color: C.ink }}>% avg</strong>: average across tenure
+              {" · "}<strong style={{ color: C.ink }}>%/yr real</strong>: inflation-adjusted yearly rate
+            </div>
+          )}
           {/* Header row */}
           <div style={{
             display: "grid",
@@ -504,7 +538,19 @@ function ScorecardSection({ mob, med }: { mob: boolean; med: boolean }) {
               }}>
                 <div style={{ padding: mob ? "12px" : "14px 20px", display: "flex", flexDirection: "column", gap: 2 }}>
                   <span style={{ fontSize: 10, color: C.mute, letterSpacing: "0.08em", textTransform: "uppercase" }}>{m.cat}</span>
-                  <span style={{ fontWeight: 600, color: C.ink, fontSize: 13 }}>{m.l}</span>
+                  <span style={{ fontWeight: 600, color: C.ink, fontSize: 13 }}>
+                    {m.l}
+                    {/* Design 3a (mobile): the metric's unit rides the row
+                        label too, so a row is self-describing at a glance. */}
+                    {mob && (
+                      <span style={{ fontSize: 9, color: C.mute, fontWeight: 500, marginLeft: 4 }}>
+                        {displayMode === "raw_pct" ? "%"
+                          : METRIC_DISPLAY_LANDING[mk]?.perMetricUnit === "pp" ? "pp"
+                          : METRIC_DISPLAY_LANDING[mk]?.perMetricUnit === "pct_avg" ? "% avg"
+                          : `%/yr ${dollarMode === "real" ? "real" : "nom"}`}
+                      </span>
+                    )}
+                  </span>
                 </div>
                 {AID.map(id => (
                   <HeatCell key={id} id={id} mk={mk} c={heat[mk]?.[id]} mob={mob}
