@@ -3,6 +3,8 @@ import {
   setLiveState,
   getLiveState,
   clearLiveClaims,
+  getLiveClaims,
+  archiveBroadcast,
   type LiveState,
 } from "@/lib/live-kv";
 
@@ -75,6 +77,33 @@ export async function POST(req: Request) {
 
   if (body.action === "stop") {
     const prev = await getLiveState();
+
+    // Archive the ended session for the 24h "recent broadcasts" replay —
+    // viewers who missed the live moment get the video + every claim the
+    // pipeline already paid to check. Only when the session was actually
+    // LIVE (the workflow's always()-cleanup calls stop repeatedly; archiving
+    // off→off would duplicate) and only when it produced claims or ran long
+    // enough to be a real broadcast (a 30s crash isn't worth replaying).
+    if (prev?.status === "live" && prev.videoId) {
+      try {
+        const claims = await getLiveClaims();
+        const ranMs = Date.now() - Date.parse(prev.startedAt || new Date().toISOString());
+        if (claims.length > 0 || ranMs > 10 * 60 * 1000) {
+          await archiveBroadcast({
+            videoId: prev.videoId,
+            title: prev.title,
+            source: prev.source,
+            startedAt: prev.startedAt,
+            endedAt: new Date().toISOString(),
+            claims,
+          });
+          console.log(`[GO-LIVE] Archived "${prev.title}" with ${claims.length} claims for 24h replay`);
+        }
+      } catch (e) {
+        console.error("[GO-LIVE] archive failed:", e);
+      }
+    }
+
     const state: LiveState = {
       status: "off",
       videoId: prev?.videoId || "",

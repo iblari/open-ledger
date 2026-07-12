@@ -347,3 +347,65 @@ export async function getCalendarPollStats(): Promise<CalendarPollStats> {
     googleFetcherActive: (byClient["google"] || 0) > 0,
   };
 }
+
+// ── Recent broadcasts (24h replay) ────────────────────────────────
+//
+// When a live session ends, the whole thing — title, timing, every
+// fact-checked claim — is archived here for 24 hours. Viewers who missed
+// the live moment can replay the video WITH all the verdicts already
+// attached: zero additional Deepgram or Claude spend (the analysis was
+// paid for once, live). Entries expire 24h after the broadcast ended.
+
+export interface RecentBroadcast {
+  videoId: string;
+  title: string;
+  source: string;
+  startedAt: string;
+  endedAt: string;
+  claims: LiveClaim[];
+}
+
+const RECENT_BROADCASTS_KEY = "live:recent";
+const RECENT_TTL_MS = 24 * 3600 * 1000;
+
+export async function getRecentBroadcasts(): Promise<RecentBroadcast[]> {
+  let raw: string | null | undefined;
+  if (hasUpstash()) {
+    raw = (await upstashCmd("GET", RECENT_BROADCASTS_KEY)) as string | null;
+  } else {
+    raw = mem.get(RECENT_BROADCASTS_KEY);
+  }
+  if (!raw) return [];
+  try {
+    const all: RecentBroadcast[] = JSON.parse(raw);
+    const cutoff = Date.now() - RECENT_TTL_MS;
+    return all.filter(b => Date.parse(b.endedAt) > cutoff);
+  } catch {
+    return [];
+  }
+}
+
+/** Archive an ended broadcast (deduped by videoId — a re-covered stream
+ *  replaces its earlier entry, merging claims). Prunes >24h entries. */
+export async function archiveBroadcast(b: RecentBroadcast): Promise<void> {
+  const all = await getRecentBroadcasts(); // already pruned
+  const existing = all.find(x => x.videoId === b.videoId);
+  if (existing) {
+    // Same stream covered in multiple worker sessions (rotation/restart):
+    // merge claims by id, keep earliest start / latest end.
+    const seen = new Set(existing.claims.map(c => c.id));
+    existing.claims = [...existing.claims, ...b.claims.filter(c => !seen.has(c.id))];
+    if (b.startedAt < existing.startedAt) existing.startedAt = b.startedAt;
+    if (b.endedAt > existing.endedAt) existing.endedAt = b.endedAt;
+    existing.title = b.title || existing.title;
+  } else {
+    all.unshift(b);
+  }
+  // Cap total entries defensively.
+  const json = JSON.stringify(all.slice(0, 20));
+  if (hasUpstash()) {
+    await upstashCmd("SET", RECENT_BROADCASTS_KEY, json);
+  } else {
+    mem.set(RECENT_BROADCASTS_KEY, json);
+  }
+}

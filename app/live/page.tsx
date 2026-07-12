@@ -558,6 +558,10 @@ export default function LiveFactCheckPage() {
   const [, setClockTick] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isDemo, setIsDemo] = useState(false);
+  // Replay of a recently-ended broadcast: video plays back with the claims
+  // generated while it was LIVE preloaded into the panel — zero additional
+  // Deepgram/Claude spend. No polling, no live pipeline.
+  const [isReplay, setIsReplay] = useState(false);
   const [videoId, setVideoId] = useState("");
   const [title, setTitle] = useState("");
   const [claims, setClaims] = useState<Claim[]>([]);
@@ -789,7 +793,7 @@ export default function LiveFactCheckPage() {
   }, [claims]);
 
   useEffect(() => {
-    if (!isPlaying || isDemo) return;
+    if (!isPlaying || isDemo || isReplay) return;
 
     const poll = async () => {
       try {
@@ -860,7 +864,46 @@ export default function LiveFactCheckPage() {
     // Initial poll immediately
     poll();
     return () => clearInterval(interval);
-  }, [isPlaying, isDemo, pollError]);
+  }, [isPlaying, isDemo, isReplay, pollError]);
+
+  /* ── Recent broadcasts (last 24h, replayable with stored claims) ── */
+  const [recent, setRecent] = useState<{
+    videoId: string; title: string; source: string;
+    startedAt: string; endedAt: string; claims: Claim[];
+  }[]>([]);
+  useEffect(() => {
+    if (isPlaying) return;
+    let cancelled = false;
+    async function loadRecent() {
+      try {
+        const resp = await fetch("/api/live-recent");
+        if (!resp.ok) return;
+        const data = await resp.json();
+        if (!cancelled && Array.isArray(data.recent)) setRecent(data.recent);
+      } catch { /* section is additive — silent failure OK */ }
+    }
+    loadRecent();
+    const id = setInterval(loadRecent, 120000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, [isPlaying]);
+
+  /* ── Replay a recent broadcast — claims preloaded, zero API spend ── */
+  const startReplay = useCallback((b: {
+    videoId: string; title: string; claims: Claim[];
+  }) => {
+    demoAbortRef.current = true;
+    setIsDemo(false);
+    setIsReplay(true);
+    setIsPlaying(true);
+    setVideoId(b.videoId);
+    setTitle(b.title);
+    setClaims(b.claims);
+    setLiveTranscript("");
+    setRealCaptions(null);
+    setRatingFilter(null);
+    setShowSummary(false);
+    setPollError(null);
+  }, []);
 
   /* ── Caption clock — drives the word-synced transcript strip ── */
   // 300ms tick while captions are loaded: fast enough that the highlighted
@@ -1363,6 +1406,7 @@ export default function LiveFactCheckPage() {
     demoAbortRef.current = true;
     setIsPlaying(false);
     setIsDemo(false);
+    setIsReplay(false);
     setDemoSpeech(null);
     setRealCaptions(null);
     setCaptionsLoading(false);
@@ -1603,6 +1647,13 @@ export default function LiveFactCheckPage() {
                 Watch live press conferences and political speeches with real-time AI fact-checking.
                 Every economic claim verified against official data — automatically.
               </p>
+              {/* Same editorial signature as the landing page. */}
+              <div style={{
+                fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: T.mute,
+                letterSpacing: "0.14em", textTransform: "uppercase", marginTop: 14, fontWeight: 500,
+              }}>
+                No spin · No editorial · You interpret
+              </div>
             </div>
 
             {/* ── LIVE NOW — prominent card when a broadcast is active ── */}
@@ -1932,14 +1983,83 @@ export default function LiveFactCheckPage() {
               );
             })()}
 
+            {/* ── Recent broadcasts — replayable for 24h with stored facts ── */}
+            {recent.length > 0 && (
+              <div style={{ maxWidth: 900, margin: "0 auto 32px" }}>
+                <div style={{
+                  fontFamily: "'DM Sans',sans-serif", fontSize: 11, fontWeight: 500,
+                  textTransform: "uppercase", letterSpacing: "0.14em", color: T.sub,
+                  marginBottom: 6, paddingLeft: 4,
+                }}>
+                  Last 24 hours · Replay
+                </div>
+                <div style={{
+                  fontFamily: "'Source Serif 4',serif", fontSize: mob ? 20 : 26,
+                  fontWeight: 400, color: T.ink, letterSpacing: "-0.015em",
+                  marginBottom: 14, paddingLeft: 4,
+                }}>
+                  Missed it live? <em style={{ fontStyle: "italic", color: T.accent }}>The facts are saved.</em>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "1fr 1fr", gap: 14 }}>
+                  {recent.map((b) => {
+                    const counts: Record<string, number> = {};
+                    b.claims.forEach(c => { counts[c.rating] = (counts[c.rating] || 0) + 1; });
+                    const trueish = (counts["TRUE"] || 0) + (counts["MOSTLY TRUE"] || 0);
+                    const acc = b.claims.length > 0 ? Math.round((trueish / b.claims.length) * 100) : null;
+                    const durMin = Math.max(1, Math.round((Date.parse(b.endedAt) - Date.parse(b.startedAt)) / 60000));
+                    const agoH = Math.max(0, Math.round((Date.now() - Date.parse(b.endedAt)) / 3600000));
+                    return (
+                      <div key={b.videoId} style={{
+                        background: T.card, border: `1px solid ${T.rule}`, borderRadius: 12,
+                        padding: mob ? 16 : 20, display: "flex", flexDirection: "column",
+                      }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
+                          <span style={{
+                            fontFamily: "'DM Sans',sans-serif", fontSize: 10, fontWeight: 700,
+                            textTransform: "uppercase", letterSpacing: 1.2, color: T.accent,
+                          }}>● Aired {agoH === 0 ? "just now" : `${agoH}h ago`}</span>
+                          <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 10, color: T.mute }}>
+                            expires in {Math.max(1, 24 - agoH)}h
+                          </span>
+                        </div>
+                        <div style={{
+                          fontFamily: "'Source Serif 4',serif", fontSize: mob ? 15 : 17, fontWeight: 600,
+                          color: T.ink, lineHeight: 1.3, marginBottom: 10,
+                        }}>{b.title}</div>
+                        <div style={{
+                          fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: T.sub, marginBottom: 12,
+                        }}>
+                          {b.claims.length} claims fact-checked live
+                          {acc !== null && <> · <strong style={{ color: acc >= 60 ? "#0d7377" : acc >= 40 ? "#ca8a04" : "#c2410c" }}>{acc}% accuracy</strong></>}
+                          {" "}· {durMin}m covered
+                        </div>
+                        <div style={{ marginTop: "auto", display: "flex", justifyContent: "flex-end" }}>
+                          <button
+                            onClick={() => startReplay(b)}
+                            style={{
+                              background: T.ink, color: "#fff", border: "none", borderRadius: 8,
+                              padding: "9px 20px", fontFamily: "'DM Sans',sans-serif", fontSize: 12,
+                              fontWeight: 700, cursor: "pointer",
+                            }}
+                          >
+                            &#9654; Replay with facts
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* ── Speech Archive ── */}
             <div style={{ maxWidth: 900, margin: "0 auto 28px" }}>
               <div style={{
-                fontFamily: "'DM Sans',sans-serif", fontSize: 11, fontWeight: 700,
-                textTransform: "uppercase", letterSpacing: 2, color: T.sub, marginBottom: 14,
+                fontFamily: "'DM Sans',sans-serif", fontSize: 11, fontWeight: 500,
+                textTransform: "uppercase", letterSpacing: "0.14em", color: T.sub, marginBottom: 14,
                 paddingLeft: 4,
               }}>
-                SPEECH ARCHIVE
+                Speech archive
               </div>
               <div style={{
                 display: "grid", gridTemplateColumns: mob ? "1fr" : "1fr 1fr", gap: 14,
@@ -2055,10 +2175,10 @@ export default function LiveFactCheckPage() {
               background: T.card, border: `1px solid ${T.rule}`, borderRadius: 10,
             }}>
               <div style={{
-                fontFamily: "'DM Sans',sans-serif", fontSize: 10, fontWeight: 700,
-                textTransform: "uppercase", letterSpacing: 1.5, color: T.mute, marginBottom: 10,
+                fontFamily: "'DM Sans',sans-serif", fontSize: 11, fontWeight: 500,
+                textTransform: "uppercase", letterSpacing: "0.14em", color: T.sub, marginBottom: 10,
               }}>
-                ANALYZE ANY SPEECH
+                Analyze any speech
               </div>
               <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
                 <input
@@ -2121,9 +2241,9 @@ export default function LiveFactCheckPage() {
               fontFamily: "'DM Sans',sans-serif", padding: "16px 0 0",
             }}>
               <div style={{
-                fontSize: 10, fontWeight: 700, textTransform: "uppercase",
-                letterSpacing: 2, color: T.mute, marginBottom: 12,
-              }}>HOW IT WORKS</div>
+                fontSize: 11, fontWeight: 500, textTransform: "uppercase",
+                letterSpacing: "0.14em", color: T.sub, marginBottom: 12,
+              }}>How it works</div>
               <div style={{
                 display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: mob ? 12 : 24,
               }}>
@@ -2174,10 +2294,10 @@ export default function LiveFactCheckPage() {
               }}>
                 <span style={{
                   width: 8, height: 8, borderRadius: "50%",
-                  background: isDemo ? T.gold : "#dc2626",
-                  animation: isDemo ? "none" : "pulse 2s infinite",
+                  background: isReplay ? T.blue : isDemo ? T.gold : "#dc2626",
+                  animation: isDemo || isReplay ? "none" : "pulse 2s infinite",
                 }} />
-                <span style={{ fontWeight: 700 }}>{isDemo ? "DEMO" : "LIVE"}</span>
+                <span style={{ fontWeight: 700 }}>{isReplay ? "REPLAY" : isDemo ? "DEMO" : "LIVE"}</span>
                 <span style={{ color: "#9a9490" }}>|</span>
                 <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title}</span>
                 {/* Caption sync indicator (demo only). 'Synced' = real
