@@ -1343,9 +1343,7 @@ function MobileLanding() {
       </div>
 
       {/* ── 3b. What's changing in America (trend feed; hidden until built) ── */}
-      <div style={{ margin: "0 -14px" }}>
-        <WhatsChanging mob />
-      </div>
+      <WhatsChanging mob />
 
       {/* ── 4. Metric chart panel (ABOVE the table; table drives it) ── */}
       <div style={{ background: "#fbfaf6", border: `1px solid ${C.rule}`, borderRadius: 6, margin: "16px 14px 0", padding: "12px 12px 10px" }}>
