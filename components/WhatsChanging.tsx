@@ -112,7 +112,22 @@ function TrendCard({ t, mob, lead }: { t: TrendItem; mob: boolean; lead?: boolea
   );
 }
 
-export default function WhatsChanging({ mob }: { mob: boolean }) {
+function useIsMobile() {
+  const [mob, setMob] = useState(false);
+  useEffect(() => {
+    const check = () => setMob(window.innerWidth < 768);
+    check(); window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+  return mob;
+}
+
+/**
+ * variant="strip": one slim homepage row — the headline count + lead trend,
+ * linking to /trends. variant="full": the complete feed (the /trends page).
+ */
+export default function WhatsChanging({ variant = "full" }: { variant?: "strip" | "full" }) {
+  const mob = useIsMobile();
   const [feed, setFeed] = useState<TrendsFeed | null>(null);
 
   useEffect(() => {
@@ -123,6 +138,35 @@ export default function WhatsChanging({ mob }: { mob: boolean }) {
   }, []);
 
   if (!feed) return null;
+
+  if (variant === "strip") {
+    const lead = feed.trends[0];
+    return (
+      <div style={{ maxWidth: 1280, margin: "0 auto", padding: mob ? "10px 14px 0" : "18px 32px 0" }}>
+        <Link href="/trends" style={{
+          display: "flex", alignItems: "center", gap: mob ? 8 : 12,
+          background: "#fff", border: `1px solid ${C.rule}`, borderLeft: `3px solid ${C.accent}`,
+          borderRadius: 4, padding: mob ? "9px 12px" : "9px 16px", textDecoration: "none",
+        }}>
+          <span className="live-pulse" style={{ width: 6, height: 6, borderRadius: "50%", background: "#c1272d", flexShrink: 0 }} />
+          {!mob && (
+            <span style={{
+              fontFamily: SANS, fontSize: 9.5, fontWeight: 700, letterSpacing: "0.1em",
+              textTransform: "uppercase", color: C.sub, flexShrink: 0,
+            }}>What&rsquo;s changing</span>
+          )}
+          <span style={{
+            fontFamily: SERIF, fontSize: mob ? 12.5 : 14, fontWeight: 500, color: C.ink,
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0,
+          }}>{lead.headline}</span>
+          <span style={{
+            fontFamily: SANS, fontSize: mob ? 10.5 : 11, fontWeight: 600, color: "#1d4ed8",
+            flexShrink: 0, whiteSpace: "nowrap",
+          }}>+{feed.trends.length - 1} more →</span>
+        </Link>
+      </div>
+    );
+  }
   const [lead, ...rest] = feed.trends;
   const asOf = new Date(feed.generatedAt).toLocaleDateString("en-US", { month: "long", year: "numeric" });
 

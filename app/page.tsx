@@ -1342,8 +1342,8 @@ function MobileLanding() {
         </div>
       </div>
 
-      {/* ── 3b. What's changing in America (trend feed; hidden until built) ── */}
-      <WhatsChanging mob />
+      {/* ── 3b. What's changing — one-line strip → /trends ── */}
+      <WhatsChanging variant="strip" />
 
       {/* ── 4. Metric chart panel (ABOVE the table; table drives it) ── */}
       <div style={{ background: "#fbfaf6", border: `1px solid ${C.rule}`, borderRadius: 6, margin: "16px 14px 0", padding: "12px 12px 10px" }}>
@@ -1612,10 +1612,9 @@ export default function LandingPage() {
     <div style={{ background: C.bg, color: C.ink, fontFamily: SANS, fontSize: 15, lineHeight: 1.5, minHeight: "100vh" }}>
       <Nav mob={mob} />
       <Hero mob={mob} med={med} />
-      {/* "What's changing in America" — the trend feed IS the product; the
-          ledger below is the evidence. Renders nothing until the feed is
-          built (KV), so this is a no-op on first deploy. */}
-      <WhatsChanging mob={mob} />
+      {/* "What's changing in America" — slim strip linking to /trends
+          (the full feed got its own page; the homepage stays the ledger). */}
+      <WhatsChanging variant="strip" />
       {/* Auto-generated insights strip — surfaces what's notable in the
           current data so readers who don't want to scan the whole heatmap
           still get a quick "what's happening." Pure-function logic in
