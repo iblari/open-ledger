@@ -20,6 +20,7 @@ import nextDynamic from "next/dynamic";
 
 // Below-the-fold, client-only teaser animation — keep out of the main bundle.
 const LiveTeaser = nextDynamic(() => import("@/components/LiveTeaser"), { ssr: false });
+const WhatsChanging = nextDynamic(() => import("@/components/WhatsChanging"), { ssr: false });
 
 /* ─────────────────────────────────────────────
    ADMINS & METRIC DATA — subset for heatmap
@@ -1341,6 +1342,11 @@ function MobileLanding() {
         </div>
       </div>
 
+      {/* ── 3b. What's changing in America (trend feed; hidden until built) ── */}
+      <div style={{ margin: "0 -14px" }}>
+        <WhatsChanging mob />
+      </div>
+
       {/* ── 4. Metric chart panel (ABOVE the table; table drives it) ── */}
       <div style={{ background: "#fbfaf6", border: `1px solid ${C.rule}`, borderRadius: 6, margin: "16px 14px 0", padding: "12px 12px 10px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 7 }}>
@@ -1608,6 +1614,10 @@ export default function LandingPage() {
     <div style={{ background: C.bg, color: C.ink, fontFamily: SANS, fontSize: 15, lineHeight: 1.5, minHeight: "100vh" }}>
       <Nav mob={mob} />
       <Hero mob={mob} med={med} />
+      {/* "What's changing in America" — the trend feed IS the product; the
+          ledger below is the evidence. Renders nothing until the feed is
+          built (KV), so this is a no-op on first deploy. */}
+      <WhatsChanging mob={mob} />
       {/* Auto-generated insights strip — surfaces what's notable in the
           current data so readers who don't want to scan the whole heatmap
           still get a quick "what's happening." Pure-function logic in

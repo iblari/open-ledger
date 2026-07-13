@@ -409,3 +409,52 @@ export async function archiveBroadcast(b: RecentBroadcast): Promise<void> {
     mem.set(RECENT_BROADCASTS_KEY, json);
   }
 }
+
+// ── "What's Changing in America" trends feed ────────────────────────
+// Computed by scripts/detect-trends.mjs (deterministic arithmetic over
+// Census data), narrated by Claude in /api/admin/trends, served to the
+// homepage by /api/trends. Refreshed monthly.
+
+export interface TrendNarrative { why: string; matters: string; watch: string }
+export interface TrendCounty {
+  fips: string; name: string; st: string; pop: number;
+  metricLabel: string; value: string; detail: string;
+}
+export interface TrendItem {
+  id: string; kicker: string; headline: string;
+  heroStat: { value: string; label: string };
+  window: string;
+  breadth: { n: number; total: number; popShare: number };
+  facts: Record<string, unknown>;
+  top: TrendCounty[];
+  method: string;
+  narrative?: TrendNarrative;
+}
+export interface TrendsFeed {
+  generatedAt: string;
+  window: string;
+  universe: { counties: number; population: number; source: string };
+  trends: TrendItem[];
+}
+
+const TRENDS_KEY = "trends:feed";
+
+export async function getTrendsFeed(): Promise<TrendsFeed | null> {
+  let raw: string | null | undefined;
+  if (hasUpstash()) {
+    raw = (await upstashCmd("GET", TRENDS_KEY)) as string | null;
+  } else {
+    raw = mem.get(TRENDS_KEY);
+  }
+  if (!raw) return null;
+  try { return JSON.parse(raw); } catch { return null; }
+}
+
+export async function setTrendsFeed(feed: TrendsFeed): Promise<void> {
+  const json = JSON.stringify(feed);
+  if (hasUpstash()) {
+    await upstashCmd("SET", TRENDS_KEY, json);
+  } else {
+    mem.set(TRENDS_KEY, json);
+  }
+}
