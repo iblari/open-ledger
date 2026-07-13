@@ -119,6 +119,7 @@ export default function StateDive({ stateCode, onClose }: { stateCode: StateCode
   const [showCities, setShowCities] = useState(true);
   const [hovered, setHovered] = useState<{ fips: string; x: number; y: number } | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
+  const [selectedCity, setSelectedCity] = useState<number | null>(null);
   const [ready, setReady] = useState(false);
 
   // Refs shared with the three.js scene (avoid re-creating the scene on UI state)
@@ -188,6 +189,7 @@ export default function StateDive({ stateCode, onClose }: { stateCode: StateCode
   }, [playing, data]);
 
   useEffect(() => { selectedRef.current = selected; }, [selected]);
+  useEffect(() => { setSelectedCity(null); setSelected(null); }, [stateCode]);
 
   // ── Build the scene (once per state, after data arrives) ──
   useEffect(() => {
@@ -324,7 +326,9 @@ export default function StateDive({ stateCode, onClose }: { stateCode: StateCode
 
     // ── City pins ──
     const cityGroup = new THREE.Group();
-    for (const city of data.cities) {
+    const cityDots: THREE.Mesh[] = [];
+    for (let ci = 0; ci < data.cities.length; ci++) {
+      const city = data.cities[ci];
       const p = proj([city.lon, city.lat]);
       if (!p) continue;
       const x = p[0] - cx, z = p[1] - cy; // matches county world-z (see y-negation note above)
@@ -336,11 +340,13 @@ export default function StateDive({ stateCode, onClose }: { stateCode: StateCode
       stick.position.set(x, pinH / 2, z);
       cityGroup.add(stick);
       const dot = new THREE.Mesh(
-        new THREE.SphereGeometry(2.1, 12, 12),
+        new THREE.SphereGeometry(2.6, 12, 12),
         new THREE.MeshBasicMaterial({ color: new THREE.Color("#b8372d") })
       );
       dot.position.set(x, pinH, z);
+      dot.userData.cityIdx = ci;
       cityGroup.add(dot);
+      cityDots.push(dot);
       const label = makeLabelSprite(city.name);
       label.position.set(x, pinH + 9, z);
       cityGroup.add(label);
@@ -351,18 +357,22 @@ export default function StateDive({ stateCode, onClose }: { stateCode: StateCode
     // ── Picking ──
     const ray = new THREE.Raycaster();
     const ndc = new THREE.Vector2();
-    const pick = (clientX: number, clientY: number): string | null => {
+    const pick = (clientX: number, clientY: number): { fips: string } | { city: number } | null => {
       const r = renderer.domElement.getBoundingClientRect();
       ndc.x = ((clientX - r.left) / r.width) * 2 - 1;
       ndc.y = -((clientY - r.top) / r.height) * 2 + 1;
       ray.setFromCamera(ndc, camera);
+      // City dots first (small targets, always above the prisms), then counties.
+      const cityHits = cityGroup.visible ? ray.intersectObjects(cityDots, false) : [];
+      if (cityHits.length) return { city: cityHits[0].object.userData.cityIdx as number };
       const hits = ray.intersectObjects(group.children, false);
-      return hits.length ? (hits[0].object.userData.fips as string) : null;
+      return hits.length ? { fips: hits[0].object.userData.fips as string } : null;
     };
     let downAt: [number, number] | null = null;
     const onMove = (e: PointerEvent) => {
       if (e.pointerType !== "mouse") return;
-      const id = pick(e.clientX, e.clientY);
+      const hit = pick(e.clientX, e.clientY);
+      const id = hit && "fips" in hit ? hit.fips : null;
       hoveredRef.current = id;
       setHovered(id ? { fips: id, x: e.clientX, y: e.clientY } : null);
     };
@@ -372,8 +382,15 @@ export default function StateDive({ stateCode, onClose }: { stateCode: StateCode
       const dx = e.clientX - downAt[0], dy = e.clientY - downAt[1];
       downAt = null;
       if (dx * dx + dy * dy > 36) return; // was a drag, not a tap
-      const id = pick(e.clientX, e.clientY);
+      const hit = pick(e.clientX, e.clientY);
+      if (hit && "city" in hit) {
+        setSelectedCity(prev => (prev === hit.city ? null : hit.city));
+        setSelected(null);
+        return;
+      }
+      const id = hit ? hit.fips : null;
       setSelected(prev => (id === prev ? null : id));
+      if (id) setSelectedCity(null);
       if (e.pointerType !== "mouse") {
         hoveredRef.current = id;
         setHovered(id ? { fips: id, x: e.clientX, y: e.clientY } : null);
@@ -532,6 +549,46 @@ export default function StateDive({ stateCode, onClose }: { stateCode: StateCode
             </div>
           </div>
         )}
+
+        {/* Selected city panel — municipal stats (city proper, latest ACS) */}
+        {selectedCity != null && data && data.cities[selectedCity] && (() => {
+          const city = data.cities[selectedCity];
+          const rows: [string, number | null, (v: number) => string][] = [
+            ["Population", city.pop, CM.pop.fmt],
+            ["Median income", city.income, CM.income.fmt],
+            ["Home value", city.home, CM.home.fmt],
+            ["Rent", city.rent, CM.rent.fmt],
+            ["Unemployment", city.unemp, CM.unemp.fmt],
+            ["Poverty", city.poverty, CM.poverty.fmt],
+          ];
+          return (
+            <div style={{
+              position: "absolute",
+              ...(mob ? { left: 10, right: 10, bottom: 10 } : { right: 16, top: 16, width: 280 }),
+              background: EC.ink, color: "#f8f5f0", borderRadius: 8,
+              padding: "12px 14px", boxShadow: "0 8px 30px rgba(0,0,0,0.25)", zIndex: 410,
+            }}>
+              <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8, marginBottom: 2 }}>
+                <div style={{ fontFamily: ESERIF, fontSize: 16, fontWeight: 600 }}>
+                  <span style={{ display: "inline-block", width: 7, height: 7, borderRadius: "50%", background: "#e8837a", marginRight: 7 }} />
+                  {city.name}
+                </div>
+                <button onClick={() => setSelectedCity(null)} style={{ border: "none", background: "none", fontSize: 16, color: "#9a9490", cursor: "pointer", padding: 0, lineHeight: 1 }}>×</button>
+              </div>
+              <div style={{ fontFamily: ESANS, fontSize: 9, color: "#9a9490", letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 8 }}>
+                City proper · ACS {data.years[data.years.length - 1]}
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "7px 12px" }}>
+                {rows.map(([label, v, fmt]) => (
+                  <div key={label}>
+                    <div style={{ fontFamily: ESANS, fontSize: 8.5, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", color: "#9a9490" }}>{label}</div>
+                    <div style={{ fontFamily: ESERIF, fontSize: 15, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{v != null ? fmt(v) : "—"}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Selected county panel */}
         {selRec && data && (

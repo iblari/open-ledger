@@ -77,6 +77,22 @@ function shape(row, hdr) {
   };
 }
 
+// Connecticut replaced its 8 counties with 9 planning regions in ACS 2022+
+// (new FIPS 09110-09190). The map topology (and 2012-2021 data) uses the old
+// counties, so post-2021 values are carried down to each old county from the
+// planning region containing the majority of its population. Documented
+// approximation — region medians assigned to overlapping legacy counties.
+const CT_XWALK = {
+  "09001": "09190", // Fairfield → Western CT (Stamford/Norwalk/Danbury bulk)
+  "09003": "09110", // Hartford → Capitol
+  "09005": "09160", // Litchfield → Northwest Hills
+  "09007": "09130", // Middlesex → Lower CT River Valley
+  "09009": "09170", // New Haven → South Central
+  "09011": "09180", // New London → Southeastern
+  "09013": "09110", // Tolland → Capitol
+  "09015": "09150", // Windham → Northeastern
+};
+
 async function fetchState(code) {
   const fips = FIPS[code];
 
@@ -138,6 +154,23 @@ async function fetchState(code) {
       }
     }
     cities = cities.filter(c => Number.isFinite(c.lat) && Number.isFinite(c.lon));
+  }
+
+  // CT: fill legacy-county gaps from planning-region rows, then drop the
+  // region rows (they have no geometry in the county topology).
+  if (code === "CT") {
+    for (const [oldF, regF] of Object.entries(CT_XWALK)) {
+      const oldC = counties[oldF], reg = counties[regF];
+      if (!oldC || !reg) continue;
+      for (const k of Object.keys(oldC.m)) {
+        for (let i = 0; i < YEARS.length; i++) {
+          if (oldC.m[k][i] == null && reg.m[k][i] != null) oldC.m[k][i] = reg.m[k][i];
+        }
+      }
+    }
+    for (const f of Object.keys(counties)) {
+      if (Number(f.slice(2)) >= 100) delete counties[f];
+    }
   }
 
   return { state: code, years: YEARS, counties, cities, source: "Census ACS 5-year", built: new Date().toISOString().slice(0, 10) };
