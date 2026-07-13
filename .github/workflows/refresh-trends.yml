@@ -1,0 +1,37 @@
+name: Refresh "What's Changing" trends feed
+
+# Detection is deterministic arithmetic over the committed county data;
+# the site route adds the AI narrative and stores the feed in KV.
+# Runs monthly (after the data refreshes mid-month) and on demand.
+on:
+  workflow_dispatch:
+    inputs:
+      site_url:
+        description: "Target deployment (default: production)"
+        required: false
+        default: "https://voteunbiased.org"
+  schedule:
+    - cron: "0 15 16 * *"   # 16th of each month, 15:00 UTC
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+
+      - name: Detect trends from county data
+        run: node scripts/detect-trends.mjs --out trends-computed.json
+
+      - name: Narrate + publish to KV
+        env:
+          ADMIN_KEY: ${{ secrets.ADMIN_KEY }}
+          SITE_URL: ${{ github.event.inputs.site_url || 'https://voteunbiased.org' }}
+        run: |
+          code=$(curl -s -o /tmp/resp.json -w "%{http_code}" -X POST "$SITE_URL/api/admin/trends" \
+            -H "Authorization: Bearer $ADMIN_KEY" \
+            -H "Content-Type: application/json" \
+            --data-binary @trends-computed.json)
+          cat /tmp/resp.json; echo
+          [ "$code" = "200" ] || { echo "publish failed ($code)"; exit 1; }

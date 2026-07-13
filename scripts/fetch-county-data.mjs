@@ -162,7 +162,11 @@ async function fetchState(code) {
     for (const [oldF, regF] of Object.entries(CT_XWALK)) {
       const oldC = counties[oldF], reg = counties[regF];
       if (!oldC || !reg) continue;
-      for (const k of Object.keys(oldC.m)) {
+      // Only INTENSIVE metrics (medians, rates) can be carried down from a
+      // region to a constituent county. Extensive counts (population) cannot —
+      // that would assign the whole region's population to one county.
+      const INTENSIVE = ["income", "home", "rent", "unemp", "poverty"];
+      for (const k of INTENSIVE) {
         for (let i = 0; i < YEARS.length; i++) {
           if (oldC.m[k][i] == null && reg.m[k][i] != null) oldC.m[k][i] = reg.m[k][i];
         }
