@@ -21,6 +21,11 @@ import { C as EC, SERIF as ESERIF, SANS as ESANS } from "@/lib/design-tokens";
 import { PillToggle } from "@/components/PillToggle";
 import CompactPicker from "@/components/CompactPicker";
 import { StateTrendChart, stateLineColor } from "@/components/StateTrendChart";
+import nextDynamic from "next/dynamic";
+
+// "Dive deeper" 3D county explorer — loaded only when a state is opened so
+// three.js (~150KB gz) never touches the dashboard bundle.
+const StateDive = nextDynamic(() => import("@/components/StateDive"), { ssr: false });
 import {
   STATE_METRICS,
   STATE_METRIC_ORDER,
@@ -112,6 +117,8 @@ export function StateAtlas() {
   // grid eats ~400px of vertical space before the map; the sheet collapses
   // it to a single button.
   const [pickerOpen, setPickerOpen] = useState(false);
+  // Fullscreen 3D county dive — non-null renders the overlay.
+  const [diveState, setDiveState] = useState<StateCode | null>(null);
   const mob = useIsMobile();
   const wrapRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -503,14 +510,43 @@ export function StateAtlas() {
       </div>
     )}
 
+    {/* ── Dive deeper — 3D county explorer per selected state ── */}
+    {selected.length > 0 && (
+      <div style={{
+        display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8,
+        marginTop: 10, padding: "10px 12px", background: EC.card,
+        border: `1px solid ${EC.rule}`, borderLeft: `3px solid ${EC.accent}`, borderRadius: 4,
+      }}>
+        <span style={{
+          fontFamily: ESANS, fontSize: 10, color: EC.sub, fontWeight: 500,
+          letterSpacing: "0.08em", textTransform: "uppercase",
+        }}>
+          Dive deeper · counties in 3D
+        </span>
+        {selected.map((code) => (
+          <button key={code} onClick={() => setDiveState(code)} style={{
+            display: "inline-flex", alignItems: "center", gap: 6,
+            padding: "6px 12px", borderRadius: 4,
+            border: "none", background: EC.ink, color: "#f8f5f0",
+            fontFamily: ESANS, fontSize: 11.5, fontWeight: 600, cursor: "pointer",
+          }}>
+            {STATE_NAMES[code]} <span style={{ opacity: 0.7 }}>→</span>
+          </button>
+        ))}
+      </div>
+    )}
+
     {selected.length === 0 && (
       <p style={{
         fontFamily: ESANS, fontSize: 11, color: EC.mute,
         marginTop: 10, padding: "0 2px", fontStyle: "italic",
       }}>
-        Tip: click any state on the map to add its 10-year line to the chart. Up to {MAX_SELECTED} at a time.
+        Tip: click any state on the map to chart it — then dive deeper into its counties in 3D. Up to {MAX_SELECTED} at a time.
       </p>
     )}
+
+    {/* Fullscreen 3D county dive overlay */}
+    {diveState && <StateDive stateCode={diveState} onClose={() => setDiveState(null)} />}
 
     {/* Mobile bottom-sheet picker — opens when the user taps the button at
         the top of the card. Same metric list, grouped by category. */}
