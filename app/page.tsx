@@ -20,7 +20,7 @@ import nextDynamic from "next/dynamic";
 
 // Below-the-fold, client-only teaser animation — keep out of the main bundle.
 const LiveTeaser = nextDynamic(() => import("@/components/LiveTeaser"), { ssr: false });
-const WhatsChanging = nextDynamic(() => import("@/components/WhatsChanging"), { ssr: false });
+// WhatsChanging renders only on /trends now (homepage strip removed).
 
 /* ─────────────────────────────────────────────
    ADMINS & METRIC DATA — subset for heatmap
@@ -1342,8 +1342,7 @@ function MobileLanding() {
         </div>
       </div>
 
-      {/* ── 3b. What's changing — one-line strip → /trends ── */}
-      <WhatsChanging variant="strip" />
+      {/* Trends feed lives at /trends — homepage strip removed per design. */}
 
       {/* ── 4. Metric chart panel (ABOVE the table; table drives it) ── */}
       <div style={{ background: "#fbfaf6", border: `1px solid ${C.rule}`, borderRadius: 6, margin: "16px 14px 0", padding: "12px 12px 10px" }}>
@@ -1612,9 +1611,7 @@ export default function LandingPage() {
     <div style={{ background: C.bg, color: C.ink, fontFamily: SANS, fontSize: 15, lineHeight: 1.5, minHeight: "100vh" }}>
       <Nav mob={mob} />
       <Hero mob={mob} med={med} />
-      {/* "What's changing in America" — slim strip linking to /trends
-          (the full feed got its own page; the homepage stays the ledger). */}
-      <WhatsChanging variant="strip" />
+      {/* Trends feed lives at /trends — homepage strip removed per design. */}
       {/* Auto-generated insights strip — surfaces what's notable in the
           current data so readers who don't want to scan the whole heatmap
           still get a quick "what's happening." Pure-function logic in
