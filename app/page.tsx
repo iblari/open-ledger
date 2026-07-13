@@ -1484,6 +1484,32 @@ function MobileLanding() {
         </div>
       </div>
 
+      {/* ── 5b. Live Broadcast teaser (beta) ── */}
+      <div style={{ background: "#fff", border: `1px solid ${C.rule}`, borderRadius: 6, margin: "16px 14px 0", padding: 14 }}>
+        <div style={{
+          display: "flex", alignItems: "center", gap: 7, marginBottom: 8,
+          fontSize: 9.5, textTransform: "uppercase", letterSpacing: "0.12em", color: C.sub, fontWeight: 500,
+        }}>
+          <span className="live-pulse" style={{ width: 6, height: 6, borderRadius: "50%", background: "#c1272d" }} />
+          Live broadcast · Now in beta
+        </div>
+        <div style={{ fontFamily: SERIF, fontSize: 19, fontWeight: 700, lineHeight: 1.15, marginBottom: 10 }}>
+          Watch politicians. Check the <em style={{ fontStyle: "italic", color: C.accent, fontWeight: 400 }}>numbers.</em>
+        </div>
+        <LiveTeaser />
+        <div style={{
+          display: "flex", justifyContent: "space-between", alignItems: "baseline",
+          marginTop: 10, fontSize: 11, gap: 8, flexWrap: "wrap",
+        }}>
+          <span style={{ color: C.mute }}>
+            <strong style={{ color: C.accent, fontWeight: 700 }}>In beta now</strong> &middot; Full launch Q3 2026
+          </span>
+          <Link href="/live" style={{ color: "#1d4ed8", fontWeight: 600, textDecoration: "none", flexShrink: 0 }}>
+            Try the beta &rarr;
+          </Link>
+        </div>
+      </div>
+
       {/* ── 6. Sources tile grid ── */}
       <div style={{ margin: "14px 14px 0" }}>
         <div style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: "0.12em", color: C.sub, marginBottom: 8, fontWeight: 500 }}>
