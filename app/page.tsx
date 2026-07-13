@@ -16,6 +16,10 @@ import {
 } from "@/lib/display-modes";
 import { PillToggle } from "@/components/PillToggle";
 import { InsightsStrip } from "@/components/InsightsStrip";
+import nextDynamic from "next/dynamic";
+
+// Below-the-fold, client-only teaser animation — keep out of the main bundle.
+const LiveTeaser = nextDynamic(() => import("@/components/LiveTeaser"), { ssr: false });
 
 /* ─────────────────────────────────────────────
    ADMINS & METRIC DATA — subset for heatmap
@@ -948,44 +952,6 @@ function SourcesSection({ mob, med }: { mob: boolean; med: boolean }) {
 }
 
 /* ── Animated Waveform ── */
-function AnimatedWaveform({ mob }: { mob: boolean }) {
-  const BAR_COUNT = 30;
-  const [heights, setHeights] = useState<number[]>(() =>
-    Array.from({ length: BAR_COUNT }, (_, i) => 18 + ((i * 37 + 13) % 36))
-  );
-
-  useEffect(() => {
-    let frame: number;
-    let t = 0;
-    const animate = () => {
-      t += 1;
-      setHeights(prev =>
-        prev.map((_, i) => {
-          // Combine two sine waves at different frequencies for organic motion
-          const wave1 = Math.sin((t * 0.08) + (i * 0.45)) * 18;
-          const wave2 = Math.sin((t * 0.05) + (i * 0.7) + 2) * 10;
-          return Math.max(6, Math.min(54, 28 + wave1 + wave2));
-        })
-      );
-      frame = requestAnimationFrame(animate);
-    };
-    frame = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(frame);
-  }, []);
-
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 2, height: 56 }}>
-      {heights.map((h, i) => (
-        <div key={i} style={{
-          width: mob ? 3 : 4, height: h, borderRadius: 2,
-          background: `rgba(184,55,45,${0.3 + (h / 54) * 0.5})`,
-          transition: "height 0.08s linear",
-        }} />
-      ))}
-    </div>
-  );
-}
-
 /* ── Coming Soon — single card (State Atlas shipped Q2 2026) ── */
 function ComingSoonSection({ mob, med }: { mob: boolean; med: boolean }) {
   const dotStyle = (color: string): React.CSSProperties => ({
@@ -1003,9 +969,9 @@ function ComingSoonSection({ mob, med }: { mob: boolean; med: boolean }) {
   return (
     <section style={{ padding: mob ? "48px 0" : "72px 0", borderBottom: `1px solid ${C.rule}` }}>
       <div style={{ maxWidth: 1280, margin: "0 auto", padding: mob ? "0 20px" : "0 32px", textAlign: "center" }}>
-        <div style={{ fontFamily: SANS, fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: C.sub, fontWeight: 500, marginBottom: 16 }}>Coming Soon</div>
+        <div style={{ fontFamily: SANS, fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: C.sub, fontWeight: 500, marginBottom: 16 }}>Now in Beta</div>
         <h2 style={{ fontFamily: SERIF, fontSize: mob ? 32 : 48, lineHeight: 1.05, letterSpacing: "-0.022em", fontWeight: 400, margin: "0 auto 16px", maxWidth: 700 }}>
-          A new way to <em style={{ fontStyle: "italic", color: C.accent }}>see the data.</em>
+          A new way to <em style={{ fontStyle: "italic", color: C.accent }}>watch the news.</em>
         </h2>
         {/* Coming Soon intro paragraph removed per design — headline only. */}
 
@@ -1015,7 +981,7 @@ function ComingSoonSection({ mob, med }: { mob: boolean; med: boolean }) {
           display: "flex", justifyContent: "center", textAlign: "left",
         }}>
           {/* ── Live Broadcast card ── */}
-          <div style={{ ...cardStyle, maxWidth: 560, width: "100%" }}>
+          <div style={{ ...cardStyle, maxWidth: 960, width: "100%" }}>
             <div style={{ ...labelStyle, marginBottom: 16 }}>
               <span style={dotStyle(C.accent)} />LIVE BROADCAST
             </div>
@@ -1027,16 +993,21 @@ function ComingSoonSection({ mob, med }: { mob: boolean; med: boolean }) {
               running alongside the video. Every economic claim verified against official
               data — BLS, BEA, Census, Fed, etc — in real time.
             </p>
-            <div style={{
-              padding: "32px 24px", background: C.paper, border: `1px solid ${C.rule}`,
-              borderRadius: 4, display: "flex", flexDirection: "column", alignItems: "center", gap: 12, marginTop: "auto",
-            }}>
-              <AnimatedWaveform mob={mob} />
-              <div style={{ fontFamily: SANS, fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: C.mute, marginTop: 4 }}>
-                Real-time fact-check feed
-              </div>
+            {/* Teaser animation: 25s self-playing recreation of the /live view */}
+            <div style={{ marginTop: "auto" }}>
+              <LiveTeaser />
             </div>
-            <div style={{ fontFamily: SANS, fontSize: 13, color: C.mute, marginTop: 16 }}>Q2 &middot; 2026</div>
+            <div style={{
+              display: "flex", justifyContent: "space-between", alignItems: "baseline",
+              marginTop: 16, fontFamily: SANS, fontSize: 13, gap: 12, flexWrap: "wrap",
+            }}>
+              <span style={{ color: "#9a9490" }}>
+                <strong style={{ color: C.accent, fontWeight: 700 }}>In beta now</strong> &middot; Full launch Q3 2026
+              </span>
+              <Link href="/live" style={{ color: "#1d4ed8", fontWeight: 600, textDecoration: "none", flexShrink: 0 }}>
+                Try the beta &rarr;
+              </Link>
+            </div>
           </div>
         </div>
       </div>

@@ -2,50 +2,55 @@
   "title": "State of the Union 2024",
   "speaker": "Joe Biden",
   "date": "2024-03-07",
-  "videoId": "al7ont2noYA",
+  "videoId": "cplSUhU2avc",
   "duration": "72 minutes",
   "segments": [
     {
-      "time": 16,
+      "time": 3,
       "text": "Good evening. If I were smart, I'd go home now. Mr. Speaker, Madam Vice President, members of Congress. Tonight I want to talk about the future of America.",
       "claims": []
     },
     {
-      "time": 80,
+      "time": 132,
       "text": "Not since President Lincoln and the Civil War have freedom and democracy been under assault at home as they are today. Overseas, Putin of Russia is on the march, invading Ukraine and sowing chaos throughout Europe and beyond.",
       "claims": []
     },
     {
-      "time": 131,
+      "time": 220,
       "text": "Ukraine can stop Putin if we stand with them and provide the weapons they need to defend themselves. That is all they are asking. They are not asking for American soldiers.",
       "claims": []
     },
     {
-      "time": 326,
+      "time": 328,
       "text": "History is watching, just like history watched three years ago on January 6th when insurrectionists stormed this very Capitol and placed a dagger at the throat of American democracy.",
       "claims": []
     },
     {
-      "time": 790,
+      "time": 600,
+      "text": "I know I may not look like it, but I've been around a while. When you get to be my age, certain things become clearer than ever. I know the American story.",
+      "claims": []
+    },
+    {
+      "time": 858,
       "text": "Folks, I hear the economy is on the brink. Now, our economy is literally the envy of the world. 15 million new jobs in just three years, a record. A record.",
       "claims": [
         {
           "quote": "15 million new jobs in just three years",
           "rating": "MOSTLY TRUE",
-          "actual": "BLS: ~14.8M nonfarm jobs added Jan 2021\u2013Jan 2024. Many were recovering pandemic-era losses, not entirely net new creation.",
+          "actual": "BLS: ~14.8M nonfarm jobs added Jan 2021–Jan 2024. Many were recovering pandemic-era losses, not entirely net new creation.",
           "explanation": "Number is close to accurate but includes pandemic recovery jobs."
         }
       ]
     },
     {
-      "time": 813,
+      "time": 882,
       "text": "Unemployment at 50-year lows. A record 16 million Americans are starting small businesses and each one is a little act of hope.",
       "claims": [
         {
           "quote": "Unemployment at 50-year lows",
           "rating": "TRUE",
           "actual": "BLS: Unemployment fell to 3.4% in Jan 2023, the lowest since 1969.",
-          "explanation": "Confirmed \u2014 54-year low reached during Biden's term."
+          "explanation": "Confirmed — 54-year low reached during Biden's term."
         },
         {
           "quote": "16 million Americans are starting small businesses",
@@ -56,31 +61,31 @@
       ]
     },
     {
-      "time": 813,
+      "time": 900,
       "text": "With historic job growth and small business growth for Black and Hispanic and Asian Americans. 800,000 new manufacturing jobs in America and counting.",
       "claims": [
         {
           "quote": "800,000 new manufacturing jobs",
           "rating": "MOSTLY TRUE",
-          "actual": "BLS: ~790K manufacturing jobs added Jan 2021\u2013Feb 2024, though many were recovering pre-COVID levels.",
+          "actual": "BLS: ~790K manufacturing jobs added Jan 2021–Feb 2024, though many were recovering pre-COVID levels.",
           "explanation": "Close to stated figure, but includes pandemic recovery jobs."
         }
       ]
     },
     {
-      "time": 854,
+      "time": 920,
       "text": "The racial wealth gap is as small as it's been in 20 years. Wages keep going up, inflation keeps coming down.",
       "claims": [
         {
           "quote": "The racial wealth gap is as small as it's been in 20 years",
           "rating": "MOSTLY TRUE",
-          "actual": "FRED/Fed Survey of Consumer Finances: The Black-white wealth gap narrowed during 2020\u20132023, driven by home equity and labor market gains. However, data varies by measure used.",
+          "actual": "FRED/Fed Survey of Consumer Finances: The Black-white wealth gap narrowed during 2020–2023, driven by home equity and labor market gains. However, data varies by measure used.",
           "explanation": "Directionally accurate, though exact '20 years' framing depends on metric."
         }
       ]
     },
     {
-      "time": 854,
+      "time": 935,
       "text": "Inflation has dropped from 9 percent to 3 percent, the lowest in the world and trending lower. The landing is and will be soft.",
       "claims": [
         {
@@ -98,7 +103,7 @@
       ]
     },
     {
-      "time": 984,
+      "time": 1001,
       "text": "In fact, my policies have attracted $650 billion in private sector investment in clean energy, advanced manufacturing, creating tens of thousands of jobs here in America.",
       "claims": [
         {
@@ -110,7 +115,7 @@
       ]
     },
     {
-      "time": 1019,
+      "time": 1040,
       "text": "And thanks to our bipartisan infrastructure law, 46,000 new projects have been announced all across your communities. Modernizing our roads and bridges, ports and airports, public transit systems.",
       "claims": [
         {
@@ -122,25 +127,37 @@
       ]
     },
     {
-      "time": 1332,
+      "time": 1120,
+      "text": "Since I've come to office, our GDP is up, our trade deficit with China is down to the lowest point in over a decade.",
+      "claims": [
+        {
+          "quote": "Our trade deficit with China is down to the lowest point in over a decade",
+          "rating": "TRUE",
+          "actual": "Census Bureau: U.S. goods trade deficit with China fell to $279B in 2023, the lowest since 2010.",
+          "explanation": "Confirmed — trade deficit with China at a 13-year low."
+        }
+      ]
+    },
+    {
+      "time": 1365,
       "text": "Instead of paying $400 a month or thereabouts for insulin with diabetes, and it only costs ten bucks to make, they only get paid 35 a month now.",
       "claims": [
         {
           "quote": "Paying $400 a month or thereabouts for insulin",
           "rating": "TRUE",
-          "actual": "HHS: Average insulin list price was $300\u2013$400/month before caps. Some formulations exceeded $500/month.",
-          "explanation": "Confirmed \u2014 insulin prices were frequently in the $300\u2013$400 range."
+          "actual": "HHS: Average insulin list price was $300–$400/month before caps. Some formulations exceeded $500/month.",
+          "explanation": "Confirmed — insulin prices were frequently in the $300–$400 range."
         },
         {
           "quote": "It only costs ten bucks to make",
           "rating": "TRUE",
-          "actual": "Yale Insulin Cost Study: Production cost for a vial of insulin analog is estimated at $2\u2013$6. A month's supply costs roughly $10 to manufacture.",
+          "actual": "Yale Insulin Cost Study: Production cost for a vial of insulin analog is estimated at $2–$6. A month's supply costs roughly $10 to manufacture.",
           "explanation": "Research confirms insulin manufacturing cost is very low."
         }
       ]
     },
     {
-      "time": 1392,
+      "time": 1440,
       "text": "We cut the federal deficit by $160 billion because Medicare will no longer have to pay those exorbitant prices to Big Pharma.",
       "claims": [
         {
@@ -152,19 +169,19 @@
       ]
     },
     {
-      "time": 1423,
+      "time": 1500,
       "text": "It's now time to go further and give Medicare the power to negotiate lower prices for 500 different drugs over the next decade. It will not only save lives, it will save taxpayers another $200 billion.",
       "claims": [
         {
           "quote": "It will save taxpayers another $200 billion",
           "rating": "UNVERIFIABLE",
           "actual": "CBO: This is a projection for proposed legislation that hasn't passed. CBO would need to score the specific bill to confirm.",
-          "explanation": "Budget projection for future legislation \u2014 not yet scored by CBO."
+          "explanation": "Budget projection for future legislation — not yet scored by CBO."
         }
       ]
     },
     {
-      "time": 1525,
+      "time": 1620,
       "text": "Over 100 million of you can no longer be denied health insurance because of preexisting conditions. But my predecessor and many in this chamber want to take those prescription drugs away by repealing the Affordable Care Act.",
       "claims": [
         {
@@ -176,7 +193,85 @@
       ]
     },
     {
-      "time": 1962,
+      "time": 1980,
+      "text": "The child tax credit I passed during the pandemic cut taxes for millions of working families and cut child poverty in half.",
+      "claims": [
+        {
+          "quote": "Cut child poverty in half",
+          "rating": "MOSTLY TRUE",
+          "actual": "Census: Supplemental Poverty Measure child poverty fell from 9.7% (2020) to 5.2% (2021) with expanded CTC. It rose back to 12.4% in 2022 when the expansion expired.",
+          "explanation": "True for 2021, but the effect reversed when CTC expansion expired."
+        }
+      ]
+    },
+    {
+      "time": 2160,
+      "text": "Remember in 2020, 55 of the biggest companies in America made $40 billion and paid zero in federal income tax. Zero. Not anymore.",
+      "claims": [
+        {
+          "quote": "55 of the biggest companies in America made $40 billion and paid zero in federal income tax",
+          "rating": "TRUE",
+          "actual": "ITEP: In 2020, 55 profitable Fortune 500 companies paid $0 in federal income taxes on combined profits of ~$40.5 billion.",
+          "explanation": "Confirmed by Institute on Taxation and Economic Policy analysis."
+        }
+      ]
+    },
+    {
+      "time": 2280,
+      "text": "Big companies have to pay a minimum of 15 percent. And I've kept my commitment. No one earning less than $400,000 a year has paid a penny more in federal taxes. Nobody. Not a penny.",
+      "claims": [
+        {
+          "quote": "No one earning less than $400,000 a year has paid a penny more in federal taxes",
+          "rating": "MOSTLY TRUE",
+          "actual": "Tax Policy Center: No major direct tax increases on those under $400K, though some argue indirect effects (corporate tax pass-through, inflation) affected this group.",
+          "explanation": "Technically accurate for direct tax policy changes."
+        }
+      ]
+    },
+    {
+      "time": 2400,
+      "text": "You know there are 1,000 billionaires in America. You know what the average federal tax is for those billionaires? They are making great sacrifices, 8.2 percent. That is far less than the vast majority of Americans pay.",
+      "claims": [
+        {
+          "quote": "1,000 billionaires in America...average federal tax...8.2 percent",
+          "rating": "MISLEADING",
+          "actual": "White House/OMB: The 8.2% figure uses a broad 'income' definition including unrealized capital gains. Under standard tax definitions, billionaires pay higher effective rates (~23% per IRS data).",
+          "explanation": "The 8.2% figure relies on counting unrealized gains as income."
+        }
+      ]
+    },
+    {
+      "time": 2460,
+      "text": "I propose a minimum tax for billionaires at 25 percent. Just 25 percent. That would raise $500 billion over the next ten years. Imagine what that could do for America.",
+      "claims": [
+        {
+          "quote": "That would raise $500 billion over the next ten years",
+          "rating": "UNVERIFIABLE",
+          "actual": "OMB estimate: $500B is the White House projection. CBO and independent scorers have not fully scored this specific proposal.",
+          "explanation": "White House projection — independent scoring would likely differ."
+        }
+      ]
+    },
+    {
+      "time": 2580,
+      "text": "My administration announced we're cutting credit card late fees from $32 to $8. I'm saving American families $20 billion a year with all the junk fees I'm eliminating.",
+      "claims": [
+        {
+          "quote": "Credit card late fees from $32 to $8",
+          "rating": "MOSTLY TRUE",
+          "actual": "CFPB: Rule proposed capping late fees at $8, down from avg $32. However, a federal court blocked the rule in May 2024 before it took effect.",
+          "explanation": "Proposed but not yet implemented — later blocked by courts."
+        },
+        {
+          "quote": "$20 billion a year with all the junk fees I'm eliminating",
+          "rating": "MISLEADING",
+          "actual": "CFPB estimates: Various junk fee rules projected to save ~$20B/year total, but many rules face legal challenges and aren't fully in effect.",
+          "explanation": "Projected savings, not yet realized — several rules blocked by courts."
+        }
+      ]
+    },
+    {
+      "time": 2700,
       "text": "We've already cut the federal deficit over $1 trillion. I signed the bipartisan deal to cut another trillion dollars in the next decade.",
       "claims": [
         {
@@ -188,7 +283,7 @@
       ]
     },
     {
-      "time": 2008,
+      "time": 2760,
       "text": "The last administration enacted a $2 trillion tax cut, overwhelmingly benefiting the top 1 percent, the very wealthy and the biggest corporations, and exploded the federal deficit.",
       "claims": [
         {
@@ -206,90 +301,7 @@
       ]
     },
     {
-      "time": 2041,
-      "text": "Big companies have to pay a minimum of 15 percent. And I've kept my commitment. No one earning less than $400,000 a year has paid a penny more in federal taxes. Nobody. Not a penny.",
-      "claims": [
-        {
-          "quote": "No one earning less than $400,000 a year has paid a penny more in federal taxes",
-          "rating": "MOSTLY TRUE",
-          "actual": "Tax Policy Center: No major direct tax increases on those under $400K, though some argue indirect effects (corporate tax pass-through, inflation) affected this group.",
-          "explanation": "Technically accurate for direct tax policy changes."
-        }
-      ]
-    },
-    {
-      "time": 2081,
-      "text": "The child tax credit I passed during the pandemic cut taxes for millions of working families and cut child poverty in half.",
-      "claims": [
-        {
-          "quote": "Cut child poverty in half",
-          "rating": "MOSTLY TRUE",
-          "actual": "Census: Supplemental Poverty Measure child poverty fell from 9.7% (2020) to 5.2% (2021) with expanded CTC. It rose back to 12.4% in 2022 when the expansion expired.",
-          "explanation": "True for 2021, but the effect reversed when CTC expansion expired."
-        }
-      ]
-    },
-    {
-      "time": 2081,
-      "text": "Remember in 2020, 55 of the biggest companies in America made $40 billion and paid zero in federal income tax. Zero. Not anymore.",
-      "claims": [
-        {
-          "quote": "55 of the biggest companies in America made $40 billion and paid zero in federal income tax",
-          "rating": "TRUE",
-          "actual": "ITEP: In 2020, 55 profitable Fortune 500 companies paid $0 in federal income taxes on combined profits of ~$40.5 billion.",
-          "explanation": "Confirmed by Institute on Taxation and Economic Policy analysis."
-        }
-      ]
-    },
-    {
-      "time": 2156,
-      "text": "You know there are 1,000 billionaires in America. You know what the average federal tax is for those billionaires? They are making great sacrifices, 8.2 percent. That is far less than the vast majority of Americans pay.",
-      "claims": [
-        {
-          "quote": "1,000 billionaires in America...average federal tax...8.2 percent",
-          "rating": "MISLEADING",
-          "actual": "White House/OMB: The 8.2% figure uses a broad 'income' definition including unrealized capital gains. Under standard tax definitions, billionaires pay higher effective rates (~23% per IRS data).",
-          "explanation": "The 8.2% figure relies on counting unrealized gains as income."
-        }
-      ]
-    },
-    {
-      "time": 2171,
-      "text": "I propose a minimum tax for billionaires at 25 percent. Just 25 percent. That would raise $500 billion over the next ten years. Imagine what that could do for America.",
-      "claims": [
-        {
-          "quote": "That would raise $500 billion over the next ten years",
-          "rating": "UNVERIFIABLE",
-          "actual": "OMB estimate: $500B is the White House projection. CBO and independent scorers have not fully scored this specific proposal.",
-          "explanation": "White House projection \u2014 independent scoring would likely differ."
-        }
-      ]
-    },
-    {
-      "time": 2239,
-      "text": "I'm determined to protect Social Security and Medicare. I will not allow them to be gutted or taken away. Not today, not tomorrow, not ever.",
-      "claims": []
-    },
-    {
-      "time": 2360,
-      "text": "My administration announced we're cutting credit card late fees from $32 to $8. I'm saving American families $20 billion a year with all the junk fees I'm eliminating.",
-      "claims": [
-        {
-          "quote": "Credit card late fees from $32 to $8",
-          "rating": "MOSTLY TRUE",
-          "actual": "CFPB: Rule proposed capping late fees at $8, down from avg $32. However, a federal court blocked the rule in May 2024 before it took effect.",
-          "explanation": "Proposed but not yet implemented \u2014 later blocked by courts."
-        },
-        {
-          "quote": "$20 billion a year with all the junk fees I'm eliminating",
-          "rating": "MISLEADING",
-          "actual": "CFPB estimates: Various junk fee rules projected to save ~$20B/year total, but many rules face legal challenges and aren't fully in effect.",
-          "explanation": "Projected savings, not yet realized \u2014 several rules blocked by courts."
-        }
-      ]
-    },
-    {
-      "time": 3052,
+      "time": 3240,
       "text": "Last year, the murder rate saw the sharpest decrease in history. Violent crime fell to one of its lowest levels in more than 50 years.",
       "claims": [
         {
@@ -301,19 +313,7 @@
       ]
     },
     {
-      "time": 3586,
-      "text": "Since I've come to office, our GDP is up, our trade deficit with China is down to the lowest point in over a decade.",
-      "claims": [
-        {
-          "quote": "Our trade deficit with China is down to the lowest point in over a decade",
-          "rating": "TRUE",
-          "actual": "Census Bureau: U.S. goods trade deficit with China fell to $279B in 2023, the lowest since 2010.",
-          "explanation": "Confirmed \u2014 trade deficit with China at a 13-year low."
-        }
-      ]
-    },
-    {
-      "time": 3633,
+      "time": 3420,
       "text": "Here at home, I've signed over 400 bipartisan bills, but there's more to pass my unity agenda.",
       "claims": [
         {
@@ -325,890 +325,24 @@
       ]
     },
     {
-      "time": 3774,
-      "text": "I know I may not look like it, but I've been around a while. When you get to be my age, certain things become clearer than ever. I know the American story.",
+      "time": 3540,
+      "text": "I'm determined to protect Social Security and Medicare. I will not allow them to be gutted or taken away. Not today, not tomorrow, not ever.",
       "claims": []
     },
     {
-      "time": 3854,
+      "time": 3900,
       "text": "Let me close with this. I know I may not look like it, but I've been doing this a long time. I know what America can do. We're the only nation in the world that has come out of every crisis stronger than when we went in.",
       "claims": []
     },
     {
-      "time": 3973,
+      "time": 3960,
       "text": "I see a future where we defend democracy, not diminish it. I see a future where we restore the right to choose and protect our freedoms, not take them away.",
       "claims": []
     },
     {
-      "time": 4025,
+      "time": 4050,
       "text": "This is our moment. My fellow Americans, the state of our union is strong and getting stronger. God bless you all, and may God protect our troops. Thank you, thank you, thank you.",
       "claims": []
-    }
-  ],
-  "captions": [
-    {
-      "time": 16,
-      "text": ">> FIRE SMART. I GO HOME NOW. MISTER SPEAKER. MADAM VICE"
-    },
-    {
-      "time": 31,
-      "text": "PRESIDENT MEMBERS OF CONGRESS, MY FELLOW AMERICANS. >> IN JANUARY. 1941. FRANKLIN ROOSEVELT CAME TO THIS CHAMBER TO SPEAK TO THE NATION. HE SAID. I ADDRESS YOU IN A"
-    },
-    {
-      "time": 47,
-      "text": "MOMENT. ONE PRECEDENT IN THE HISTORY OF THE UNION. HEATHER IS ON THE MARCH. WAR WAS RAGING IN YOUR. PRESIDENT. ROOSEVELT PURPOSE WAS TO WAKE UP CONGRESS AND ALERT THE AMERICAN PEOPLE. BUT THIS WAS NO ORDINARY TIME. FREEDOM AND"
-    },
-    {
-      "time": 63,
-      "text": "DEMOCRACY RUNNER SAW THE WORLD. I COME TO THE SENATE CHAMBER TO ADDRESS THE NATION. NOW IT'S WE WHO PRECEDENT MOMENT AND JUST TO THE UNION. AND YES, MY PURPOSE TONIGHT IS TO WAKE UP TO CONGRESS THE"
-    },
-    {
-      "time": 80,
-      "text": "AMERICAN PEOPLE THAT THIS IS NO ORDINARY MOMENT EITHER. NOT SINCE PRESIDENT LINCOLN AND THE CIVIL WAR. OUR FREEDOM AND DEMOCRACY BEEN UNDER ASSAULT HOME AS THERE ARE TODAY. WHAT MAKES OUR MOM A RARE IS THE FREEDOM AND DEMOCRACY ARE"
-    },
-    {
-      "time": 95,
-      "text": "UNDER ATTACK BOTH AT HOME AND OVERSEAS. AT THE VERY SAME TIME. OVER SHAY'S PUTIN OF RUSSIA IS ON THE MARCH. INVADING UKRAINE AND SOWING CHAOS THROUGHOUT EUROPE AND BEYOND. IF ANYBODY IN THIS"
-    },
-    {
-      "time": 111,
-      "text": "ROOM. THANKS PUDIMOS TOP UKRAINE, I ASSURE YOU HE WILL NOT."
-    },
-    {
-      "time": 131,
-      "text": "UKRAINE CAN STOP IF WE STAND WITH UKRAINE AND PROVIDE THE WEAPONS."
-    },
-    {
-      "time": 151,
-      "text": "UKRAINE IS ASKING. THEY'RE NOT ASKING FOR AMERICAN SOLDIERS, IN FACT, ARE NO AMERICAN SOLDIERS WAR IN UKRAINE. AND I'M DETERMINED TO KEEP IT THAT WAY. ASSISTANCE. UKRAINE HAS BEEN BLOCKED. ALWAYS WANT TO WALK"
-    },
-    {
-      "time": 168,
-      "text": "AWAY FROM OUR WORLD LEADERSHIP. WAS A LONG AGO. ONE REPUBLICAN PRESIDENT RONALD REAGAN THUNDERED MISTER GORBACHEV, TEAR DOWN THIS WALL. MY PREDECESSOR. A FORMER"
-    },
-    {
-      "time": 193,
-      "text": "REPUBLICAN PRESIDENT, TELLS PRUDENT, QUOTE, DO WHATEVER THE H*** YOU WANT. THAT'S A CROW. FORMER PRESIDENT ACTUALLY SAID THAT. BOWING DOWN A RUSSIAN LATER. I THINK IT'S OUTRAGEOUS. IT'S DANGEROUS AND IT'S UNACCEPTABLE."
-    },
-    {
-      "time": 222,
-      "text": "AS A FOUNDING MEMBER OF NATO. THE MILITARY LINES OF DEMOCRATIC NATIONS CREATED AFTER WORLD WAR TO PREVENT TO PREVENT WAR AND KEEP THE PEACE. AND TODAY WE MAY KNOW STRONGER THAN EVER. WELCOME FINLAND TO THE"
-    },
-    {
-      "time": 237,
-      "text": "ALLIANCE LAST YEAR. SWEDEN OFFICIALLY JOINED AND OUR MINISTERS HERE TONIGHT."
-    },
-    {
-      "time": 265,
-      "text": "MISTER PRIME MINISTER. WELCOME THE NATURE OF THE STRONGEST MILITARY LIVES THE WORLD HAS EVER SEEN. I SAY THIS TO CONGRESS. WE HAVE TO STAND UP BIPARTISAN NATIONAL SECURITY BILL. HISTORY IS LITERALLY"
-    },
-    {
-      "time": 282,
-      "text": "WATCHING. HISTORY IS WATCHING. UNITED STATES WALKS AWAY. WE WILL PUT UKRAINE AT RISK. YOUR PRESENT RISK, THE FREE WORLD, THE BOWLING OTHERS TO DO WHAT THEY WISH TO DO US HARM. MY"
-    },
-    {
-      "time": 298,
-      "text": "MESSAGE TO PRESIDENT PUTIN, I'VE KNOWN FOR A LONG TIME IS SIMPLE. >> WE WILL NOT WALK AWAY."
-    },
-    {
-      "time": 326,
-      "text": ">> HISTORY IS WATCHING. HISTORY IS WATCHING. >> JUST LIKE YESTERDAY, WATCH 3 YEARS AGO ON JANUARY 6. WHEN OR ACTIONS STORM IS RIGHT. CAPITAL PLACE A DAGGER TO THRONE OF AMERICAN DEMOCRACY. >> MANY OF YOUR HAIR AT"
-    },
-    {
-      "time": 342,
-      "text": "DARKEST OF DAYS. >> WE'RE ALSO ALL OF OUR OWN EYES. THE INSURRECTIONS WERE NOT PATRIOTS. THEY COME TO STOP THE PEACEFUL TRANSFER OF POWER, DOVER, STERN, THE WORLD, THE PEOPLE JANUARY 6"
-    },
-    {
-      "time": 357,
-      "text": "LIVES ABOUT A 2020 ELECTION OF A PLOT STEAL THE ELECTION OPPOSED A GREAT GREATEST THREAT TO U.S.. DEMOCRACY SINCE THE CIVIL WAR. BUT THEY FAILED."
-    },
-    {
-      "time": 381,
-      "text": ">> AFTER SHE HIM. MUST BE HONEST. THE THREAT TO DEMOCRACY MUST BE DEFENDED. MY PREDECESSOR ON SOME OF YOU HERE SEEK TO BURY THE TRUTH ABOUT JANUARY 6. I WILL NOT DO THAT. THIS IS A MOMENT TO"
-    },
-    {
-      "time": 398,
-      "text": "SPEAK THE TRUTH AND THE BERRY LIVES. HERE'S A SIMPLE TRUTH. YOU CAN LOVE YOUR COUNTRY ONLY WHEN YOU WIN."
-    },
-    {
-      "time": 423,
-      "text": "EVER SINCE BEING ELECTED OFFICE. ASK ALL OF YOU WITHOUT REGARD TO PARTY TO JOIN TOGETHER AND DEFEND DEMOCRACY. REMEMBER YOUR OATH OF OFFICE DEFENDING US ALL THREATS, FOREIGN AND DOMESTIC."
-    },
-    {
-      "time": 440,
-      "text": "RESPECT AND FAIR ELECTIONS. RESTORE TRUST IN OUR INSTITUTIONS. A CLEAR POLITICAL VIOLENCE HAS ABSOLUTELY NO PLACE. NO PLACE IN AMERICA'S 0 PLACE. GUEST"
-    },
-    {
-      "time": 462,
-      "text": "HISTORY IS WATCHING. WE'RE WATCHING YOUR CHILDREN OR GRANDCHILDREN. READ ABOUT THIS DAY. WHAT WE DO. HISTORY IS WATCHING ANOTHER ASSAULT ON FOR YOU. JOIN U.S.. ALLY. DOES THE TORY BEASLEY SOCIAL ALABAMA. 14 MONTHS AGO, 14"
-    },
-    {
-      "time": 480,
-      "text": "MONTHS AGO, SHE AND HER HUSBAND WELCOMED A BABY GIRL. THANKS TO THE MIRACLE OF IVF. SHE'S SCHEDULED TREATMENTS HAVE THAT SECOND CHILD. ALABAMA SUPREME COURT SHUT DOWN IVF TREATMENTS ACROSS THE STATE. ONLY SPY SUPREME COURT DECISION OVERTURNING ROE V WADE. SHE WAS TOLD HER DREAM"
-    },
-    {
-      "time": 496,
-      "text": "WOULD HAVE TO WAIT. BUT HER FAMILY GOT TO SHOULD NEVER HAVE HAPPENED UNLESS CONGRESS ACTS COULD HAPPEN AGAIN. SO TONIGHT, LET'S STAND UP FOR FAMILIES LIKE HERS TO MY FRIENDS ACROSS THE AISLE. DON'T KEEP THIS WAY."
-    },
-    {
-      "time": 530,
-      "text": ">> LIKE MOST AMERICANS, I BELIEVE ROE. GOT IT RIGHT. I THANK VICE PRESIDENT HARRIS MEAN INCREDIBLE LEADER DEFENDING REPRODUCTIVE FREEDOM."
-    },
-    {
-      "time": 551,
-      "text": ">> I CAME TO OFFICE DETERMINED TO SEE ROE V WADE OVERTURNED. HE'S RAISING IS OVERTURNED. ANY BRAGS ABOUT IT. LOOK AT THE CHAOS THAT HAS RESULTED. JOIN US TONIGHT IS KATE COX. A WIFE AND MOTHER FROM DALLAS."
-    },
-    {
-      "time": 567,
-      "text": "SHE'S BECOME PREGNANT AGAIN A FETUS IN THE FATAL CONDITION. HER DOCTOR TOLD KAYE THEIR OWN LIFE AND OUR ABILITY TO HAVE FUTURE IN A CHILDREN IN THE FUTURE. WE'RE AT RISK. SHE DIDN'T BECAUSE TEXAS LAW"
-    },
-    {
-      "time": 582,
-      "text": "BANNED HER ABILITY TO ACT. KATE AND HER HUSBAND HAD TO LEAVE THE STATE TO GET WHAT YOU NEED. BUT HER FAMILY GOT THROUGH SHOULD HAVE NEVER HAPPENED AS WELL. BUT ITS HAPPENING AND TO MANY OTHERS. THERE ARE STATE LAWS BANNING THE FREEDOM TO CHOOSE"
-    },
-    {
-      "time": 597,
-      "text": "CRIMINALIZING DOCTORS FORCING SURVIVORS OF RAPE AND INCEST TO LEAVE THEIR STATES TO GET THE TREATMENT THEY NEED. MANY OF YOU IN THIS CHAMBER. MY PREDECESSOR PROMISING TO PASS A NATIONAL BAN ON REPRODUCTIVE FREEDOM. MY GOD, WHAT FREEDOM ELSE WOULD YOU TAKE AWAY?"
-    },
-    {
-      "time": 616,
-      "text": "DECISION OVERTURN ROE V WADE. THE SUPREME COURT MAJORITY WROTE THE FOLLOWING. AND WITH ALL DUE RESPECT, JUSTICES. >> WOMEN ARE NOT WITHOUT ELECTORAL ELECTORAL POWER. ELECTORAL OR POLITICAL POWER YOU'RE ABOUT TO REALIZE JUST HOW MUCH RIGHT."
-    },
-    {
-      "time": 656,
-      "text": ">> TURNEY ROAD, WE WOULD HAVE NO CLUE ABOUT THE POWER WOMEN, BUT THEY FOUND OUT. WHAT REPRODUCTIVE FREEDOM WAS ON THE BALLOT. WE WON IN 2022. 20 TRY AND WIN AGAIN IN 2024."
-    },
-    {
-      "time": 683,
-      "text": ">> SENDING A CONGRESS SUPPORTS THE RIGHT TO CHOOSE. I PROMISE YOU OUR EAST OR ROE V WADE IS THE LAW OF THE LAND. AGAIN."
-    },
-    {
-      "time": 700,
-      "text": "AND NOT GO BACK. TONIGHT TO SHOW WHAT I BELIEVE THE WAY FORWARD BECAUSE I KNOW HOW FAR WE'VE COME. 4 YEARS AGO NEXT WEEK BEFORE I CAME OFFICE, THE COUNTRY WAS HIT BY THE WORST"
-    },
-    {
-      "time": 716,
-      "text": "PANDEMIC IN THE WORST ECONOMIC CRISIS IN A CENTURY. REMEMBER THE FEAR? RECORD LOSSES. REMEMBER THE SPIKES IN CRIME IN THE MURDER RATE. RAGING VIRUS. IT TOOK MORE THAN 1 MILLION AMERICAN LIVES OF LOVED ONES. MANY IS LEFT"
-    },
-    {
-      "time": 731,
-      "text": "BEHIND A MENTAL HEALTH CRISIS OF ISOLATION AND LONELINESS. PRESIDENT MY PREDECESSOR FAILED THE MOST BASIC PRESIDENTIAL DUTY THAT HE OWES TO AMERICAN PEOPLE, THE DUTY TO CARE. I THINK THAT'S UNFORGIVEABLE. I CAN OFFICE"
-    },
-    {
-      "time": 747,
-      "text": "DETERMINED TO GET US THROUGH ONE OF THE TOUGHEST PERIODS IN THE NATION'S HISTORY. IT DOESN'T MAKE NEW BEEN OF NEWS IN 1000 CITIES AND TOWNS. THE AMERICAN PEOPLE ARE READING THE GREATEST COMEBACK STORY. NEVER TOLD."
-    },
-    {
-      "time": 775,
-      "text": "AMERICA'S COMEBACK IS BUILDING A FUTURE OF AMERICAN POSSIBILITIES. >> ECONOMY FROM THE MIDDLE OUT THE BOTTOM UP, NOT THE TOP DOWN. INVESTING IN ALL AMERICA AND ALL AMERICANS TO MAKE EVERY SURE EVERYONE HAS A FAIR SHOT. >> WE LEAVE NO ONE. NO ONE BEHIND."
-    },
-    {
-      "time": 790,
-      "text": ">> THE PANDEMIC NO LONGER CONTROLS OUR LIVES. THE VACCINE TO SAVE US FROM COVID ARE NOW BEING USED TO BE CANCER. TURNING SET BACK IN TO COME BACK. >> THAT'S WHAT AMERICA DOES."
-    },
-    {
-      "time": 813,
-      "text": "THE CONDORS ON THE BRINK. NOT ECONOMIES THAT ARE THE ENVY OF THE WORLD. 15 MILLION NEW JOBS JUST 3 YEARS. A RECORD A RECORD."
-    },
-    {
-      "time": 836,
-      "text": "RECORD. 60 MILLION AMERICANS ARE STARTING SMALL BUSINESSES EACH ONE IS A LITTLE ACT OF HOPE. >> WITH HISTORIC JOB GROWTH AND SMALL BUSINESS GROWTH FOR BLACK AND HISPANICS AND ASIAN-AMERICANS. 800,000 NEW MANUFACTURING JOBS IN AMERICA AND COUNTY."
-    },
-    {
-      "time": 854,
-      "text": ">> A FRACTION CAPITAL OF THE WORLD. WE ARE. TEMPERATURES TODAY. THAN EVER BEFORE. >> THE RACIAL WEALTH GAP AND THE SMALL AS IT'S BEEN IN 20"
-    },
-    {
-      "time": 869,
-      "text": "YEARS. WHERE YOU KEEP GOING UP AND FACE, SHE KEEPS COMING DOWN. INFLATION HAS DROPPED FROM 9% TO 3%. THE LOWEST IN THE WORLD AND TENDING LOWER."
-    },
-    {
-      "time": 890,
-      "text": "AND NOW INSTEAD OF REPORTING IMPORTING FARM PRODUCTS AND EXPORTING AMERICAN JOBS, WE'RE EXPORTING AMERICAN PRODUCTS AND CREATING AMERICAN JOBS."
-    },
-    {
-      "time": 908,
-      "text": "TIME THAT THE AMERICAN PEOPLE BEGIN TO FEEL IT. CONSUMER STUDY SHOW CONSUMER CONFIDENCE IS SOARING. BY AMERICA HAS BEEN THE LAW OF THE LAND SINCE THE 1930'S. PAST ADMINISTRATIONS, INCLUDING MY PREDECESSOR, INCLUDING SOME"
-    },
-    {
-      "time": 923,
-      "text": "DEMOCRATS AS WELL IN THE PAST FAILED TO BUY AMERICAN. NOT ANYMORE. I WATCH FOR PROJECTS THAT YOU FUN, MIKE, HELPING BUILD AMERICAN ROADS, BRIDGES AND HIGHWAYS WILL BE MADE WITH AMERICAN PRODUCTS AND BUILT BY"
-    },
-    {
-      "time": 938,
-      "text": "AMERICAN WORKERS. BANK START"
-    },
-    {
-      "time": 953,
-      "text": "CHIPS AND SCIENCE ACT. UNITED STATES IS INVESTING MORE IN RESEARCH AND DEVELOPMENT THAT NEVER BEFORE. DURING THE PANDEMIC, A SHORTAGE OF SEMICONDUCTORS CHIPS THAT DROVE UP THE PRICE OF EVERYTHING FROM CELL PHONES TO AUTOMOBILES. BY THE WAY, WE INVENTED THOSE CHIPS RIGHT"
-    },
-    {
-      "time": 968,
-      "text": "HERE IN AMERICA. INSTEAD OF HAVING TO IMPORT AND IT SHOULDN'T PRIVATE COMPANIES ARE NOW INVESTING BILLIONS OF DOLLARS TO BUILD NEW CHIP FACTORIES HERE IN AMERICA, CREATING 10'S OF THOUSANDS JOBS. MANY OF THOSE JOBS"
-    },
-    {
-      "time": 984,
-      "text": "PAYING $100,000 HERE AND DON'T REQUIRE A COLLEGE DEGREE. MY"
-    },
-    {
-      "time": 999,
-      "text": "POLICIES OF THE TRACT IS 650 BILLION DOLLARS AND PRIVATE SECTOR INVESTMENT. THE CLEAN ENERGY, ADVANCED MANUFACTURING, CREATING 10'S OF THOUSANDS OF JOBS HERE IN AMERICA."
-    },
-    {
-      "time": 1019,
-      "text": ">> I BIPARTISAN INFRASTRUCTURE LAW. >> 46,000 NEW PROJECT ANNOUNCED ALL ACROSS YOUR COMMUNITIES. BY THE WAY, I KNOW TO SOME OF YOU STRONGLY VOTED AGAINST IT. ARE THERE CHEERING ON THAT MONEY COME"
-    },
-    {
-      "time": 1041,
-      "text": "YOUR DISTRICT? JUST LET ME KNOW. MODERNIZING OUR ROADS AND BRIDGES, PORTS AND AIRPORTS. PUBLIC TRANSIT SYSTEMS REMOVING POINT POISONOUS LEAD PIPES OR EVERY CHILD CAN BRING CLEAN TO BREAK DOWN. HIGH-SPEED INTERNET FOR"
-    },
-    {
-      "time": 1066,
-      "text": "EVERY AMERICAN. NO MATTER WHERE YOU LIVE OR BEEN SUBURBAN OR RURAL COMMUNITIES IN RED STATES AND BLUE STATES. RECORD INVESTMENTS IN TRIBAL COMMUNITIES. BECAUSE OF MY INVESTMENT, A FAMILY FARM."
-    },
-    {
-      "time": 1083,
-      "text": ">> GUESSING FOUND ONE LED BY MY SIDE COACH KNOWS MORE ABOUT THIS THAN ANYBODY. I KNOW. WE'RE BETTER ABLE TO STAY IN THE FAMILY FOR THE SHOW'S FARMS THROUGH THAT AND THEIR CHILDREN AND GRANDCHILDREN TO LEAVE, LEAVE HOME TO MAKE A LIVING. MISTER CHAIR. GREAT COMEBACK STORIES. BELVIDERE"
-    },
-    {
-      "time": 1098,
-      "text": "ILLINOIS. HOME TO AN AUTO PLANT FOR NEARLY 60 YEARS. BEFORE I CAME TO OFFICE, THE PLANT WAS ON ITS WAY TO SHUTTING DOWN. THOUSANDS OF WORKERS FEAR FOR THEIR LIVELIHOODS. HOPE WAS AND I"
-    },
-    {
-      "time": 1115,
-      "text": "WAS ELECTED OFFICE. WE RAISE THE BELVEDERE REPEATEDLY WITH AUTO COMPANIES KNOWING YOU NEWS WOULD MAKE ALL THE DIFFERENCE. THE UAW WORK LIKE H*** TO KEEP THE PLANT OPEN. GET THESE JOBS BACK AND TOGETHER, WE SUCCEEDED. INSTEAD OF AUTO FACTORIES, SHUTTING DOWN ALL THE FACTORS."
-    },
-    {
-      "time": 1130,
-      "text": "REOPENING THE NEW STATED, OUR BATTERY FACTORIES BEING BUILT. >> THE POWER, THOSE CARS AND THE SAME."
-    },
-    {
-      "time": 1147,
-      "text": ">> THE FOLKS BELVIDERE I SAY INSTEAD OF YOUR TOWN BE LEFT BEHIND. THE COMMUNITY IS MOVING FORWARD AGAIN BECAUSE OF 7 WATCHING AUTO JOBS, JOBS IN THE FUTURE GO OVERSEAS. 4,000 UNION JOBS WITH HIGHER WAGES, OUR BUILDING A FUTURE"
-    },
-    {
-      "time": 1162,
-      "text": "IN BELVIDERE RIGHT HERE IN AMERICA. W PRESIDENT, SHAWN"
-    },
-    {
-      "time": 1177,
-      "text": "FAIN, A GREAT FRIEND. A GREAT LABOR. SEAN, WERE ARE."
-    },
-    {
-      "time": 1196,
-      "text": "GENERATION WORKER UAW WORKER BELVEDERE SEAN. I WAS PROUD TO BE THE FIRST PRESIDENT STAND ON THE PICKET LINE TODAY. DON HAS A GOOD JOB IN HER HOMETOWN, PROVIDING STABILITY FOR A FAMILY AND PRIDE AND DIGNITY AS WELL. SHOWING ONCE"
-    },
-    {
-      "time": 1211,
-      "text": "AGAIN, WALL STREET DIDN'T BUILD AMERICA. THEY'RE NOT BAD GUYS. THEY DIDN'T BUILD THE MIDDLE CLASS. BOTH THE COUNTRY AND UNIONS BUILT THE MIDDLE CLASS. I SAY THE AMERICAN"
-    },
-    {
-      "time": 1232,
-      "text": "PEOPLE. WHEN AMERICA GIVES NOT DOWN, WE GET BACK UP."
-    },
-    {
-      "time": 1251,
-      "text": "IT'S BECAUSE OF YOU. AMERICANS COMING BACK IS BECAUSE OF YOUR FUTURE, THE WRITERS BECAUSE OF YOU. TONIGHT WE CAN PROUDLY SAY THE STATE OF OUR UNION IS STRONG AND GETTING STRONGER."
-    },
-    {
-      "time": 1284,
-      "text": "I WANT TO TALK ABOUT THE FUTURE OF POSSIBILITIES. THAT WE CAN BUILD TOGETHER. A FUTURE WHERE THE DAYS OF TRICKLE DOWN ECONOMICS ARE OVER AND THE WEALTH IN THE BIGGEST CORPORATION OR GET THAT ALONG WITH TAX BREAKS. AND BY THE UNDERSTAND CORPORATION NOT COME FROM THE STATE. THAT IS"
-    },
-    {
-      "time": 1300,
-      "text": "MORE CORPORATIONS, INVESTMENT, EVERY ONE OF YOUR STATES AND THE STATE UNITED STATES COMBINED. AND A REPRESENTATIVE FOR 36 YEARS. I'M NOT. AND I CORPORATION. GREW UP. AND THE HOME WERE TRICKLE DOWN. ECONOMICS DIDN'T PUT MUCH OF MY DAD'S KITCHEN TABLE. THAT'S"
-    },
-    {
-      "time": 1317,
-      "text": "WHY DETERMINED TURN THINGS AROUND. SOME MIDDLE CLASS DOES WELL WHEN THEY DO WELL, THE POOR WAY UP IN THE WEALTHY STILL DO VERY WELL. WE ALL DO WELL. AND THERE'S MORE TO DO TO MAKE SURE YOU'RE FEELING THE BENEFITS OF ALL WE'RE DOING. AMERICANS PAY MORE FOR PRESCRIPTION DRUGS THAN"
-    },
-    {
-      "time": 1332,
-      "text": "ANYWHERE IN THE WORLD. IT'S WRONG AND I MEANT"
-    },
-    {
-      "time": 1350,
-      "text": "I PROPOSE AND SIGN NOT ONE OF YOUR REPUBLICAN BUDDIES WORK WANT A FORT. WE FINALLY BEAT BIG PHARMA. INSTEAD OF PAYING $400 A MONTH OR THEREABOUTS FOR INSULIN WITH DIABETES AND ONLY COSTS 10 BUCKS TO MAKE THEY"
-    },
-    {
-      "time": 1367,
-      "text": "ONLY GET PAID. 35 AMONG ABOUT STILL MAKE A HEALTHY PROFIT. THAT THE COST THE $35 FOR EVERY AMERICAN NEEDS IT."
-    },
-    {
-      "time": 1392,
-      "text": "PEOPLE TALKED ABOUT IT, BUT FINALLY WE GOT IT DONE. GAME MEDICARE, THE POWER TO NEGOTIATE LOWER PRICES ON PRESCRIPTION DRUGS. JUST LIKE THE VA IS ABLE TO DO FOR VETERANS. THAT'S NOT JUST SAVING SENIORS. MONEY, SAVE"
-    },
-    {
-      "time": 1407,
-      "text": "TAXPAYERS MONEY CUT THE FEDERAL DEFICIT BY 160 BILLION DOLLARS. THE PRICE IS THE BIG PHARMA. THIS YEAR, MEDICARE"
-    },
-    {
-      "time": 1423,
-      "text": "NEGOTIATE. LOWER PRICES ARE SOME OF THE COSTLIEST DRUGS ON THE MARKET. THE TREAT EVERYTHING FROM HEART DISEASE. ARTHRITIS. IT'S NOW TIME TO GO FURTHER AND GIVE MEDICARE THE POWER TO NEGOTIATE. LOWER PRICES FOR 500 DIFFERENT DRUGS OVER THE NEXT DECADE. A"
-    },
-    {
-      "time": 1444,
-      "text": "PROFITABLE. WELL, NOT ONLY SAVE LIVES, IT WILL SAVE TAXPAYERS. ANOTHER 200 BILLION DOLLARS. THERE'S A MORE CAPS TOTAL PRESCRIPTION DRUG COSTS"
-    },
-    {
-      "time": 1459,
-      "text": "FOR SENIORS ON MEDICARE AT 200 TO $2000 A YEAR HERE ARE EXPENSIVE CANCER DRUGS THAT COST 10, 12, $15,000. I WANT TO CAP PRESCRIPTION DRUG COSTS OF $2000 A YEAR FOR EVERYONE."
-    },
-    {
-      "time": 1483,
-      "text": "GET IN TROUBLE FOR SAYING THAT MANY WANT TO GET THEIR FORCE ONE FLY TO TORONTO, BERLIN, MOSCOW, ME ME. AND IT WILL EVEN MOSCOW PROBABLY. AND BRING YOUR PRESCRIPTION WITH YOU. AND I PROMISE GET A 4"
-    },
-    {
-      "time": 1498,
-      "text": "YEAR FOR 40%. THE COST YOU PAY NOW, SAME COMPANY, SAME SAME PLACE. >> BEFORE DOUBLE CARE ACT. YOU KNOW, WOMMACK HAIR. STILL A VERY BIG DEAL."
-    },
-    {
-      "time": 1525,
-      "text": ">> INTERVIEW. CAN NO LONGER BE DENIED HEALTH INSURANCE BECAUSE OF PRE-EXISTING CONDITION. FOR MY PREDECESSOR. MANY IN THIS CHAMBER WANT TO TAKE REPROTS TRIP SHUNNED RATHER WAY BY REPEALING AFFORDABLE CARE ACT. I'M NOT"
-    },
-    {
-      "time": 1543,
-      "text": "LET THAT HAPPEN. PROTECTING ON EXPANDING IT. ENACTED TAX"
-    },
-    {
-      "time": 1561,
-      "text": "CREDITS OF STATE $100 PER PERSON PER YEAR REDUCE HEALTH CARE COSTS FOR MILLIONS OF WORKING FAMILIES. THAT TAX CREDIT EXPIRES NEXT YEAR. I WANT TO MAKE THAT SAVINGS PERMANENT. TO STATE THE"
-    },
-    {
-      "time": 1579,
-      "text": "OBVIOUS WOMEN ARE MORE THAN HALF OUR POPULATION. BUT RESEARCH WOMEN'S HEALTH HAS ALWAYS BEEN UNDERFUNDED. THAT'S WHY WE'RE LAUNCHING THE FIRST-EVER WHITE HOUSE INITIATIVE ON WOMEN'S HEALTH RESEARCH LED BY JAIL. GOING INCREDIBLE JOB."
-    },
-    {
-      "time": 1609,
-      "text": ">> PAST MY PLAN FOR 12 MILLION DOLLARS OR TRANSFER WOMEN'S HEALTH RESEARCH AND BENEFIT MILLIONS OF LIFE ALL ACROSS AMERICA. I KNOW THE COST OF HOUSING IS SO IMPORTANT TO YOU. INFLATION KEEPS COMING DOWN. MORTGAGE RATES WILL COME DOWN AS WELL. AND THE FED ACKNOWLEDGES THAT. BUT I'M NOT"
-    },
-    {
-      "time": 1624,
-      "text": "WAY. I WANT TO PROVIDE AN ANNUAL TAX CREDIT. IT WILL GIVE AMERICANS $400 A MONTH FOR THE NEXT 2 YEARS AS MORTGAGE RATES COME DOWN TO PUT TOWARD THEIR MORTGAGES WHEN THEY BUY THEIR FIRST HOME. WE'RE TRAINED UP FOR A"
-    },
-    {
-      "time": 1639,
-      "text": "LITTLE MORE SPACE. >> YEAR."
-    },
-    {
-      "time": 1656,
-      "text": ">> THERE'S ALSO ELIMINATING TITLE INSURANCE ON FEDERALLY BACKED MORTGAGES. REFINANCE YOUR HOME. YOU CAN SAVE $1000 AND MORE AS A CONSEQUENCE. >> FOR MILLIONS OF RENTERS. WE'RE CRACKING DOWN BIG"
-    },
-    {
-      "time": 1673,
-      "text": "LANDLORDS TO USE AN ACTRESS A LOT USING TRYING BREAK AN INTEREST LAWS. >> BY PRICE FIXING AND DRIVING UP, RENTS. CUT RED TAPE SO BOATERS CAN GET FEDERALLY FINANCING, WHICH IS ALREADY HELPING BUILD A RECORD. 1.7 MILLION NEW HOUSE. YOU HOUSING"
-    },
-    {
-      "time": 1688,
-      "text": "UNITS NATIONWIDE. >> NOW PASSION BUILD AND RENOVATE. >> 2 MEN AND HOPE FOR A DOUBLE HOMES AND BRING THOSE RENTS DOWN."
-    },
-    {
-      "time": 1715,
-      "text": ">> REMAIN THE STRONGEST ECONOMY IN THE WORLD. WE NEED TO HAVE THE BEST EDUCATION SYSTEM IN THE WORLD. YOU. WANT TO GIVE A CHILD EVERY CHILD, A"
-    },
-    {
-      "time": 1730,
-      "text": "GOOD START. >> BY PROVIDING ACCESS TO PRESCHOOL FOR 3, 4 YEARS OLD."
-    },
-    {
-      "time": 1748,
-      "text": "THE CHILDREN COMING FROM BROKEN HOMES WHERE THERE'S NO BOOKS AND NOT READ, DO NOT VERY OFTEN. START SCHOOL, KINDERGARTEN OR FIRST GRADE HERE IN HAVING HEARD A MILLION FEWER WORDS SPOKEN. STUDY SHOW THE CHILDREN TO GO TO PRESCHOOL AND EARLY 50% MORE"
-    },
-    {
-      "time": 1763,
-      "text": "LIKELY TO FINISH HIGH SCHOOL ONE OR 2, 4, GREAT NO MATTER WHAT THEIR BACKGROUND IS. YEAR"
-    },
-    {
-      "time": 1781,
-      "text": "AND A HALF AGO WITH LEADERS OF THE BUSINESS ROUNDTABLE. THEY'RE MAD THAT I THEY WERE ANGRY. I SAID, WELL, THEY DISCUSSING. I WANT TO SPEND MONEY ON EDUCATION. I POINTED OUT TO THEM AS VICE PRESIDENT."
-    },
-    {
-      "time": 1796,
-      "text": "I MET WITH OVER A I THINK IT WAS 182. THOSE FOLKS DON'T KNOW ME. THE EXACT NUMBER. I ASKED THEM WHAT THEY NEED MOST. THE CEO OF AND YOU HAD THE SAME EXPERIENCE, BOTH SIDES. NOW THEY SAY BETTER EDUCATED WORKFORCE. SO LOOK"
-    },
-    {
-      "time": 1811,
-      "text": "AT. I SAY, I COME FROM DELAWARE. THE PRIME USED TO BE THE 8TH LARGEST CORPORATION WORLD. AND EVERY NEW INTO ENTERPRISE, BOUGHT THE EDUCATED WORKFORCE TO THAT ENTERPRISE. BUT NOT IF YOU DO THAT ANYMORE. WHY ARE YOU"
-    },
-    {
-      "time": 1830,
-      "text": "ANGRY WITH PROVIDE YOU THE OPPORTUNITY. THE BEST EDUCATED WORKFORCE IN THE WORLD. THEY'LL LOOK TO ME AND SAID I THINK YOU'RE RIGHT. I WANT TO EXPAND HIGH-QUALITY TO DURING AND SOME ARE LEARNING. WE SEE THAT EVERY CHILD LEARNS TO READ BY 3RD GRADE."
-    },
-    {
-      "time": 1856,
-      "text": ">> ALSO CONNECTING LOCAL BUSINESSES AND HIGH SCHOOLS. SO STUDENTS GET HANDS-ON EXPERIENCE IN THE PATH TO GOOD-PAYING JOB. >> WHETHER OR NOT THEY GO TO COLLEGE. BUT WANT TO MAKE SURE THE COLLEGES MORE AFFORDABLE."
-    },
-    {
-      "time": 1871,
-      "text": "LETS CONTINUE INCREASING THE PELL GRANTS TO WORKING AND MIDDLE-CLASS FAMILIES AND INCREASE RECORD INVESTMENTS. >> AND THEY SEE YOU. SPENDING CUTS, THE PATIENT."
-    },
-    {
-      "time": 1888,
-      "text": ">> I WAS TOLD I COULDN'T UNIVERSALLY JUST CHANGE THE WAY IN WHICH YOU COULD DO THAT WITH STUDENT LOANS. I FIXED TO STUDENT LOAN PROGRAMS THAT ALREADY EXIST. TO REDUCE THE BURDEN OF STUDENT DEBT FOR NEARLY 4 MILLION AMERICANS. CLEAN NURSES, FIRE, FIGHT. >> PUBLIC SERVANT. PUBLIC"
-    },
-    {
-      "time": 1908,
-      "text": "EDUCATION MINNESOTA. WE'LL SHARE WITH US TONIGHT. WORLD. >> THANK YOU. HE'S EDUCATED HUNDREDS OF STUDENTS SO THEY CAN GO TO COLLEGE. NOW HE'S ABLE TO HELP AFTER DEBT FORGIVENESS, GET HIS OWN DAUGHTER TO COLLEGE. YOU IS"
-    },
-    {
-      "time": 1935,
-      "text": "GOOD FOR THE ECONOMY BECAUSE FOLKS ARE NOW ABLE TO BUY A HOME, START A BUSINESS, START A FAMILY. >> WHILE WE'RE AT IT. >> I WANT THE PUBLIC SCHOOL TEACHERS A RAISE."
-    },
-    {
-      "time": 1962,
-      "text": "BY THE WAY, THE FIRST COUPLE YEARS WE CUT THE DEFICIT. NOW, LET ME SPEAK TO THE QUESTION OF FUNDAMENTAL FAIRNESS FOR ALL AMERICANS. I'VE BEEN DELIVERING REAL RESULTS AND FISCALLY RESPONSIBLE WAYS. ALREADY CUT THE FEDERAL DEFICIT. WE'VE"
-    },
-    {
-      "time": 1977,
-      "text": "ALREADY CUT THE FED OVER A TRILLION DOLLARS. >> BIPARTISAN DEAL. GOT ANOTHER TRILLION DOLLARS EXTRAS. >> IT'S MY GOAL TO CUT THE FEDERAL DEFICIT. OTHER 3 CHILDREN BY MAKING BIG CORPORATIONS, A VERY WEALTHY"
-    },
-    {
-      "time": 1992,
-      "text": "FINALLY TO GET IN, TO PAY THEIR FAIR SHARE. I'M A CATHOLIC WANAMAKER CAN MAKE A MILLION AMERICANS BUCKS."
-    },
-    {
-      "time": 2008,
-      "text": "THAT'S GREAT. JUST PAY YOUR FAIR SHARE IN TAXES. IT'S HOW INVESTING TO MAKE THIS COUNTRY GREAT HEALTH CARE, EDUCATION, DEFENSE AND SO MUCH MORE. BUT HERE'S THE DO. LAST BACK TO"
-    },
-    {
-      "time": 2025,
-      "text": "THE 2 TRILLION DOLLAR TAX CUT OVERWHELMINGLY BENEFIT THE TOP ONE PERCENT. THE VERY WEALTHY, THE BIGGEST CORPORATIONS. AND EXPLODED THE FEDERAL DEFICIT."
-    },
-    {
-      "time": 2041,
-      "text": "THEY ADD MORE TO THE NATIONAL DEBT THAN ANY PRESIDENTIAL TERM IN AMERICAN HISTORY. CHECKED THE NUMBERS. FOLKS AT HOME. DOES ANYBODY THINK THE TAX CODE IS FAIR? REALLY THINK THE WEALTHY AND BIG CORPORATIONS NEED ANOTHER"
-    },
-    {
-      "time": 2056,
-      "text": "2 TRILLION DOLLAR TAX BREAK. I SURE DON'T. GOING TO KEEP FIGHTING LIKE H*** TO MAKE IT FAIR. UNDER MY PLAN. NOBODY EARNING LESS THAN $400,000 PAY ADDITIONAL PAID IN FEDERAL TAXES. NOBODY NOT ONE THE"
-    },
-    {
-      "time": 2081,
-      "text": "CHILD TAX CREDIT PASSED DURING THE PANDEMIC, CUT TAXES FOR MILLIONS OF WORKING FAMILIES AND CUT CHILD POVERTY IN HALF."
-    },
-    {
-      "time": 2100,
-      "text": "TO MAKE BIG CORPORATIONS A VERY WELL TO BEGIN TO PAY THEIR FAIR SHARE. REMEMBER, IN 2020, 55 OF THE BIGGEST COMPANIES IN AMERICA, A 40 BILLION DOLLARS. >> CONTAINS 0 IN FEDERAL INCOME TAXES. 0. NOT ANYMORE."
-    },
-    {
-      "time": 2118,
-      "text": "THANKS A ROE WE SIGNED BIG COMPANIES HAVE TO PAY MINIMUM 15%. >> BUT THAT'S STILL LESS AND WORKING PEOPLE PAY FEDERAL TAXES. IT'S TIME TO RAISE CORPORATE MINIMUM TAX TO AT LEAST 21%."
-    },
-    {
-      "time": 2138,
-      "text": ">> WE'VE PAY THEIR FAIR SHARE. >> ALSO WON AND TAX BREAKS FOR BIG PHARMA. PRIVATE CHECKS. MASSIVE EXECUTIVE PAY WAS ALWAYS POSTING MILLION ABOUT A MILLION DOLLARS. YOU CAN BE DEDUCTED. PICKUP AND 20 MILLION. THEY WANT DEDUCT A MILLION. AND IT NOW. YOU KNOW,"
-    },
-    {
-      "time": 2156,
-      "text": "THEY ARE 1000 BILLIONAIRES IN AMERICA. YOU KNOW WHAT? THE AVERAGE FEDERAL TAXES FOR THOSE BILLIONAIRES. NO. MAKING GREAT SACRIFICES. 8.2%. THAT'S FAR LESS THAN THE VAST"
-    },
-    {
-      "time": 2171,
-      "text": "MAJORITY AMERICANS PAY. >> NO BILLIONAIRES SHOULD PAY LOWER FEDERAL TAX RATE THAN A TEACHER. A SANITATION WORKER OR NURSE."
-    },
-    {
-      "time": 2193,
-      "text": "THERE'S A 25%. JUST 25%. YOU KNOW WHAT THAT WOULD RAISE RAISE 500 BILLION DOLLARS OVER THE NEXT 10 YEARS. IMAGINE WHAT THAT COULD DO FOR AMERICA. IMAGINE A FUTURE WITH AFFORDABLE CHILD"
-    },
-    {
-      "time": 2208,
-      "text": "CARE. THE FAMILIES CAN GET. >> THEY NEED TO GO TO WORK OUT, GROW THE ECONOMY. IMAGINE A FUTURE PAID ME BECAUSE NO ONE SHOULD HAVE TO CHOOSE BETWEEN WORKING TO TAKE CARE OF FAMILY MEMBER. IMAGINE THE"
-    },
-    {
-      "time": 2223,
-      "text": "FUTURE OF HOME CARE. ELDER CARE. PEOPLE LIVING WITH DISABILITIES WHERE THEY CAN STAY IN THEIR HOMES. AND FAMILY CAREGIVERS CAN FINALLY >> GET THE PAY. THEY DESERVE. LET'S ALL AGREE. ONCE AGAIN TO STAND UP FOR SENIORS. MY"
-    },
-    {
-      "time": 2239,
-      "text": "FRIENDS. ON THE OTHER SIDE OF I WANT TO PUT SOCIAL SECURITY ON THE CHOPPING BLOCK. ANYONE HERE TRIES TO CUT SOCIAL SECURITY, MEDICARE, RAISING RETIREMENT AGE. I WILL STOP YOU. COUNTRY."
-    },
-    {
-      "time": 2266,
-      "text": ">> PAY MORE INTO SOCIAL SECURITY TO MILLIONAIRES AND BILLIONAIRES. DO. IT'S NOT FAIR. HAVE 2 WAYS TO GO. REPUBLICANS CAN CUT SOCIAL SECURITY AND GIVE MORE TAX BREAKS TO THE WEALTHY. THAT'S THE PROPOSAL."
-    },
-    {
-      "time": 2283,
-      "text": ">> YOU GUYS DON'T WANT ANOTHER 2 TRILLION DOLLAR TAX CUT. I KIND OF THOUGHT THAT'S WHAT YOUR PLAN GOING TO HEAR. YOU'RE NOT GOING TO CUT ANOTHER 2 TRILLION DOLLARS TO THE SUPER THAT'S GOOD TO HEAR."
-    },
-    {
-      "time": 2298,
-      "text": "PROTECT AND STRENGTHEN SOCIAL SECURITY, MAKE THE WEALTHY PAY THEIR FAIR SHARE."
-    },
-    {
-      "time": 2314,
-      "text": "RAISE PRICES TO PAD THE PROFITS. CHARGING MORE AND MORE FOR LESS AND LESS. THAT STARTS CRACKING DOWN ON CORPORATIONS ENGAGED IN PRICE GOUGING DECEPTIVE PRICING FROM FOOD TO HEALTH CARE, TO HOUSING. IN FACT, THE SNACK COMPANIES THINK YOU"
-    },
-    {
-      "time": 2330,
-      "text": "WON'T NOTICE IF A CHANGE THE SIZE OF THE BAG. YOU PUT A WHOLE LOT FEWER. SAME SIZE BACK. BUT FEWER CHIPS NOT JOKING. IT'S CALLED SHRINKFLATION PAST BOBBY CASEY'S BILL AND STOP"
-    },
-    {
-      "time": 2360,
-      "text": "WE ALL SAW THAT COMMERCIAL LINES. SNICKERS BARS. YOU YOU GET CHARGES SAY, YOU GOT ABOUT, 10%. FEWER SECTOR ISN'T. I'M ALSO GETTING RID OF JUNK FEES. THOSE 10 PHASE. AT THE END OR"
-    },
-    {
-      "time": 2378,
-      "text": "BUILDER THERE WITHOUT YOUR KNOWLEDGE. MY ADMINISTRATION ANNOUNCED WE'RE CUTTING CREDIT CARD LATE FEES FROM $32 TO $8."
-    },
-    {
-      "time": 2395,
-      "text": "TO CHARGE WHAT IT COST TO INSTIGATE 3 BIG THE COLLECTION. AND THAT'S MORE HELD A LOT LIKE $8 AND 30 SOME DOLLARS. THEY DON'T LIKE IT. CREDIT CARD COMPANIES DON'T LIKE IT. SAVING AMERICAN"
-    },
-    {
-      "time": 2410,
-      "text": "FAMILIES. 20 BILLION DOLLARS YEAR WITH ALL THE JUNK FEES ANOMALY. >> THAT'S WHERE THE BANKS ARE. SOME MATTERS. 20 BILLION DOLLARS IN PROFIT. I'M NOT"
-    },
-    {
-      "time": 2425,
-      "text": "STOPPING THERE. BIDEN SAYS PROS RULES TO MAKE CABLE TRAVEL UTILITIES ONLINE. TICKET SELLERS TELL YOU THAT HOLD PRICE UP FRONT. SO THERE ARE NO SURPRISES."
-    },
-    {
-      "time": 2442,
-      "text": ">> SO DOES THIS. >> MY TEAM AGAIN, SERIOUS NEGOTIATIONS, A BIPARTISAN GROUP OF SENATORS. THE RESULT WAS A BIPARTISAN BILL, BUT THE TOUGHEST, A BORDER SECURITY REFORMS WE'VE EVER"
-    },
-    {
-      "time": 2458,
-      "text": ">> I DON'T THINK SO. YOU DON'T LIKE >> CONSERVATIVES GOT TOGETHER AND SAID IT WAS A GOOD BILL. >> BE DARNED. THAT'S AMAZING."
-    },
-    {
-      "time": 2475,
-      "text": "BIPARTISAN HIRE 1500 MORE SECURITY AGENTS AND OFFICERS 100 MORE IMMIGRATION JUDGES HELP TALK OF A BACK LOAD OF 2 MINUTE CASES, 4,003 AND A MORE ASYLUM OFFICERS AND NEW POLICY SO THEY CAN RESOLVE CASES AND 6 MONTHS INSTEAD OF 6 YEARS. NOW."
-    },
-    {
-      "time": 2503,
-      "text": "DETECTION MACHINES TO SIGNIFICANTLY INCREASED ABILITY TO SCREEN AND STOP VEHICLES, SMUGGLING FENTANYL IN AMERICA. >> THAT'S"
-    },
-    {
-      "time": 2518,
-      "text": ">> WE'LL ALSO GIVE ME A NON-RENEWAL PRESIDENT. >> NEW EMERGENCY AUTHORITY TO TEMPORARILY SHUT DOWN THE BORDER WHEN A NUMBER OF MIGRANTS AT THE BORDER IS OVERWHELMING. THE BORDER PATROL UNIT IS INDOOR, SAYS BILL. THE FEDERAL CHAMBER OF COMMERCE ISN'T A WHOLE LOOK AT"
-    },
-    {
-      "time": 2533,
-      "text": "THE FACTS."
-    },
-    {
-      "time": 2550,
-      "text": ">> I BELIEVE THAT GIVEN THE OPPORTUNITY FOR A MAJORITY IN THE HOUSE AND SENATE. >> WHAT INDOORS? THE BILL AS WELL. A MAJORITY RIGHT NOW. BUT UNFORTUNATELY, POLITICS HAS DERAILED THIS BILL SO FAR. I'M TOLD MY PREDECESSOR CALLED MEMBERS OF CONGRESS AND THE SENATE TO DEMAND THEY BLOCK THE BILL. HE FEELS POLITICAL"
-    },
-    {
-      "time": 2570,
-      "text": "WHEN VOTERS POLITICAL WIN FOR ME TO PLAY THE LOSER FOR HIM. IT'S NOT ABOUT HIM. IT'S NOT ABOUT ME. BE A WINNER. NOT REALLY."
-    },
-    {
-      "time": 2592,
-      "text": "LINCOLN RILEY. AND THEN YOUNG WOMAN WHO WAS KILLED. BY AN ILLEGAL. THAT'S RIGHT. BUT HOW MANY OF THOUSANDS OF PEOPLE BEING KILLED BY LABEL? 2 ARE PARENTS. I SAY MY HEART GOES OUT TO HAVING LOST CHILDREN MYSELF. I UNDERSTAND. IF WE"
-    },
-    {
-      "time": 2610,
-      "text": "CHANGE THE DYNAMIC AT THE BORDER. PEOPLE PAY PEOPLE, PEOPLE PAY THE SMUGGLERS 1000 BUCKS TO GET ACROSS THE BORDER BECAUSE THEY KNOW IF THEY GET BY IF THEY GET BY AND LET INTO THE COUNTRY. IT'S 60 YEARS BEFORE THEY HAVE AND IT'S"
-    },
-    {
-      "time": 2627,
-      "text": "WORTH TAKING THE CHANCE TO THE 8,000 BUT >> ONLY 6, MY 6 WEEKS. >> THE IDEA IS HIGHLY UNLIKELY THAT PEOPLE PAY THAT MONEY AND GAMAL THAT WAY, KNOWING THAT THEY'LL BE ABLE TO BE KICKED OUT QUICKLY."
-    },
-    {
-      "time": 2647,
-      "text": ">> I RESPECTFULLY SECTOR SUGGEST MARIE FRIEND OF MY REPUBLICAN TO THE AMERICAN PEOPLE GET THIS BILL DONE. WE NEED TO ACT NOW."
-    },
-    {
-      "time": 2670,
-      "text": "INSTEAD OF PAYING POLITICS. AND PRESSURE MEMBERS OF CONGRESS TO BLOCK THE BILL. JOIN ME TELLING THE CONGRESS TO PASS IT. CAN DO IT TOGETHER. APPARENTLY HERE'S WHAT HE WILL NOT DO. I WILL"
-    },
-    {
-      "time": 2687,
-      "text": "NOT DEMONIZE IMMIGRANTS SAY THEIR PORTION OF THE BLOOD OF OUR COUNTRY. >> PEOPLE BECAUSE OF THEIR FAITH."
-    },
-    {
-      "time": 2703,
-      "text": ">> LIKE MY PREDECESSOR ON MY FIRST DAY IN OFFICE. I UNDERSTOOD COMPRESSIVE BILL TO FIX OUR IMMIGRATION SYSTEM. TAKE A LOOK AT IT AS ALL THESE AND MORE SECURE THE BORDER, PROVIDE A PATHWAY TO CITIZENSHIP FOR DREAMERS AND SO MUCH MORE. >> MY PREDECESSOR."
-    },
-    {
-      "time": 2723,
-      "text": ">> THE ONLY NATION IN THE WORLD WITH THE HEART AND SOUL THAT DRAWS FROM OLD AND NEW. HOME TO NATIVE AMERICANS. ACCESS IS A BETTER FOR THOUSANDS OF YEARS. TO PEOPLE OF EVERY PLACE FROM EVERY PLACE ON EARTH THEY CAN FREELY SOME CAME AND CHANGE. SOME"
-    },
-    {
-      "time": 2740,
-      "text": "CAME WITH FAMINE STRUCK LIKE MY ANCESTRAL FAMILY IN IRELAND. SOME THE FLEE PERSECUTION TO CHASE DREAMS. VETERAN. POSSIBLE ANYWHERE. BUT HERE IN AMERICA, THAT'S AMERICA. >> ALL COME FROM SOMEWHERE."
-    },
-    {
-      "time": 2766,
-      "text": "WHEN A SIMPLE CHOICE. >> WE CAN FIGHT ABOUT FIXING THE BORDER OR WE CAN FIX IT."
-    },
-    {
-      "time": 2788,
-      "text": "TRANS RACIAL MOMENT IN HISTORY HAPPENED. 58 59 YEARS AGO TODAY IN SELMA, ALABAMA. HUNDREDS OF FOOT SOLDIERS FOR JUSTICE MARCH ACROSS THE EDMUND PETTUS BRIDGE NAMED AFTER THE GRAND DRAGON OF THE KU KLUX K*** TO CLAIM THEIR"
-    },
-    {
-      "time": 2803,
-      "text": "FUNDAMENTAL RIGHT TO VOTE. THEY WERE BEING THEIR BLOOD E. AND LEFT FOR DEAD. OUR LATE FRIEND AND FORMER COLLEAGUE JOHN LEWIS WAS ON THAT MARCH."
-    },
-    {
-      "time": 2833,
-      "text": ">> WELL, GALLERY AND ON THE FLOOR. >> INCLUDING BETTY MAE FIKES KNOWN AS THE VOICE OF SELMA. THE DAUGHTER OF GOSPEL SINGERS AND PREACHERS. SHE SANG SONGS OF PRAYER AND PROTEST ON THAT BLOOD. HE SUNDAY HELP SHAPE THE NATION'S CONSCIENCE. 5"
-    },
-    {
-      "time": 2852,
-      "text": "MONTHS LATER, THE VOTING RIGHTS ACT PASSED AND SIGNED INTO LAW."
-    },
-    {
-      "time": 2877,
-      "text": ">> 59 YEARS LATER. >> OUR FORCES TAKING US BACK IN TIME. VOTER SUPPRESSION. ELECTION SUBVERSION. I'M A BIT OF DARK MONEY, EXTREME GERRYMANDERING. JOHN LEWIS IS"
-    },
-    {
-      "time": 2892,
-      "text": "A GREAT FRIEND TO MANY OF US HERE. BUT IF YOU TRULY WANT TO HONOR HIM AND ALTHOUGH THERE IS A MARCH WITH HIM, IT IS TIME TO DO MORE THAN TALK. >> THE FREEDOM TO VOTE"
-    },
-    {
-      "time": 2920,
-      "text": ">> OFTEN I CORE VALUE OF AMERICA, OUR DIVERSITY ACROSS AMERICAN LIFE. BANNING BOOKS. IT'S WRONG. >> AND SENATE ARE RAISING THE ISSUE GETS MAKE HISTORY. I WANT TO PROTECT FUNDAMENTAL RIGHTS. PASS EQUALITY ACT."
-    },
-    {
-      "time": 2957,
-      "text": ">> HE MONDAY MORE THAN A 7 BUCKS AN HOUR. >> WE'RE ALSO MAKING HISTORY BY CONFRONTING THE CLIMATE CRISIS, NOT TO 9. DON'T THINK ANY OF YOU THINK THERE'S NO LONGER CLIMATE CRISIS. LEAST I HOPE YOU DO. TAKING MOST"
-    },
-    {
-      "time": 2975,
-      "text": "SIGNIFICANT ACTION EVER ON CLIMATE HISTORY OF THE WORLD. >> CUTTING OUR CARBON EMISSIONS IN HALF BY 2030. CREDIT, 10'S OF THOUSANDS CLEAN ENERGY JOBS LIKE I B W WORK IS BUILDING A 500,000 ELECTRIC VEHICLE, TAKING"
-    },
-    {
-      "time": 3003,
-      "text": "ACTION ON ENVIRONMENTAL JUSTICE FENCELINE COMMUNITY SMOTHERED ON THE LEGACY OF POLLUTION. AND PATTERNED AFTER THE PEACE CORPS AND AMERICORPS, I LAUNCHED THE CLIMATE CORPS. >> TO PUT 20,000 YOUNG PEOPLE TO WORK. IN THE FOREFRONT OF"
-    },
-    {
-      "time": 3018,
-      "text": "OUR CLEAN ENERGY FUTURE. TRIPLE THAT NUMBER IN A DECADE. TO STATE THE OBVIOUS."
-    },
-    {
-      "time": 3034,
-      "text": ">> ALL AMERICANS. >> DESERVE THE FREEDOM TO BE SAFE. AND AMERICA SAFER TODAY THAN WHEN I TOOK OFFICE. >> YEAR BEFORE IT TOOK OFF, HIS MURDER HAS UP 30%. 30%. THEY WENT OUT. THE BIGGEST"
-    },
-    {
-      "time": 3052,
-      "text": "INCREASE IN HISTORY. IT WAS THEN. THROUGH KNOW, FOR MY AMERICAN RESCUE PLAN, WHICH EVERY AMERICAN VOTED AGAINST TIME AT THAT. >> WE MADE THE LARGEST INVESTMENT PUBLIC SAFETY LAST YEAR. THE MURDER RATE CHARGES"
-    },
-    {
-      "time": 3067,
-      "text": "SHOPPERS DECREASE IN HISTORY. VIOLENT CRIME FELL TO ONE OF HIS LOWEST LEVELS IN MORE THAN 50 YEARS. BUT WE HAVE MORE TO DO THAT. HELPS CITIES INVESTING MORE COMMUNITY POLICE OFFICERS, MORE MENTAL HEALTH WORKERS. >> MORE COMMUNITY VIOLENCE."
-    },
-    {
-      "time": 3092,
-      "text": "WELL PLACED BEFORE. >> DIRECTING MY CABINET TO REVIEW THE FEDERAL CLASSIFICATION OF MARIJUANA, EXPANDING THOUSANDS OF CONVICTIONS FOR THE MERE POSSESSION BECAUSE NO ONE"
-    },
-    {
-      "time": 3107,
-      "text": "SHOULD BE JAILED FOR SIMPLY USING OR HAVING ON THE RECORD. WRAPPING UP THE FEDERAL ENFORCEMENT VASQUEZ FROM A NIGHT THAT I PROUDLY WROTE"
-    },
-    {
-      "time": 3122,
-      "text": "WHEN I WAS A SENATOR. SO WE CAN FINALLY FINALLY END THE SCOURGE AGAINST WOMEN IN AMERICA. I WANT TO STOP. WITH"
-    },
-    {
-      "time": 3139,
-      "text": "US TONIGHT. IS JASMINE, HIS 9 YEAR-OLD SISTER JACKIE WAS MURDERED WITH 21 CLASSMATES AND TEACHERS IN ELEMENTARY SCHOOL AND UVALDE TEXAS. VERY SOON AFTER THAT HAPPENED. JOE AND I WANT TO VOLUNTEER FOR A COUPLE DAYS. WE SPENT HOURS"
-    },
-    {
-      "time": 3154,
-      "text": "AND HOURS WITH EACH OF THE FAMILIES. WE HEARD THEIR MESSAGE. SO EVERYONE IN THIS ROOM IN THIS CHAMBER CAN HEAR THE SAME MESSAGE. THE CONSTANT RAIN AND I WAS THERE FOR HOURS EVERY FAMILY. HE DO SOMETHING."
-    },
-    {
-      "time": 3169,
-      "text": "DO SOMETHING. WELL, I DID DO SOMETHING BY STABBING THE FIRST-EVER OFFICE OF GUN VIOLENCE PREVENTION IN THE WHITE HOUSE. >> VICE PRESIDENT LEADING THE CHARGE."
-    },
-    {
-      "time": 3196,
-      "text": ">> MY PREDECESSOR TOLD THE NRA HE'S PROUD HE DID NOTHING ON GUNS WHEN HE WAS PRESIDENT. AFTER ANOTHER SHOOTING. AND RECENTLY HE SAID WHEN ASKED WHAT TO DO ABOUT JUST GET OVER IT. THERE IS, QUOTE, JESSICA"
-    },
-    {
-      "time": 3213,
-      "text": "DOVER. >> I SAY STOP IT. >> STOP IT. STOP IT. STOP IT."
-    },
-    {
-      "time": 3230,
-      "text": ">> WHEN I SIGNED MOTION HAVING GUN SAFETY LAW IN NEARLY 30 YEARS BECAUSE OF THIS CONGRESS. WE NOW MUST BE THE NRA. AGAIN, I'M DEMANDING A BAN ON ASSAULT WEAPONS AND HIGH CAPACITY MAGAZINE."
-    },
-    {
-      "time": 3251,
-      "text": ">> THE SECOND AMENDMENT FOR 12 YEARS. >> NOT IN VIOLATES THE SECOND AMENDMENT. >> VILIFIES RESPONSIBLE GUN OWNERS. YOU KNOW, AS YOU MANAGE CHALLENGES HOME ARE ALSO MANAGING CRISIS ABROAD, INCLUDING THE MIDDLE EAST. I"
-    },
-    {
-      "time": 3268,
-      "text": "KNOW THE LAST 5 MONTHS HAVE BEEN GUT-WRENCHING FOR SO MANY PEOPLE. ISRAELI PEOPLE FOR THE PALESTINIAN PEOPLE. AND SO MANY HERE IN AMERICA. THIS CRISIS BEGAN ON OCTOBER 7, THE MASSACRE BY TEARS COOK HAMAS. AS YOU ALL KNOW. 1200"
-    },
-    {
-      "time": 3284,
-      "text": "INNOCENT. WOMEN AND GIRLS, MEN AND BOYS SLAUGHTERED AFTER ENDURING SEXUAL VIOLENCE. THE DEADLIEST DAY OF THAT FOR THE JEWISH PEOPLE SINCE HOLOCAUST. AND 250 HOSTAGES TAKE. AND"
-    },
-    {
-      "time": 3300,
-      "text": "CHAMBER TONIGHT. OUR FAMILIES WHOSE LOVED ONES ARE STILL BEING HELD BY HAMAS. I PLACE ALL THE FAMILIES THAT WILL NOT REST UNTIL WE BRING EVERYONE YOU'RE LOVED ONES HOME. >> WE"
-    },
-    {
-      "time": 3333,
-      "text": ">> EVIDENT PAUL AMERICANS BEING UNJUSTLY DETAINED BY THE RUSSIANS. AND OTHERS AROUND THE WORLD. ISRAEL HAS A RIGHT TO GO AFTER HAMAS. HAMAS AND OF THIS CONFLICT RELATION HOSTAGES LAYING DOWN ARMS COULD END IT BY RELEASING"
-    },
-    {
-      "time": 3352,
-      "text": "HOSTAGES LAYING DOWN ARMS AND SURROUNDING THOSE RESPONSIBLE FOR OCTOBER 7. >> BUT ISRAEL ASK IS ISRAEL HAS? ADDED BIRD BECAUSE HAMAS HIDES AND OPERATES AMONG THE CIVILIAN POPULATION LIKE OURS. AND ARE HOSPITALS. THANK YOU, ALL THE LIKE."
-    },
-    {
-      "time": 3369,
-      "text": ">> THERE'S ALSO HAS A FUNDAMENTAL RESPONSIBILITY, THOUGH, TO PROTECT INNOCENT CIVILIANS IN GAZA."
-    },
-    {
-      "time": 3388,
-      "text": ">> TAKEN A GREATER TOLL CIVILIANS AND ALL PREVIOUS WARS IN GAZA COMBINED. >> MORE THAN 30,000 PALESTINIANS HAVE BEEN KILLED. MOST OF HOME ARE NOT HAMAS. THOUSANDS AND THOUSANDS OF INNOCENT WOMEN AND CHILDREN, GIRLS AND BOYS ALSO OR FRONT."
-    },
-    {
-      "time": 3403,
-      "text": ">> NEARLY 2 MILLION. >> MORE PALESTINIANS UNDER BOMBARDMENT OR DISPLACEMENT HOMES DESTROYED NEIGHBORS AND RUBBLE. CITIES IN ROOM. FETTERS OUT FOOD, WATER, MEDICINE. IT'S HEARTBREAKING."
-    },
-    {
-      "time": 3418,
-      "text": "I'VE BEEN WORKING NONSTOP TO ESTABLISH AN IMMEDIATE CEASE-FIRE LAST FOR 6 WEEKS TO GET ALL THE PRISONERS RELEASED. ALL THE HOSTAGES RELEASED. WE GOT OFF HIS HOME. AND EASY INTOLERABLE AND YOU HAVE A HUMANITARIAN CRISIS. AND BUILT TOWARD AN ENDURING"
-    },
-    {
-      "time": 3433,
-      "text": "OR SOMETHING MORE ENDURING. UNITED STATES LEADING AN INTERNATIONAL EFFORT TO GET MORE HUMANITARIAN ASSISTANCE I'M DIRECTING THE U.S. MILITARY TO LEAD AN EMERGENCY MISSION. TO ESTABLISH A TEMPORARY PIER IN THE"
-    },
-    {
-      "time": 3448,
-      "text": "MEDITERRANEAN ON THE COAST OF GAZA. I CAN RECEIVE LARGE SHIPMENTS, CURRENT FOOD, WATER, MEDICINE, A TEMPORARY SHELTER. NO U.S. BOOTS WILL BE ON THE GROUND. A TEMPORARY PIER WILL ENABLE A MASSIVE INCREASE. THE MOMMY RESISTANCE"
-    },
-    {
-      "time": 3463,
-      "text": "GETTING GUYS EVERY DAY. ISRAEL"
-    },
-    {
-      "time": 3478,
-      "text": "MUST ALLOW MORE AID INTO GAZA ENSURE HUMANITARIAN WORKERS ARE CAUGHT IN THE CROSSFIRE. AND A CROSSING IN NORTHERN GAZA. THAT ISRAEL, I SAY THAT IS. HUMANITARIAN ASSISTANCE"
-    },
-    {
-      "time": 3493,
-      "text": "CANNOT BE A SECONDARY CONSIDERATION. WE'RE A BARGAINING CHIP, PROTECTING AND SAVING INNOCENT LIVES HAS TO BE HEARD. AS WE LOOK TO THE FUTURE, THE ONLY REAL SOLUTION TO THE SITUATION IS A TWO-STATE SOLUTION OVER TIME."
-    },
-    {
-      "time": 3518,
-      "text": "LIFELONG SUPPORTER OF ISRAEL. MY ENTIRE CAREER. NO ONE HAS A STRONGER RECORD THIS THAN I DO. CHALLENGE ANY OF YOU. I'M THE ONLY AMERICAN PRESIDENT TO VISIT AS A WARTIME. BUT THERE IS NO OTHER PATH GUARANTEES"
-    },
-    {
-      "time": 3534,
-      "text": "ISRAEL, SECURITY AND DEMOCRACY. THERE'S NO THE PAST THE COUNTY'S PREP. ALLISON, YOU CAN LIVE IN PEACE WITH PART WITH PEACE AND DIGNITY. THERE'S NO THE COUNTIES PEACE BETWEEN ISRAEL AND ALL OF ITS NEIGHBORS, INCLUDING SAUDI ARABIA, WITH ALL MY TALKING."
-    },
-    {
-      "time": 3551,
-      "text": "CREDITS, THE BUILDING, THE MIDDLE ALSO MEANS CONTINUED THREAT POSED BY IRAN. THAT'S WHY BUILD A COALITION OF MORE THAN A DOZEN COUNTRIES DEFEND INTERNATIONAL SHIPPING AND FREEDOM OF NAVIGATION IN THE RED SEA. I'VE ORDERED STRIKES TO DEGRADE THE CAPABILITY DEFEND U.S. FORCES IN THE"
-    },
-    {
-      "time": 3566,
-      "text": "REGION. AS COMMANDER-IN-CHIEF. I WILL NOT HESITATE DIRECT FURTHER MEASURES TO PROTECT OUR PEOPLE IN THE MILITARY PERSONNEL. I HEARD REPUBLICAN"
-    },
-    {
-      "time": 3586,
-      "text": "AND DEMOCRATIC FRIENDS. SAY THAT CHINA IS ON THE RISE. AND AMERICANS FALLING BEHIND. WE'VE GOT TO BACK WINS. I'VE BEEN SAYING FOR OVER 4 YEARS, EVEN I WASN'T PRESIDENT. AMERICA'S RISE. WE HAVE THE"
-    },
-    {
-      "time": 3602,
-      "text": "BEST ECONOMY IN THE WORLD. IT'S THAT I'VE COME TO OFFICE ARE GTB IS UP. OUR TRADE DEFICIT WITH CHINA IS DOWN TO THE LOWEST POINT OVER A DECADE. >> WE'RE STANDING UP AGAINST CHINA'S UNFAIR ECONOMIC PRACTICES. STAND UP FOR PEACE"
-    },
-    {
-      "time": 3618,
-      "text": "AND STABILITY ACROSS THE TAIWAN STRAITS. >> ARE REVITALIZE OUR PARTNERSHIP IN LINES IN THE PACIFIC. INDIA. AUSTRALIA, JAPAN, SOUTH KOREA, PACIFIC ISLANDS. I MADE SURE THE MOST"
-    },
-    {
-      "time": 3633,
-      "text": "ADVANCED AMERICAN TECHNOLOGY >> CAN BE USED IN CHINA, NOT ALLOWING THE TRADE THERE. FRANKLY. TOUGH TALK ON CHINA NEVER OCCURRED TO MY PREDECESSOR TO DO ANY OF THAT. >> COMPETITION WITH CHINA, NOT"
-    },
-    {
-      "time": 3648,
-      "text": "CONFLICT. IN A STRONGER POSITION WHEN THE CONFLICT IN THE 21ST CENTURY GET THAN ANYONE ELSE. >> FOR THAT MATTER THAN ANY TIME AS WELL. HERE AT HOME. I'VE SIGNED OVER 400 BIPARTISAN BILLS. THERE'S"
-    },
-    {
-      "time": 3666,
-      "text": "MORE. >> PAST MY UNITY AGENDA. STRENGTHEN PENALTIES ON FENTANYL TRAFFICKING. YOU DON'T WANT TO DO THAT NOW. PASSED BI-PARTISAN PRIVACY THAT IS TO PROTECT OUR CHILDREN ONLINE."
-    },
-    {
-      "time": 3683,
-      "text": ">> MORRIS, THE PROMISE OF AI TO PROTECT US FROM TERROR. >> VOICE OF PERSON, NATIONS AND MORE. >> AND KEEP ARE TRULY SACRED OBLIGATION TO TRAIN AND EQUIP THOSE WE SENT INTO HARM'S WAY"
-    },
-    {
-      "time": 3698,
-      "text": "CARE FOR THEM AND THEIR FAMILIES WHEN THEY COME HOME AND WHEN THEY DON'T. THIS SONG"
-    },
-    {
-      "time": 3713,
-      "text": "SUPPORT AND HELP FROM DENNIS VA. I SIGNED THE PACT ACT. >> MOST SIGNIFICANT LOSS EVER."
-    },
-    {
-      "time": 3729,
-      "text": ">> DON'T COME HOME. BUT WE OWE THEM AND THEIR FAMILIES SUPPORT. WE OWE IT TO OURSELVES TO KEEP SUPPORTING OUR NEW HEALTH RESEARCH AGENCY CALLED DARPA H. REMINDED."
-    },
-    {
-      "time": 3744,
-      "text": "REMIND US THAT WE CAN DO BIG THINGS LIKE CANCER AS WE KNOW IT. BUT A CLOSER THIS. I KNOW"
-    },
-    {
-      "time": 3774,
-      "text": "YOU WANT READ MORE LINDSAY, BUT I GOT FEW MORE THINGS. >> I KNOW IT MAY LOOK LIKE A BOBBING AROUND A WHILE. >> WHEN YOU GET TO BE MY A CERTAIN THINGS BECOME CLEARER THAN EVER. >> I KNOW THE AMERICAN STORY."
-    },
-    {
-      "time": 3791,
-      "text": "AGAIN AND AGAIN. I'VE SEEN THE CONTEST BETWEEN COMPETING FORCES IN THE BATTLE FOR THE SOUL OF OUR NATION. BUT RENO'S WANT TO PUT AMERICA BACK TO THE PAST. THOSE WANT TO MOVE AMERICA TO THE FUTURE. MY LIFETIME HAS TAUGHT ME TO EMBRACE FREEDOM AND DEMOCRACY."
-    },
-    {
-      "time": 3807,
-      "text": "A FUTURE BASED ON CORE VALUES, THE DEFINED AMERICA HONESTY, DECENCY, DIGNITY, EQUALITY. TO RESPECT EVERYONE. A FAIR SHOT TO GIVE HATE NO SAFE HARBOR."
-    },
-    {
-      "time": 3823,
-      "text": "OTHER PEOPLE MIGHT SEE IT DIFFERENTLY. THE AMERICAN STORY. RESENDING REVENGE AND RETRIBUTION. THAT'S NOT ME. WAS BORN A MAID WORLD WAR. 2, WHEN AMERICA STOOD FOR THE FREEDOM OF THE WORLD. I GREW"
-    },
-    {
-      "time": 3839,
-      "text": "UP IN SCRANTON, PENNSYLVANIA, CLIMB ON DELAWARE, AMONG WORKING CLASS PEOPLE WHO BUILT THIS COUNTRY. I WATCHED IN HAR AS 2 OF MY HEROES. LIKE MANY OF YOU DID, DOCTOR KING AND BOBBY KENNEDY ASSASSINATED."
-    },
-    {
-      "time": 3854,
-      "text": "AND THEIR LEGACIES AND SMART PREVIOUS FOR SEWER CAREER SERVICE. >> I LEFT THE LAW FIRM BECAME A PUBLIC DEFENDER BECAUSE MY CITY OF BLOOMINGTON WAS ONLY CITY IN AMERICA OCCUPIED THE NATIONAL GUARD AFTER DOCTOR KING WAS ASSASSINATED BECAUSE OF THE RIOTS AND I BECAME A"
-    },
-    {
-      "time": 3871,
-      "text": "COUNTY ALMOST BY ACCIDENT. I GOT ELECTED UNITED STATES SENATE AND I HAVE NO INTENTION OF RUNNING TODAY 29. THEN VICE PRESIDENT OR FIRST BLACK PRESIDENT. NOW PRESIDENT OF THE FIRST WOMEN'S RIGHTS."
-    },
-    {
-      "time": 3904,
-      "text": ">> I'VE BEEN TOLD TOO YOUNG. I'M WAITING TO LET ME ON THE SENATE. ALL OF IT FOR A VOTE SOMETIME NOT A JOKE. I'VE BEEN TOLD I'M TO WHETHER YOUNG OR"
-    },
-    {
-      "time": 3919,
-      "text": "OLD I'VE ALWAYS BEEN KNOWN. I'VE ALWAYS KNOW WHAT INDOORS I KNOW IN OUR NORTH STAR. IDEA OF AMERICA'S THEY WERE ALL CREATED EQUAL DESERVES TO BE TREATED EQUALLY THROUGHOUT OUR LIVES. WE'VE NEVER FULLY LIVED UP TO THAT IDEA. NEVER WALKED"
-    },
-    {
-      "time": 3935,
-      "text": "AWAY FROM IT"
-    },
-    {
-      "time": 3958,
-      "text": ">> WE ISSUE FACING OUR NATION. >> HOW OLD WE ARE. IT'S HOW OLDER ID'S. ANGER, REVENGE, RETRIBUTION OF THE OLDEST OF IDEAS. BUT YOU CAN LEAD AMERICA WITH TENSION, IDEAS."
-    },
-    {
-      "time": 3973,
-      "text": "ONLY TAKE US BACK. YOU NEED AMERICA. THE LAND OF POSSIBILITIES YOU NEED A VISION FOR THE FUTURE AND WHAT CAN AND SHOULD BE DONE. >> TONIGHT, YOU'VE HEARD MINE. I SEE A FUTURE WHERE DEFENDING"
-    },
-    {
-      "time": 3988,
-      "text": "DEMOCRACY. YOU DON'T DIMINISH IT. I SEE A FUTURE. WE'RE RESTORING THE RIGHT TO CHOOSE TO PROTECT OUR FREEDOMS, NOT TAKE THEM AWAY. >> I SEE A FUTURE. FINANCE, A"
-    },
-    {
-      "time": 4006,
-      "text": "FAIR SHOT. HAVE TO PAY THEIR FAIR SHARE IN TAXES. I SEE A FUTURE. SAVE THE PLANET FROM THE CRIME. A CRISIS. AND OUR COUNTRY FROM GUN VIOLENCE. I"
-    },
-    {
-      "time": 4025,
-      "text": "SEE A FUTURE MAYOR. I SEE A COUNTRY. >> FOR ALL AMERICANS. ALWAYS BE PRESIDENT FOR ALL AMERICANS. >> BECAUSE I BELIEVE IN AMERICA, I BELIEVE IN YOU, THE AMERICAN PEOPLE. YOU'RE THE"
-    },
-    {
-      "time": 4042,
-      "text": "REASON WE'VE NEVER BEEN MORE OPTIMISTIC ABOUT OUR FUTURE THAT I AM NOW. SO LET'S BUILD A FUTURE TOGETHER. NOT REMEMBER WHO WE ARE, WHERE THE UNITED STATES OF AMERICA."
     }
   ]
 }

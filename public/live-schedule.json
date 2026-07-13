@@ -1,5 +1,5 @@
 {
-  "_comment": "Vote Unbiased \u2014 Live Broadcast Schedule. Edit this file to add an event; the GitHub Action picks it up on its next 5-minute cron cycle. See LIVE_BROADCAST_SETUP.md.",
+  "_comment": "Vote Unbiased — Live Broadcast Schedule. Edit this file to add an event; the GitHub Action picks it up on its next 5-minute cron cycle. See LIVE_BROADCAST_SETUP.md.",
   "events": [
     {
       "id": "potus-presser-example",
