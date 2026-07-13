@@ -126,7 +126,7 @@ function useIsMobile() {
  * variant="strip": one slim homepage row — the headline count + lead trend,
  * linking to /trends. variant="full": the complete feed (the /trends page).
  */
-export default function WhatsChanging({ variant = "full" }: { variant?: "strip" | "full" }) {
+export default function WhatsChanging({ variant = "full", embedded = false }: { variant?: "strip" | "full"; embedded?: boolean }) {
   const mob = useIsMobile();
   const [feed, setFeed] = useState<TrendsFeed | null>(null);
 
@@ -172,10 +172,11 @@ export default function WhatsChanging({ variant = "full" }: { variant?: "strip" 
 
   return (
     <section style={{
-      padding: mob ? "18px 0 8px" : "36px 0 16px",
-      borderBottom: `1px solid ${C.rule}`,
+      padding: embedded ? (mob ? "26px 0 0" : "36px 0 0") : mob ? "18px 0 8px" : "36px 0 16px",
+      borderBottom: embedded ? "none" : `1px solid ${C.rule}`,
+      borderTop: embedded ? `1px solid ${C.rule}` : "none",
     }}>
-      <div style={{ maxWidth: 1280, margin: "0 auto", padding: mob ? "0 14px" : "0 32px" }}>
+      <div style={{ maxWidth: embedded ? "none" : 1280, margin: "0 auto", padding: embedded ? 0 : mob ? "0 14px" : "0 32px" }}>
         <div style={{
           display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10,
           marginBottom: mob ? 12 : 16, flexWrap: "wrap",
