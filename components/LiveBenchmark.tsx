@@ -9,11 +9,11 @@
 // unchanged: pick a metric, see Trump II's value at month N of his term
 // against every prior president at the same point in their tenure.
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, ReferenceLine,
+  ResponsiveContainer, ReferenceLine, ReferenceDot,
 } from "recharts";
 import CompactPicker from "@/components/CompactPicker";
 import { C as EC, SERIF as ESERIF, SANS as ESANS } from "@/lib/design-tokens";
@@ -258,7 +258,7 @@ function generateShareCard(
 // ── Distinct colors for highlighted admins ────────────────────────
 const ADMIN_COLORS: Record<string, string> = {
   nixon: "#6366f1", carter: "#0ea5e9", reagan: "#f59e0b", bush41: "#14b8a6",
-  clinton: "#1d4ed8", bush43: "#7c2d12", obama: "#0d7377", trump1: "#b8372d",
+  clinton: "#1d4ed8", bush43: "#7c2d12", obama: "#0d7377", trump1: "#8a5a00", // trump1 was accent-red — collided with Trump II
   biden: "#1d4ed8", trump2: "#b8372d",
 };
 
@@ -397,6 +397,14 @@ export default function LiveBenchmark() {
   // Removes the "tooltip covers Trump II's data" problem completely — chart
   // stays clean, hover panel sits in its own row above.
   const [hover, setHover] = useState<{ month: number; payload: { dataKey: string; value: number; color: string }[] } | null>(null);
+  // ── Mobile "2a" redesign state (design handoff). Desktop untouched. ──
+  // scrubMonth: null = latest data month; set by touch-drag over the chart.
+  const [scrubMonth, setScrubMonth] = useState<number | null>(null);
+  const [rankOpen, setRankOpen] = useState(false);
+  const [openSections, setOpenSections] = useState<{ why?: boolean; how?: boolean; about?: boolean }>({});
+  const [shareSheetOpen, setShareSheetOpen] = useState(false);
+  const scrubRef = useRef<HTMLDivElement>(null);
+  const scrubbingRef = useRef(false);
 
   // Fetch live FRED-backed data
   useEffect(() => {
@@ -416,6 +424,7 @@ export default function LiveBenchmark() {
     if (m && data.metrics[m]) {
       setMetric(m);
       setHighlighted(new Set()); // clear any prior highlight state from URL
+      setScrubMonth(null); setRankOpen(false);
     }
   }, [searchParams, data]);
 
@@ -487,12 +496,90 @@ export default function LiveBenchmark() {
     allAtMonth.sort((a, b) => md.lowerBetter ? a.value - b.value : b.value - a.value);
     const rank = allAtMonth.findIndex(a => a.current) + 1;
     const sparkData = currentAdmin.data.filter(p => p.month <= currentMonth).sort((a, b) => a.month - b.month).map(p => p.value);
-    return { currentValue, historicalAvg, rank, total: allAtMonth.length, atMonth, sparkData };
+    return { currentValue, historicalAvg, rank, total: allAtMonth.length, atMonth, sparkData, allAtMonth };
   }, [md, currentMonth]);
 
   const betterThanAvg = stats && md
     ? (md.lowerBetter ? stats.currentValue < stats.historicalAvg : stats.currentValue > stats.historicalAvg)
     : false;
+
+  // ── Mobile: fitted y-domain (today's [0,'auto'] squashes everything under
+  // Trump I's COVID spike). Nice step so ~4-5 ticks land on round numbers.
+  const yDomain = useMemo<[number, number] | null>(() => {
+    if (!md) return null;
+    let lo = Infinity, hi = -Infinity;
+    for (const sr of md.series) for (const pt of sr.data) {
+      if (pt.value < lo) lo = pt.value;
+      if (pt.value > hi) hi = pt.value;
+    }
+    if (!Number.isFinite(lo) || !Number.isFinite(hi)) return null;
+    const rawStep = (hi - lo || 1) / 4;
+    const mag = Math.pow(10, Math.floor(Math.log10(rawStep)));
+    const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(x => x >= rawStep) || 10 * mag;
+    return [Math.floor(lo / step) * step, Math.ceil(hi / step) * step];
+  }, [md]);
+
+  const maxMonth = useMemo(() => {
+    if (!chartData.length) return 48;
+    return (chartData[chartData.length - 1] as { month: number }).month;
+  }, [chartData]);
+
+  // ── Mobile: pinned readout — admins with data at the scrubbed month ──
+  const readout = useMemo(() => {
+    if (!md || !stats) return null;
+    const m = scrubMonth ?? stats.atMonth;
+    const rows = chartData as Record<string, number>[];
+    const row = rows.find(r => r.month === m)
+      || [...rows].sort((a, b) => Math.abs(a.month - m) - Math.abs(b.month - m))[0];
+    if (!row) return null;
+    const entries = md.series
+      .filter(sr => Number.isFinite(row[sr.id]))
+      .map(sr => ({ id: sr.id, name: sr.name, current: sr.current, value: row[sr.id] }))
+      .sort((a, b) => {
+        if (a.current !== b.current) return a.current ? -1 : 1;
+        const aHL = highlighted.has(a.id), bHL = highlighted.has(b.id);
+        if (aHL !== bHL) return aHL ? -1 : 1;
+        return a.name.localeCompare(b.name);
+      });
+    return { month: row.month, entries };
+  }, [md, stats, scrubMonth, chartData, highlighted]);
+
+  // ── Mobile: touch scrub — map clientX → month. Geometry mirrors the
+  // mobile chart's fixed YAxis width (46) + right margin (12). ──
+  const scrubFromX = useCallback((clientX: number) => {
+    const el = scrubRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const plotLeft = rect.left + 46, plotRight = rect.right - 12;
+    if (plotRight <= plotLeft) return;
+    const frac = Math.min(1, Math.max(0, (clientX - plotLeft) / (plotRight - plotLeft)));
+    setScrubMonth(Math.min(maxMonth, Math.max(0, Math.round(frac * maxMonth))));
+  }, [maxMonth]);
+
+  // ── Mobile: "Share with friends" — Web Share API with per-metric deep link;
+  // falls back to a bottom sheet when unavailable or it rejects (non-abort). ──
+  const shareUrl = `https://voteunbiased.org/dashboard?tab=live_benchmark&metric=${metric}`;
+  const shareText = stats && md
+    ? `${md.label} at month ${stats.atMonth} of Trump's 2nd term: ${fmtVal(stats.currentValue, md.unit)} — ranked ${ordinal(stats.rank)} of ${stats.total} administrations at the same point in office. No spin — you interpret.`
+    : "";
+  const handleShareFriends = useCallback(async () => {
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try {
+        await navigator.share({ title: "Vote Unbiased — Live Benchmark", text: shareText, url: shareUrl });
+        return;
+      } catch (e) {
+        if ((e as Error)?.name === "AbortError") return; // user closed the OS sheet
+      }
+    }
+    setShareSheetOpen(true);
+  }, [shareText, shareUrl]);
+  const handleCopyLink = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setShareStatus("Link copied");
+    } catch { setShareStatus("Copy failed"); }
+    setTimeout(() => setShareStatus(null), 1800);
+  }, [shareUrl]);
 
   // Share handlers
   const handleDownload = useCallback(() => {
@@ -525,7 +612,7 @@ export default function LiveBenchmark() {
     <div style={{ animation: "fadeUp 0.4s ease" }}>
 
       {/* ── Editorial headline (matches dashboard's tab heading pattern) ── */}
-      <div style={{ marginBottom: mob ? 16 : 24 }}>
+      <div style={{ marginBottom: mob ? 12 : 24 }}>
         <div style={{ fontFamily: ESANS, fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: EC.sub, fontWeight: 500, marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#dc2626" }} />
           Live · sourced from FRED
@@ -553,13 +640,71 @@ export default function LiveBenchmark() {
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
             <button onClick={() => setSheetOpen(true)} style={{
               flex: 1, display: "flex", alignItems: "center", justifyContent: "space-between",
-              padding: "8px 12px", borderRadius: 4, border: `1px solid ${EC.rule}`, background: EC.card,
+              padding: "10px 12px", borderRadius: 4, border: `1px solid ${EC.rule}`, background: EC.card,
               fontFamily: ESANS, fontSize: 13, fontWeight: 600, color: EC.ink, cursor: "pointer",
               minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
             }}>
               <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{md?.label || "Select metric"}</span>
               <span style={{ fontSize: 10, color: EC.mute, marginLeft: 6, flexShrink: 0 }}>▾</span>
             </button>
+          </div>
+        )}
+
+        {/* ═══ MOBILE "2a" — merged stat card ═══ */}
+        {mob && stats && md && (
+          <div style={{
+            background: EC.card, border: `1px solid ${EC.rule}`, borderRadius: 4,
+            display: "grid", gridTemplateColumns: "1fr 1fr 1fr", marginBottom: 8,
+          }}>
+            {/* Trump II */}
+            <div style={{ padding: "10px 12px" }}>
+              <div style={mStatLabel}>Trump II · M{stats.atMonth}</div>
+              <div style={{ ...mStatValue, color: EC.ink }}>{fmtVal(stats.currentValue, md.unit)}</div>
+            </div>
+            {/* Historical avg */}
+            <div style={{ padding: "10px 12px", borderLeft: `1px solid ${EC.rule}` }}>
+              <div style={mStatLabel}>Hist. Avg</div>
+              <div style={{ ...mStatValue, color: EC.sub }}>{fmtVal(stats.historicalAvg, md.unit)}</div>
+            </div>
+            {/* Rank — button toggles the rank bar list */}
+            <button onClick={() => setRankOpen(o => !o)} style={{
+              padding: "10px 12px", borderLeft: `1px solid ${EC.rule}`, background: "none",
+              border: "none", borderLeftStyle: "solid", borderLeftWidth: 1, borderLeftColor: EC.rule,
+              textAlign: "left", cursor: "pointer",
+            }}>
+              <div style={mStatLabel}>Rank {md.lowerBetter ? "↓" : "↑"}</div>
+              <div style={{ ...mStatValue, color: betterThanAvg ? EC.improveStrong : EC.declineStrong, display: "flex", alignItems: "baseline" }}>
+                {ordinal(stats.rank)}
+                <span style={{ fontFamily: ESERIF, fontSize: 12, color: EC.mute, fontWeight: 400, marginLeft: 2 }}>/{stats.total}</span>
+                <span style={{ fontSize: 9, color: EC.mute, marginLeft: "auto" }}>{rankOpen ? "▾" : "▸"}</span>
+              </div>
+            </button>
+          </div>
+        )}
+
+        {/* ═══ MOBILE — rank bar list (collapsed by default) ═══ */}
+        {mob && rankOpen && stats && md && (
+          <RankBarList list={stats.allAtMonth} md={md} atMonth={stats.atMonth} adminMap={adminMap} />
+        )}
+
+        {/* ═══ MOBILE — benchmark card with disclosures ═══ */}
+        {mob && md && META[metric] && (
+          <div style={{ background: EC.card, border: `1px solid ${EC.rule}`, borderRadius: 4, padding: "0 14px", marginBottom: 8 }}>
+            <div style={{
+              display: "flex", flexWrap: "wrap", gap: "4px 14px", padding: "11px 0",
+              fontFamily: ESANS, fontSize: 12, color: EC.sub, lineHeight: 1.55,
+            }}>
+              <span><strong style={{ color: EC.improveStrong, fontWeight: 700 }}>Healthy:</strong> {META[metric].bench.good}</span>
+              <span><strong style={{ color: EC.declineStrong, fontWeight: 700 }}>Warning:</strong> {META[metric].bench.warn}</span>
+            </div>
+            <DisclosureRow label="Why this matters" open={!!openSections.why}
+              onToggle={() => setOpenSections(o => ({ ...o, why: !o.why }))}>
+              <div style={{ fontFamily: ESANS, fontSize: 12, color: EC.sub, lineHeight: 1.6 }}>{META[metric].bench.why}</div>
+            </DisclosureRow>
+            <DisclosureRow label="How it&rsquo;s measured" open={!!openSections.how}
+              onToggle={() => setOpenSections(o => ({ ...o, how: !o.how }))}>
+              <div style={{ fontFamily: ESANS, fontSize: 12, color: EC.sub, lineHeight: 1.6, fontStyle: "italic" }}>{META[metric].def}</div>
+            </DisclosureRow>
           </div>
         )}
 
@@ -603,8 +748,8 @@ export default function LiveBenchmark() {
           </div>
         </>)}
 
-        {/* ── Stat strip (3 editorial cards) ── */}
-        {stats && md && (
+        {/* ── Stat strip (3 editorial cards, DESKTOP) ── */}
+        {!mob && stats && md && (
           <div style={{
             display: "grid",
             gridTemplateColumns: mob ? "1fr 1fr" : "1fr 1fr 1fr",
@@ -644,8 +789,8 @@ export default function LiveBenchmark() {
           </div>
         )}
 
-        {/* ── Benchmark + formula (editorial inline text, not 3-card grid) ── */}
-        {md && META[metric] && (
+        {/* ── Benchmark + formula (DESKTOP) ── */}
+        {!mob && md && META[metric] && (
           <div style={{
             background: EC.card, border: `1px solid ${EC.rule}`, borderRadius: 4,
             padding: mob ? "14px 16px" : "16px 20px", marginBottom: 20,
@@ -673,8 +818,8 @@ export default function LiveBenchmark() {
           </div>
         )}
 
-        {/* ── Spaghetti chart ── */}
-        {md && (
+        {/* ── Spaghetti chart (DESKTOP) ── */}
+        {!mob && md && (
           <div style={{
             background: EC.card, border: `1px solid ${EC.rule}`, borderRadius: 4,
             padding: mob ? "14px 8px 10px" : "20px 20px 14px", marginBottom: 20,
@@ -838,6 +983,145 @@ export default function LiveBenchmark() {
           </div>
         )}
 
+        {/* ═══ MOBILE — chart card: pinned readout + touch scrub + fitted domain ═══ */}
+        {mob && md && stats && (
+          <div style={{ background: EC.card, border: `1px solid ${EC.rule}`, borderRadius: 4, padding: "14px 8px 12px", marginBottom: 16 }}>
+            <div style={{
+              fontFamily: ESERIF, fontSize: 16, fontWeight: 500, color: EC.ink,
+              letterSpacing: "-0.01em", marginBottom: 10, paddingLeft: 8,
+              display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap",
+            }}>
+              <span>{md.label}</span>
+              <span style={{ fontFamily: ESANS, fontSize: 11, color: EC.mute, fontWeight: 400 }}>· {md.series.length} administrations</span>
+            </div>
+
+            {/* Pinned readout bar — replaces the hover tooltip on touch */}
+            {readout && (
+              <div style={{
+                background: EC.ink, color: "#fff", borderRadius: 6, padding: "8px 10px",
+                margin: "0 8px 10px", display: "flex", alignItems: "flex-start", gap: 10,
+              }}>
+                <span style={{ fontFamily: ESERIF, fontSize: 13, fontWeight: 600, flexShrink: 0 }}>M{readout.month}</span>
+                <div style={{
+                  flex: 1, display: "flex", flexWrap: "wrap", gap: "2px 12px",
+                  fontFamily: ESANS, fontSize: 10.5, fontVariantNumeric: "tabular-nums",
+                }}>
+                  {readout.entries.map(e => {
+                    const isHL = highlighted.has(e.id);
+                    const col = e.current ? "#e8837a" : isHL ? "#c9d6f5" : "#9a9490";
+                    return (
+                      <span key={e.id} style={{ whiteSpace: "nowrap" }}>
+                        <span style={{ color: col, fontWeight: e.current || isHL ? 600 : 400 }}>{e.name}</span>{" "}
+                        <span>{fmtVal(e.value, md.unit)}</span>
+                      </span>
+                    );
+                  })}
+                </div>
+                {scrubMonth != null && scrubMonth !== stats.atMonth && (
+                  <button onClick={() => setScrubMonth(null)} aria-label="Reset to latest month" style={{
+                    width: 22, height: 22, borderRadius: "50%", background: "rgba(255,255,255,0.15)",
+                    border: "none", color: "#fff", fontSize: 12, cursor: "pointer", flexShrink: 0,
+                    display: "flex", alignItems: "center", justifyContent: "center", padding: 0,
+                  }}>↺</button>
+                )}
+              </div>
+            )}
+
+            {/* Chart + scrub surface */}
+            <div
+              ref={scrubRef}
+              style={{ touchAction: "none" }}
+              onPointerDown={(e) => { scrubbingRef.current = true; scrubFromX(e.clientX); }}
+              onPointerMove={(e) => { if (scrubbingRef.current) scrubFromX(e.clientX); }}
+              onPointerUp={() => { scrubbingRef.current = false; }}
+              onPointerCancel={() => { scrubbingRef.current = false; }}
+            >
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={chartData} margin={{ top: 10, right: 12, left: 0, bottom: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={EC.rule} strokeOpacity={0.6} />
+                  <XAxis dataKey="month" type="number" domain={[0, "dataMax"] as [number, string]}
+                    stroke={EC.mute} fontSize={11} fontFamily={ESANS} tick={{ fill: EC.sub }} axisLine={{ stroke: EC.rule }} />
+                  <YAxis width={46} domain={(yDomain ?? [0, "auto"]) as [number, number]}
+                    stroke={EC.rule} fontSize={10} fontFamily={ESANS} tick={{ fill: EC.sub }} axisLine={{ stroke: EC.rule }}
+                    tickFormatter={(v: number) => fmtVal(v, md.unit)} />
+                  <ReferenceLine x={currentMonth} stroke={EC.accent} strokeDasharray="4 4" strokeWidth={1.5} />
+                  {/* Gray cursor at the scrubbed month */}
+                  {scrubMonth != null && (
+                    <ReferenceLine x={scrubMonth} stroke={EC.mute} strokeDasharray="3 3" strokeWidth={1} />
+                  )}
+                  {md.series.map(sr => {
+                    const isCurrent = sr.current; const isHL = highlighted.has(sr.id);
+                    const anyHL = highlighted.size > 0;
+                    if (isCurrent) {
+                      return (
+                        <Line key={sr.id} type="monotone" dataKey={sr.id}
+                          stroke={EC.accent} strokeWidth={2} dot={false} connectNulls name={sr.name} />
+                      );
+                    }
+                    return (
+                      <Line key={sr.id} type="monotone" dataKey={sr.id}
+                        stroke={isHL ? (ADMIN_COLORS[sr.id] || EC.sub) : EC.mute}
+                        strokeWidth={isHL ? 2 : 1.2} strokeDasharray={isHL ? undefined : "4 3"}
+                        dot={false} connectNulls name={sr.name}
+                        strokeOpacity={anyHL && !isHL ? 0.12 : 0.45} />
+                    );
+                  })}
+                  {/* activeDot-style markers at the scrubbed month on current + highlighted lines */}
+                  {readout && readout.entries
+                    .filter(e => e.current || highlighted.has(e.id))
+                    .map(e => (
+                      <ReferenceDot key={`dot-${e.id}`} x={readout.month} y={e.value} r={4.5}
+                        fill={e.current ? EC.accent : (ADMIN_COLORS[e.id] || EC.sub)}
+                        stroke="#fff" strokeWidth={2} />
+                    ))}
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+            <div style={{
+              display: "flex", justifyContent: "space-between", padding: "6px 8px 0",
+              fontFamily: ESANS, fontSize: 10, color: EC.mute,
+            }}>
+              <span>Drag across the chart to compare any month</span>
+              <span>tap legend to highlight</span>
+            </div>
+
+            {/* Legend — real highlight controls, ≥32px touch targets */}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 4, padding: "10px 8px 0", borderTop: `1px solid ${EC.rule}`, marginTop: 8 }}>
+              {md.series.map(sr => {
+                const isCurrent = sr.current; const isHL = highlighted.has(sr.id);
+                const anyHL = highlighted.size > 0;
+                const color = isCurrent ? EC.accent : isHL ? (ADMIN_COLORS[sr.id] || EC.sub) : EC.mute;
+                return (
+                  <button key={sr.id} onClick={() => {
+                    if (isCurrent) return;
+                    setHighlighted(prev => {
+                      const next = new Set(prev);
+                      if (next.has(sr.id)) next.delete(sr.id); else next.add(sr.id);
+                      return next;
+                    });
+                  }} style={{
+                    display: "flex", alignItems: "center", gap: 5, fontFamily: ESANS, fontSize: 11,
+                    padding: "6px 10px", borderRadius: 4, border: "none",
+                    background: isCurrent || isHL ? color + "14" : "transparent",
+                    opacity: anyHL && !isHL && !isCurrent ? 0.4 : 1,
+                    cursor: isCurrent ? "default" : "pointer", transition: "all 0.2s ease",
+                  }}>
+                    <span style={{
+                      width: 16, height: isCurrent || isHL ? 3 : 0, borderRadius: 1,
+                      background: isCurrent || isHL ? color : "transparent",
+                      borderTop: isCurrent || isHL ? "none" : `2px dashed ${color}`,
+                    }} />
+                    <span style={{
+                      color: isCurrent ? EC.accent : isHL ? color : EC.sub,
+                      fontWeight: isCurrent || isHL ? 600 : 400,
+                    }}>{sr.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* ── How to interpret — AUTO-GENERATED from the metric, current
             value, ranking, threshold band, and closest historical parallel.
             Replaces a static facts list with text specific to whatever the
@@ -871,8 +1155,41 @@ export default function LiveBenchmark() {
           );
         })()}
 
-        {/* ── Share card ── */}
-        {stats && md && (
+        {/* ═══ MOBILE — About + Share card ═══ */}
+        {mob && stats && md && (
+          <div style={{ background: EC.card, border: `1px solid ${EC.rule}`, borderRadius: 4, padding: "0 14px", marginBottom: 16 }}>
+            <DisclosureRow label="About this data — methodology &amp; exclusions" open={!!openSections.about}
+              onToggle={() => setOpenSections(o => ({ ...o, about: !o.about }))} first>
+              <div style={{ fontFamily: ESANS, fontSize: 12, color: EC.sub, lineHeight: 1.65 }}>
+                Every administration is aligned to month 0 (inauguration day). So you&apos;re comparing Trump month {currentMonth} to Obama month {currentMonth} to Reagan month {currentMonth} — not calendar years. This isolates the trajectory of each presidency from the conditions they inherited. Data is pulled live from FRED. GDP and debt-to-GDP are quarterly (interpolated to monthly). CPI inflation and wage growth are year-over-year % changes. Some metrics don&apos;t go back to Nixon — those charts show fewer administrations.
+              </div>
+              <div style={{ fontFamily: ESANS, fontSize: 11.5, color: EC.mute, lineHeight: 1.6, marginTop: 8 }}>
+                <strong>Not included:</strong> Median Income and Budget Deficit (annual only), S&amp;P 500 (FRED data too recent), Poverty Rate and Inequality (not on FRED monthly). See the Data tab for those.
+              </div>
+            </DisclosureRow>
+            <div style={{ borderTop: `1px dashed ${EC.rule}`, padding: "12px 0", display: "flex", flexDirection: "column", gap: 8 }}>
+              <button onClick={handleShareFriends} style={{
+                width: "100%", padding: 12, background: EC.accent, color: "#fff", border: "none",
+                borderRadius: 4, fontFamily: ESANS, fontSize: 13, fontWeight: 700, cursor: "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                boxShadow: "0 1px 4px rgba(184,55,45,0.3)",
+              }}>
+                <ShareGlyph />
+                Share with friends
+              </button>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <span style={{ fontFamily: ESANS, fontSize: 10, letterSpacing: 1, textTransform: "uppercase", color: EC.mute }}>Card</span>
+                <button onClick={handleDownload} style={miniShareBtn(false)}>↓ PNG</button>
+                <button onClick={handleCopyImage} style={miniShareBtn(false)}>⎘ Copy</button>
+                <a href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`}
+                   target="_blank" rel="noopener noreferrer" style={miniShareBtn(true)}>𝕏 Post</a>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Share card (DESKTOP) ── */}
+        {!mob && stats && md && (
           <div style={{
             background: EC.card, border: `1px solid ${EC.rule}`, borderRadius: 4,
             padding: "16px 20px", marginBottom: 20,
@@ -904,8 +1221,8 @@ export default function LiveBenchmark() {
           </div>
         )}
 
-        {/* ── Methodology callout ── */}
-        <div style={{
+        {/* ── Methodology callout (DESKTOP — mobile folds it into About) ── */}
+        {!mob && <div style={{
           background: EC.paper, border: `1px solid ${EC.rule}`, borderLeft: `3px solid ${EC.accent}`,
           borderRadius: 4, padding: "14px 18px", marginBottom: 16,
         }}>
@@ -915,10 +1232,10 @@ export default function LiveBenchmark() {
           <div style={{ fontFamily: ESANS, fontSize: 12, lineHeight: 1.7, color: EC.sub }}>
             Every administration is aligned to month 0 (inauguration day). So you&apos;re comparing Trump month {currentMonth} to Obama month {currentMonth} to Reagan month {currentMonth} — not calendar years. This isolates the trajectory of each presidency from the conditions they inherited. Data is pulled live from FRED. GDP and debt-to-GDP are quarterly (interpolated to monthly). CPI inflation and wage growth are year-over-year % changes. Some metrics (gas, trade, wages) don&apos;t go back to Nixon — those charts show fewer administrations.
           </div>
-        </div>
+        </div>}
 
-        {/* ── Not included ── */}
-        <div style={{
+        {/* ── Not included (DESKTOP) ── */}
+        {!mob && <div style={{
           background: EC.card, border: `1px solid ${EC.rule}`, borderLeft: `3px solid ${EC.mute}`,
           borderRadius: 4, padding: "12px 16px", marginBottom: 20,
         }}>
@@ -934,7 +1251,7 @@ export default function LiveBenchmark() {
             <strong>S&amp;P 500</strong> (FRED data too recent), <strong>Poverty Rate</strong> and{" "}
             <strong>Inequality</strong> (not on FRED monthly). See the Data tab for those.
           </div>
-        </div>
+        </div>}
 
         {/* ── Source footer ── */}
         <div style={{
@@ -944,6 +1261,25 @@ export default function LiveBenchmark() {
           Source: FRED · Updated {data.lastUpdated ? new Date(data.lastUpdated).toLocaleDateString() : "—"}
         </div>
       </>)}
+
+      {/* Mobile share fallback sheet (no navigator.share) */}
+      {mob && shareSheetOpen && (
+        <ShareSheet
+          onClose={() => setShareSheetOpen(false)}
+          shareUrl={shareUrl}
+          shareText={shareText}
+          onCopyLink={() => { handleCopyLink(); setShareSheetOpen(false); }}
+        />
+      )}
+
+      {/* Mobile toast */}
+      {mob && shareStatus && (
+        <div style={{
+          position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)",
+          background: EC.ink, color: "#fff", fontFamily: ESANS, fontSize: 11, fontWeight: 600,
+          padding: "8px 16px", borderRadius: 999, zIndex: 300, whiteSpace: "nowrap",
+        }}>{shareStatus}</div>
+      )}
 
       {/* Mobile picker portal */}
       {mob && data && (
@@ -955,7 +1291,7 @@ export default function LiveBenchmark() {
           value={metric}
           // Same as the desktop pills above — keep highlighted admins across
           // metric changes so users don't lose their comparison context.
-          onSelect={(v) => { setMetric(v); }}
+          onSelect={(v) => { setMetric(v); setScrubMonth(null); setRankOpen(false); }}
         />
       )}
     </div>
@@ -1014,4 +1350,162 @@ function shareBtnStyle(primary: boolean): React.CSSProperties {
     fontFamily: ESANS, fontSize: 12, fontWeight: 600,
     textDecoration: "none", cursor: "pointer",
   };
+}
+
+// ═══ Mobile "2a" subcomponents ═══════════════════════════════════════
+
+const mStatLabel: React.CSSProperties = {
+  fontFamily: ESANS, fontSize: 9, fontWeight: 600, letterSpacing: 1.2,
+  textTransform: "uppercase", color: EC.mute, marginBottom: 4, whiteSpace: "nowrap",
+};
+const mStatValue: React.CSSProperties = {
+  fontFamily: ESERIF, fontSize: 20, fontWeight: 500,
+  fontVariantNumeric: "tabular-nums", lineHeight: 1.05,
+};
+
+function miniShareBtn(accent: boolean): React.CSSProperties {
+  return {
+    padding: "6px 12px", borderRadius: 4,
+    border: `1px solid ${accent ? "rgba(184,55,45,0.33)" : EC.rule}`,
+    background: accent ? "rgba(184,55,45,0.04)" : EC.card,
+    color: accent ? EC.accent : EC.ink,
+    fontFamily: ESANS, fontSize: 11, fontWeight: 600,
+    textDecoration: "none", cursor: "pointer",
+  };
+}
+
+/** Arrow-out-of-box share glyph (1.5px white strokes, from the handoff). */
+function ShareGlyph() {
+  return (
+    <svg width="13" height="16" viewBox="0 0 13 16" style={{ display: "block" }}>
+      <path d="M6.5 1.2 L6.5 10" style={{ stroke: "#fff", strokeWidth: 1.5, fill: "none", strokeLinecap: "round" }} />
+      <path d="M3.6 3.8 L6.5 1 L9.4 3.8" style={{ stroke: "#fff", strokeWidth: 1.5, fill: "none", strokeLinecap: "round", strokeLinejoin: "round" }} />
+      <path d="M4 6.2 L1.5 6.2 L1.5 14.8 L11.5 14.8 L11.5 6.2 L9 6.2" style={{ stroke: "#fff", strokeWidth: 1.5, fill: "none", strokeLinecap: "round", strokeLinejoin: "round" }} />
+    </svg>
+  );
+}
+
+/** Tap-to-expand row: dashed top rule, 12px 600 label, ▸/▾ chevron. */
+function DisclosureRow({ label, open, onToggle, first, children }: {
+  label: string; open: boolean; onToggle: () => void; first?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div style={{ borderTop: first ? "none" : `1px dashed ${EC.rule}` }}>
+      <button onClick={onToggle} style={{
+        width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "10px 0", background: "none", border: "none", cursor: "pointer",
+        fontFamily: ESANS, fontSize: 12, fontWeight: 600, color: EC.ink, textAlign: "left",
+      }}>
+        <span dangerouslySetInnerHTML={{ __html: label }} />
+        <span style={{ fontSize: 11, color: EC.mute, flexShrink: 0, marginLeft: 8 }}>{open ? "▾" : "▸"}</span>
+      </button>
+      {open && <div style={{ paddingBottom: 12 }}>{children}</div>}
+    </div>
+  );
+}
+
+/** Rank bar list — every admin at the same month, sorted best → worst.
+ *  Bars use a neutral fill (not party colors); the current admin is accent. */
+function RankBarList({ list, md, atMonth, adminMap }: {
+  list: { id: string; value: number; current: boolean }[];
+  md: MetricData; atMonth: number;
+  adminMap: Record<string, { name: string; current: boolean }>;
+}) {
+  const vals = list.map(a => a.value);
+  const lo = Math.min(...vals), hi = Math.max(...vals);
+  const span = hi - lo || 1;
+  return (
+    <div style={{ background: EC.card, border: `1px solid ${EC.rule}`, borderRadius: 4, padding: "12px 14px 10px", marginBottom: 8 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8, gap: 8 }}>
+        <span style={{ fontFamily: ESANS, fontSize: 10, fontWeight: 700, letterSpacing: 1.3, textTransform: "uppercase", color: EC.mute }}>
+          All administrations · Month {atMonth}
+        </span>
+        <span style={{ fontFamily: ESANS, fontSize: 10, color: EC.mute, whiteSpace: "nowrap" }}>
+          {md.lowerBetter ? "↓ lower is better" : "↑ higher is better"}
+        </span>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {list.map(a => {
+          const cur = a.current;
+          const w = Math.max(4, ((a.value - lo) / span) * 96 + 4);
+          const valTxt = md.unit === "$" ? a.value.toFixed(2) : a.value.toFixed(1);
+          return (
+            <div key={a.id} style={{
+              display: "grid", gridTemplateColumns: "64px 1fr 40px", gap: 8, alignItems: "center",
+              ...(cur ? { background: "rgba(184,55,45,0.05)", borderRadius: 4, margin: "0 -6px", padding: "3px 6px" } : {}),
+            }}>
+              <span style={{
+                fontFamily: ESANS, fontSize: 10.5, color: cur ? EC.accent : EC.sub, fontWeight: cur ? 700 : 400,
+                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+              }}>{adminMap[a.id]?.name || a.id}</span>
+              <div style={{ height: 9, background: EC.paper, borderRadius: 2, overflow: "hidden" }}>
+                <div style={{ width: `${w}%`, height: "100%", background: cur ? EC.accent : "#cfc9bf", borderRadius: 2 }} />
+              </div>
+              <span style={{
+                fontFamily: ESANS, fontSize: 10.5, color: cur ? EC.accent : EC.sub, fontWeight: cur ? 700 : 400,
+                textAlign: "right", fontVariantNumeric: "tabular-nums",
+              }}>{valTxt}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/** Share fallback bottom sheet — CompactPicker-style chrome. Only shown when
+ *  the Web Share API is unavailable or failed (non-abort). */
+function ShareSheet({ onClose, shareUrl, shareText, onCopyLink }: {
+  onClose: () => void; shareUrl: string; shareText: string; onCopyLink: () => void;
+}) {
+  const enc = encodeURIComponent(`${shareText} ${shareUrl}`);
+  const rows: { key: string; chip: string; label: string; href?: string; onClick?: () => void }[] = [
+    { key: "imessage", chip: "iM", label: "iMessage", href: `sms:?&body=${enc}` },
+    { key: "whatsapp", chip: "W", label: "WhatsApp", href: `https://wa.me/?text=${enc}` },
+    { key: "x", chip: "𝕏", label: "Post on X", href: `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}` },
+    { key: "copy", chip: "⧉", label: "Copy link", onClick: onCopyLink },
+  ];
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 250 }}>
+      <div onClick={onClose} style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.3)" }} />
+      <div style={{
+        position: "absolute", left: 0, right: 0, bottom: 0, background: EC.bg,
+        borderRadius: "16px 16px 0 0", padding: "8px 16px calc(16px + env(safe-area-inset-bottom))",
+        boxShadow: "0 -8px 30px rgba(0,0,0,0.15)",
+      }}>
+        <div style={{ width: 36, height: 4, borderRadius: 2, background: EC.rule, margin: "6px auto 12px" }} />
+        <div style={{ fontFamily: ESERIF, fontSize: 14, fontWeight: 700, color: EC.ink, marginBottom: 10 }}>
+          Share this benchmark
+        </div>
+        <div style={{
+          background: EC.paper, border: `1px solid ${EC.rule}`, borderRadius: 4, padding: "8px 10px",
+          fontFamily: "ui-monospace, Menlo, monospace", fontSize: 10.5, color: EC.sub,
+          wordBreak: "break-all", marginBottom: 6,
+        }}>{shareUrl}</div>
+        {rows.map((r, i) => {
+          const rowStyle: React.CSSProperties = {
+            display: "flex", alignItems: "center", gap: 12, minHeight: 44, width: "100%",
+            padding: "0 2px", background: "none", border: "none",
+            borderTop: i > 0 ? `1px solid ${EC.rule}` : "none",
+            fontFamily: ESANS, fontSize: 13, fontWeight: 600, color: EC.ink,
+            textDecoration: "none", cursor: "pointer", textAlign: "left",
+          };
+          const chip = (
+            <span style={{
+              width: 26, height: 26, borderRadius: 6, background: EC.paper, border: `1px solid ${EC.rule}`,
+              display: "inline-flex", alignItems: "center", justifyContent: "center",
+              fontSize: 10, fontWeight: 700, color: EC.sub, flexShrink: 0,
+            }}>{r.chip}</span>
+          );
+          return r.href ? (
+            <a key={r.key} href={r.href} target={r.key === "imessage" ? undefined : "_blank"}
+               rel="noopener noreferrer" style={rowStyle}>{chip}{r.label}</a>
+          ) : (
+            <button key={r.key} onClick={r.onClick} style={rowStyle}>{chip}{r.label}</button>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
