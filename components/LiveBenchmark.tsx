@@ -687,27 +687,6 @@ export default function LiveBenchmark() {
           <RankBarList list={stats.allAtMonth} md={md} atMonth={stats.atMonth} adminMap={adminMap} />
         )}
 
-        {/* ═══ MOBILE — benchmark card with disclosures ═══ */}
-        {mob && md && META[metric] && (
-          <div style={{ background: EC.card, border: `1px solid ${EC.rule}`, borderRadius: 4, padding: "0 14px", marginBottom: 8 }}>
-            <div style={{
-              display: "flex", flexWrap: "wrap", gap: "4px 14px", padding: "11px 0",
-              fontFamily: ESANS, fontSize: 12, color: EC.sub, lineHeight: 1.55,
-            }}>
-              <span><strong style={{ color: EC.improveStrong, fontWeight: 700 }}>Healthy:</strong> {META[metric].bench.good}</span>
-              <span><strong style={{ color: EC.declineStrong, fontWeight: 700 }}>Warning:</strong> {META[metric].bench.warn}</span>
-            </div>
-            <DisclosureRow label="Why this matters" open={!!openSections.why}
-              onToggle={() => setOpenSections(o => ({ ...o, why: !o.why }))}>
-              <div style={{ fontFamily: ESANS, fontSize: 12, color: EC.sub, lineHeight: 1.6 }}>{META[metric].bench.why}</div>
-            </DisclosureRow>
-            <DisclosureRow label="How it&rsquo;s measured" open={!!openSections.how}
-              onToggle={() => setOpenSections(o => ({ ...o, how: !o.how }))}>
-              <div style={{ fontFamily: ESANS, fontSize: 12, color: EC.sub, lineHeight: 1.6, fontStyle: "italic" }}>{META[metric].def}</div>
-            </DisclosureRow>
-          </div>
-        )}
-
         {/* ── Category tabs + metric pills (desktop) ── */}
         {!mob && (<>
           <div style={{ display: "flex", gap: 0, borderBottom: `1px solid ${EC.rule}`, marginBottom: 12, overflowX: "auto" }}>
@@ -1119,6 +1098,27 @@ export default function LiveBenchmark() {
                 );
               })}
             </div>
+          </div>
+        )}
+
+        {/* ═══ MOBILE — benchmark card with disclosures ═══ */}
+        {mob && md && META[metric] && (
+          <div style={{ background: EC.card, border: `1px solid ${EC.rule}`, borderRadius: 4, padding: "0 14px", marginBottom: 8 }}>
+            <div style={{
+              display: "flex", flexWrap: "wrap", gap: "4px 14px", padding: "11px 0",
+              fontFamily: ESANS, fontSize: 12, color: EC.sub, lineHeight: 1.55,
+            }}>
+              <span><strong style={{ color: EC.improveStrong, fontWeight: 700 }}>Healthy:</strong> {META[metric].bench.good}</span>
+              <span><strong style={{ color: EC.declineStrong, fontWeight: 700 }}>Warning:</strong> {META[metric].bench.warn}</span>
+            </div>
+            <DisclosureRow label="Why this matters" open={!!openSections.why}
+              onToggle={() => setOpenSections(o => ({ ...o, why: !o.why }))}>
+              <div style={{ fontFamily: ESANS, fontSize: 12, color: EC.sub, lineHeight: 1.6 }}>{META[metric].bench.why}</div>
+            </DisclosureRow>
+            <DisclosureRow label="How it&rsquo;s measured" open={!!openSections.how}
+              onToggle={() => setOpenSections(o => ({ ...o, how: !o.how }))}>
+              <div style={{ fontFamily: ESANS, fontSize: 12, color: EC.sub, lineHeight: 1.6, fontStyle: "italic" }}>{META[metric].def}</div>
+            </DisclosureRow>
           </div>
         )}
 
