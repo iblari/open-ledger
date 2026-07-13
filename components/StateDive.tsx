@@ -243,15 +243,35 @@ export default function StateDive({ stateCode, onClose }: { stateCode: StateCode
     const meshes = new Map<string, THREE.Mesh>();
     const group = new THREE.Group();
 
+    // Sanitized ring → Vector2 list. Degenerate rings (NaN coords from
+    // projection clipping, consecutive duplicates, near-zero area) crash
+    // three's earcut triangulator ("reading 'next'") — filter them out.
     const toShapePts = (ring: number[][]): THREE.Vector2[] => {
       const pts: THREE.Vector2[] = [];
       for (const coord of ring) {
         const p = proj(coord as [number, number]);
+        if (!p || !Number.isFinite(p[0]) || !Number.isFinite(p[1])) continue;
         // Negate y: projected screen-y grows downward; after the -90° X
         // rotation local +y lands on world -z, so negating here keeps north up.
-        if (p) pts.push(new THREE.Vector2(p[0] - cx, -(p[1] - cy)));
+        const x = p[0] - cx, y = -(p[1] - cy);
+        const last = pts[pts.length - 1];
+        if (last && Math.abs(last.x - x) < 1e-6 && Math.abs(last.y - y) < 1e-6) continue;
+        pts.push(new THREE.Vector2(x, y));
+      }
+      // Drop the GeoJSON closing point if it duplicates the first.
+      if (pts.length > 1) {
+        const a = pts[0], b = pts[pts.length - 1];
+        if (Math.abs(a.x - b.x) < 1e-6 && Math.abs(a.y - b.y) < 1e-6) pts.pop();
       }
       return pts;
+    };
+    const ringArea = (pts: THREE.Vector2[]): number => {
+      let a = 0;
+      for (let i = 0; i < pts.length; i++) {
+        const p1 = pts[i], p2 = pts[(i + 1) % pts.length];
+        a += p1.x * p2.y - p2.x * p1.y;
+      }
+      return Math.abs(a / 2);
     };
 
     for (const f of feats) {
@@ -264,16 +284,21 @@ export default function StateDive({ stateCode, onClose }: { stateCode: StateCode
       const shapes: THREE.Shape[] = [];
       for (const poly of polys) {
         const outer = toShapePts(poly[0]);
-        if (outer.length < 3) continue;
+        if (outer.length < 3 || ringArea(outer) < 0.05) continue;
         const shape = new THREE.Shape(outer);
         for (let i = 1; i < poly.length; i++) {
           const hole = toShapePts(poly[i]);
-          if (hole.length >= 3) shape.holes.push(new THREE.Path(hole));
+          if (hole.length >= 3 && ringArea(hole) > 0.05) shape.holes.push(new THREE.Path(hole));
         }
         shapes.push(shape);
       }
       if (!shapes.length) continue;
-      const geom = new THREE.ExtrudeGeometry(shapes, { depth: 1, bevelEnabled: false });
+      let geom: THREE.ExtrudeGeometry;
+      try {
+        geom = new THREE.ExtrudeGeometry(shapes, { depth: 1, bevelEnabled: false });
+      } catch {
+        continue; // skip pathological geometry rather than killing the scene
+      }
       const mat = new THREE.MeshLambertMaterial({ color: PAPER.clone() });
       const mesh = new THREE.Mesh(geom, mat);
       // Lay the shape flat (XZ plane); the unit-depth extrusion becomes world
