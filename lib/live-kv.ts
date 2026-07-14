@@ -363,6 +363,8 @@ export interface RecentBroadcast {
   startedAt: string;
   endedAt: string;
   claims: LiveClaim[];
+  /** Full session transcript (tail-capped) — powers replay + detection audits. */
+  transcript?: string;
 }
 
 const RECENT_BROADCASTS_KEY = "live:recent";
@@ -388,6 +390,11 @@ export async function getRecentBroadcasts(): Promise<RecentBroadcast[]> {
 /** Archive an ended broadcast (deduped by videoId — a re-covered stream
  *  replaces its earlier entry, merging claims). Prunes >24h entries. */
 export async function archiveBroadcast(b: RecentBroadcast): Promise<void> {
+  // Cap the transcript to its final ~120K chars (~3h of speech) so a single
+  // marathon session can't blow up the recent-broadcasts KV entry.
+  if (b.transcript && b.transcript.length > 120_000) {
+    b = { ...b, transcript: "… " + b.transcript.slice(-120_000) };
+  }
   const all = await getRecentBroadcasts(); // already pruned
   const existing = all.find(x => x.videoId === b.videoId);
   if (existing) {
@@ -398,6 +405,10 @@ export async function archiveBroadcast(b: RecentBroadcast): Promise<void> {
     if (b.startedAt < existing.startedAt) existing.startedAt = b.startedAt;
     if (b.endedAt > existing.endedAt) existing.endedAt = b.endedAt;
     existing.title = b.title || existing.title;
+    // Keep the longer transcript (later sessions contain the earlier text).
+    if (b.transcript && (b.transcript.length > (existing.transcript?.length || 0))) {
+      existing.transcript = b.transcript;
+    }
   } else {
     all.unshift(b);
   }

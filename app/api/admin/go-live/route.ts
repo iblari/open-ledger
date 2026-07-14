@@ -4,6 +4,8 @@ import {
   getLiveState,
   clearLiveClaims,
   getLiveClaims,
+  getLiveTranscript,
+  getRecentBroadcasts,
   archiveBroadcast,
   type LiveState,
 } from "@/lib/live-kv";
@@ -89,6 +91,7 @@ export async function POST(req: Request) {
         const claims = await getLiveClaims();
         const ranMs = Date.now() - Date.parse(prev.startedAt || new Date().toISOString());
         if (claims.length > 0 || ranMs > 10 * 60 * 1000) {
+          const transcript = await getLiveTranscript().catch(() => "");
           await archiveBroadcast({
             videoId: prev.videoId,
             title: prev.title,
@@ -96,6 +99,7 @@ export async function POST(req: Request) {
             startedAt: prev.startedAt,
             endedAt: new Date().toISOString(),
             claims,
+            transcript: transcript || undefined,
           });
           console.log(`[GO-LIVE] Archived "${prev.title}" with ${claims.length} claims for 24h replay`);
         }
@@ -115,6 +119,18 @@ export async function POST(req: Request) {
 
     console.log(`[GO-LIVE] Stopped broadcast`);
     return NextResponse.json({ ok: true, state });
+  }
+
+  // One-off recovery: attach the still-in-KV live transcript to the most
+  // recent archived broadcast that predates transcript archiving.
+  if ((body.action as string) === "backfill-transcript") {
+    const transcript = await getLiveTranscript().catch(() => "");
+    if (!transcript) return NextResponse.json({ ok: false, reason: "no transcript in KV" });
+    const recent = await getRecentBroadcasts();
+    const target = recent.find(b => !b.transcript);
+    if (!target) return NextResponse.json({ ok: false, reason: "nothing to backfill" });
+    await archiveBroadcast({ ...target, transcript });
+    return NextResponse.json({ ok: true, backfilled: target.title, chars: transcript.length });
   }
 
   return NextResponse.json(

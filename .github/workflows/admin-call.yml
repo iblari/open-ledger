@@ -1,0 +1,27 @@
+name: Admin API call
+
+# Ops utility: invoke an ADMIN_KEY-protected route on the production site
+# from a workflow (the key lives only in repo secrets / Vercel env).
+on:
+  workflow_dispatch:
+    inputs:
+      path:
+        description: "API path (e.g. /api/admin/go-live)"
+        required: true
+      body:
+        description: "JSON body"
+        required: true
+        default: "{}"
+
+jobs:
+  call:
+    runs-on: ubuntu-latest
+    steps:
+      - name: POST
+        env:
+          ADMIN_KEY: ${{ secrets.ADMIN_KEY }}
+        run: |
+          curl -s -X POST "https://voteunbiased.org${{ github.event.inputs.path }}" \
+            -H "Authorization: Bearer $ADMIN_KEY" \
+            -H "Content-Type: application/json" \
+            -d '${{ github.event.inputs.body }}' | head -c 2000

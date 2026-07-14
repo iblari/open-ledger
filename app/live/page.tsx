@@ -489,7 +489,11 @@ function SummaryBar({ claims }: { claims: Claim[] }) {
   claims.forEach(c => { counts[c.rating] = (counts[c.rating] || 0) + 1; });
   const total = claims.length;
   const trueish = (counts["TRUE"] || 0) + (counts["MOSTLY TRUE"] || 0);
-  const accuracy = total > 0 ? Math.round((trueish / total) * 100) : 0;
+  // UNVERIFIABLE claims are excluded from the accuracy denominator — "we
+  // couldn't check it" is not the same as "it was false". With zero
+  // verifiable claims the meter is hidden rather than showing a scary 0%.
+  const verifiableTotal = total - (counts["UNVERIFIABLE"] || 0);
+  const accuracy = verifiableTotal > 0 ? Math.round((trueish / verifiableTotal) * 100) : null;
 
   return (
     <div style={{
@@ -499,7 +503,7 @@ function SummaryBar({ claims }: { claims: Claim[] }) {
       <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: T.mute, marginBottom: 6 }}>
         Session Summary
       </div>
-      {total > 0 && (
+      {accuracy !== null && (
         <div style={{ marginBottom: 8 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
             <div style={{
@@ -512,7 +516,12 @@ function SummaryBar({ claims }: { claims: Claim[] }) {
             </div>
             <span style={{ fontSize: 12, fontWeight: 700, color: T.ink }}>{accuracy}%</span>
           </div>
-          <div style={{ fontSize: 9, color: T.mute }}>Accuracy Score</div>
+          <div style={{ fontSize: 9, color: T.mute }}>Accuracy Score · verifiable claims only</div>
+        </div>
+      )}
+      {accuracy === null && total > 0 && (
+        <div style={{ fontSize: 10, color: T.mute, marginBottom: 8, lineHeight: 1.5 }}>
+          No verifiable claims yet — unverifiable statements don&apos;t count toward accuracy.
         </div>
       )}
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
@@ -562,6 +571,9 @@ export default function LiveFactCheckPage() {
   // generated while it was LIVE preloaded into the panel — zero additional
   // Deepgram/Claude spend. No polling, no live pipeline.
   const [isReplay, setIsReplay] = useState(false);
+  // Full archived transcript shown in replay mode (live mode shows the
+  // rolling Deepgram tail instead).
+  const [replayTranscript, setReplayTranscript] = useState("");
   const [videoId, setVideoId] = useState("");
   const [title, setTitle] = useState("");
   const [claims, setClaims] = useState<Claim[]>([]);
@@ -889,7 +901,7 @@ export default function LiveFactCheckPage() {
 
   /* ── Replay a recent broadcast — claims preloaded, zero API spend ── */
   const startReplay = useCallback((b: {
-    videoId: string; title: string; claims: Claim[];
+    videoId: string; title: string; claims: Claim[]; transcript?: string;
   }) => {
     demoAbortRef.current = true;
     setIsDemo(false);
@@ -899,6 +911,7 @@ export default function LiveFactCheckPage() {
     setTitle(b.title);
     setClaims(b.claims);
     setLiveTranscript("");
+    setReplayTranscript(b.transcript || "");
     setRealCaptions(null);
     setRatingFilter(null);
     setShowSummary(false);
@@ -2383,7 +2396,24 @@ export default function LiveFactCheckPage() {
                   ink, upcoming muted. Sized by a sliding word window so it
                   can't clip a line mid-sentence (the old strip crammed 40
                   words into a 60px overflow:hidden box — ugly on mobile). */}
-              {realCaptions && realCaptions.length > 0 ? (
+              {isReplay && replayTranscript ? (
+                /* Replay: the full archived transcript, scrollable — lets
+                   viewers (and us) audit exactly what the pipeline heard. */
+                <div style={{
+                  background: T.paper, borderBottom: `1px solid ${T.rule}`,
+                  padding: "10px 14px", maxHeight: 150, overflowY: "auto",
+                }}>
+                  <div style={{
+                    fontSize: 9, fontWeight: 700, textTransform: "uppercase",
+                    letterSpacing: 1, color: T.mute, marginBottom: 6,
+                    fontFamily: "'DM Sans',sans-serif",
+                  }}>Full transcript · as heard by the fact-checker</div>
+                  <div style={{
+                    fontSize: 12, fontFamily: "'DM Sans',sans-serif", color: T.sub,
+                    lineHeight: 1.65, whiteSpace: "pre-wrap",
+                  }}>{replayTranscript}</div>
+                </div>
+              ) : realCaptions && realCaptions.length > 0 ? (
                 <div style={{
                   background: T.paper, padding: "10px 14px", fontSize: mob ? 13 : 12.5,
                   fontFamily: "'DM Sans',sans-serif",
