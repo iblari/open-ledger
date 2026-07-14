@@ -151,6 +151,21 @@ export async function setLiveTranscript(text: string): Promise<void> {
   }
 }
 
+/** Append a chunk to the running session transcript.
+ *  Uses Redis APPEND (atomic, no read-modify-write race) and trims the
+ *  string back to its final 200K chars if it grows past 400K (~8h talk). */
+export async function appendLiveTranscript(chunk: string): Promise<void> {
+  if (hasUpstash()) {
+    const newLen = (await upstashCmd("APPEND", LIVE_TRANSCRIPT_KEY, chunk)) as number;
+    if (newLen > 400_000) {
+      const tail = (await upstashCmd("GETRANGE", LIVE_TRANSCRIPT_KEY, -200_000, -1)) as string;
+      await upstashCmd("SET", LIVE_TRANSCRIPT_KEY, "… " + tail);
+    }
+  } else {
+    mem.set(LIVE_TRANSCRIPT_KEY, ((mem.get(LIVE_TRANSCRIPT_KEY) || "") + chunk).slice(-400_000));
+  }
+}
+
 /** Get the latest transcript snippet */
 export async function getLiveTranscript(): Promise<string> {
   let raw: string | null | undefined;

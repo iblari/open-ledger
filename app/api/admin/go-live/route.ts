@@ -5,6 +5,7 @@ import {
   clearLiveClaims,
   getLiveClaims,
   getLiveTranscript,
+  setLiveTranscript,
   getRecentBroadcasts,
   archiveBroadcast,
   type LiveState,
@@ -71,6 +72,7 @@ export async function POST(req: Request) {
     };
 
     await clearLiveClaims();
+    await setLiveTranscript(""); // fresh session transcript
     await setLiveState(state);
 
     console.log(`[GO-LIVE] Started: "${state.title}" (${state.videoId || "monitor mode"})`);

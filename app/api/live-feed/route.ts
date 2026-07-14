@@ -51,7 +51,10 @@ export async function GET(req: Request) {
   ]);
 
   return NextResponse.json(
-    { state, claims, transcript },
+    // The transcript now accumulates for the whole session (replay/audits) —
+    // the live strip only shows the last ~24 words, so ship just the tail
+    // instead of a payload that grows unbounded over a 3-hour broadcast.
+    { state, claims, transcript: transcript.length > 1500 ? transcript.slice(-1500) : transcript },
     {
       headers: {
         // During a live broadcast every poll must be fresh.

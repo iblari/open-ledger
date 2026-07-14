@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   appendLiveClaims,
-  setLiveTranscript,
+  appendLiveTranscript,
   type LiveClaim,
 } from "@/lib/live-kv";
 import { extractAndVerifyClaims } from "@/lib/fact-check";
@@ -57,9 +57,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ skipped: true, reason: "text too short" });
   }
 
-  // Store transcript snippet for live display — do this even for chunks we
-  // won't fact-check, so viewers still see the rolling subtitle.
-  await setLiveTranscript(text);
+  // Append to the running session transcript (atomic Redis APPEND). The full
+  // text powers the replay view and lets us audit exactly what the detector
+  // heard; timecode markers keep the audit readable. Runs even for chunks
+  // the economic pre-filter skips — viewers still see the rolling subtitle.
+  {
+    const tmm = Math.floor(videoTime / 60);
+    const tss = String(Math.floor(videoTime % 60)).padStart(2, "0");
+    await appendLiveTranscript(`[${tmm}:${tss}] ${text}\n`);
+  }
 
   // Regex pre-filter: no economic content → no Claude call. Saves ~$/hr and
   // keeps the pipeline snappy during non-economic stretches of a broadcast.
