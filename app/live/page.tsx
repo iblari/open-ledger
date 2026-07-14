@@ -918,13 +918,29 @@ export default function LiveFactCheckPage() {
     setPollError(null);
   }, []);
 
+  /* ── Replay transcript segments — new archives carry [mm:ss] markers per
+     ~15s chunk, which lets the replay transcript scroll in sync with the
+     video. Marker-less archives (pre-fix) fall back to a static block. ── */
+  const replaySegments = useMemo(() => {
+    if (!replayTranscript) return [] as { t: number; text: string }[];
+    const out: { t: number; text: string }[] = [];
+    const re = /\[(\d+):(\d\d)\]\s?([^\n]*)/g;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(replayTranscript))) {
+      const txt = m[3].trim();
+      if (txt) out.push({ t: Number(m[1]) * 60 + Number(m[2]), text: txt });
+    }
+    return out;
+  }, [replayTranscript]);
+
   /* ── Caption clock — drives the word-synced transcript strip ── */
   // 300ms tick while captions are loaded: fast enough that the highlighted
   // word advances smoothly (speech ≈ 2-3 words/sec), cheap enough that the
   // re-render (one small component) is negligible.
   const [captionClock, setCaptionClock] = useState(0);
   useEffect(() => {
-    if (!isPlaying || !realCaptions || realCaptions.length === 0) return;
+    const hasSync = (realCaptions && realCaptions.length > 0) || (isReplay && replaySegments.length > 0);
+    if (!isPlaying || !hasSync) return;
     const id = setInterval(() => {
       let t = (Date.now() - demoStartTime.current) / 1000;
       if (ytPlayerRef.current?.getCurrentTime) {
@@ -933,7 +949,7 @@ export default function LiveFactCheckPage() {
       setCaptionClock(t);
     }, 300);
     return () => clearInterval(id);
-  }, [isPlaying, realCaptions]);
+  }, [isPlaying, realCaptions, isReplay, replaySegments]);
 
   /* ── Animate new claims ── */
   useEffect(() => {
@@ -1473,6 +1489,13 @@ export default function LiveFactCheckPage() {
     if (realCaptions && realCaptions.length > 0) {
       recentText = wordsInWindow(15);
       if (recentText.length < 30) recentText = wordsInWindow(30);
+    } else if (isReplay && replaySegments.length > 0) {
+      // Replay: fact-check what was said just before the current playhead.
+      const upTo = replaySegments.filter(sg => sg.t <= captionClock + 2);
+      const pool = upTo.length ? upTo : replaySegments;
+      recentText = pool.map(sg => sg.text).join(" ").split(" ").slice(-60).join(" ").trim();
+    } else if (isReplay && replayTranscript) {
+      recentText = replayTranscript.replace(/\[\d+:\d\d\]/g, " ").split(/\s+/).slice(-60).join(" ").trim();
     } else {
       recentText = liveTranscript.split(" ").slice(-50).join(" ").trim();
     }
@@ -2396,9 +2419,13 @@ export default function LiveFactCheckPage() {
                   ink, upcoming muted. Sized by a sliding word window so it
                   can't clip a line mid-sentence (the old strip crammed 40
                   words into a 60px overflow:hidden box — ugly on mobile). */}
-              {isReplay && replayTranscript ? (
-                /* Replay: the full archived transcript, scrollable — lets
-                   viewers (and us) audit exactly what the pipeline heard. */
+              {isReplay && replaySegments.length > 0 ? (
+                /* Replay with timecoded archive: transcript scrolls in sync
+                   with video playback, like live captions. */
+                <SyncedReplayTranscript segs={replaySegments} clock={captionClock} />
+              ) : isReplay && replayTranscript ? (
+                /* Older archive without timecodes: static block. Only the
+                   final chunk survived the pre-fix overwrite bug. */
                 <div style={{
                   background: T.paper, borderBottom: `1px solid ${T.rule}`,
                   padding: "10px 14px", maxHeight: 150, overflowY: "auto",
@@ -2407,7 +2434,7 @@ export default function LiveFactCheckPage() {
                     fontSize: 9, fontWeight: 700, textTransform: "uppercase",
                     letterSpacing: 1, color: T.mute, marginBottom: 6,
                     fontFamily: "'DM Sans',sans-serif",
-                  }}>Full transcript · as heard by the fact-checker</div>
+                  }}>Transcript · final moments only (full transcripts begin with the next broadcast)</div>
                   <div style={{
                     fontSize: 12, fontFamily: "'DM Sans',sans-serif", color: T.sub,
                     lineHeight: 1.65, whiteSpace: "pre-wrap",
@@ -2741,6 +2768,49 @@ export default function LiveFactCheckPage() {
           <strong>BETA</strong> — AI-generated fact-checks may contain errors. Sources are cited — verify independently.
           <br />Vote Unbiased provides data, not opinions. You interpret.
         </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Synced replay transcript — scrolls with the playhead ─────────────
+   Segments are the [mm:ss]-stamped ~15s chunks archived by the worker.
+   Everything spoken up to the current video time is shown (newest
+   emphasized), auto-scrolled to the bottom like live captions. */
+function SyncedReplayTranscript({ segs, clock }: {
+  segs: { t: number; text: string }[]; clock: number;
+}) {
+  const boxRef = useRef<HTMLDivElement>(null);
+  const visible = segs.filter(s => s.t <= clock);
+  useEffect(() => {
+    const el = boxRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [visible.length]);
+  const fmt = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
+  return (
+    <div style={{ background: T.paper, borderBottom: `1px solid ${T.rule}` }}>
+      <div style={{
+        padding: "8px 14px 0", fontSize: 9, fontWeight: 700, textTransform: "uppercase",
+        letterSpacing: 1, color: T.mute, fontFamily: "'DM Sans',sans-serif",
+      }}>
+        Transcript · synced to playback
+      </div>
+      <div ref={boxRef} style={{
+        padding: "6px 14px 10px", maxHeight: 110, overflowY: "auto",
+        fontSize: 12, fontFamily: "'DM Sans',sans-serif", lineHeight: 1.65,
+      }}>
+        {visible.length === 0 ? (
+          <span style={{ color: T.mute, fontStyle: "italic" }}>
+            Speech transcript begins at {fmt(segs[0].t)} — skip ahead or keep watching.
+          </span>
+        ) : visible.map((s, i) => (
+          <span key={i} style={{
+            color: i === visible.length - 1 ? T.ink : T.sub,
+            fontWeight: i === visible.length - 1 ? 600 : 400,
+          }}>
+            {s.text}{" "}
+          </span>
+        ))}
       </div>
     </div>
   );
