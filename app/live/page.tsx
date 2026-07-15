@@ -1556,7 +1556,9 @@ export default function LiveFactCheckPage() {
     }
 
     setIsManualChecking(false);
-  }, [liveTranscript, realCaptions]);
+    // Replay state must be in the deps — without it the callback closes over
+    // the initial empty replaySegments and reports "no transcript" in replays.
+  }, [liveTranscript, realCaptions, isReplay, replaySegments, replayTranscript, captionClock]);
 
   /* ── Share ── */
   const shareResults = useCallback(() => {
@@ -2666,12 +2668,14 @@ export default function LiveFactCheckPage() {
                       textAlign: "center", padding: "40px 16px",
                       fontFamily: "'DM Sans',sans-serif", color: T.mute,
                     }}>
-                      <div style={{ fontSize: 32, marginBottom: 8 }}>📡</div>
+                      <div style={{ fontSize: 32, marginBottom: 8 }}>{isReplay ? "🗂️" : "📡"}</div>
                       <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>
-                        {isDemo ? "Listening for claims..." : "Waiting for the analysis pipeline…"}
+                        {isReplay ? "No economic claims detected" : isDemo ? "Listening for claims..." : "Waiting for the analysis pipeline…"}
                       </div>
                       <div style={{ fontSize: 11 }}>
-                        {isDemo
+                        {isReplay
+                          ? "The fact-checker heard this broadcast (see the transcript) but found no checkable economic claims — many official events don't contain any. Select any moment and press Fact Check This to analyze it yourself."
+                          : isDemo
                           ? "Fact-check cards will appear here as economic claims are detected."
                           : "Fact-checks attach when our pipeline is transcribing this broadcast. If nothing appears, this stream isn't being analyzed — official events on watched channels are covered automatically."}
                       </div>
