@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { sendPushToAll } from "@/lib/push";
 import {
   setLiveState,
   getLiveState,
@@ -74,6 +75,15 @@ export async function POST(req: Request) {
 
     await clearLiveClaims();
     await setLiveTranscript(""); // fresh session transcript
+
+    // Ping push subscribers the moment coverage actually begins — this is
+    // the alert the calendar could never reliably deliver.
+    sendPushToAll({
+      title: "🔴 Live fact-check in progress",
+      body: body.title || "An official broadcast is being fact-checked right now.",
+      url: "/live",
+    }).then(r => console.log(`[GO-LIVE] push: ${r.sent} sent, ${r.pruned} pruned`))
+      .catch(e => console.error("[GO-LIVE] push failed:", (e as Error).message));
     await setLiveState(state);
 
     console.log(`[GO-LIVE] Started: "${state.title}" (${state.videoId || "monitor mode"})`);

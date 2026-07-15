@@ -1872,9 +1872,12 @@ export default function LiveFactCheckPage() {
                       }}>UPCOMING BROADCASTS</div>
                       <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 12, color: T.sub, lineHeight: 1.6 }}>
                         Official events (President, VP, cabinet) appear here automatically as
-                        soon as they&rsquo;re announced — usually a few hours ahead. Subscribe once
-                        and every future broadcast lands in your calendar with a 15-minute reminder.
+                        soon as they&rsquo;re announced. For an alert the moment we go live,
+                        turn on notifications — the calendar links below are a schedule
+                        view for your calendar app (calendar apps refresh too slowly for
+                        reliable reminders).
                       </div>
+                      <NotifyToggle />
                       {/* webcal:// → iOS/macOS open the native Calendar
                           subscribe dialog (an https .ics link makes Safari
                           try to "download", which iPhones can't). Google
@@ -2843,5 +2846,87 @@ function SyncedReplayTranscript({ segs, clock }: {
         </>)}
       </div>
     </div>
+  );
+}
+
+
+/* ── Web-push opt-in — "alert me the moment coverage starts" ─────────
+   Replaces the calendar's undeliverable 15-minute-reminder promise with a
+   real push: the server pings every subscriber when the site flips live.
+   iPhone requires the site to be installed to the Home Screen first
+   (Apple's rule for web push). */
+function NotifyToggle() {
+  const [state, setState] = useState<"checking" | "unsupported" | "ios-install" | "off" | "on" | "busy" | "denied">("checking");
+
+  useEffect(() => {
+    const standalone = window.matchMedia("(display-mode: standalone)").matches
+      || (navigator as unknown as { standalone?: boolean }).standalone === true;
+    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+      setState(isIOS && !standalone ? "ios-install" : "unsupported");
+      return;
+    }
+    if (isIOS && !standalone) { setState("ios-install"); return; }
+    if (Notification.permission === "denied") { setState("denied"); return; }
+    navigator.serviceWorker.getRegistration().then(reg => {
+      if (!reg) { setState("off"); return; }
+      reg.pushManager.getSubscription().then(sub => setState(sub ? "on" : "off"));
+    }).catch(() => setState("off"));
+  }, []);
+
+  const toggle = async () => {
+    if (state === "busy") return;
+    const prev = state;
+    setState("busy");
+    try {
+      const reg = await navigator.serviceWorker.register("/sw.js");
+      if (prev === "on") {
+        const sub = await reg.pushManager.getSubscription();
+        if (sub) {
+          await fetch("/api/push", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ endpoint: sub.endpoint }) });
+          await sub.unsubscribe();
+        }
+        setState("off");
+        return;
+      }
+      const perm = await Notification.requestPermission();
+      if (perm !== "granted") { setState(perm === "denied" ? "denied" : "off"); return; }
+      const { publicKey } = await fetch("/api/push").then(r => r.json());
+      const pad = "=".repeat((4 - (publicKey.length % 4)) % 4);
+      const raw = atob((publicKey + pad).replace(/-/g, "+").replace(/_/g, "/"));
+      const key = new Uint8Array([...raw].map((c: string) => c.charCodeAt(0)));
+      const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
+      await fetch("/api/push", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ subscription: sub.toJSON() }) });
+      setState("on");
+    } catch {
+      setState(prev === "on" ? "on" : "off");
+    }
+  };
+
+  if (state === "checking" || state === "unsupported") return null;
+  if (state === "ios-install") {
+    return (
+      <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: T.mute, lineHeight: 1.55 }}>
+        🔔 iPhone: add this site to your Home Screen (Share → Add to Home Screen),
+        then open it from there to enable live alerts.
+      </div>
+    );
+  }
+  return (
+    <button onClick={toggle} disabled={state === "busy" || state === "denied"} style={{
+      fontFamily: "'DM Sans',sans-serif", fontSize: 11, fontWeight: 700,
+      color: state === "on" ? "#0d7377" : "#fff",
+      background: state === "on" ? "#0d737715" : "#0d7377",
+      border: state === "on" ? "1px solid #0d7377" : "none",
+      padding: "7px 14px", borderRadius: 6, letterSpacing: 0.3,
+      cursor: state === "denied" ? "not-allowed" : "pointer",
+      opacity: state === "busy" ? 0.6 : 1,
+      alignSelf: "flex-start",
+    }}>
+      {state === "on" ? "🔔 Live alerts on — tap to disable"
+        : state === "denied" ? "🔕 Notifications blocked in browser settings"
+        : state === "busy" ? "…"
+        : "🔔 Alert me when a broadcast goes live"}
+    </button>
   );
 }
