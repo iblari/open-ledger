@@ -906,9 +906,11 @@ export default function LiveFactCheckPage() {
   }, [isPlaying]);
 
   /* ── Replay a recent broadcast — claims preloaded, zero API spend ── */
+  const replayStartedAt = useRef(Date.now());
   const startReplay = useCallback((b: {
     videoId: string; title: string; claims: Claim[]; transcript?: string;
   }) => {
+    replayStartedAt.current = Date.now();
     demoAbortRef.current = true;
     setIsDemo(false);
     setIsReplay(true);
@@ -2429,8 +2431,16 @@ export default function LiveFactCheckPage() {
                   words into a 60px overflow:hidden box — ugly on mobile). */}
               {isReplay && replaySegments.length > 0 ? (
                 /* Replay with timecoded archive: transcript scrolls in sync
-                   with video playback, like live captions. */
-                <SyncedReplayTranscript segs={replaySegments} clock={captionClock} />
+                   with video playback. Timebase guard: 24/7 streams have
+                   absolute timelines far beyond the player's DVR window —
+                   when the player clock and the markers are >1h apart, fall
+                   back to real-time progression from the replay's start. */
+                <SyncedReplayTranscript
+                  segs={replaySegments}
+                  clock={Math.abs(captionClock - replaySegments[0].t) > 3600
+                    ? replaySegments[0].t + (Date.now() - replayStartedAt.current) / 1000
+                    : captionClock}
+                />
               ) : isReplay && replayTranscript ? (
                 /* Older archive without timecodes: static block. Only the
                    final chunk survived the pre-fix overwrite bug. */
