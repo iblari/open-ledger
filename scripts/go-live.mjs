@@ -177,7 +177,14 @@ function tryYtDlp(extraArgs) {
     // formats — audio-only "bestaudio" fails with "Requested format is not
     // available" (observed on the July 4th White House stream). The muxed
     // fallback is fine: ffmpeg extracts the audio track either way.
-    const args = ["-f", "bestaudio/best", "--get-url", ...extraArgs, YOUTUBE_URL];
+    // Prefer the HLS manifest (protocol m3u8*): ffmpeg follows a live HLS
+    // playlist indefinitely. A progressive googlevideo URL on a LIVE stream
+    // serves a finite window and then EOFs — observed killing the audio
+    // chain ~4 minutes into every session ("Stream ends prematurely").
+    const args = [
+      "-f", "bestaudio[protocol*=m3u8]/best[protocol*=m3u8]/bestaudio/best",
+      "--get-url", ...extraArgs, YOUTUBE_URL,
+    ];
     // YT_PROXY_URL (static-residential proxy) routes extraction around
     // YouTube's datacenter-IP bot-check — set it as a GitHub secret and
     // every attempt in the ladder uses it automatically.
@@ -194,17 +201,12 @@ function tryYtDlp(extraArgs) {
   });
 }
 
-let audioUrl = null;
-if (!sourceIsYouTube) {
-  // Direct stream (HLS .m3u8, radio/Icecast, anything ffmpeg reads):
-  // no extraction step needed at all.
-  console.log("→ Direct stream source — skipping yt-dlp, ffmpeg will ingest it.");
-  audioUrl = YOUTUBE_URL;
-} else {
-  console.log("→ Extracting audio stream URL...");
+/** Run the yt-dlp client ladder once; returns a fresh stream URL or null.
+ *  Called at startup AND on every chain restart — googlevideo URLs are
+ *  proxy-IP-bound and can expire mid-session. */
+async function extractAudioUrl() {
+  if (!sourceIsYouTube) return YOUTUBE_URL; // direct streams need no extraction
   const userExtra = (process.env.YT_DLP_EXTRA_ARGS || "").split(/\s+/).filter(Boolean);
-  // userExtra (e.g. the PO-token provider routing, or cookies) applies to
-  // EVERY attempt; the ladder only varies the player client.
   const CLIENT_ATTEMPTS = [
     [],                                                        // default client
     ["--extractor-args", "youtube:player_client=android,tv"],
@@ -215,13 +217,22 @@ if (!sourceIsYouTube) {
     const label = attempt.length ? attempt.join(" ") : "(default client)";
     const { url, errText } = await tryYtDlp(attempt);
     if (url) {
-      console.log(`  ✓ Got audio stream URL via ${label}`);
-      audioUrl = url;
-      break;
+      console.log(`  ✓ Got audio stream URL via ${label}${url.includes(".m3u8") || url.includes("/hls_") ? " (HLS manifest)" : " (progressive)"}`);
+      return url;
     }
     const firstErr = (errText.split("\n").find(l => l.includes("ERROR")) || errText.split("\n")[0] || "").trim();
     console.error(`  ✗ ${label}: ${firstErr.slice(0, 160)}`);
   }
+  return null;
+}
+
+let audioUrl = null;
+if (!sourceIsYouTube) {
+  console.log("→ Direct stream source — skipping yt-dlp, ffmpeg will ingest it.");
+  audioUrl = YOUTUBE_URL;
+} else {
+  console.log("→ Extracting audio stream URL...");
+  audioUrl = await extractAudioUrl();
   if (!audioUrl) {
     console.error("  ERROR: all yt-dlp client attempts failed. On a datacenter IP,");
     console.error("  YouTube may require cookies: set YT_DLP_EXTRA_ARGS='--cookies <file>'.");
@@ -270,16 +281,16 @@ process.on("unhandledRejection", async (e) => {
   process.exit(1);
 });
 
-// ── Step 3: Connect to Deepgram ─────────────────────────────────
+// ── Step 3+4: SUPERVISED audio → transcription chain ────────────────
+//
+// The old implementation built the chain once (extract → Deepgram → ffmpeg)
+// and had no supervision: when the stream URL EOF'd (~4 min on progressive
+// live URLs) or the proxy hiccuped, ffmpeg exited, Deepgram closed, and the
+// worker sat idle for the rest of its 3-hour window — every session since
+// launch captured only the first few minutes. Now each death of the chain
+// triggers a fresh URL extraction and a rebuild, with a circuit breaker so
+// a genuinely-ended stream doesn't loop forever.
 
-console.log("→ Connecting to Deepgram...");
-
-// First real production run failed here with "Unexpected server response:
-// 400" — two fixable causes: utterance_end_ms REQUIRES interim_results=true
-// (invalid with false), and nova-2 may be deprecated on newer accounts.
-// Fix: drop utterance_end_ms (meaningless without interims), and try a
-// model ladder (nova-3 → nova-2 → base) with the response body logged on
-// failure so the next 400 tells us WHY.
 function dgUrlFor(model) {
   return `wss://api.deepgram.com/v1/listen?` +
     `encoding=linear16&sample_rate=16000&channels=1&` +
@@ -313,162 +324,175 @@ function connectDeepgram(models) {
   });
 }
 
-let dgWs;
-try {
-  dgWs = await connectDeepgram(["nova-3", "nova-2", "base"]);
-} catch (e) {
-  console.error("  ERROR:", e.message);
-  await adminCall("/api/admin/go-live", { action: "stop" }).catch(() => {});
-  process.exit(13);
-}
-
-// The socket is ALREADY OPEN here (connectDeepgram resolves on open), so
-// initialize timing directly instead of via an "open" handler that would
-// never fire again.
-let startTime = Date.now();
+// Session-scoped state: videoTime stays continuous across chain restarts
+// because startTime is set exactly once.
+const startTime = Date.now();
 let transcriptBuffer = "";
 let lastIngestTime = Date.now();
-const INGEST_INTERVAL = 15000; // 15 seconds
 let totalClaims = 0;
+let sessionEnded = false;
+let currentFfmpeg = null;
+let currentWs = null;
 
-console.log("🎙️  LIVE — transcribing and fact-checking in real-time...");
-console.log("   Press Ctrl+C to stop.\n");
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-dgWs.on("message", async (data) => {
-  try {
-    const msg = JSON.parse(data.toString());
-    if (msg.type === "Results" && msg.channel?.alternatives?.[0]) {
-      const transcript = msg.channel.alternatives[0].transcript;
-      if (transcript) {
-        transcriptBuffer += " " + transcript;
-        // Print transcript in real-time
-        process.stdout.write(`   📝 ${transcript}\n`);
+function ingestBufferedChunk(force = false) {
+  const now = Date.now();
+  if (!force && now - lastIngestTime < INGEST_INTERVAL) return;
+  if (transcriptBuffer.trim().length < 30) return;
+  lastIngestTime = now;
+  const chunk = transcriptBuffer.trim();
+  transcriptBuffer = "";
+  const videoTime = Math.floor((now - startTime) / 1000);
+  adminCall("/api/admin/ingest", { text: chunk, videoTime })
+    .then((resp) => {
+      if (resp.claims?.length > 0) {
+        totalClaims += resp.claims.length;
+        for (const c of resp.claims) {
+          const emoji = c.rating === "TRUE" ? "✅" :
+            c.rating === "MOSTLY TRUE" ? "🟢" :
+            c.rating === "MISLEADING" ? "🟡" :
+            c.rating === "FALSE" ? "🔴" : "⚪";
+          console.log(`\n   ${emoji} ${c.rating}: "${c.quote}"`);
+          console.log(`      Data: ${c.actual}`);
+        }
+        console.log(`   [${totalClaims} total claims]\n`);
+      }
+    })
+    .catch((e) => console.error("   Ingest error:", e.message));
+}
 
-        // Send to server every ~15 seconds
-        const now = Date.now();
-        if (now - lastIngestTime >= INGEST_INTERVAL && transcriptBuffer.trim().length >= 30) {
-          lastIngestTime = now;
-          const chunk = transcriptBuffer.trim();
-          transcriptBuffer = "";
-          const videoTime = Math.floor((now - startTime) / 1000);
+const INGEST_INTERVAL = 15000; // 15 seconds
 
-          // Fire and forget — don't block the transcript flow
-          adminCall("/api/admin/ingest", { text: chunk, videoTime })
-            .then((resp) => {
-              if (resp.claims?.length > 0) {
-                totalClaims += resp.claims.length;
-                for (const c of resp.claims) {
-                  const emoji = c.rating === "TRUE" ? "✅" :
-                    c.rating === "MOSTLY TRUE" ? "🟢" :
-                    c.rating === "MISLEADING" ? "🟡" :
-                    c.rating === "FALSE" ? "🔴" : "⚪";
-                  console.log(`\n   ${emoji} ${c.rating}: "${c.quote}"`);
-                  console.log(`      Data: ${c.actual}`);
-                }
-                console.log(`   [${totalClaims} total claims]\n`);
-              }
-            })
-            .catch((e) => console.error("   Ingest error:", e.message));
+/** Build one audio→STT chain and resolve when any part of it dies. */
+async function runChain(url) {
+  const dgWs = await connectDeepgram(["nova-3", "nova-2", "base"]);
+  currentWs = dgWs;
+
+  dgWs.on("message", (data) => {
+    try {
+      const msg = JSON.parse(data.toString());
+      if (msg.type === "Results" && msg.channel?.alternatives?.[0]) {
+        const transcript = msg.channel.alternatives[0].transcript;
+        if (transcript) {
+          transcriptBuffer += " " + transcript;
+          process.stdout.write(`   📝 ${transcript}\n`);
+          ingestBufferedChunk();
         }
       }
-    }
-  } catch {
-    // ignore parse errors
-  }
-});
+    } catch { /* ignore parse errors */ }
+  });
+  dgWs.on("error", (err) => console.error("Deepgram error:", err.message));
 
-dgWs.on("error", (err) => {
-  console.error("Deepgram error:", err.message);
-});
+  // Audio download must ALSO go through the proxy when one is set: YouTube
+  // binds stream URLs to the requesting IP.
+  const ffmpeg = spawn("ffmpeg", [
+    ...(process.env.YT_PROXY_URL && /^https?:/i.test(url)
+      ? ["-http_proxy", process.env.YT_PROXY_URL]
+      : []),
+    // Aggressive reconnect flags: survive transient TLS/proxy hiccups on
+    // long-lived live streams without tearing the whole chain down.
+    ...(/^https?:/i.test(url)
+      ? ["-reconnect", "1", "-reconnect_streamed", "1", "-reconnect_delay_max", "10"]
+      : []),
+    "-i", url,
+    "-f", "s16le",
+    "-acodec", "pcm_s16le",
+    "-ar", "16000",
+    "-ac", "1",
+    "-loglevel", "error",
+    "pipe:1",
+  ]);
+  currentFfmpeg = ffmpeg;
 
-dgWs.on("close", () => {
-  console.log("\nDeepgram connection closed.");
-});
+  ffmpeg.stdout.on("data", (chunk) => {
+    if (dgWs.readyState === WebSocket.OPEN) dgWs.send(chunk);
+  });
+  ffmpeg.stderr.on("data", (d) => {
+    const msg = d.toString().trim();
+    if (msg) console.error("  ffmpeg:", msg);
+  });
 
-// ── Step 4: Pipe audio through ffmpeg → Deepgram ───────────────
+  // Resolve when EITHER side dies; the supervisor decides what to do next.
+  await new Promise((resolve) => {
+    let done = false;
+    const finish = (why) => {
+      if (done) return;
+      done = true;
+      console.log(`\n⚠️  Chain down: ${why}`);
+      try { ffmpeg.kill("SIGKILL"); } catch { /* already dead */ }
+      try { dgWs.close(); } catch { /* already closed */ }
+      resolve(undefined);
+    };
+    ffmpeg.on("close", (code) => finish(`ffmpeg exited (code ${code})`));
+    ffmpeg.on("error", (e) => finish(`ffmpeg error: ${e.message}`));
+    dgWs.on("close", () => finish("Deepgram socket closed"));
+  });
+}
 
-// Wait for WebSocket to open
-await new Promise((resolve) => {
-  if (dgWs.readyState === WebSocket.OPEN) resolve(undefined);
-  else dgWs.on("open", resolve);
-});
+// ── Graceful shutdown ────────────────────────────────────────────
 
-// The audio download must ALSO go through the proxy when one is set:
-// YouTube binds stream URLs to the IP that requested them, so a URL
-// extracted via proxy 403s if fetched from the runner's own IP.
-// (Direct streamUrl sources — C-SPAN Radio etc — don't need this, but
-// routing them through the proxy is harmless.)
-const ffmpeg = spawn("ffmpeg", [
-  ...(process.env.YT_PROXY_URL && /^https?:/i.test(audioUrl)
-    ? ["-http_proxy", process.env.YT_PROXY_URL]
-    : []),
-  "-i", audioUrl,
-  "-f", "s16le",        // raw PCM
-  "-acodec", "pcm_s16le",
-  "-ar", "16000",        // 16kHz sample rate
-  "-ac", "1",            // mono
-  "-loglevel", "error",
-  "pipe:1",              // output to stdout
-]);
-
-ffmpeg.stdout.on("data", (chunk) => {
-  if (dgWs.readyState === WebSocket.OPEN) {
-    dgWs.send(chunk);
-  }
-});
-
-ffmpeg.stderr.on("data", (d) => {
-  const msg = d.toString().trim();
-  if (msg) console.error("  ffmpeg:", msg);
-});
-
-ffmpeg.on("close", (code) => {
-  console.log(`\nffmpeg exited with code ${code}`);
-  dgWs.close();
-});
-
-// ── Graceful shutdown ───────────────────────────────────────────
-
-async function shutdown() {
-  console.log("\n\n⏹️  Stopping broadcast...");
-
-  // Send any remaining transcript
-  if (transcriptBuffer.trim().length >= 30) {
-    const videoTime = Math.floor((Date.now() - startTime) / 1000);
-    await adminCall("/api/admin/ingest", {
-      text: transcriptBuffer.trim(),
-      videoTime,
-    }).catch(() => {});
-  }
-
-  // Set site to off
+let shuttingDown = false;
+async function shutdown(reason = "signal") {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  sessionEnded = true;
+  console.log(`\n\n⏹️  Stopping broadcast (${reason})...`);
+  ingestBufferedChunk(true); // flush the tail
+  await sleep(1500);         // let the flush POST land
   await adminCall("/api/admin/go-live", { action: "stop" }).catch(() => {});
-
   console.log("  ✓ Site is now OFF");
   console.log(`  Total claims fact-checked: ${totalClaims}`);
   console.log(`  Duration: ${Math.floor((Date.now() - startTime) / 60000)} minutes\n`);
-
-  ffmpeg.kill("SIGTERM");
-  dgWs.close();
+  try { currentFfmpeg?.kill("SIGTERM"); } catch { /* fine */ }
+  try { currentWs?.close(); } catch { /* fine */ }
   process.exit(0);
 }
-
-process.on("SIGINT", shutdown);
-process.on("SIGTERM", shutdown);
-
-// Auto-stop timer — set when --duration is provided so the GitHub Action's
-// workflow doesn't have to send a signal. Adds a hard ceiling so a runaway
-// stream can't burn through STT credits indefinitely.
-let shuttingDown = false;
-const guardedShutdown = async (reason) => {
-  if (shuttingDown) return;
-  shuttingDown = true;
-  console.log(`\nAuto-stop: ${reason}`);
-  await shutdown();
-};
+process.on("SIGINT", () => shutdown("SIGINT"));
+process.on("SIGTERM", () => shutdown("SIGTERM"));
 
 if (durationSec != null) {
-  setTimeout(() => {
-    guardedShutdown(`reached --duration of ${durationSec}s`);
-  }, durationSec * 1000);
+  setTimeout(() => shutdown(`reached --duration of ${durationSec}s`), durationSec * 1000);
 }
+
+// ── Supervisor loop ──────────────────────────────────────────────
+
+console.log("🎙️  LIVE — transcribing and fact-checking in real-time...\n");
+
+let restarts = 0;
+const deaths = []; // wall-clock ms of recent chain deaths (circuit breaker)
+
+let chainUrl = audioUrl;
+for (;;) {
+  const chainStart = Date.now();
+  try {
+    await runChain(chainUrl);
+  } catch (e) {
+    console.error("  Chain build failed:", e.message);
+  }
+  if (sessionEnded || shuttingDown) break;
+
+  // Circuit breaker: 6 deaths inside 15 minutes, each after <90s of life,
+  // means the stream is over (or unreachable) — stop cleanly instead of
+  // burning restarts against a dead stream.
+  const lifetime = Date.now() - chainStart;
+  const now = Date.now();
+  deaths.push(now);
+  while (deaths.length && now - deaths[0] > 15 * 60 * 1000) deaths.shift();
+  if (deaths.length >= 6 && lifetime < 90 * 1000) {
+    console.log("  Stream appears to have ended (repeated rapid chain deaths).");
+    break;
+  }
+
+  restarts++;
+  console.log(`  ↻ Restarting audio chain (restart #${restarts}) in 5s — re-extracting stream URL...`);
+  await sleep(5000);
+  const fresh = await extractAudioUrl();
+  if (fresh) {
+    chainUrl = fresh;
+  } else {
+    console.error("  Re-extraction failed — retrying the previous URL.");
+  }
+}
+
+await shutdown("stream ended");
