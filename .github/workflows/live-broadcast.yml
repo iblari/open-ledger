@@ -37,6 +37,16 @@ on:
         description: "Hard ceiling on worker runtime in minutes (default 300, max 350)"
         required: false
         default: "300"
+      # Manual source override — skips schedule/discovery entirely. Used for
+      # pipeline rehearsals against any live stream.
+      source_url:
+        description: "Manual source URL (YouTube watch URL or direct stream)"
+        required: false
+        default: ""
+      source_title:
+        description: "Title for a manual source run"
+        required: false
+        default: "Pipeline systems check"
 
 # Only one live-broadcast worker at a time. If a previous cron tick is still
 # running a broadcast, this run will be cancelled rather than starting a
@@ -204,7 +214,7 @@ jobs:
       # long events get covered in capped blocks.
       - name: Check discovered streams
         id: discover
-        if: steps.schedule.outputs.has_event != 'true'
+        if: github.event.inputs.source_url == '' && steps.schedule.outputs.has_event != 'true'
         env:
           API_URL: ${{ secrets.API_URL || 'https://voteunbiased.org' }}
         run: |
@@ -242,8 +252,22 @@ jobs:
           } >> "$GITHUB_OUTPUT"
           echo "Auto-covering: $TITLE ($LABEL) for ${DUR_MIN}min"
 
+      - name: Manual source override
+        id: manual
+        if: github.event.inputs.source_url != ''
+        run: |
+          MIN="${{ github.event.inputs.max_duration_min }}"
+          {
+            echo "has_event=true"
+            echo "youtube_url=${{ github.event.inputs.source_url }}"
+            echo "title=${{ github.event.inputs.source_title }}"
+            echo "event_id=manual-$(date +%s)"
+            echo "duration_sec=$(( ${MIN:-10} * 60 ))"
+          } >> "$GITHUB_OUTPUT"
+          echo "Manual run: ${{ github.event.inputs.source_title }}"
+
       - name: Run live broadcast worker
-        if: steps.schedule.outputs.has_event == 'true' || steps.discover.outputs.has_event == 'true'
+        if: steps.manual.outputs.has_event == 'true' || steps.schedule.outputs.has_event == 'true' || steps.discover.outputs.has_event == 'true'
         env:
           DEEPGRAM_API_KEY: ${{ secrets.DEEPGRAM_API_KEY }}
           ADMIN_KEY: ${{ secrets.ADMIN_KEY }}
@@ -258,11 +282,11 @@ jobs:
           # Scheduled event wins; discovery only fires when schedule was empty.
           # EV_INGEST is what ffmpeg listens to (streamUrl > youtubeUrl);
           # EV_DISPLAY is what the site embeds (youtubeUrl, or none).
-          EV_INGEST: ${{ steps.schedule.outputs.has_event == 'true' && steps.schedule.outputs.ingest_url || steps.discover.outputs.youtube_url }}
-          EV_DISPLAY: ${{ steps.schedule.outputs.has_event == 'true' && steps.schedule.outputs.youtube_url || steps.discover.outputs.youtube_url }}
-          EV_TITLE: ${{ steps.schedule.outputs.has_event == 'true' && steps.schedule.outputs.title || steps.discover.outputs.title }}
-          EV_ID: ${{ steps.schedule.outputs.has_event == 'true' && steps.schedule.outputs.event_id || steps.discover.outputs.event_id }}
-          EV_DURATION: ${{ steps.schedule.outputs.has_event == 'true' && steps.schedule.outputs.duration_sec || steps.discover.outputs.duration_sec }}
+          EV_INGEST: ${{ steps.manual.outputs.has_event == 'true' && steps.manual.outputs.youtube_url || (steps.schedule.outputs.has_event == 'true' && steps.schedule.outputs.ingest_url || steps.discover.outputs.youtube_url) }}
+          EV_DISPLAY: ${{ steps.manual.outputs.has_event == 'true' && steps.manual.outputs.youtube_url || (steps.schedule.outputs.has_event == 'true' && steps.schedule.outputs.youtube_url || steps.discover.outputs.youtube_url) }}
+          EV_TITLE: ${{ steps.manual.outputs.has_event == 'true' && steps.manual.outputs.title || (steps.schedule.outputs.has_event == 'true' && steps.schedule.outputs.title || steps.discover.outputs.title) }}
+          EV_ID: ${{ steps.manual.outputs.has_event == 'true' && steps.manual.outputs.event_id || (steps.schedule.outputs.has_event == 'true' && steps.schedule.outputs.event_id || steps.discover.outputs.event_id) }}
+          EV_DURATION: ${{ steps.manual.outputs.has_event == 'true' && steps.manual.outputs.duration_sec || (steps.schedule.outputs.has_event == 'true' && steps.schedule.outputs.duration_sec || steps.discover.outputs.duration_sec) }}
         run: |
           set -e
           echo "Starting worker for event $EV_ID"
@@ -276,7 +300,7 @@ jobs:
       # the script — this step runs even then. Stopping an already-off
       # site is a harmless no-op.
       - name: Ensure site is not left in live state
-        if: always() && (steps.schedule.outputs.has_event == 'true' || steps.discover.outputs.has_event == 'true')
+        if: always() && (steps.manual.outputs.has_event == 'true' || steps.schedule.outputs.has_event == 'true' || steps.discover.outputs.has_event == 'true')
         env:
           ADMIN_KEY: ${{ secrets.ADMIN_KEY }}
           API_URL: ${{ secrets.API_URL || 'https://voteunbiased.org' }}

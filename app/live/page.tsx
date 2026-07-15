@@ -669,6 +669,12 @@ export default function LiveFactCheckPage() {
   //     (audio chunking + Deepgram + Claude) is ~8s and roughly constant.
   const LIVE_PIPELINE_DELAY_S = 8;
   const seekToClaim = useCallback((claim: Claim) => {
+    // Replays: claim.videoTime is on the VOD timeline — seek straight to it.
+    // The wall-clock-age mapping below is only meaningful at the live edge.
+    if (isReplay) {
+      if (claim.videoTime != null && claim.videoTime > 0) seekVideo(claim.videoTime);
+      return;
+    }
     if (!isDemo) {
       const player = ytPlayerRef.current;
       if (player?.getCurrentTime) {
@@ -683,7 +689,7 @@ export default function LiveFactCheckPage() {
       }
     }
     if (claim.videoTime != null && claim.videoTime > 0) seekVideo(claim.videoTime);
-  }, [isDemo, seekVideo]);
+  }, [isDemo, isReplay, seekVideo]);
 
   /* ── Load config — check live-feed API first, fall back to static JSON ── */
   // Re-polled every 30s while idle: previously this ran once on mount, so a

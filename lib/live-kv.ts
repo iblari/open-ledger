@@ -436,6 +436,20 @@ export async function archiveBroadcast(b: RecentBroadcast): Promise<void> {
   }
 }
 
+/** Remove one archived broadcast (ops/testing cleanup). */
+export async function removeRecentBroadcast(videoId: string): Promise<boolean> {
+  const all = await getRecentBroadcasts();
+  const next = all.filter(b => b.videoId !== videoId);
+  if (next.length === all.length) return false;
+  const json = JSON.stringify(next);
+  if (hasUpstash()) {
+    await upstashCmd("SET", RECENT_BROADCASTS_KEY, json);
+  } else {
+    mem.set(RECENT_BROADCASTS_KEY, json);
+  }
+  return true;
+}
+
 // ── "What's Changing in America" trends feed ────────────────────────
 // Computed by scripts/detect-trends.mjs (deterministic arithmetic over
 // Census data), narrated by Claude in /api/admin/trends, served to the

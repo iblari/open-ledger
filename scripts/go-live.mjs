@@ -181,25 +181,42 @@ function tryYtDlp(extraArgs) {
     // playlist indefinitely. A progressive googlevideo URL on a LIVE stream
     // serves a finite window and then EOFs — observed killing the audio
     // chain ~4 minutes into every session ("Stream ends prematurely").
+    // --print release_timestamp: the stream's ACTUAL start epoch. Every
+    // transcript chunk and claim gets anchored to VIDEO time (seconds since
+    // stream start) instead of worker time — so replays stay in sync even
+    // when the worker joins late or the chain restarts mid-session.
     const args = [
       "-f", "bestaudio[protocol*=m3u8]/best[protocol*=m3u8]/bestaudio/best",
-      "--get-url", ...extraArgs, YOUTUBE_URL,
+      "--print", "release_timestamp", "--print", "urls",
+      ...extraArgs, YOUTUBE_URL,
     ];
     // YT_PROXY_URL (static-residential proxy) routes extraction around
     // YouTube's datacenter-IP bot-check — set it as a GitHub secret and
     // every attempt in the ladder uses it automatically.
     if (process.env.YT_PROXY_URL) args.unshift("--proxy", process.env.YT_PROXY_URL);
     const proc = spawn("yt-dlp", args);
-    let url = "";
+    let out = "";
     let errText = "";
-    proc.stdout.on("data", (d) => { url += d.toString().trim(); });
+    proc.stdout.on("data", (d) => { out += d.toString(); });
     proc.stderr.on("data", (d) => { errText += d.toString(); });
     proc.on("error", () => resolve({ url: null, errText: "yt-dlp not installed (brew install yt-dlp)" }));
     proc.on("close", (code) => {
-      resolve({ url: code === 0 && url ? url : null, errText });
+      const lines = out.split("\n").map(l => l.trim()).filter(Boolean);
+      // Line order matches --print order: [release_timestamp, url]
+      const ts = Number(lines[0]);
+      const url = lines.find(l => /^https?:\/\//.test(l)) || null;
+      resolve({
+        url: code === 0 ? url : null,
+        streamStartEpoch: Number.isFinite(ts) && ts > 1e9 ? ts : null,
+        errText,
+      });
     });
   });
 }
+
+// Stream's true start epoch (seconds) — set on first successful extraction.
+// null = unknown (direct streams): fall back to worker-relative time.
+let streamStartEpoch = null;
 
 /** Run the yt-dlp client ladder once; returns a fresh stream URL or null.
  *  Called at startup AND on every chain restart — googlevideo URLs are
@@ -215,9 +232,13 @@ async function extractAudioUrl() {
   ].map(a => [...userExtra, ...a]);
   for (const attempt of CLIENT_ATTEMPTS) {
     const label = attempt.length ? attempt.join(" ") : "(default client)";
-    const { url, errText } = await tryYtDlp(attempt);
+    const { url, streamStartEpoch: ts, errText } = await tryYtDlp(attempt);
     if (url) {
       console.log(`  ✓ Got audio stream URL via ${label}${url.includes(".m3u8") || url.includes("/hls_") ? " (HLS manifest)" : " (progressive)"}`);
+      if (ts && !streamStartEpoch) {
+        streamStartEpoch = ts;
+        console.log(`  ✓ Stream started ${new Date(ts * 1000).toISOString()} — timestamps anchored to video time`);
+      }
       return url;
     }
     const firstErr = (errText.split("\n").find(l => l.includes("ERROR")) || errText.split("\n")[0] || "").trim();
@@ -333,8 +354,40 @@ let totalClaims = 0;
 let sessionEnded = false;
 let currentFfmpeg = null;
 let currentWs = null;
+let lastTranscriptAt = Date.now();
+
+// ── Silence watchdog ──
+// "Process running" is not "pipeline working": every pre-fix session died
+// silently minutes in while the workflow stayed green. 10 minutes without
+// a single word → tear the chain down (supervisor rebuilds with a fresh
+// URL). 45 minutes of total silence → exit non-zero so the workflow run
+// goes RED and the failure is visible.
+setInterval(() => {
+  if (sessionEnded || shuttingDown) return;
+  const quietMs = Date.now() - lastTranscriptAt;
+  if (quietMs > 45 * 60 * 1000) {
+    console.error("🚨 45 minutes without any transcript — failing loudly.");
+    shutdown("silence watchdog: 45min without transcript", 7);
+  } else if (quietMs > 10 * 60 * 1000) {
+    console.error(`⚠️  ${Math.round(quietMs / 60000)} min without transcript — forcing chain rebuild.`);
+    try { currentFfmpeg?.kill("SIGKILL"); } catch { /* fine */ }
+    try { currentWs?.close(); } catch { /* fine */ }
+    lastTranscriptAt = Date.now() - 5 * 60 * 1000; // half-reset: escalate if still dead
+  }
+}, 60 * 1000).unref?.();
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+// Speech reaching us NOW was spoken roughly this many seconds ago
+// (HLS live-edge distance + STT buffering). Tunable via env.
+const LIVE_LATENCY_S = Number(process.env.LIVE_LATENCY_S || 12);
+
+function currentVideoTime(nowMs) {
+  if (streamStartEpoch) {
+    return Math.max(0, Math.floor(nowMs / 1000 - streamStartEpoch - LIVE_LATENCY_S));
+  }
+  return Math.floor((nowMs - startTime) / 1000); // fallback: worker-relative
+}
 
 function ingestBufferedChunk(force = false) {
   const now = Date.now();
@@ -343,7 +396,7 @@ function ingestBufferedChunk(force = false) {
   lastIngestTime = now;
   const chunk = transcriptBuffer.trim();
   transcriptBuffer = "";
-  const videoTime = Math.floor((now - startTime) / 1000);
+  const videoTime = currentVideoTime(now);
   adminCall("/api/admin/ingest", { text: chunk, videoTime })
     .then((resp) => {
       if (resp.claims?.length > 0) {
@@ -375,6 +428,7 @@ async function runChain(url) {
       if (msg.type === "Results" && msg.channel?.alternatives?.[0]) {
         const transcript = msg.channel.alternatives[0].transcript;
         if (transcript) {
+          lastTranscriptAt = Date.now();
           transcriptBuffer += " " + transcript;
           process.stdout.write(`   📝 ${transcript}\n`);
           ingestBufferedChunk();
@@ -433,7 +487,7 @@ async function runChain(url) {
 // ── Graceful shutdown ────────────────────────────────────────────
 
 let shuttingDown = false;
-async function shutdown(reason = "signal") {
+async function shutdown(reason = "signal", exitCode = 0) {
   if (shuttingDown) return;
   shuttingDown = true;
   sessionEnded = true;
@@ -446,7 +500,7 @@ async function shutdown(reason = "signal") {
   console.log(`  Duration: ${Math.floor((Date.now() - startTime) / 60000)} minutes\n`);
   try { currentFfmpeg?.kill("SIGTERM"); } catch { /* fine */ }
   try { currentWs?.close(); } catch { /* fine */ }
-  process.exit(0);
+  process.exit(exitCode);
 }
 process.on("SIGINT", () => shutdown("SIGINT"));
 process.on("SIGTERM", () => shutdown("SIGTERM"));

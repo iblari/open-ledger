@@ -7,6 +7,7 @@ import {
   getLiveTranscript,
   setLiveTranscript,
   getRecentBroadcasts,
+  removeRecentBroadcast,
   archiveBroadcast,
   type LiveState,
 } from "@/lib/live-kv";
@@ -121,6 +122,14 @@ export async function POST(req: Request) {
 
     console.log(`[GO-LIVE] Stopped broadcast`);
     return NextResponse.json({ ok: true, state });
+  }
+
+  // Ops cleanup: drop one archived broadcast (e.g. a pipeline rehearsal).
+  if ((body.action as string) === "delete-recent") {
+    const vid = (body as { videoId?: string }).videoId;
+    if (!vid) return NextResponse.json({ error: "videoId required" }, { status: 400 });
+    const removed = await removeRecentBroadcast(vid);
+    return NextResponse.json({ ok: true, removed });
   }
 
   // One-off recovery: attach the still-in-KV live transcript to the most
