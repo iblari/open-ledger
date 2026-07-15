@@ -2813,14 +2813,24 @@ function SyncedReplayTranscript({ segs, clock }: {
           <span style={{ color: T.mute, fontStyle: "italic" }}>
             Speech transcript begins at {fmt(segs[0].t)} — skip ahead or keep watching.
           </span>
-        ) : visible.map((s, i) => (
-          <span key={i} style={{
-            color: i === visible.length - 1 ? T.ink : T.sub,
-            fontWeight: i === visible.length - 1 ? 600 : 400,
-          }}>
-            {s.text}{" "}
-          </span>
-        ))}
+        ) : (<>
+          {visible.map((s, i) => (
+            <span key={i} style={{
+              color: i === visible.length - 1 ? T.ink : T.sub,
+              fontWeight: i === visible.length - 1 ? 600 : 400,
+            }}>
+              {s.text}{" "}
+            </span>
+          ))}
+          {/* Honest end-of-coverage note: without it a truncated recording
+              (e.g. events captured before the Jul 2026 recorder fix) looks
+              like the transcript silently "stops working". */}
+          {clock > visible[visible.length - 1].t + 45 && visible.length === segs.length && (
+            <span style={{ color: T.mute, fontStyle: "italic" }}>
+              — transcript recording for this event ended at {fmt(segs[segs.length - 1].t)} —
+            </span>
+          )}
+        </>)}
       </div>
     </div>
   );
