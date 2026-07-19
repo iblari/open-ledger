@@ -65,14 +65,22 @@ let cache: { at: number; hits: LiveHit[]; upcoming: UpcomingHit[] } | null = nul
 async function probeChannel(ch: ChannelDef): Promise<ProbeResult> {
   const none: ProbeResult = { live: null, upcoming: null };
   try {
-    const resp = await fetch(ch.url, {
+    // Cache-busting query + no-cache headers: YouTube's CDN served a page
+    // from SEVEN HOURS earlier to our datacenter IP on Jul 17, making an
+    // ended briefing look live (and out-competing the actual presidential
+    // address in the auto-cover pick). Every probe must be fresh.
+    const bust = `${ch.url}${ch.url.includes("?") ? "&" : "?"}ucbcb=${Date.now()}`;
+    const resp = await fetch(bust, {
       headers: {
         // Desktop UA — the consent/mobile interstitials are likelier without one.
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
         "Accept-Language": "en-US,en;q=0.9",
+        "Cache-Control": "no-cache",
+        Pragma: "no-cache",
       },
       redirect: "follow",
+      cache: "no-store",
       signal: AbortSignal.timeout(6000),
     });
     if (!resp.ok) return none;
@@ -129,7 +137,16 @@ async function probeChannel(ch: ChannelDef): Promise<ProbeResult> {
       return none;
     }
 
-    if (/"isLive"\s*:\s*true/.test(html)) {
+    // Strict liveness: isLiveNow is true only while the stream is actually
+    // on air; endTimestamp appears the moment it ends. "isLive" alone also
+    // matches cached/ended pages — that's the Jul 17 stale-probe bug.
+    const liveNow = /"isLiveNow"\s*:\s*true/.test(html);
+    const ended = /"endTimestamp"\s*:\s*"/.test(html);
+    if (liveNow && !ended) {
+      return { live: base, upcoming: null };
+    }
+    if (/"isLive"\s*:\s*true/.test(html) && !ended && liveNow !== false) {
+      // Legacy fallback for page variants without liveBroadcastDetails.
       return { live: base, upcoming: null };
     }
     return none;

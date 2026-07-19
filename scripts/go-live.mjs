@@ -252,6 +252,26 @@ if (!sourceIsYouTube) {
   console.log("→ Direct stream source — skipping yt-dlp, ffmpeg will ingest it.");
   audioUrl = YOUTUBE_URL;
 } else {
+  // Pre-flight: verify the stream is ACTUALLY live before touching the site.
+  // Stale discovery once pointed a worker at a briefing that had ended seven
+  // hours earlier — yt-dlp happily extracts the VOD, and the site would have
+  // shown a phantom "LIVE" card over a recording.
+  console.log("→ Pre-flight: verifying stream is live...");
+  const status = await new Promise((resolve) => {
+    const args = ["--print", "live_status", YOUTUBE_URL];
+    if (process.env.YT_PROXY_URL) args.unshift("--proxy", process.env.YT_PROXY_URL);
+    const proc = spawn("yt-dlp", args);
+    let out = "";
+    proc.stdout.on("data", (d) => { out += d.toString(); });
+    proc.on("error", () => resolve("unknown"));
+    proc.on("close", () => resolve(out.trim() || "unknown"));
+  });
+  console.log(`  live_status: ${status}`);
+  if (status === "was_live" || status === "not_live" || status === "post_live") {
+    console.log("  Stream is not live — refusing to cover a recording. Exiting cleanly.");
+    process.exit(0);
+  }
+
   console.log("→ Extracting audio stream URL...");
   audioUrl = await extractAudioUrl();
   if (!audioUrl) {
