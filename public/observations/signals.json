@@ -1,10 +1,263 @@
 {
- "generatedAt": "2026-07-20T02:52:37.737Z",
+ "generatedAt": "2026-07-20T03:02:20.168Z",
  "formula": "score = 30% magnitude + 25% acceleration + 20% persistence + 15% peer divergence + 10% recency − confidence penalties. Weights are v1 defaults pending backtests.",
  "universe": {
   "counties": 3221,
   "source": "BLS Local Area Unemployment Statistics (LAUS)",
   "period": "May 2026"
+ },
+ "stateComposites": {
+  "DE": {
+   "yoy": -0.04,
+   "counties": 3
+  },
+  "": {
+   "yoy": 0.2,
+   "counties": 1
+  },
+  "FL": {
+   "yoy": 0.8800000000000001,
+   "counties": 67
+  },
+  "GA": {
+   "yoy": -0.11000000000000001,
+   "counties": 159
+  },
+  "HI": {
+   "yoy": 0.29,
+   "counties": 4
+  },
+  "ID": {
+   "yoy": 0.16,
+   "counties": 44
+  },
+  "IL": {
+   "yoy": 0.5900000000000001,
+   "counties": 102
+  },
+  "IN": {
+   "yoy": -0.42000000000000004,
+   "counties": 92
+  },
+  "IA": {
+   "yoy": -0.45,
+   "counties": 99
+  },
+  "KS": {
+   "yoy": 0.1,
+   "counties": 105
+  },
+  "KY": {
+   "yoy": 0.41,
+   "counties": 120
+  },
+  "LA": {
+   "yoy": 0.09,
+   "counties": 64
+  },
+  "ME": {
+   "yoy": -0.21000000000000002,
+   "counties": 16
+  },
+  "MD": {
+   "yoy": 0.16,
+   "counties": 24
+  },
+  "MA": {
+   "yoy": -0.27999999999999997,
+   "counties": 14
+  },
+  "MI": {
+   "yoy": 0.18,
+   "counties": 83
+  },
+  "MN": {
+   "yoy": 0.55,
+   "counties": 87
+  },
+  "MS": {
+   "yoy": -0.19,
+   "counties": 82
+  },
+  "MO": {
+   "yoy": -0.5,
+   "counties": 115
+  },
+  "MT": {
+   "yoy": -0.11000000000000001,
+   "counties": 56
+  },
+  "NE": {
+   "yoy": -0.09,
+   "counties": 93
+  },
+  "NV": {
+   "yoy": -0.13,
+   "counties": 17
+  },
+  "NH": {
+   "yoy": -0.3,
+   "counties": 10
+  },
+  "NJ": {
+   "yoy": -0.82,
+   "counties": 21
+  },
+  "NM": {
+   "yoy": 0.78,
+   "counties": 33
+  },
+  "NY": {
+   "yoy": 0.41,
+   "counties": 62
+  },
+  "NC": {
+   "yoy": -0.22999999999999998,
+   "counties": 100
+  },
+  "ND": {
+   "yoy": -0.36,
+   "counties": 53
+  },
+  "OH": {
+   "yoy": -1.5,
+   "counties": 88
+  },
+  "OK": {
+   "yoy": 1.35,
+   "counties": 77
+  },
+  "OR": {
+   "yoy": 0,
+   "counties": 36
+  },
+  "PA": {
+   "yoy": -0.04,
+   "counties": 67
+  },
+  "RI": {
+   "yoy": -0.77,
+   "counties": 5
+  },
+  "SC": {
+   "yoy": -0.08,
+   "counties": 46
+  },
+  "SD": {
+   "yoy": -0.11000000000000001,
+   "counties": 66
+  },
+  "TN": {
+   "yoy": -0.12,
+   "counties": 95
+  },
+  "TX": {
+   "yoy": 0.3,
+   "counties": 254
+  },
+  "UT": {
+   "yoy": -0.01,
+   "counties": 29
+  },
+  "VT": {
+   "yoy": 0.06,
+   "counties": 14
+  },
+  "VA": {
+   "yoy": 0.31,
+   "counties": 133
+  },
+  "WA": {
+   "yoy": 0.5700000000000001,
+   "counties": 39
+  },
+  "WV": {
+   "yoy": -0.05,
+   "counties": 55
+  },
+  "WI": {
+   "yoy": -0.16,
+   "counties": 72
+  },
+  "WY": {
+   "yoy": -0.35,
+   "counties": 23
+  },
+  "PR": {
+   "yoy": 0.32999999999999996,
+   "counties": 78
+  },
+  "AL": {
+   "yoy": 0.8699999999999999,
+   "counties": 67
+  },
+  "AK": {
+   "yoy": -0.31,
+   "counties": 30
+  },
+  "AZ": {
+   "yoy": 0.48,
+   "counties": 15
+  },
+  "AR": {
+   "yoy": -0.06999999999999999,
+   "counties": 75
+  },
+  "CA": {
+   "yoy": -0.32,
+   "counties": 58
+  },
+  "CO": {
+   "yoy": -0.26,
+   "counties": 64
+  },
+  "CT": {
+   "yoy": 1.1400000000000001,
+   "counties": 9
+  }
+ },
+ "spotlight": {
+  "fips": "39145",
+  "name": "Scioto",
+  "st": "OH",
+  "rate": 3.8,
+  "yoy": -2.6,
+  "pctile": 0,
+  "lf": 29008,
+  "series": {
+   "periods": [
+    "2025-04",
+    "2025-05",
+    "2025-06",
+    "2025-07",
+    "2025-08",
+    "2025-09",
+    "2025-10",
+    "2025-11",
+    "2025-12",
+    "2026-01",
+    "2026-02",
+    "2026-03",
+    "2026-04",
+    "2026-05"
+   ],
+   "values": [
+    6.7,
+    6.4,
+    6.7,
+    6.9,
+    6.4,
+    5.6,
+    null,
+    5.7,
+    5.8,
+    6.9,
+    6.5,
+    5.3,
+    4.1,
+    3.8
+   ]
+  }
  },
  "signals": [
   {
@@ -815,6 +1068,68 @@
     "url": "https://www.bls.gov/lau/",
     "metric": "Unemployment rate (NSA)",
     "period": "May 2026",
+    "retrieved": "2026-07-20"
+   }
+  },
+  {
+   "id": "acs-affordability",
+   "rank": 90,
+   "topic": "housing",
+   "geo": {
+    "level": "nation",
+    "fips": "US",
+    "name": "United States",
+    "st": ""
+   },
+   "headline": "Rents outran incomes in 809 counties over five years",
+   "direction": "worsening",
+   "stat": {
+    "value": "47%",
+    "label": "of the U.S. population lives where rent grew faster than income, 2018→2023",
+    "change": "809 of 2,403 measurable counties"
+   },
+   "comparison": "Census ACS 5-year vintages; counties ≥10K population. Full analysis on the Trends page.",
+   "score": 78,
+   "caveats": [
+    "Annual data — a slower signal than the monthly jobs feed."
+   ],
+   "series": null,
+   "source": {
+    "name": "Census ACS 5-year",
+    "url": "https://www.census.gov/programs-surveys/acs",
+    "metric": "Median gross rent vs median household income",
+    "period": "2018 → 2023",
+    "retrieved": "2026-07-20"
+   }
+  },
+  {
+   "id": "acs-population",
+   "rank": 91,
+   "topic": "population",
+   "geo": {
+    "level": "nation",
+    "fips": "US",
+    "name": "United States",
+    "st": ""
+   },
+   "headline": "47% of counties lost population since 2018",
+   "direction": "mixed",
+   "stat": {
+    "value": "1,468",
+    "label": "counties shrinking of 3,097 — growth concentrates in the South and West",
+    "change": "2018 → 2023"
+   },
+   "comparison": "Census ACS 5-year total population. Full analysis on the Trends page.",
+   "score": 74,
+   "caveats": [
+    "Annual data — a slower signal than the monthly jobs feed."
+   ],
+   "series": null,
+   "source": {
+    "name": "Census ACS 5-year",
+    "url": "https://www.census.gov/programs-surveys/acs",
+    "metric": "Total population",
+    "period": "2018 → 2023",
     "retrieved": "2026-07-20"
    }
   }
