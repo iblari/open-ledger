@@ -1,0 +1,822 @@
+{
+ "generatedAt": "2026-07-20T02:52:37.737Z",
+ "formula": "score = 30% magnitude + 25% acceleration + 20% persistence + 15% peer divergence + 10% recency − confidence penalties. Weights are v1 defaults pending backtests.",
+ "universe": {
+  "counties": 3221,
+  "source": "BLS Local Area Unemployment Statistics (LAUS)",
+  "period": "May 2026"
+ },
+ "signals": [
+  {
+   "id": "laus-breadth-2026-05",
+   "rank": 0,
+   "topic": "jobs",
+   "geo": {
+    "level": "nation",
+    "fips": "US",
+    "name": "United States",
+    "st": ""
+   },
+   "headline": "Unemployment is rising in 852 counties and falling in 826",
+   "direction": "worsening",
+   "stat": {
+    "value": "31%",
+    "label": "of the U.S. labor force lives where unemployment rose ≥0.3pp year-over-year (May 2026)",
+    "change": "U.S. counties averaged +0.1pp"
+   },
+   "comparison": "Threshold ±0.3pp screens out rounding noise; counties weighted by labor force.",
+   "score": 90,
+   "caveats": [
+    "Latest month is preliminary."
+   ],
+   "series": null,
+   "source": {
+    "name": "BLS Local Area Unemployment Statistics (LAUS)",
+    "url": "https://www.bls.gov/lau/",
+    "metric": "Unemployment rate (NSA)",
+    "period": "May 2026",
+    "retrieved": "2026-07-20"
+   }
+  },
+  {
+   "id": "laus-39145-2026-05",
+   "rank": 1,
+   "topic": "jobs",
+   "geo": {
+    "level": "county",
+    "fips": "39145",
+    "name": "Scioto",
+    "st": "OH"
+   },
+   "headline": "Unemployment in Scioto, OH is down 2.6pp in a year",
+   "direction": "improving",
+   "stat": {
+    "value": "3.8%",
+    "label": "unemployment rate, May 2026",
+    "change": "−2.6pp vs May 2025"
+   },
+   "comparison": "OH counties moved −1.5pp on average; U.S. +0.1pp.",
+   "score": 90,
+   "caveats": [
+    "Latest month is preliminary (will be revised).",
+    "Series has a gap from the 2025 federal appropriations lapse."
+   ],
+   "series": {
+    "periods": [
+     "2025-04",
+     "2025-05",
+     "2025-06",
+     "2025-07",
+     "2025-08",
+     "2025-09",
+     "2025-10",
+     "2025-11",
+     "2025-12",
+     "2026-01",
+     "2026-02",
+     "2026-03",
+     "2026-04",
+     "2026-05"
+    ],
+    "values": [
+     6.7,
+     6.4,
+     6.7,
+     6.9,
+     6.4,
+     5.6,
+     null,
+     5.7,
+     5.8,
+     6.9,
+     6.5,
+     5.3,
+     4.1,
+     3.8
+    ]
+   },
+   "source": {
+    "name": "BLS Local Area Unemployment Statistics (LAUS)",
+    "url": "https://www.bls.gov/lau/",
+    "metric": "Unemployment rate (NSA)",
+    "period": "May 2026",
+    "retrieved": "2026-07-20"
+   }
+  },
+  {
+   "id": "laus-04027-2026-05",
+   "rank": 2,
+   "topic": "jobs",
+   "geo": {
+    "level": "county",
+    "fips": "04027",
+    "name": "Yuma",
+    "st": "AZ"
+   },
+   "headline": "Unemployment in Yuma, AZ is up 1.8pp in a year",
+   "direction": "worsening",
+   "stat": {
+    "value": "16%",
+    "label": "unemployment rate, May 2026",
+    "change": "+1.8pp vs May 2025"
+   },
+   "comparison": "AZ counties moved +0.5pp on average; U.S. +0.1pp.",
+   "score": 87,
+   "caveats": [
+    "Latest month is preliminary (will be revised).",
+    "Series has a gap from the 2025 federal appropriations lapse."
+   ],
+   "series": {
+    "periods": [
+     "2025-04",
+     "2025-05",
+     "2025-06",
+     "2025-07",
+     "2025-08",
+     "2025-09",
+     "2025-10",
+     "2025-11",
+     "2025-12",
+     "2026-01",
+     "2026-02",
+     "2026-03",
+     "2026-04",
+     "2026-05"
+    ],
+    "values": [
+     12.5,
+     14.2,
+     15.7,
+     16.8,
+     19,
+     16.5,
+     null,
+     13.6,
+     12.6,
+     11.4,
+     11.7,
+     11.1,
+     14,
+     16
+    ]
+   },
+   "source": {
+    "name": "BLS Local Area Unemployment Statistics (LAUS)",
+    "url": "https://www.bls.gov/lau/",
+    "metric": "Unemployment rate (NSA)",
+    "period": "May 2026",
+    "retrieved": "2026-07-20"
+   }
+  },
+  {
+   "id": "laus-47119-2026-05",
+   "rank": 3,
+   "topic": "jobs",
+   "geo": {
+    "level": "county",
+    "fips": "47119",
+    "name": "Maury",
+    "st": "TN"
+   },
+   "headline": "Unemployment in Maury, TN is up 1.7pp in a year",
+   "direction": "worsening",
+   "stat": {
+    "value": "4.5%",
+    "label": "unemployment rate, May 2026",
+    "change": "+1.7pp vs May 2025"
+   },
+   "comparison": "TN counties moved −0.1pp on average; U.S. +0.1pp.",
+   "score": 86,
+   "caveats": [
+    "Latest month is preliminary (will be revised).",
+    "Series has a gap from the 2025 federal appropriations lapse."
+   ],
+   "series": {
+    "periods": [
+     "2025-04",
+     "2025-05",
+     "2025-06",
+     "2025-07",
+     "2025-08",
+     "2025-09",
+     "2025-10",
+     "2025-11",
+     "2025-12",
+     "2026-01",
+     "2026-02",
+     "2026-03",
+     "2026-04",
+     "2026-05"
+    ],
+    "values": [
+     2.7,
+     2.8,
+     3.4,
+     3.9,
+     3.1,
+     3.1,
+     null,
+     3.3,
+     5.7,
+     5.3,
+     5.5,
+     5.1,
+     6.1,
+     4.5
+    ]
+   },
+   "source": {
+    "name": "BLS Local Area Unemployment Statistics (LAUS)",
+    "url": "https://www.bls.gov/lau/",
+    "metric": "Unemployment rate (NSA)",
+    "period": "May 2026",
+    "retrieved": "2026-07-20"
+   }
+  },
+  {
+   "id": "laus-39013-2026-05",
+   "rank": 4,
+   "topic": "jobs",
+   "geo": {
+    "level": "county",
+    "fips": "39013",
+    "name": "Belmont",
+    "st": "OH"
+   },
+   "headline": "Unemployment in Belmont, OH is down 2.1pp in a year",
+   "direction": "improving",
+   "stat": {
+    "value": "3.2%",
+    "label": "unemployment rate, May 2026",
+    "change": "−2.1pp vs May 2025"
+   },
+   "comparison": "OH counties moved −1.5pp on average; U.S. +0.1pp.",
+   "score": 86,
+   "caveats": [
+    "Latest month is preliminary (will be revised).",
+    "Series has a gap from the 2025 federal appropriations lapse."
+   ],
+   "series": {
+    "periods": [
+     "2025-04",
+     "2025-05",
+     "2025-06",
+     "2025-07",
+     "2025-08",
+     "2025-09",
+     "2025-10",
+     "2025-11",
+     "2025-12",
+     "2026-01",
+     "2026-02",
+     "2026-03",
+     "2026-04",
+     "2026-05"
+    ],
+    "values": [
+     6.1,
+     5.3,
+     5.6,
+     5.5,
+     5.1,
+     4.6,
+     null,
+     4.5,
+     4.6,
+     5.7,
+     5.8,
+     4.7,
+     3.5,
+     3.2
+    ]
+   },
+   "source": {
+    "name": "BLS Local Area Unemployment Statistics (LAUS)",
+    "url": "https://www.bls.gov/lau/",
+    "metric": "Unemployment rate (NSA)",
+    "period": "May 2026",
+    "retrieved": "2026-07-20"
+   }
+  },
+  {
+   "id": "laus-39081-2026-05",
+   "rank": 5,
+   "topic": "jobs",
+   "geo": {
+    "level": "county",
+    "fips": "39081",
+    "name": "Jefferson",
+    "st": "OH"
+   },
+   "headline": "Unemployment in Jefferson, OH is down 2.1pp in a year",
+   "direction": "improving",
+   "stat": {
+    "value": "3.5%",
+    "label": "unemployment rate, May 2026",
+    "change": "−2.1pp vs May 2025"
+   },
+   "comparison": "OH counties moved −1.5pp on average; U.S. +0.1pp.",
+   "score": 86,
+   "caveats": [
+    "Latest month is preliminary (will be revised).",
+    "Series has a gap from the 2025 federal appropriations lapse."
+   ],
+   "series": {
+    "periods": [
+     "2025-04",
+     "2025-05",
+     "2025-06",
+     "2025-07",
+     "2025-08",
+     "2025-09",
+     "2025-10",
+     "2025-11",
+     "2025-12",
+     "2026-01",
+     "2026-02",
+     "2026-03",
+     "2026-04",
+     "2026-05"
+    ],
+    "values": [
+     5.8,
+     5.6,
+     5.9,
+     6,
+     5.5,
+     5,
+     null,
+     4.8,
+     4.8,
+     5.6,
+     5.6,
+     4.6,
+     3.7,
+     3.5
+    ]
+   },
+   "source": {
+    "name": "BLS Local Area Unemployment Statistics (LAUS)",
+    "url": "https://www.bls.gov/lau/",
+    "metric": "Unemployment rate (NSA)",
+    "period": "May 2026",
+    "retrieved": "2026-07-20"
+   }
+  },
+  {
+   "id": "laus-12119-2026-05",
+   "rank": 6,
+   "topic": "jobs",
+   "geo": {
+    "level": "county",
+    "fips": "12119",
+    "name": "Sumter",
+    "st": "FL"
+   },
+   "headline": "Unemployment in Sumter, FL is up 1.7pp in a year",
+   "direction": "worsening",
+   "stat": {
+    "value": "7.6%",
+    "label": "unemployment rate, May 2026",
+    "change": "+1.7pp vs May 2025"
+   },
+   "comparison": "FL counties moved +0.9pp on average; U.S. +0.1pp.",
+   "score": 85,
+   "caveats": [
+    "Latest month is preliminary (will be revised).",
+    "Series has a gap from the 2025 federal appropriations lapse."
+   ],
+   "series": {
+    "periods": [
+     "2025-04",
+     "2025-05",
+     "2025-06",
+     "2025-07",
+     "2025-08",
+     "2025-09",
+     "2025-10",
+     "2025-11",
+     "2025-12",
+     "2026-01",
+     "2026-02",
+     "2026-03",
+     "2026-04",
+     "2026-05"
+    ],
+    "values": [
+     5.9,
+     5.9,
+     6.7,
+     7.1,
+     7.1,
+     7.5,
+     null,
+     8.5,
+     7.6,
+     9.1,
+     8.8,
+     7.8,
+     7.9,
+     7.6
+    ]
+   },
+   "source": {
+    "name": "BLS Local Area Unemployment Statistics (LAUS)",
+    "url": "https://www.bls.gov/lau/",
+    "metric": "Unemployment rate (NSA)",
+    "period": "May 2026",
+    "retrieved": "2026-07-20"
+   }
+  },
+  {
+   "id": "laus-34009-2026-05",
+   "rank": 7,
+   "topic": "jobs",
+   "geo": {
+    "level": "county",
+    "fips": "34009",
+    "name": "Cape May",
+    "st": "NJ"
+   },
+   "headline": "Unemployment in Cape May, NJ is down 1.4pp in a year",
+   "direction": "improving",
+   "stat": {
+    "value": "6.5%",
+    "label": "unemployment rate, May 2026",
+    "change": "−1.4pp vs May 2025"
+   },
+   "comparison": "NJ counties moved −0.8pp on average; U.S. +0.1pp.",
+   "score": 81,
+   "caveats": [
+    "Latest month is preliminary (will be revised).",
+    "Series has a gap from the 2025 federal appropriations lapse."
+   ],
+   "series": {
+    "periods": [
+     "2025-04",
+     "2025-05",
+     "2025-06",
+     "2025-07",
+     "2025-08",
+     "2025-09",
+     "2025-10",
+     "2025-11",
+     "2025-12",
+     "2026-01",
+     "2026-02",
+     "2026-03",
+     "2026-04",
+     "2026-05"
+    ],
+    "values": [
+     10,
+     7.9,
+     6.9,
+     6.8,
+     6.6,
+     7,
+     null,
+     9.2,
+     9.8,
+     11.6,
+     12.1,
+     10.6,
+     8.1,
+     6.5
+    ]
+   },
+   "source": {
+    "name": "BLS Local Area Unemployment Statistics (LAUS)",
+    "url": "https://www.bls.gov/lau/",
+    "metric": "Unemployment rate (NSA)",
+    "period": "May 2026",
+    "retrieved": "2026-07-20"
+   }
+  },
+  {
+   "id": "laus-39009-2026-05",
+   "rank": 8,
+   "topic": "jobs",
+   "geo": {
+    "level": "county",
+    "fips": "39009",
+    "name": "Athens",
+    "st": "OH"
+   },
+   "headline": "Unemployment in Athens, OH is down 1.9pp in a year",
+   "direction": "improving",
+   "stat": {
+    "value": "3.3%",
+    "label": "unemployment rate, May 2026",
+    "change": "−1.9pp vs May 2025"
+   },
+   "comparison": "OH counties moved −1.5pp on average; U.S. +0.1pp.",
+   "score": 81,
+   "caveats": [
+    "Latest month is preliminary (will be revised).",
+    "Series has a gap from the 2025 federal appropriations lapse."
+   ],
+   "series": {
+    "periods": [
+     "2025-04",
+     "2025-05",
+     "2025-06",
+     "2025-07",
+     "2025-08",
+     "2025-09",
+     "2025-10",
+     "2025-11",
+     "2025-12",
+     "2026-01",
+     "2026-02",
+     "2026-03",
+     "2026-04",
+     "2026-05"
+    ],
+    "values": [
+     4.8,
+     5.2,
+     6.3,
+     6.3,
+     5.7,
+     4.9,
+     null,
+     4.6,
+     4.9,
+     5.6,
+     5.4,
+     4.2,
+     3.3,
+     3.3
+    ]
+   },
+   "source": {
+    "name": "BLS Local Area Unemployment Statistics (LAUS)",
+    "url": "https://www.bls.gov/lau/",
+    "metric": "Unemployment rate (NSA)",
+    "period": "May 2026",
+    "retrieved": "2026-07-20"
+   }
+  },
+  {
+   "id": "laus-39143-2026-05",
+   "rank": 9,
+   "topic": "jobs",
+   "geo": {
+    "level": "county",
+    "fips": "39143",
+    "name": "Sandusky",
+    "st": "OH"
+   },
+   "headline": "Unemployment in Sandusky, OH is down 1.9pp in a year",
+   "direction": "improving",
+   "stat": {
+    "value": "3.2%",
+    "label": "unemployment rate, May 2026",
+    "change": "−1.9pp vs May 2025"
+   },
+   "comparison": "OH counties moved −1.5pp on average; U.S. +0.1pp.",
+   "score": 81,
+   "caveats": [
+    "Latest month is preliminary (will be revised).",
+    "Series has a gap from the 2025 federal appropriations lapse."
+   ],
+   "series": {
+    "periods": [
+     "2025-04",
+     "2025-05",
+     "2025-06",
+     "2025-07",
+     "2025-08",
+     "2025-09",
+     "2025-10",
+     "2025-11",
+     "2025-12",
+     "2026-01",
+     "2026-02",
+     "2026-03",
+     "2026-04",
+     "2026-05"
+    ],
+    "values": [
+     5.9,
+     5.1,
+     5.4,
+     5.7,
+     5.1,
+     5.1,
+     null,
+     5,
+     5.1,
+     6.1,
+     5.6,
+     4.7,
+     3.7,
+     3.2
+    ]
+   },
+   "source": {
+    "name": "BLS Local Area Unemployment Statistics (LAUS)",
+    "url": "https://www.bls.gov/lau/",
+    "metric": "Unemployment rate (NSA)",
+    "period": "May 2026",
+    "retrieved": "2026-07-20"
+   }
+  },
+  {
+   "id": "laus-36051-2026-05",
+   "rank": 10,
+   "topic": "jobs",
+   "geo": {
+    "level": "county",
+    "fips": "36051",
+    "name": "Livingston",
+    "st": "NY"
+   },
+   "headline": "Unemployment in Livingston, NY is up 1.2pp in a year",
+   "direction": "worsening",
+   "stat": {
+    "value": "4.3%",
+    "label": "unemployment rate, May 2026",
+    "change": "+1.2pp vs May 2025"
+   },
+   "comparison": "NY counties moved +0.4pp on average; U.S. +0.1pp.",
+   "score": 77,
+   "caveats": [
+    "Latest month is preliminary (will be revised).",
+    "Series has a gap from the 2025 federal appropriations lapse."
+   ],
+   "series": {
+    "periods": [
+     "2025-04",
+     "2025-05",
+     "2025-06",
+     "2025-07",
+     "2025-08",
+     "2025-09",
+     "2025-10",
+     "2025-11",
+     "2025-12",
+     "2026-01",
+     "2026-02",
+     "2026-03",
+     "2026-04",
+     "2026-05"
+    ],
+    "values": [
+     3.3,
+     3.1,
+     3.4,
+     3.8,
+     3.8,
+     3.6,
+     null,
+     3.5,
+     3.8,
+     4.8,
+     5.1,
+     4.6,
+     4.1,
+     4.3
+    ]
+   },
+   "source": {
+    "name": "BLS Local Area Unemployment Statistics (LAUS)",
+    "url": "https://www.bls.gov/lau/",
+    "metric": "Unemployment rate (NSA)",
+    "period": "May 2026",
+    "retrieved": "2026-07-20"
+   }
+  },
+  {
+   "id": "laus-40019-2026-05",
+   "rank": 11,
+   "topic": "jobs",
+   "geo": {
+    "level": "county",
+    "fips": "40019",
+    "name": "Carter",
+    "st": "OK"
+   },
+   "headline": "Unemployment in Carter, OK is up 2.3pp in a year",
+   "direction": "worsening",
+   "stat": {
+    "value": "6.2%",
+    "label": "unemployment rate, May 2026",
+    "change": "+2.3pp vs May 2025"
+   },
+   "comparison": "OK counties moved +1.4pp on average; U.S. +0.1pp.",
+   "score": 77,
+   "caveats": [
+    "Latest month is preliminary (will be revised).",
+    "Series has a gap from the 2025 federal appropriations lapse."
+   ],
+   "series": {
+    "periods": [
+     "2025-04",
+     "2025-05",
+     "2025-06",
+     "2025-07",
+     "2025-08",
+     "2025-09",
+     "2025-10",
+     "2025-11",
+     "2025-12",
+     "2026-01",
+     "2026-02",
+     "2026-03",
+     "2026-04",
+     "2026-05"
+    ],
+    "values": [
+     3.4,
+     3.9,
+     4.3,
+     4.4,
+     4.7,
+     4.6,
+     null,
+     6.1,
+     5.6,
+     6.3,
+     6.5,
+     6,
+     5.8,
+     6.2
+    ]
+   },
+   "source": {
+    "name": "BLS Local Area Unemployment Statistics (LAUS)",
+    "url": "https://www.bls.gov/lau/",
+    "metric": "Unemployment rate (NSA)",
+    "period": "May 2026",
+    "retrieved": "2026-07-20"
+   }
+  },
+  {
+   "id": "laus-36013-2026-05",
+   "rank": 12,
+   "topic": "jobs",
+   "geo": {
+    "level": "county",
+    "fips": "36013",
+    "name": "Chautauqua",
+    "st": "NY"
+   },
+   "headline": "Unemployment in Chautauqua, NY is up 1.1pp in a year",
+   "direction": "worsening",
+   "stat": {
+    "value": "4.5%",
+    "label": "unemployment rate, May 2026",
+    "change": "+1.1pp vs May 2025"
+   },
+   "comparison": "NY counties moved +0.4pp on average; U.S. +0.1pp.",
+   "score": 74,
+   "caveats": [
+    "Latest month is preliminary (will be revised).",
+    "Series has a gap from the 2025 federal appropriations lapse."
+   ],
+   "series": {
+    "periods": [
+     "2025-04",
+     "2025-05",
+     "2025-06",
+     "2025-07",
+     "2025-08",
+     "2025-09",
+     "2025-10",
+     "2025-11",
+     "2025-12",
+     "2026-01",
+     "2026-02",
+     "2026-03",
+     "2026-04",
+     "2026-05"
+    ],
+    "values": [
+     3.7,
+     3.4,
+     3.7,
+     4.4,
+     4.5,
+     4.2,
+     null,
+     4.3,
+     4.7,
+     5.4,
+     5.7,
+     5.1,
+     4.3,
+     4.5
+    ]
+   },
+   "source": {
+    "name": "BLS Local Area Unemployment Statistics (LAUS)",
+    "url": "https://www.bls.gov/lau/",
+    "metric": "Unemployment rate (NSA)",
+    "period": "May 2026",
+    "retrieved": "2026-07-20"
+   }
+  }
+ ]
+}

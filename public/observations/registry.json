@@ -1,0 +1,11 @@
+{
+  "_": "Source registry + metric dictionary (product plan P0). One canonical definition per metric; every page must cite from here.",
+  "sources": {
+    "bls_laus": { "name": "BLS Local Area Unemployment Statistics", "url": "https://www.bls.gov/lau/", "cadence": "monthly", "lag_days": 45, "access": "flat file (laucntycur14.zip), residential proxy required from datacenter IPs" },
+    "census_acs5": { "name": "Census ACS 5-year", "url": "https://www.census.gov/programs-surveys/acs", "cadence": "annual", "lag_days": 365, "access": "api.census.gov (key)" }
+  },
+  "metrics": {
+    "unemployment_rate_laus": { "label": "Unemployment rate", "unit": "%", "frequency": "monthly", "sa": false, "source": "bls_laus", "geo": ["county"], "notes": "NSA — compare YoY. Latest 1-2 months preliminary." },
+    "median_household_income_acs": { "label": "Median household income", "unit": "$", "frequency": "annual", "sa": null, "source": "census_acs5", "geo": ["county"], "notes": "5-year pooled estimate; county MOEs modest, sub-county large." }
+  }
+}

@@ -1,0 +1,42 @@
+name: Refresh observation store (LAUS + signals)
+
+# LAUS county data for month M lands ~end of M+1; run on the 3rd and 18th
+# to catch the release plus revisions. Manual dispatch for backfills.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 14 3 * *"
+    - cron: "0 14 18 * *"
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm install xlsx --no-save --no-audit --no-fund
+
+      - name: Ingest BLS LAUS (county monthly)
+        env:
+          # BLS blocks datacenter IPs — same residential proxy as YouTube.
+          YT_PROXY_URL: ${{ secrets.YT_PROXY_URL }}
+        run: node scripts/ingest-laus.mjs
+
+      - name: Detect signals
+        run: node scripts/detect-signals.mjs
+
+      - name: Commit (only if the data actually changed)
+        run: |
+          git config user.name "vu-data-bot"
+          git config user.email "data-bot@voteunbiased.org"
+          git add public/observations/
+          if git diff --cached --quiet; then
+            echo "No changes — BLS hasn't published a new month."
+          else
+            git commit -m "📈 observation refresh: LAUS + signals (auto)"
+            git push
+          fi
