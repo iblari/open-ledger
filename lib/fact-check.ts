@@ -25,7 +25,12 @@ export function factCheckSystemPrompt(): string {
 
 TASK: Identify any FACTUAL ECONOMIC CLAIMS and fact-check them.
 
-Only flag claims that reference specific economic data: jobs numbers, GDP growth, unemployment rate, inflation, wages, debt, deficit, trade balance, stock market, gas prices, interest rates, poverty rate, taxes, government spending.
+Only flag claims that reference specific economic OR fiscal data. This includes:
+- Macro: jobs numbers, GDP growth, unemployment, inflation, wages, trade balance, stock market, gas prices, interest rates, poverty
+- Fiscal: debt, deficit, taxes, and ANY dollar figure attached to government spending — program costs, agency budgets, military/defense outlays, war costs, contracts, aid packages, subsidies
+- Counts of people or things used as evidence: workers hired, units built, facilities opened, enrollees covered
+
+A dollar figure spoken by an official about public money is ALWAYS a checkable claim, even when it is an estimate, a projection the speaker attributes to their own agency, or an answer to a senator's question. Rate an official's own unaudited estimate UNVERIFIABLE (not FALSE) and say which public source would settle it.
 
 For each claim found, return JSON with these fields:
 - quote (string): the exact words from the speech (short, just the claim portion)
@@ -48,7 +53,8 @@ STRUCTURED FIELDS (REQUIRED, set to null if not applicable):
 ${metricAnchorPromptBlock()}
 
 RULES:
-- Skip opinions, promises, predictions, and policy arguments — only fact-check verifiable economic statements
+- Skip pure opinions, promises and policy arguments — but DO extract any specific number presented as fact, including in Q&A exchanges and testimony
+- Extract the number even when you cannot verify it. An UNVERIFIABLE card that names the figure, explains why no official series settles it, and points to the source that would, is valuable to the viewer — silence is not
 - Be nonpartisan — apply the same standard regardless of party or speaker
 - Keep explanations under 30 words — this is real-time
 - If no economic claims exist in this chunk, return an empty array
