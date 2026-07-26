@@ -129,24 +129,38 @@ async function probeChannel(ch: ChannelDef): Promise<ProbeResult> {
     if (isUpcoming) {
       // Scheduled-but-not-started: YouTube embeds the start time as epoch
       // seconds. This is the autopilot's raw "tune in at HH:MM" material.
-      const t = html.match(/"scheduledStartTime"\s*:\s*"?(\d{10,13})"?/);
-      if (t) {
-        const ms = t[1].length >= 13 ? Number(t[1]) : Number(t[1]) * 1000;
+      // Two formats in the wild: an epoch `scheduledStartTime` and an ISO
+      // `startTimestamp` inside liveBroadcastDetails. Only handling the
+      // epoch meant every ISO-form event (e.g. C-SPAN's scheduled hearings)
+      // silently vanished from /live's schedule card and the autopilot.
+      const epoch = html.match(/"scheduledStartTime"\s*:\s*"?(\d{10,13})"?/);
+      if (epoch) {
+        const ms = epoch[1].length >= 13 ? Number(epoch[1]) : Number(epoch[1]) * 1000;
         return { live: null, upcoming: { ...base, scheduledStart: new Date(ms).toISOString() } };
+      }
+      const iso = html.match(/"startTimestamp"\s*:\s*"([0-9]{4}-[0-9]{2}-[0-9]{2}T[^"]+)"/);
+      if (iso) {
+        const d = new Date(iso[1]);
+        if (!Number.isNaN(d.getTime())) {
+          return { live: null, upcoming: { ...base, scheduledStart: d.toISOString() } };
+        }
       }
       return none;
     }
 
-    // Strict liveness: isLiveNow is true only while the stream is actually
-    // on air; endTimestamp appears the moment it ends. "isLive" alone also
-    // matches cached/ended pages — that's the Jul 17 stale-probe bug.
+    // Strict liveness. liveBroadcastDetails is authoritative when present:
+    // isLiveNow:true = on air now; endTimestamp = already finished. When the
+    // block is absent entirely we fall back to isLive (some page variants
+    // omit it) — the earlier version guarded that fallback with a condition
+    // that could never be true, making it dead code.
+    const hasDetails = /"liveBroadcastDetails"\s*:\s*\{/.test(html);
     const liveNow = /"isLiveNow"\s*:\s*true/.test(html);
     const ended = /"endTimestamp"\s*:\s*"/.test(html);
-    if (liveNow && !ended) {
-      return { live: base, upcoming: null };
+    if (ended) return none;
+    if (hasDetails) {
+      return liveNow ? { live: base, upcoming: null } : none;
     }
-    if (/"isLive"\s*:\s*true/.test(html) && !ended && liveNow !== false) {
-      // Legacy fallback for page variants without liveBroadcastDetails.
+    if (/"isLive"\s*:\s*true/.test(html)) {
       return { live: base, upcoming: null };
     }
     return none;
