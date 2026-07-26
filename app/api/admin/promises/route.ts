@@ -88,9 +88,16 @@ export async function POST(req: NextRequest) {
     for (const f of files) {
       if (!f.endsWith(".json")) continue;
       const sp = JSON.parse(await readFile(path.join(dir, f), "utf8"));
-      const parts: { start: number; text: string }[] = (sp.segments?.length ? sp.segments : sp.captions || [])
-        .map((c: { time?: number; start?: number; text?: string }) => ({ start: c.time ?? c.start ?? 0, text: c.text || "" }))
-        .filter((c: { text: string }) => c.text.length > 2);
+      // Use whichever source carries MORE of the speech: `segments` are
+      // clean but often only curated highlights (22 snippets vs 372 caption
+      // lines on the 2025 address), and mining highlights alone finds
+      // almost nothing.
+      const norm = (arr: { time?: number; start?: number; text?: string }[] = []) =>
+        arr.map(c => ({ start: c.time ?? c.start ?? 0, text: c.text || "" })).filter(c => c.text.length > 2);
+      const segs = norm(sp.segments);
+      const caps = norm(sp.captions);
+      const chars = (a: { text: string }[]) => a.reduce((n, c) => n + c.text.length, 0);
+      const parts = chars(caps) > chars(segs) * 1.5 ? caps : segs;
       if (!parts.length) continue;
       const admin: string = sp.admin || (f.includes("trump") ? "trump2" : "biden");
       // Group into ~1200-char windows so a full promise sentence stays intact.
