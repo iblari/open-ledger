@@ -5,6 +5,8 @@ import {
   type LiveClaim,
 } from "@/lib/live-kv";
 import { extractAndVerifyClaims } from "@/lib/fact-check";
+import { extractPromises } from "@/lib/promise-extract";
+import { getPromises, setPromises, getLiveState } from "@/lib/live-kv";
 import { likelyHasEconomicClaim, dedupeClaims } from "@/lib/claim-utils";
 
 /**
@@ -67,6 +69,15 @@ export async function POST(req: Request) {
     await appendLiveTranscript(`[${tmm}:${tss}] ${text}\n`);
   }
 
+  // ── Promise capture (Promise Tracker) ──
+  // A cheap future-tense gate keeps this to a handful of calls per broadcast:
+  // most speech is about the past. Fire-and-forget so it never delays the
+  // live fact-check path.
+  if (/\b(will|going to|gonna|we'll|i'll|by (?:20\d\d|the end of)|within \w+ (?:year|month|day)s?|promise|pledge|commit)\b/i.test(text)
+      && /\d/.test(text)) {
+    void capturePromises(text, videoTime);
+  }
+
   // Regex pre-filter: no economic content → no Claude call. Saves ~$/hr and
   // keeps the pipeline snappy during non-economic stretches of a broadcast.
   if (!likelyHasEconomicClaim(text)) {
@@ -106,4 +117,35 @@ export async function POST(req: Request) {
   }
 
   return NextResponse.json({ claims: [] });
+}
+
+
+/** Store any forward-looking quantified commitments heard in this chunk. */
+async function capturePromises(text: string, videoTime: number) {
+  try {
+    const state = await getLiveState();
+    const found = await extractPromises(text, {
+      speaker: "Official speaker",
+      admin: "trump2",
+      spokenAt: new Date().toISOString().slice(0, 10),
+      sourceTitle: state?.title || "Live broadcast",
+      sourceUrl: state?.videoId ? `https://www.youtube.com/watch?v=${state.videoId}` : null,
+      videoTime,
+      defaultDeadline: "2029-01-20",
+    });
+    if (!found.length) return;
+    const file = await getPromises();
+    const existing = file?.promises ?? [];
+    const seen = new Set(existing.map(p => p.quote.toLowerCase().slice(0, 60)));
+    const fresh = found.filter(p => !seen.has(p.quote.toLowerCase().slice(0, 60)));
+    if (!fresh.length) return;
+    await setPromises({
+      generatedAt: new Date().toISOString(),
+      method: file?.method || "Promises captured verbatim, scored deterministically against official series.",
+      promises: [...existing, ...fresh],
+    });
+    console.log(`[PROMISES] captured ${fresh.length} from live chunk @${videoTime}s`);
+  } catch (e) {
+    console.error("[PROMISES] capture failed:", (e as Error).message);
+  }
 }
