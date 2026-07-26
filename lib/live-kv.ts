@@ -498,3 +498,24 @@ export async function setTrendsFeed(feed: TrendsFeed): Promise<void> {
     mem.set(TRENDS_KEY, json);
   }
 }
+
+// ── Promise Tracker archive ─────────────────────────────────────────
+// Permanent (no TTL): the whole point is longitudinal accountability.
+
+import type { PromiseFile } from "./promises";
+
+const PROMISES_KEY = "promises:archive";
+
+export async function getPromises(): Promise<PromiseFile | null> {
+  let raw: string | null | undefined;
+  if (hasUpstash()) raw = (await upstashCmd("GET", PROMISES_KEY)) as string | null;
+  else raw = mem.get(PROMISES_KEY);
+  if (!raw) return null;
+  try { return JSON.parse(raw); } catch { return null; }
+}
+
+export async function setPromises(file: PromiseFile): Promise<void> {
+  const json = JSON.stringify(file);
+  if (hasUpstash()) await upstashCmd("SET", PROMISES_KEY, json);
+  else mem.set(PROMISES_KEY, json);
+}

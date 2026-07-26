@@ -1,0 +1,30 @@
+name: Re-score promise archive
+
+# Deterministic resolution is FREE (no model call) — so the archive re-scores
+# itself every time fresh official data lands. That recurring re-evaluation
+# is the entire point of a promise tracker.
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "resolve (free) or extract (mines speeches, costs a few cents)"
+        required: false
+        default: "resolve"
+  schedule:
+    - cron: "0 16 5 * *"   # monthly, after the data refreshes
+
+jobs:
+  score:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Re-score
+        env:
+          ADMIN_KEY: ${{ secrets.ADMIN_KEY }}
+          API_URL: ${{ secrets.API_URL || 'https://voteunbiased.org' }}
+          ACTION: ${{ github.event.inputs.action || 'resolve' }}
+        run: |
+          code=$(curl -s -o /tmp/r.json -w "%{http_code}" -X POST "$API_URL/api/admin/promises" \
+            -H "Authorization: Bearer $ADMIN_KEY" -H "Content-Type: application/json" \
+            -d "{\"action\":\"$ACTION\"}")
+          cat /tmp/r.json; echo
+          [ "$code" = "200" ] || exit 1
