@@ -27,10 +27,11 @@ name: Live Broadcast
 
 on:
   schedule:
-    # Every 5 minutes. GitHub Actions free-tier cron can be delayed up to
-    # 15 min under heavy load — schedule.ts PRE_ROLL_SECONDS = 10 min buffers
-    # this so we don't miss the start of an event.
-    - cron: "*/5 * * * *"
+    # GitHub throttles scheduled runs hard — MEASURED gaps between our runs
+    # were 57-227 minutes (avg ~85). That's why each run no longer samples
+    # once and exits; it WATCHES for hours (see the watcher step below).
+    # Frequent cron entries simply mean a faster handover when one retires.
+    - cron: "*/30 * * * *"
   workflow_dispatch:
     inputs:
       max_duration_min:
@@ -266,8 +267,25 @@ jobs:
           } >> "$GITHUB_OUTPUT"
           echo "Manual run: ${{ github.event.inputs.source_title }}"
 
-      - name: Run live broadcast worker
-        if: steps.manual.outputs.has_event == 'true' || steps.schedule.outputs.has_event == 'true' || steps.discover.outputs.has_event == 'true'
+      # ── Continuous watcher (default path) ─────────────────────────────
+      # The old flow checked "is anything live right now?" and exited within
+      # a minute — with ~85min cron gaps it missed roughly 3 of every 4
+      # official events (verified against White House streams Jul 23-25).
+      # This step stays alive for up to 5 hours, polls discovery every 2
+      # minutes, and launches coverage the moment a watched channel goes
+      # live. Public repos get unlimited Actions minutes, so this is free.
+      - name: Watch for live broadcasts
+        if: github.event.inputs.source_url == ''
+        env:
+          DEEPGRAM_API_KEY: ${{ secrets.DEEPGRAM_API_KEY }}
+          ADMIN_KEY: ${{ secrets.ADMIN_KEY }}
+          API_URL: ${{ secrets.API_URL || 'https://voteunbiased.org' }}
+          YT_PROXY_URL: ${{ secrets.YT_PROXY_URL }}
+          YT_DLP_EXTRA_ARGS: --extractor-args youtubepot-bgutilhttp:base_url=http://127.0.0.1:4416
+        run: node scripts/watch-live.mjs --minutes 300
+
+      - name: Run live broadcast worker (manual source only)
+        if: steps.manual.outputs.has_event == 'true'
         env:
           DEEPGRAM_API_KEY: ${{ secrets.DEEPGRAM_API_KEY }}
           ADMIN_KEY: ${{ secrets.ADMIN_KEY }}
