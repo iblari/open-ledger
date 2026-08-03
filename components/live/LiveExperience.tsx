@@ -616,6 +616,7 @@ export default function LiveExperience({ autoStartReplay }: { autoStartReplay?: 
   const [recordOpen, setRecordOpen] = useState(false);
   const [isManualChecking, setIsManualChecking] = useState(false);
   const [manualResult, setManualResult] = useState<Claim[] | null>(null);
+  const [manualNote, setManualNote] = useState<string | null>(null);
   const [newClaimIds, setNewClaimIds] = useState<Set<string>>(new Set());
   const [urlInput, setUrlInput] = useState("");
   const [urlLoading, setUrlLoading] = useState(false);
@@ -1597,16 +1598,37 @@ export default function LiveExperience({ autoStartReplay }: { autoStartReplay?: 
         }),
       });
       const data = await res.json();
+      // The route answers from the record when this moment was already
+      // checked (cached:true) — say so rather than silently repeating.
+      setManualNote(data.cached ? "Already on the record — no new check needed." : null);
+      
 
       if (data.claims?.length > 0) {
         const results: Claim[] = data.claims.map((c: Claim) => ({
-          ...c, videoTime, timestamp: new Date().toISOString(),
-          id: `manual-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          ...c,
+          // Stream time, to match how the feed and timeline stamp everything
+          // else. Using the raw player clock here put the card at a different
+          // tick than the claim it came from.
+          videoTime: c.videoTime ?? Math.round(streamTime),
+          timestamp: c.timestamp || new Date().toISOString(),
+          // A claim answered FROM THE RECORD keeps its identity. Minting a
+          // fresh random id every press is what let the same claim stack up
+          // as five separate cards in the feed.
+          id: c.id || `manual-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
         }));
         setManualResult(results);
-        // Also add to the side panel
-        setNewClaimIds(new Set(results.map(c => c.id)));
-        setClaims(prev => [...results, ...prev]);
+
+        // Only add what the feed doesn't already hold. The record is
+        // deduplicated server-side, but the panel was appending every
+        // response regardless — so re-checking a passage stacked copies.
+        setClaims(prev => {
+          const existingQuotes = prev.map(p => p.quote);
+          const fresh = results.filter(r =>
+            !prev.some(p => p.id === r.id) && !isDuplicateQuote(r.quote, existingQuotes)
+          );
+          setNewClaimIds(new Set(fresh.map(c => c.id)));
+          return fresh.length ? [...fresh, ...prev] : prev;
+        });
       } else {
         // API returned no claims or returned an error
         const msg = data.error

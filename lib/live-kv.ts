@@ -9,6 +9,8 @@
  * use Upstash for production.
  */
 
+import { isDuplicateQuote } from "@/lib/claim-utils";
+
 export interface LiveState {
   status: "live" | "off";
   videoId: string;
@@ -496,8 +498,14 @@ export async function appendClaimsToBroadcast(videoId: string, claims: LiveClaim
   const all = await getRecentBroadcasts();
   const b = all.find(x => x.videoId === videoId);
   if (!b) return 0;
-  const seen = new Set(b.claims.map(c => c.quote.trim().toLowerCase()));
-  const fresh = claims.filter(c => !seen.has(c.quote.trim().toLowerCase()));
+  // Exact-match dedup let paraphrases through ("worst inflation in 48 years"
+  // vs "...in fifty years" is the same claim, re-transcribed). Use the fuzzy
+  // rule the extractor already applies so the record holds one copy.
+  const existing = b.claims.map(c => c.quote);
+  const fresh: LiveClaim[] = [];
+  for (const c of claims) {
+    if (!isDuplicateQuote(c.quote, [...existing, ...fresh.map(f => f.quote)])) fresh.push(c);
+  }
   if (!fresh.length) return 0;
   b.claims = [...b.claims, ...fresh].sort((x, y) => (x.videoTime ?? 0) - (y.videoTime ?? 0));
   await setRecentBroadcasts(all);
@@ -506,7 +514,7 @@ export async function appendClaimsToBroadcast(videoId: string, claims: LiveClaim
 
 /** Claims already recorded near a point in a broadcast — lets a manual check
  *  answer from the record instead of spending model + search credits again. */
-export async function claimsNearTime(videoId: string, videoTime: number, windowSec = 25): Promise<LiveClaim[]> {
+export async function claimsNearTime(videoId: string, videoTime: number, windowSec = 45): Promise<LiveClaim[]> {
   const all = await getRecentBroadcasts();
   const b = all.find(x => x.videoId === videoId);
   if (!b) return [];

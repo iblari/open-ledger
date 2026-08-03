@@ -97,6 +97,27 @@ export function quoteSimilarity(a: string, b: string): number {
   return union === 0 ? 0 : inter / union;
 }
 
+/**
+ * How completely the shorter quote sits inside the longer one.
+ *
+ * Jaccard alone misses the commonest real-world duplicate: the SAME claim
+ * captured at two different transcript lengths. "the worst inflation in
+ * fifty years" and "The last administration created the worst inflation in
+ * 48 years" are one claim re-transcribed, but Jaccard scores them ~0.45
+ * because the second carries extra words — so five copies reached the feed.
+ * Containment reads that correctly while still separating genuinely
+ * different claims, which diverge in content words, not just in length.
+ */
+export function quoteContainment(a: string, b: string): number {
+  const ta = tokens(a);
+  const tb = tokens(b);
+  const [small, large] = ta.size <= tb.size ? [ta, tb] : [tb, ta];
+  if (small.size === 0) return 0;
+  let inter = 0;
+  for (const w of small) if (large.has(w)) inter++;
+  return inter / small.size;
+}
+
 /** True when `quote` is a near-duplicate of any quote in `existing`.
  *  0.6 threshold: catches re-statements and chunk-overlap dupes while
  *  keeping distinct claims about the same metric (different numbers /
@@ -108,6 +129,15 @@ export function isDuplicateQuote(
 ): boolean {
   for (const e of existing) {
     if (quoteSimilarity(quote, e) >= threshold) return true;
+    // Containment catches the re-transcription case Jaccard misses. Gated on
+    // the shorter quote carrying at least 4 content words, so a terse
+    // fragment can't swallow an unrelated longer claim.
+    // `tokens` drops words of 2 chars or fewer, so numerals like "48" and
+    // "11" never survive — which is precisely why "in 48 years" and "in
+    // fifty years" should, and now do, collapse to one claim.
+    if (tokens(quote).size >= 3 && tokens(e).size >= 3 && quoteContainment(quote, e) >= 0.75) {
+      return true;
+    }
   }
   return false;
 }
