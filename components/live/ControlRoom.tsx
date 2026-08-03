@@ -1,0 +1,365 @@
+"use client";
+
+/**
+ * Control Room — the full spec-2a playing view.
+ *
+ * Solves the two problems in the brief:
+ *  1. Checks are hard to follow while watching → the video is PINNED and
+ *     never moves; only the feed scrolls. Reading a card can never push the
+ *     speech off screen.
+ *  2. Flat hierarchy → a fixed vertical stack on mobile (context bar, video,
+ *     timeline, score, feed, record bar) and a two-column split on desktop
+ *     (stage left, 404px rail right) so the eye always knows where to land.
+ *
+ * The video element is injected as a SLOT rather than rendered here: the
+ * YouTube IFrame API replaces its target div in place, so re-mounting that
+ * node would kill playback. Everything else is owned by this component.
+ */
+
+import { useEffect, useRef, useState } from "react";
+import { L, F, VERDICT_COLOR, VERDICT_LABEL, toVerdict, type Verdict } from "@/lib/live-design";
+import CredibilityTimeline, { type TimelineTick } from "./CredibilityTimeline";
+import RunningScore from "./RunningScore";
+import ClaimCard, { type LiveClaimView } from "./ClaimCard";
+
+export interface ControlRoomClaim {
+  id: string; rating: string; quote: string; actual: string; explanation?: string;
+  videoTime?: number; confidence?: number; claimedValue?: number | null;
+  sources?: { title: string; url: string }[];
+  groundTruth?: { source: string };
+}
+
+const stamp = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+
+export default function ControlRoom({
+  title, mode, elapsed, videoSlot, caption, claims, newClaimIds,
+  onSeek, onStop, onFactCheck, isChecking, onOpenRecord, mob,
+}: {
+  title: string;
+  mode: "live" | "replay" | "demo";
+  elapsed: number;
+  videoSlot: React.ReactNode;
+  caption: React.ReactNode;
+  claims: ControlRoomClaim[];
+  newClaimIds: Set<string>;
+  onSeek: (seconds: number) => void;
+  onStop: () => void;
+  onFactCheck: () => void;
+  isChecking: boolean;
+  onOpenRecord: () => void;
+  mob: boolean;
+}) {
+  const [filter, setFilter] = useState<Verdict | "all">("all");
+  const [detail, setDetail] = useState<LiveClaimView | null>(null);
+  const [showPill, setShowPill] = useState(false);
+  const prevCount = useRef(claims.length);
+
+  // "New check landing…" pill — removes the need to hunt for the new card.
+  useEffect(() => {
+    if (claims.length > prevCount.current) {
+      setShowPill(true);
+      const t = setTimeout(() => setShowPill(false), 2600);
+      prevCount.current = claims.length;
+      return () => clearTimeout(t);
+    }
+    prevCount.current = claims.length;
+  }, [claims.length]);
+
+  const views: LiveClaimView[] = claims.map(c => ({
+    id: c.id,
+    verdict: toVerdict(c.rating) ?? "checking",
+    time: stamp(c.videoTime ?? 0),
+    quote: c.quote,
+    claimed: c.claimedValue != null ? String(c.claimedValue) : null,
+    actual: c.actual,
+    note: c.explanation,
+    source: c.groundTruth?.source,
+    confidence: c.confidence,
+    sources: c.sources,
+  }));
+
+  const counts = {
+    true: claims.filter(c => toVerdict(c.rating) === "true").length,
+    misleading: claims.filter(c => toVerdict(c.rating) === "misleading").length,
+    false: claims.filter(c => toVerdict(c.rating) === "false").length,
+    unverifiable: claims.filter(c => toVerdict(c.rating) === null).length,
+  };
+
+  const ticks: TimelineTick[] = claims
+    .map(c => {
+      const v = toVerdict(c.rating);
+      return v && c.videoTime != null ? { id: c.id, at: c.videoTime, verdict: v } : null;
+    })
+    .filter((t): t is TimelineTick => t !== null);
+
+  const shown = filter === "all" ? views : views.filter(v => v.verdict === filter);
+  const modeLabel = mode === "replay" ? "REPLAY" : mode === "demo" ? "DEMO" : "LIVE";
+  const modeColor = mode === "live" ? L.false : mode === "replay" ? "#1d4ed8" : "#B45309";
+
+  /* ── Shared pieces ─────────────────────────────────────────── */
+
+  const ContextBar = (
+    <div style={{
+      height: 44, flexShrink: 0, display: "flex", alignItems: "center", gap: 10,
+      padding: "0 14px", background: L.stage, borderBottom: `1px solid ${L.cardBorder}`,
+    }}>
+      <span style={{
+        display: "inline-flex", alignItems: "center", gap: 5, flexShrink: 0,
+        background: modeColor, color: "#fff", borderRadius: 3, padding: "3px 8px",
+        fontFamily: F.ui, fontSize: 9, fontWeight: 700, letterSpacing: "0.14em",
+      }}>
+        {mode === "live" && <span className="live-pulse" style={{ width: 6, height: 6, borderRadius: "50%", background: "#fff" }} />}
+        {modeLabel}
+      </span>
+      <span style={{
+        flex: 1, minWidth: 0, fontFamily: F.display, fontSize: 14, fontWeight: 500,
+        color: "#F2EEE9", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+      }}>{title}</span>
+      <span style={{ fontFamily: F.mono, fontSize: 12, color: L.mutedDark2, flexShrink: 0 }}>{stamp(elapsed)}</span>
+    </div>
+  );
+
+  const FilterChips = (
+    <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+      {([["all", `ALL ${views.length}`], ["false", `FALSE ${counts.false}`], ["misleading", `MISLEADING ${counts.misleading}`], ["true", `TRUE ${counts.true}`]] as const)
+        .filter(([k]) => k === "all" || counts[k as keyof typeof counts] > 0)
+        .map(([k, label]) => {
+          const active = filter === k;
+          const color = k === "all" ? "#fff" : VERDICT_COLOR[k as Verdict];
+          return (
+            <button key={k} onClick={() => setFilter(k as Verdict | "all")} style={{
+              fontFamily: F.ui, fontSize: 9, fontWeight: 700, letterSpacing: "0.1em",
+              padding: "4px 9px", borderRadius: 12, cursor: "pointer",
+              background: active ? (k === "all" ? "#F2EEE9" : color) : "transparent",
+              color: active ? (k === "all" ? L.ink : "#fff") : L.mutedDark2,
+              border: `1px solid ${active ? "transparent" : L.cardBorder}`,
+            }}>{label}</button>
+          );
+        })}
+    </div>
+  );
+
+  const Feed = (
+    <div style={{ position: "relative", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+      {showPill && (
+        <div style={{
+          position: "absolute", top: 8, left: "50%", transform: "translateX(-50%)", zIndex: 5,
+          background: L.true, color: "#fff", borderRadius: 20, padding: "6px 14px",
+          fontFamily: F.ui, fontSize: 10.5, fontWeight: 700, letterSpacing: "0.06em",
+          boxShadow: "0 6px 20px rgba(0,0,0,.35)", pointerEvents: "none",
+        }}>New check landing…</div>
+      )}
+      <div style={{
+        flex: 1, minHeight: 0, overflowY: "auto", padding: "12px 14px 16px",
+        // Newest on top without reversing the array: element identity stays
+        // stable so only the genuinely new card animates in.
+        display: "flex", flexDirection: "column-reverse", justifyContent: "flex-end",
+      }}>
+        {shown.length === 0 ? (
+          <div style={{
+            textAlign: "center", padding: "40px 16px", fontFamily: F.ui, color: L.mutedDark,
+          }}>
+            <div style={{ fontSize: 26, marginBottom: 8 }}>📡</div>
+            <div style={{ fontSize: 12.5, fontWeight: 600, color: L.mutedDark2 }}>
+              {views.length === 0 ? "Listening for claims…" : "No claims match this filter"}
+            </div>
+            {views.length === 0 && (
+              <div style={{ fontSize: 10.5, marginTop: 4, lineHeight: 1.5 }}>
+                Checks appear here as economic claims are spoken.
+              </div>
+            )}
+          </div>
+        ) : shown.map(v => (
+          <ClaimCard key={v.id} claim={v} isNew={newClaimIds.has(v.id)}
+            onOpen={setDetail}
+            onSeek={c => { const src = claims.find(x => x.id === c.id); if (src?.videoTime != null) onSeek(src.videoTime); }} />
+        ))}
+      </div>
+    </div>
+  );
+
+  const RecordBar = (
+    <button onClick={onOpenRecord} style={{
+      flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between",
+      gap: 10, width: "100%", padding: "16px 16px calc(16px + env(safe-area-inset-bottom))",
+      background: L.stageAlt, border: "none", borderTop: `1px solid ${L.cardBorder}`,
+      cursor: "pointer", textAlign: "left",
+    }}>
+      <span style={{ fontFamily: F.ui, fontSize: 12.5, color: "#F2EEE9" }}>
+        <strong style={{ fontFamily: F.mono, fontWeight: 500 }}>{views.length}</strong> claims on the record
+      </span>
+      <span style={{ fontFamily: F.ui, fontSize: 11.5, fontWeight: 700, color: L.true, whiteSpace: "nowrap" }}>
+        Download record ↓
+      </span>
+    </button>
+  );
+
+  const Controls = (
+    <div style={{
+      display: "flex", alignItems: "center", gap: 8, padding: "10px 14px",
+      background: L.stage, borderTop: `1px solid ${L.cardBorder}`, flexShrink: 0,
+    }}>
+      <button onClick={onStop} style={{
+        background: "transparent", border: `1px solid ${L.cardBorder}`, color: L.mutedDark2,
+        borderRadius: 6, padding: "7px 14px", fontFamily: F.ui, fontSize: 11.5, fontWeight: 600, cursor: "pointer",
+      }}>■ Stop</button>
+      <button onClick={onFactCheck} disabled={isChecking} style={{
+        background: L.true, border: "none", color: "#fff", borderRadius: 6,
+        padding: "7px 14px", fontFamily: F.ui, fontSize: 11.5, fontWeight: 700,
+        cursor: isChecking ? "default" : "pointer", opacity: isChecking ? 0.6 : 1,
+      }}>{isChecking ? "Checking…" : "🔍 Check this moment"}</button>
+    </div>
+  );
+
+  const Stage = (
+    <>
+      <div style={{ position: "relative", width: "100%", aspectRatio: "16/9", background: "#000", flexShrink: 0 }}>
+        {videoSlot}
+        {/* Live caption overlaid at the bottom of the video (spec: the words
+            being spoken tie to the card that appears). */}
+        {caption && (
+          <div style={{
+            position: "absolute", left: 0, right: 0, bottom: 0,
+            padding: "18px 14px 10px",
+            background: "linear-gradient(180deg, transparent, rgba(10,8,7,.88) 55%)",
+            pointerEvents: "none",
+          }}>
+            <div style={{ fontFamily: F.ui, fontSize: mob ? 12 : 13, lineHeight: 1.5, color: "#F2EEE9" }}>
+              {caption}
+            </div>
+          </div>
+        )}
+      </div>
+      <CredibilityTimeline ticks={ticks} position={elapsed}
+        duration={Math.max(elapsed, ...ticks.map(t => t.at), 60)} onSeek={onSeek} />
+      <RunningScore trueCount={counts.true} misleadingCount={counts.misleading}
+        falseCount={counts.false} unverifiableCount={counts.unverifiable} />
+    </>
+  );
+
+  /* ── Detail sheet ──────────────────────────────────────────── */
+  const DetailSheet = detail && (
+    <div style={{ position: "fixed", inset: 0, zIndex: 320 }} onClick={() => setDetail(null)}>
+      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,.6)" }} />
+      <div onClick={e => e.stopPropagation()} style={{
+        position: "absolute", left: 0, right: 0, bottom: 0, maxHeight: "82vh", overflowY: "auto",
+        background: L.stage, borderTop: `1px solid ${L.cardBorder}`, borderRadius: "16px 16px 0 0",
+        padding: "10px 18px calc(22px + env(safe-area-inset-bottom))", maxWidth: 560, margin: "0 auto",
+      }}>
+        <div style={{ width: 36, height: 4, borderRadius: 2, background: L.cardBorder, margin: "4px auto 14px" }} />
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+          <span style={{
+            fontFamily: F.ui, fontSize: 9, fontWeight: 700, letterSpacing: "0.14em",
+            background: VERDICT_COLOR[detail.verdict], color: "#fff", padding: "3px 9px", borderRadius: 3,
+          }}>{VERDICT_LABEL[detail.verdict]}</span>
+          <span style={{ fontFamily: F.mono, fontSize: 11, color: L.mutedDark2 }}>{detail.time}</span>
+          {typeof detail.confidence === "number" && (
+            <span style={{ marginLeft: "auto", fontFamily: F.mono, fontSize: 10.5, color: L.mutedDark }}>
+              {detail.confidence}% confidence
+            </span>
+          )}
+        </div>
+        <blockquote style={{ fontFamily: F.display, fontSize: 19, fontWeight: 500, lineHeight: 1.35, color: "#F2EEE9", margin: "0 0 14px" }}>
+          &ldquo;{detail.quote}&rdquo;
+        </blockquote>
+
+        {/* Comparison bars: claimed muted, official in verdict colour. */}
+        {detail.claimed && (
+          <div style={{ marginBottom: 14 }}>
+            {([["Said", detail.claimed, L.mutedDark2], ["Official data", detail.actual, VERDICT_COLOR[detail.verdict]]] as const).map(([label, val, color]) => (
+              <div key={label} style={{ marginBottom: 8 }}>
+                <div style={{ fontFamily: F.ui, fontSize: 8.5, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: L.mutedDark, marginBottom: 3 }}>{label}</div>
+                <div style={{ fontFamily: F.mono, fontSize: 13, color, lineHeight: 1.5 }}>{val}</div>
+              </div>
+            ))}
+          </div>
+        )}
+        {!detail.claimed && (
+          <div style={{ fontFamily: F.mono, fontSize: 13, color: VERDICT_COLOR[detail.verdict], lineHeight: 1.55, marginBottom: 14 }}>
+            {detail.actual}
+          </div>
+        )}
+
+        {detail.note && (
+          <>
+            <div style={{ fontFamily: F.ui, fontSize: 8.5, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: L.mutedDark, marginBottom: 4 }}>Why the gap</div>
+            <p style={{ fontFamily: F.ui, fontSize: 12.5, color: L.mutedDark2, lineHeight: 1.6, margin: "0 0 14px" }}>{detail.note}</p>
+          </>
+        )}
+
+        {(detail.sources?.length || detail.source) && (
+          <>
+            <div style={{ fontFamily: F.ui, fontSize: 8.5, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: L.mutedDark, marginBottom: 6 }}>Source series</div>
+            {detail.source && <div style={{ fontFamily: F.ui, fontSize: 11.5, color: L.mutedDark2, marginBottom: 6 }}>{detail.source}</div>}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {detail.sources?.map(s => (
+                <a key={s.url} href={s.url} target="_blank" rel="noopener noreferrer" style={{
+                  fontFamily: F.ui, fontSize: 10.5, color: L.true, textDecoration: "none",
+                  border: `1px solid ${L.cardBorder}`, borderRadius: 4, padding: "4px 9px",
+                }}>{s.title.slice(0, 44)} ↗</a>
+              ))}
+            </div>
+          </>
+        )}
+        <button onClick={() => setDetail(null)} style={{
+          width: "100%", marginTop: 18, padding: "11px 0", borderRadius: 8,
+          background: "none", border: `1px solid ${L.cardBorder}`, color: L.mutedDark2,
+          fontFamily: F.ui, fontSize: 12.5, cursor: "pointer",
+        }}>Close</button>
+      </div>
+    </div>
+  );
+
+  /* ── Layouts ───────────────────────────────────────────────── */
+
+  if (mob) {
+    // Fixed vertical stack: only the feed scrolls, so the video is never
+    // pushed off screen by what you're reading.
+    return (
+      <div style={{
+        position: "fixed", inset: 0, zIndex: 60, background: L.ink,
+        display: "flex", flexDirection: "column",
+      }}>
+        {ContextBar}
+        {Stage}
+        <div style={{ padding: "8px 14px 0", background: L.ink, flexShrink: 0 }}>{FilterChips}</div>
+        {Feed}
+        {Controls}
+        {RecordBar}
+        {DetailSheet}
+      </div>
+    );
+  }
+
+  return (
+    <div style={{
+      display: "grid", gridTemplateColumns: "minmax(0,1fr) 404px", gap: 0,
+      background: L.ink, borderRadius: 12, overflow: "hidden",
+      border: `1px solid ${L.cardBorder}`, height: "calc(100vh - 140px)", minHeight: 560,
+    }}>
+      <div style={{ display: "flex", flexDirection: "column", minWidth: 0, borderRight: `1px solid ${L.cardBorder}` }}>
+        {ContextBar}
+        {Stage}
+        <div style={{ flex: 1 }} />
+        {Controls}
+      </div>
+      <aside style={{ display: "flex", flexDirection: "column", minWidth: 0, background: L.stageAlt }}>
+        <div style={{ padding: "12px 14px", borderBottom: `1px solid ${L.cardBorder}`, flexShrink: 0 }}>
+          <div style={{
+            display: "flex", justifyContent: "space-between", alignItems: "baseline",
+            marginBottom: 9, fontFamily: F.ui,
+          }}>
+            <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.16em", textTransform: "uppercase", color: L.mutedDark }}>
+              Fact-check feed
+            </span>
+            <span style={{ fontFamily: F.mono, fontSize: 12, color: "#fff" }}>{views.length}</span>
+          </div>
+          {FilterChips}
+        </div>
+        {Feed}
+        {RecordBar}
+      </aside>
+      {DetailSheet}
+    </div>
+  );
+}

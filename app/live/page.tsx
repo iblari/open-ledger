@@ -6,6 +6,7 @@ import UpcomingEvents from "@/components/UpcomingEvents";
 import CredibilityTimeline, { type TimelineTick } from "@/components/live/CredibilityTimeline";
 import RunningScore from "@/components/live/RunningScore";
 import RecordSheet from "@/components/live/RecordSheet";
+import ControlRoom from "@/components/live/ControlRoom";
 import { toVerdict } from "@/lib/live-design";
 
 /* ── Design Tokens (matching dashboard) ───────────────────────── */
@@ -2150,459 +2151,55 @@ export default function LiveFactCheckPage() {
 
         {/* ── Playing State ── */}
         {isPlaying && (
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: mob ? "1fr" : "1fr 380px",
-            gap: mob ? 0 : 20,
-          }}>
-            {/* LEFT: Video + Controls */}
-            {/* minWidth 0: grid items default to min-width auto and refuse to
-                shrink below their content's intrinsic width — one oversized
-                child (e.g. the YT iframe) would push the whole page wider
-                than the viewport. */}
-            <div style={{ minWidth: 0 }}>
-              {/* On mobile, pin the status bar + player while the transcript,
-                  controls, and fact feed scroll beneath — keeps the video in
-                  view when reading claims (the panel is below the fold on
-                  phones). top:48 clears the sticky nav. */}
-              <div style={mob ? { position: "sticky", top: 48, zIndex: 30 } : undefined}>
-              {/* Status bar */}
-              <div style={{
-                display: "flex", alignItems: "center", gap: 8, padding: "8px 14px",
-                background: T.ink, borderRadius: "8px 8px 0 0", color: "#fff",
-                fontFamily: "'DM Sans',sans-serif", fontSize: 12,
-              }}>
-                <span style={{
-                  width: 8, height: 8, borderRadius: "50%",
-                  background: isReplay ? T.blue : isDemo ? T.gold : "#dc2626",
-                  animation: isDemo || isReplay ? "none" : "pulse 2s infinite",
-                }} />
-                <span style={{ fontWeight: 700 }}>{isReplay ? "REPLAY" : isDemo ? "DEMO" : "LIVE"}</span>
-                <span style={{ color: "#9a9490" }}>|</span>
-                <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title}</span>
-                {/* Caption sync indicator (demo only). 'Synced' = real
-                    YouTube captions loaded; subtitles + claim timestamps
-                    are aligned to actual audio. 'Approximate' = fallback to
-                    the demo JSON's hand-curated round-number timestamps. */}
-                {isDemo && (
-                  captionsLoading ? (
-                    <span style={{
-                      flexShrink: 0, fontSize: 9, color: "#9a9490",
-                      padding: "2px 6px", border: "1px solid #3a3a3a", borderRadius: 3,
-                      letterSpacing: 0.5, textTransform: "uppercase", fontWeight: 600,
-                    }} title="Fetching real YouTube captions to sync subtitle + fact-check timing">
-                      syncing…
-                    </span>
-                  ) : realCaptions ? (
-                    <span style={{
-                      flexShrink: 0, fontSize: 9, color: "#0d7377",
-                      padding: "2px 6px", background: "#0d737722", border: "1px solid #0d7377",
-                      borderRadius: 3, letterSpacing: 0.5, textTransform: "uppercase", fontWeight: 700,
-                    }} title="Subtitle text + fact-check timestamps aligned to real YouTube captions">
-                      ✓ synced
-                    </span>
-                  ) : (
-                    <span style={{
-                      flexShrink: 0, fontSize: 9, color: "#ca8a04",
-                      padding: "2px 6px", background: "#ca8a0422", border: "1px solid #ca8a04",
-                      borderRadius: 3, letterSpacing: 0.5, textTransform: "uppercase", fontWeight: 700,
-                    }} title="Could not fetch real captions — subtitle + timestamps are approximate">
-                      approx.
-                    </span>
-                  )
-                )}
-                <span style={{ color: "#9a9490", flexShrink: 0 }}>{claims.length} claims</span>
-              </div>
-
-              {/* Video Player */}
-              <div style={{
-                position: "relative", width: "100%", aspectRatio: "16/9",
-                background: "#000",
-              }}>
-                {videoId ? (
-                  <div
-                    id="yt-player-div"
-                    style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}
-                  />
-                ) : (
-                  /* Monitor mode: the worker is ingesting audio from a
-                     non-embeddable source (C-SPAN Radio, direct HLS). The
-                     fact-check feed is the product here — video plays at
-                     the broadcaster's own site/app. */
-                  <div style={{
-                    position: "absolute", inset: 0, display: "flex", flexDirection: "column",
-                    alignItems: "center", justifyContent: "center", gap: 10,
-                    background: "linear-gradient(135deg, #1a1a1a 0%, #2d2520 100%)",
-                    color: "#e8e2d8", fontFamily: "'DM Sans',sans-serif", padding: 24, textAlign: "center",
-                  }}>
-                    <div style={{ fontSize: 40 }}>🎙️</div>
-                    <div style={{ fontFamily: "'Source Serif 4',serif", fontSize: mob ? 17 : 22, fontWeight: 700 }}>
-                      Live audio monitor
-                    </div>
-                    <div style={{ fontSize: mob ? 11 : 12.5, color: "#b8b0a8", maxWidth: 420, lineHeight: 1.6 }}>
-                      We&rsquo;re listening to this broadcast&rsquo;s audio feed and fact-checking
-                      every economic claim in real time — watch the claims arrive on the right.
-                      Video for this event isn&rsquo;t embeddable; tune in on the broadcaster&rsquo;s
-                      own site or TV coverage.
-                    </div>
-                    <div style={{
-                      display: "flex", alignItems: "center", gap: 6, marginTop: 4,
-                      fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", color: "#dc2626",
-                    }}>
-                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#dc2626", animation: "pulse 2s infinite" }} />
-                      Listening live
-                    </div>
+          /* ── Control Room (design spec 2a) ──────────────────────────────
+             The video is PINNED and only the feed scrolls, so reading a
+             fact-check can never push the speech off screen. The player node
+             is passed in as a slot because the YouTube IFrame API replaces
+             its target div in place — re-mounting it would kill playback. */
+          <ControlRoom
+            title={title || "Live broadcast"}
+            mode={isReplay ? "replay" : isDemo ? "demo" : "live"}
+            elapsed={captionClock}
+            mob={mob}
+            claims={claims}
+            newClaimIds={newClaimIds}
+            onSeek={seekVideo}
+            onStop={stopSession}
+            onFactCheck={manualFactCheck}
+            isChecking={isManualChecking}
+            onOpenRecord={() => setRecordOpen(true)}
+            videoSlot={
+              videoId ? (
+                <div id="yt-player-div" style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }} />
+              ) : (
+                /* Monitor mode: the worker is ingesting audio from a
+                   non-embeddable source — the feed IS the product here. */
+                <div style={{
+                  position: "absolute", inset: 0, display: "flex", flexDirection: "column",
+                  alignItems: "center", justifyContent: "center", gap: 8, textAlign: "center",
+                  background: "linear-gradient(135deg,#1a1a1a,#2d2520)", color: "#e8e2d8", padding: 20,
+                }}>
+                  <div style={{ fontSize: 34 }}>🎙️</div>
+                  <div style={{ fontFamily: "'Newsreader',serif", fontSize: mob ? 16 : 20, fontWeight: 600 }}>
+                    Live audio monitor
                   </div>
-                )}
-              </div>
-              </div>{/* end mobile sticky wrapper */}
-
-              {/* ── Credibility timeline + running record (spec 2a) ──
-                  Every checked claim as a tick under the video; click or drag
-                  to seek and the whole page rewinds with it. The score sits
-                  directly beneath so the headline number never scrolls away
-                  from the evidence that produced it. */}
-              {claims.length > 0 && (() => {
-                const ticks: TimelineTick[] = claims
-                  .map(c => {
-                    const v = toVerdict(c.rating);
-                    return v && c.videoTime != null ? { id: c.id, at: c.videoTime, verdict: v } : null;
-                  })
-                  .filter((t): t is TimelineTick => t !== null);
-                const count = (r: string) => claims.filter(c => c.rating === r).length;
-                return (
-                  <>
-                    <CredibilityTimeline
-                      ticks={ticks}
-                      position={captionClock}
-                      duration={Math.max(captionClock, ...ticks.map(t => t.at), 60)}
-                      onSeek={seekVideo}
-                    />
-                    <RunningScore
-                      trueCount={count("TRUE") + count("MOSTLY TRUE")}
-                      misleadingCount={count("MISLEADING")}
-                      falseCount={count("FALSE")}
-                      unverifiableCount={count("UNVERIFIABLE")}
-                    />
-                  </>
-                );
-              })()}
-
-              {/* Transcript Strip */}
-              {/* Caption-timed videos get the word-synced karaoke strip: the
-                  currently-spoken word rides an accent chip, spoken words in
-                  ink, upcoming muted. Sized by a sliding word window so it
-                  can't clip a line mid-sentence (the old strip crammed 40
-                  words into a 60px overflow:hidden box — ugly on mobile). */}
-              {isReplay && replaySegments.length > 0 ? (
-                /* Replay with timecoded archive: transcript scrolls in sync
-                   with video playback. Timebase guard: 24/7 streams have
-                   absolute timelines far beyond the player's DVR window —
-                   when the player clock and the markers are >1h apart, fall
-                   back to real-time progression from the replay's start. */
-                <SyncedReplayTranscript
-                  segs={replaySegments}
-                  clock={Math.abs(captionClock - replaySegments[0].t) > 3600
-                    ? replaySegments[0].t + (Date.now() - replayStartedAt.current) / 1000
-                    : captionClock}
-                />
-              ) : isReplay && replayTranscript ? (
-                /* Older archive without timecodes: static block. Only the
-                   final chunk survived the pre-fix overwrite bug. */
-                <div style={{
-                  background: T.paper, borderBottom: `1px solid ${T.rule}`,
-                  padding: "10px 14px", maxHeight: 150, overflowY: "auto",
-                }}>
-                  <div style={{
-                    fontSize: 9, fontWeight: 700, textTransform: "uppercase",
-                    letterSpacing: 1, color: T.mute, marginBottom: 6,
-                    fontFamily: "'DM Sans',sans-serif",
-                  }}>Transcript · final moments only (full transcripts begin with the next broadcast)</div>
-                  <div style={{
-                    fontSize: 12, fontFamily: "'DM Sans',sans-serif", color: T.sub,
-                    lineHeight: 1.65, whiteSpace: "pre-wrap",
-                  }}>{replayTranscript}</div>
-                </div>
-              ) : realCaptions && realCaptions.length > 0 ? (
-                <div style={{
-                  background: T.paper, padding: "10px 14px", fontSize: mob ? 13 : 12.5,
-                  fontFamily: "'DM Sans',sans-serif",
-                  borderBottom: `1px solid ${T.rule}`,
-                  lineHeight: 1.7, minHeight: 46,
-                }}>
-                  <CaptionKaraoke captions={realCaptions} vt={captionClock} />
-                </div>
-              ) : liveTranscript && (
-                /* Live broadcasts (Deepgram feed) have no caption timings —
-                   plain rolling text, faded lead-in, capped to ~2 lines. */
-                <div style={{
-                  background: T.paper, padding: "8px 14px", fontSize: 12,
-                  fontFamily: "'DM Sans',sans-serif", color: T.sub,
-                  maxHeight: 48, overflow: "hidden", borderBottom: `1px solid ${T.rule}`,
-                  lineHeight: 1.6,
-                }}>
-                  <span style={{ opacity: 0.5 }}>... </span>
-                  {liveTranscript.split(" ").slice(-24).join(" ")}
-                  <span style={{ animation: "blink 1s infinite" }}>|</span>
-                </div>
-              )}
-
-              {/* Controls */}
-              <div style={{
-                display: "flex", alignItems: "center", gap: 12, padding: "10px 14px",
-                background: T.card, border: `1px solid ${T.rule}`,
-                borderRadius: "0 0 8px 8px", flexWrap: "wrap",
-              }}>
-                <button
-                  onClick={stopSession}
-                  style={{
-                    background: T.accent, color: "#fff", border: "none", borderRadius: 6,
-                    padding: "6px 16px", fontFamily: "'DM Sans',sans-serif", fontSize: 12,
-                    fontWeight: 700, cursor: "pointer",
-                  }}
-                >
-                  ■ Stop
-                </button>
-
-                <button
-                  onClick={manualFactCheck}
-                  disabled={isManualChecking}
-                  style={{
-                    background: isManualChecking ? T.rule : T.blue,
-                    color: "#fff", border: "none", borderRadius: 6,
-                    padding: "6px 16px", fontFamily: "'DM Sans',sans-serif", fontSize: 12,
-                    fontWeight: 700, cursor: isManualChecking ? "default" : "pointer",
-                    opacity: isManualChecking ? 0.7 : 1,
-                    display: "flex", alignItems: "center", gap: 6,
-                  }}
-                >
-                  {isManualChecking ? (
-                    <>
-                      <span style={{ animation: "pulse 1s infinite" }}>⏳</span>
-                      Checking...
-                    </>
-                  ) : (
-                    <>🔍 Fact Check This</>
-                  )}
-                </button>
-
-                {isDemo && (
-                  <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: T.gold, fontWeight: 600 }}>
-                    AI analyzing transcript...
-                  </span>
-                )}
-              </div>
-
-              {/* Manual Fact-Check Results */}
-              {manualResult && (
-                <div style={{
-                  marginTop: 10, padding: "14px 16px",
-                  background: "linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%)",
-                  border: `1px solid ${T.blue}33`,
-                  borderRadius: 10,
-                  position: "relative",
-                }}>
-                  {/* Close button */}
-                  <button
-                    onClick={() => setManualResult(null)}
-                    style={{
-                      position: "absolute", top: 8, right: 10,
-                      background: "none", border: "none", cursor: "pointer",
-                      fontSize: 16, color: T.mute, lineHeight: 1,
-                    }}
-                    title="Dismiss"
-                  >×</button>
-
-                  <div style={{
-                    fontFamily: "'DM Sans',sans-serif", fontSize: 11, fontWeight: 700,
-                    color: T.blue, textTransform: "uppercase", letterSpacing: 0.8,
-                    marginBottom: 10, display: "flex", alignItems: "center", gap: 6,
-                  }}>
-                    🔍 AI Fact-Check Result
+                  <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11.5, color: "#b8b0a8", maxWidth: 380, lineHeight: 1.55 }}>
+                    We&rsquo;re listening to this broadcast and checking every economic claim in
+                    real time. Video isn&rsquo;t embeddable for this event — the record is here.
                   </div>
-
-                  {manualResult.map((r, i) => {
-                    const rc = RATING_COLORS[r.rating] || RATING_COLORS.UNVERIFIABLE;
-                    return (
-                      <div key={r.id || i} style={{
-                        background: T.card, border: `1px solid ${T.rule}`,
-                        borderLeft: `4px solid ${rc.bg}`,
-                        borderRadius: 8, padding: "10px 12px",
-                        marginBottom: i < manualResult.length - 1 ? 8 : 0,
-                      }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                          <span style={{
-                            padding: "2px 8px", borderRadius: 4, fontSize: 10, fontWeight: 700,
-                            background: rc.bg, color: rc.text, letterSpacing: 0.5,
-                          }}>{r.rating}</span>
-                        </div>
-                        <div style={{
-                          fontSize: 13, fontWeight: 600, color: T.ink,
-                          fontStyle: "italic", fontFamily: "'Source Serif 4',serif",
-                          lineHeight: 1.4, marginBottom: 6,
-                        }}>
-                          &ldquo;{r.quote}&rdquo;
-                        </div>
-                        {r.actual && r.actual !== "N/A" && (
-                          <div style={{
-                            fontSize: 11, color: T.sub, lineHeight: 1.5,
-                            fontFamily: "'DM Sans',sans-serif",
-                          }}>
-                            <strong style={{ color: T.ink }}>Data:</strong> {r.actual}
-                          </div>
-                        )}
-                        {r.explanation && (
-                          <div style={{
-                            fontSize: 11, color: T.mute, marginTop: 4,
-                            fontFamily: "'DM Sans',sans-serif", lineHeight: 1.4,
-                          }}>
-                            {r.explanation}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
                 </div>
-              )}
-
-
-              {/* ── Record bar (spec 2a): the page becomes a document ── */}
-              {claims.length > 0 && (
-                <button onClick={() => setRecordOpen(true)} style={{
-                  display: "flex", alignItems: "center", justifyContent: "space-between",
-                  width: "100%", gap: 10, marginTop: 12, padding: "13px 16px",
-                  background: "#191512", border: "1px solid #322B25", borderRadius: 8,
-                  cursor: "pointer", textAlign: "left",
-                }}>
-                  <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 12.5, color: "#F2EEE9" }}>
-                    <strong style={{ fontFamily: "'DM Mono',monospace", fontWeight: 500 }}>{claims.length}</strong>
-                    {" "}claims on the record
-                  </span>
-                  <span style={{
-                    fontFamily: "'DM Sans',sans-serif", fontSize: 11.5, fontWeight: 700,
-                    color: "#0E7477", whiteSpace: "nowrap",
-                  }}>Download record ↓</span>
-                </button>
-              )}
-
-              {/* Mobile summary */}
-              {mob && claims.length > 0 && (
-                <div style={{ marginTop: 12 }}>
-                  <SummaryBar claims={claims} />
-                </div>
-              )}
-            </div>
-
-            {/* RIGHT: Fact-check panel */}
-            <div style={{
-              display: "flex", flexDirection: "column", minWidth: 0,
-              maxHeight: mob ? "none" : "calc(100vh - 100px)",
-              overflow: mob ? "visible" : "hidden",
-            }}>
-              {/* Panel header */}
-              <div style={{
-                padding: "12px 14px", background: T.card,
-                border: `1px solid ${T.rule}`, borderRadius: "8px 8px 0 0",
-                display: "flex", alignItems: "center", justifyContent: "space-between",
-                marginTop: mob ? 12 : 0,
-              }}>
-                <div style={{
-                  fontFamily: "'DM Sans',sans-serif", fontSize: 12, fontWeight: 700,
-                  color: T.ink, display: "flex", alignItems: "center", gap: 6,
-                }}>
-                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#dc2626", animation: "pulse 2s infinite" }} />
-                  LIVE FACT-CHECK
-                </div>
-                <span style={{
-                  fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: T.mute,
-                }}>{claims.length} claims</span>
-              </div>
-
-              {/* Rating filter chips — visible once there's something to filter */}
-              {claims.length > 0 && (
-                <div style={{
-                  display: "flex", flexWrap: "wrap", gap: 5, padding: "8px 10px",
-                  background: T.card, borderLeft: `1px solid ${T.rule}`, borderRight: `1px solid ${T.rule}`,
-                }}>
-                  {[null, ...Object.keys(RATING_COLORS)].map(r => {
-                    const count = r === null
-                      ? claims.length
-                      : claims.filter(c => c.rating === r).length;
-                    if (r !== null && count === 0) return null;
-                    const isActive = ratingFilter === r;
-                    const chipColor = r === null ? T.ink : RATING_COLORS[r].bg;
-                    return (
-                      <button
-                        key={r ?? "all"}
-                        onClick={() => setRatingFilter(isActive ? null : r)}
-                        style={{
-                          fontFamily: "'DM Sans',sans-serif", fontSize: 10, fontWeight: 700,
-                          padding: "3px 9px", borderRadius: 12, cursor: "pointer",
-                          letterSpacing: 0.3,
-                          border: `1px solid ${isActive ? chipColor : T.rule}`,
-                          background: isActive ? chipColor : T.card,
-                          color: isActive ? "#fff" : T.sub,
-                          transition: "all 0.15s",
-                        }}
-                      >
-                        {r === null ? "ALL" : r} {count}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* Claims list */}
-              <div style={{
-                flex: 1, overflowY: "auto", padding: "8px 0",
-                background: T.paper, border: `1px solid ${T.rule}`, borderTop: "none",
-                borderRadius: "0 0 8px 8px",
-                // On mobile the panel sits below the video in normal flow;
-                // give the list its own scroll so a long feed doesn't turn
-                // the page into an endless scroll past the summary.
-                maxHeight: mob ? 420 : undefined,
-              }}>
-                <div style={{ padding: "0 8px" }}>
-                  {claims.length === 0 && (
-                    <div style={{
-                      textAlign: "center", padding: "40px 16px",
-                      fontFamily: "'DM Sans',sans-serif", color: T.mute,
-                    }}>
-                      <div style={{ fontSize: 32, marginBottom: 8 }}>{isReplay ? "🗂️" : "📡"}</div>
-                      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>
-                        {isReplay ? "No economic claims detected" : isDemo ? "Listening for claims..." : "Waiting for the analysis pipeline…"}
-                      </div>
-                      <div style={{ fontSize: 11 }}>
-                        {isReplay
-                          ? "The fact-checker heard this broadcast (see the transcript) but found no checkable economic claims — many official events don't contain any. Select any moment and press Fact Check This to analyze it yourself."
-                          : isDemo
-                          ? "Fact-check cards will appear here as economic claims are detected."
-                          : "Fact-checks attach when our pipeline is transcribing this broadcast. If nothing appears, this stream isn't being analyzed — official events on watched channels are covered automatically."}
-                      </div>
-                    </div>
-                  )}
-                  {claims.length > 0 && filteredClaims.length === 0 && (
-                    <div style={{
-                      textAlign: "center", padding: "24px 16px",
-                      fontFamily: "'DM Sans',sans-serif", color: T.mute, fontSize: 11,
-                    }}>
-                      No {ratingFilter} claims yet.
-                    </div>
-                  )}
-                  {filteredClaims.map(c => (
-                    <FactCard key={c.id} claim={c} isNew={newClaimIds.has(c.id)} onSeek={seekToClaim} />
-                  ))}
-                </div>
-              </div>
-
-              {/* Desktop summary */}
-              {!mob && claims.length > 0 && (
-                <div style={{ marginTop: 8 }}>
-                  <SummaryBar claims={claims} />
-                </div>
-              )}
-            </div>
-          </div>
+              )
+            }
+            caption={
+              isReplay && replaySegments.length > 0
+                ? <SyncedReplayCaption segs={replaySegments} clock={captionClock} />
+                : realCaptions && realCaptions.length > 0
+                  ? <CaptionKaraoke captions={realCaptions} vt={captionClock} />
+                  : liveTranscript
+                    ? <>{liveTranscript.split(" ").slice(-22).join(" ")}<span style={{ animation: "blink 1s infinite" }}>|</span></>
+                    : null
+            }
+          />
         )}
 
         {/* ── Session Summary Overlay ── */}
@@ -2883,4 +2480,18 @@ function NotifyToggle() {
 
     </div>
   );
+}
+
+/* ── Replay caption for the Control Room overlay ────────────────────
+   The full scrolling transcript panel is gone in spec 2a; the caption is
+   now a single overlaid line under the video showing what's being said at
+   the playhead, which is what ties the words to the card that appears. */
+function SyncedReplayCaption({ segs, clock }: { segs: { t: number; text: string }[]; clock: number }) {
+  const visible = segs.filter(s => s.t <= clock);
+  if (!visible.length) {
+    return <span style={{ opacity: 0.6 }}>Transcript begins shortly…</span>;
+  }
+  // Last two segments: enough context to read a full sentence without
+  // covering the speaker.
+  return <>{visible.slice(-2).map(s => s.text).join(" ")}</>;
 }
