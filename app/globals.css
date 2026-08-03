@@ -131,3 +131,11 @@
 .live-pulse {
   animation: livePulse 1.8s ease-in-out infinite;
 }
+
+/* Claim card entry — spec 2a: only the new card animates in, 0.45s,
+   translateY -10px → 0. Feed uses column-reverse so element identity is
+   stable and existing cards never re-animate. */
+@keyframes vuCardIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}

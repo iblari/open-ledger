@@ -9,6 +9,7 @@ import { extractPromises } from "@/lib/promise-extract";
 import { getPromises, setPromises, getLiveState } from "@/lib/live-kv";
 import { likelyHasEconomicClaim, dedupeClaims } from "@/lib/claim-utils";
 import { upgradeUnverifiable } from "@/lib/web-verify";
+import { sendPushToAll } from "@/lib/push";
 
 /**
  * POST /api/admin/ingest
@@ -120,6 +121,15 @@ export async function POST(req: Request) {
     }
 
     await appendLiveClaims(claims);
+
+    // ── Batched contradiction digest (design decision: batched, not
+    // per-claim). A 40-minute briefing with 8 false claims must not fire 8
+    // lock-screen buzzes — that's how people unsubscribe. We roll up
+    // contradicted claims and notify at most once every 10 minutes, and
+    // never for claims that match the data.
+    void maybeNotifyContradictions(claims);
+
+
     for (const c of claims) {
       recentQuotes.push(c.quote);
       if (recentQuotes.length > RECENT_QUOTES_MAX) recentQuotes.shift();
@@ -159,5 +169,45 @@ async function capturePromises(text: string, videoTime: number) {
     console.log(`[PROMISES] captured ${fresh.length} from live chunk @${videoTime}s`);
   } catch (e) {
     console.error("[PROMISES] capture failed:", (e as Error).message);
+  }
+}
+
+
+// ── Contradiction digest state (module-scoped; a serverless instance lives
+// for the duration of a broadcast, which is exactly the batching window we
+// want — a cold start simply resets the timer).
+let lastDigestAt = 0;
+let pendingContradictions: { quote: string; actual: string }[] = [];
+const DIGEST_INTERVAL_MS = 10 * 60 * 1000;
+
+async function maybeNotifyContradictions(claims: LiveClaim[]) {
+  const fresh = claims.filter(c => c.rating === "FALSE" || c.rating === "MISLEADING");
+  if (fresh.length) {
+    pendingContradictions.push(...fresh.map(c => ({ quote: c.quote, actual: c.actual })));
+  }
+  if (!pendingContradictions.length) return;
+
+  const now = Date.now();
+  if (lastDigestAt && now - lastDigestAt < DIGEST_INTERVAL_MS) return;
+  lastDigestAt = now;
+
+  const batch = pendingContradictions;
+  pendingContradictions = [];
+
+  // Lock-screen copy carries the quote and the real figure, so the alert is
+  // useful without opening the app (spec 2a).
+  const first = batch[0];
+  const title = batch.length === 1
+    ? "Claim contradicted by the data"
+    : `${batch.length} claims contradicted so far`;
+  const body = batch.length === 1
+    ? `"${first.quote.slice(0, 90)}" — ${first.actual.slice(0, 110)}`
+    : `Latest: "${first.quote.slice(0, 70)}" — ${first.actual.slice(0, 90)}`;
+
+  try {
+    const r = await sendPushToAll({ title, body, url: "/live" });
+    console.log(`[digest] ${batch.length} contradictions → ${r.sent} devices`);
+  } catch (e) {
+    console.error("[digest] push failed:", (e as Error).message);
   }
 }

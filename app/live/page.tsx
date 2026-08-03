@@ -3,6 +3,10 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { isDuplicateQuote } from "@/lib/claim-utils";
 import UpcomingEvents from "@/components/UpcomingEvents";
+import CredibilityTimeline, { type TimelineTick } from "@/components/live/CredibilityTimeline";
+import RunningScore from "@/components/live/RunningScore";
+import RecordSheet from "@/components/live/RecordSheet";
+import { toVerdict } from "@/lib/live-design";
 
 /* ── Design Tokens (matching dashboard) ───────────────────────── */
 const T = {
@@ -597,6 +601,9 @@ export default function LiveFactCheckPage() {
   const [realCaptions, setRealCaptions] = useState<{ time: number; text: string }[] | null>(null);
   const [captionsLoading, setCaptionsLoading] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
+  // "The record" export sheet (spec 2a): when the briefing ends the page
+  // becomes a document, reachable any time from the record bar.
+  const [recordOpen, setRecordOpen] = useState(false);
   const [isManualChecking, setIsManualChecking] = useState(false);
   const [manualResult, setManualResult] = useState<Claim[] | null>(null);
   const [newClaimIds, setNewClaimIds] = useState<Set<string>>(new Set());
@@ -2250,6 +2257,37 @@ export default function LiveFactCheckPage() {
               </div>
               </div>{/* end mobile sticky wrapper */}
 
+              {/* ── Credibility timeline + running record (spec 2a) ──
+                  Every checked claim as a tick under the video; click or drag
+                  to seek and the whole page rewinds with it. The score sits
+                  directly beneath so the headline number never scrolls away
+                  from the evidence that produced it. */}
+              {claims.length > 0 && (() => {
+                const ticks: TimelineTick[] = claims
+                  .map(c => {
+                    const v = toVerdict(c.rating);
+                    return v && c.videoTime != null ? { id: c.id, at: c.videoTime, verdict: v } : null;
+                  })
+                  .filter((t): t is TimelineTick => t !== null);
+                const count = (r: string) => claims.filter(c => c.rating === r).length;
+                return (
+                  <>
+                    <CredibilityTimeline
+                      ticks={ticks}
+                      position={captionClock}
+                      duration={Math.max(captionClock, ...ticks.map(t => t.at), 60)}
+                      onSeek={seekVideo}
+                    />
+                    <RunningScore
+                      trueCount={count("TRUE") + count("MOSTLY TRUE")}
+                      misleadingCount={count("MISLEADING")}
+                      falseCount={count("FALSE")}
+                      unverifiableCount={count("UNVERIFIABLE")}
+                    />
+                  </>
+                );
+              })()}
+
               {/* Transcript Strip */}
               {/* Caption-timed videos get the word-synced karaoke strip: the
                   currently-spoken word rides an accent chip, spoken words in
@@ -2427,6 +2465,25 @@ export default function LiveFactCheckPage() {
                 </div>
               )}
 
+
+              {/* ── Record bar (spec 2a): the page becomes a document ── */}
+              {claims.length > 0 && (
+                <button onClick={() => setRecordOpen(true)} style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  width: "100%", gap: 10, marginTop: 12, padding: "13px 16px",
+                  background: "#191512", border: "1px solid #322B25", borderRadius: 8,
+                  cursor: "pointer", textAlign: "left",
+                }}>
+                  <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 12.5, color: "#F2EEE9" }}>
+                    <strong style={{ fontFamily: "'DM Mono',monospace", fontWeight: 500 }}>{claims.length}</strong>
+                    {" "}claims on the record
+                  </span>
+                  <span style={{
+                    fontFamily: "'DM Sans',sans-serif", fontSize: 11.5, fontWeight: 700,
+                    color: "#0E7477", whiteSpace: "nowrap",
+                  }}>Download record ↓</span>
+                </button>
+              )}
 
               {/* Mobile summary */}
               {mob && claims.length > 0 && (
@@ -2800,6 +2857,30 @@ function NotifyToggle() {
           Re-enable in your browser&rsquo;s site settings for voteunbiased.org, then reload.
         </div>
       )}
+      {/* ── The record: export sheet (spec 2a) ── */}
+      <RecordSheet
+        open={recordOpen}
+        onClose={() => setRecordOpen(false)}
+        meta={{
+          title: title || "Live broadcast",
+          date: new Date().toISOString().slice(0, 10),
+          runningTime: `${Math.floor(captionClock / 60)} min`,
+          permalink: "https://voteunbiased.org/live",
+        }}
+        claims={claims.map(c => ({
+          time: `${Math.floor((c.videoTime ?? 0) / 60)}:${String(Math.floor((c.videoTime ?? 0) % 60)).padStart(2, "0")}`,
+          verdict: c.rating,
+          quote: c.quote,
+          claimed: c.claimedValue != null ? String(c.claimedValue) : null,
+          actual: c.actual,
+          note: c.explanation,
+          source: c.groundTruth?.source,
+          confidence: c.confidence,
+          sources: c.sources,
+        }))}
+        transcript={isReplay ? replayTranscript : liveTranscript}
+      />
+
     </div>
   );
 }
