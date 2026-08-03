@@ -2202,6 +2202,32 @@ export default function LiveFactCheckPage() {
           />
         )}
 
+        {/* The record: export sheet. Must live in the page component (it was
+            accidentally mounted inside an unrendered helper, so the
+            "Download record" button silently did nothing). */}
+        <RecordSheet
+          open={recordOpen}
+          onClose={() => setRecordOpen(false)}
+          meta={{
+            title: title || "Live broadcast",
+            date: new Date().toISOString().slice(0, 10),
+            runningTime: `${Math.floor(captionClock / 60)} min`,
+            permalink: "https://voteunbiased.org/live",
+          }}
+          claims={claims.map(c => ({
+            time: `${Math.floor((c.videoTime ?? 0) / 60)}:${String(Math.floor((c.videoTime ?? 0) % 60)).padStart(2, "0")}`,
+            verdict: c.rating,
+            quote: c.quote,
+            claimed: c.claimedValue != null ? String(c.claimedValue) : null,
+            actual: c.actual,
+            note: c.explanation,
+            source: c.groundTruth?.source,
+            confidence: c.confidence,
+            sources: c.sources,
+          }))}
+          transcript={isReplay ? replayTranscript : liveTranscript}
+        />
+
         {/* ── Session Summary Overlay ── */}
         {showSummary && !isPlaying && (
           <div style={{
@@ -2454,29 +2480,7 @@ function NotifyToggle() {
           Re-enable in your browser&rsquo;s site settings for voteunbiased.org, then reload.
         </div>
       )}
-      {/* ── The record: export sheet (spec 2a) ── */}
-      <RecordSheet
-        open={recordOpen}
-        onClose={() => setRecordOpen(false)}
-        meta={{
-          title: title || "Live broadcast",
-          date: new Date().toISOString().slice(0, 10),
-          runningTime: `${Math.floor(captionClock / 60)} min`,
-          permalink: "https://voteunbiased.org/live",
-        }}
-        claims={claims.map(c => ({
-          time: `${Math.floor((c.videoTime ?? 0) / 60)}:${String(Math.floor((c.videoTime ?? 0) % 60)).padStart(2, "0")}`,
-          verdict: c.rating,
-          quote: c.quote,
-          claimed: c.claimedValue != null ? String(c.claimedValue) : null,
-          actual: c.actual,
-          note: c.explanation,
-          source: c.groundTruth?.source,
-          confidence: c.confidence,
-          sources: c.sources,
-        }))}
-        transcript={isReplay ? replayTranscript : liveTranscript}
-      />
+
 
     </div>
   );
