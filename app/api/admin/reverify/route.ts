@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
   const batch = queue.slice(0, limit);
 
   let benchFixed = 0, webFixed = 0;
-  await Promise.all(batch.map(async ({ c }) => {
+  await Promise.all(batch.map(async ({ b, c }) => {
     // Tier 1b — free, instant, authoritative. Try our own series first.
     if (c.metricKey) {
       const hit = await lookupBenchmark(origin, c.metricKey, c.admin ?? null, c.year ?? null);
@@ -61,7 +61,16 @@ export async function POST(req: NextRequest) {
       }
     }
     // Tier 3 — the live web, citations mandatory.
-    const v = await verifyClaimOnWeb(c, { timeoutMs: 40_000, maxSearches: 3 });
+    // Give the searcher the surrounding transcript so it identifies the real
+    // subject (e.g. Iranian inflation, not US CPI).
+    const t = b.transcript || "";
+    let ctx = "";
+    if (t && c.videoTime != null) {
+      const mm = Math.floor(c.videoTime / 60);
+      const idx = t.indexOf(`[${mm}:`);
+      if (idx >= 0) ctx = t.slice(Math.max(0, idx - 600), idx + 600);
+    }
+    const v = await verifyClaimOnWeb(c, { timeoutMs: 40_000, maxSearches: 3, context: ctx });
     if (v) {
       c.rating = v.rating;
       c.confidence = v.confidence;

@@ -61,7 +61,7 @@ export async function POST(req: Request) {
   }));
 
   // Tier 3: search the live web for anything our datasets couldn't settle.
-  try { await upgradeUnverifiable(claims, 3); } catch { /* keep original ratings */ }
+  try { await upgradeUnverifiable(claims, 3, `${context || ""}\n${text}`); } catch { /* keep original ratings */ }
 
   return NextResponse.json({ claims });
 }

@@ -89,11 +89,11 @@ function collectSources(content: ContentBlock[]): ClaimSource[] {
  */
 export async function verifyClaimOnWeb(
   claim: { quote: string; actual?: string; explanation?: string },
-  opts: { timeoutMs?: number; maxSearches?: number } = {}
+  opts: { timeoutMs?: number; maxSearches?: number; context?: string } = {}
 ): Promise<WebVerdict | null> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return null;
-  const { timeoutMs = 25_000, maxSearches = 3 } = opts;
+  const { timeoutMs = 25_000, maxSearches = 3, context = "" } = opts;
 
   try {
     const resp = await fetch(ANTHROPIC_URL, {
@@ -114,7 +114,12 @@ export async function verifyClaimOnWeb(
         }],
         messages: [{
           role: "user",
-          content: `Claim to verify (spoken by a US official on live broadcast):\n"""${claim.quote}"""\n\nOur internal datasets could not settle this${claim.actual ? `. Prior note: ${claim.actual}` : ""}.\n\nSearch for the authoritative figure and return the JSON verdict.`,
+          content: [
+            `Claim to verify (spoken by a US official on live broadcast):\n"""${claim.quote}"""`,
+            context ? `\nSurrounding transcript — use it to identify WHO or WHAT the claim is about (which country, agency, program or time period). A quote like "they got 180% inflation" may be about a foreign country:\n"""${context.slice(0, 1200)}"""` : "",
+            claim.actual ? `\nPrior note: ${claim.actual}` : "",
+            `\nSearch for the authoritative figure FOR THE SUBJECT THE SPEAKER MEANT — if the claim is about another country, find that country's statistics, not America's. Return the JSON verdict.`,
+          ].join("\n"),
         }],
       }),
     });
@@ -159,12 +164,13 @@ export async function verifyClaimOnWeb(
 /** Upgrade a batch of claims, bounded so live coverage never stalls. */
 export async function upgradeUnverifiable<T extends { rating: string; quote: string; actual?: string }>(
   claims: T[],
-  max = 3
+  max = 3,
+  context = ""
 ): Promise<T[]> {
   const targets = claims.filter(c => c.rating === "UNVERIFIABLE").slice(0, max);
   if (!targets.length) return claims;
   await Promise.all(targets.map(async (c) => {
-    const v = await verifyClaimOnWeb(c);
+    const v = await verifyClaimOnWeb(c, { context });
     if (!v) return;
     Object.assign(c, {
       rating: v.rating,
