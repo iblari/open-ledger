@@ -8,6 +8,7 @@ import { extractAndVerifyClaims } from "@/lib/fact-check";
 import { extractPromises } from "@/lib/promise-extract";
 import { getPromises, setPromises, getLiveState } from "@/lib/live-kv";
 import { likelyHasEconomicClaim, dedupeClaims } from "@/lib/claim-utils";
+import { upgradeUnverifiable } from "@/lib/web-verify";
 
 /**
  * POST /api/admin/ingest
@@ -106,6 +107,16 @@ export async function POST(req: Request) {
       timestamp: new Date().toISOString(),
       id: `live-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     }));
+
+    // Tier 3: anything our own data couldn't settle goes to live web search
+    // before publication. "Unverifiable" must mean nobody can settle it —
+    // not that it was missing from our tables. Bounded to 3 per chunk so a
+    // slow search can never stall coverage.
+    try {
+      await upgradeUnverifiable(claims, 3);
+    } catch (e) {
+      console.error("[ingest] web verification skipped:", (e as Error).message);
+    }
 
     await appendLiveClaims(claims);
     for (const c of claims) {

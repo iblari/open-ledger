@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { extractAndVerifyClaims } from "@/lib/fact-check";
 import { likelyHasEconomicClaim, dedupeClaims } from "@/lib/claim-utils";
+import { upgradeUnverifiable } from "@/lib/web-verify";
 
 /**
  * POST /api/live-fact-check
@@ -57,6 +58,9 @@ export async function POST(req: Request) {
     timestamp: new Date().toISOString(),
     id: `claim-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
   }));
+
+  // Tier 3: search the live web for anything our datasets couldn't settle.
+  try { await upgradeUnverifiable(claims, 3); } catch { /* keep original ratings */ }
 
   return NextResponse.json({ claims });
 }

@@ -37,6 +37,9 @@ export interface LiveClaim {
   claimedValue?: number | null;
   verifiedFromSource?: boolean;
   groundTruth?: { value: number; year: number; metricKey: string; source: string };
+  /** Tier-3: settled by live web search, with the pages actually cited. */
+  webVerified?: boolean;
+  sources?: { title: string; url: string }[];
 }
 
 // ── Upstash REST helpers ──────────────────────────────────────────

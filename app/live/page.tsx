@@ -56,6 +56,9 @@ interface Claim {
   admin?: string | null;
   claimedValue?: number | null;
   verifiedFromSource?: boolean;
+  /** Tier-3 web verification: settled by live search, with real citations. */
+  webVerified?: boolean;
+  sources?: { title: string; url: string }[];
   groundTruth?: { value: number; year: number; metricKey: string; source: string };
 }
 
@@ -343,7 +346,10 @@ function CaptionKaraoke({ captions, vt }: {
 function FactCard({ claim, isNew, onSeek }: { claim: Claim; isNew: boolean; onSeek?: (claim: Claim) => void }) {
   const [expanded, setExpanded] = useState(false);
   const rc = RATING_COLORS[claim.rating] || RATING_COLORS.UNVERIFIABLE;
-  const sources = detectSources(claim.actual);
+  // Tier-3 verification attaches the pages actually read; those are real
+  // citations and outrank the keyword-detected agency landing pages.
+  const cited = (claim.sources || []).map(s => ({ label: s.title.slice(0, 42), url: s.url }));
+  const sources = cited.length > 0 ? cited : detectSources(claim.actual);
 
   return (
     <div
@@ -451,7 +457,7 @@ function FactCard({ claim, isNew, onSeek }: { claim: Claim; isNew: boolean; onSe
           display: "flex", flexWrap: "wrap", gap: 6,
         }}>
           <span style={{ fontSize: 9, fontWeight: 700, color: T.mute, textTransform: "uppercase", letterSpacing: 0.5 }}>
-            Verify:
+            {claim.webVerified ? "Checked against:" : "Verify:"}
           </span>
           {sources.map((src, i) => (
             <a
