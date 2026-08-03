@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getRecentBroadcasts, setRecentBroadcasts, type LiveClaim } from "@/lib/live-kv";
 import { lookupBenchmark, formatBenchValue, rateAgainstBenchmark, isUnitMismatch } from "@/lib/benchmark-verify";
 import { verifyClaimOnWeb } from "@/lib/web-verify";
+import { isDuplicateQuote } from "@/lib/claim-utils";
 
 export const maxDuration = 300;
 
@@ -32,6 +33,24 @@ export async function POST(req: NextRequest) {
     for (const c of b.claims) {
       if (c.rating === "UNVERIFIABLE") before.UNVERIFIABLE++; else before.other++;
     }
+  }
+
+  // ── Dedup pass: collapse claims the OLD exact-match rule let through.
+  // Storage deduplicated on `quote.trim().toLowerCase()`, which misses the
+  // commonest real duplicate — one claim transcribed at two lengths ("the
+  // worst inflation in fifty years" vs "...the worst inflation in 48
+  // years"). Storage now uses the fuzzy rule, but archived broadcasts still
+  // carry the old copies, so sweep them here. Earliest utterance wins: it's
+  // the one whose timestamp matches where the claim was actually made.
+  let deduped = 0;
+  for (const b of broadcasts) {
+    const ordered = [...b.claims].sort((x, y) => (x.videoTime ?? 0) - (y.videoTime ?? 0));
+    const kept: LiveClaim[] = [];
+    for (const c of ordered) {
+      if (isDuplicateQuote(c.quote, kept.map(k => k.quote))) deduped++;
+      else kept.push(c);
+    }
+    b.claims = kept;
   }
 
   // ── Repair pass: undo verdicts the old verifier produced by comparing a
@@ -118,6 +137,7 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({
     ok: true,
+    deduped,
     repaired,
     processed: batch.length,
     remaining: Math.max(0, queue.length - batch.length),
