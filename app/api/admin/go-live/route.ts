@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { sendPushToAll } from "@/lib/push";
+import { sendLiveAlert } from "@/lib/email-alerts";
 import {
   setLiveState,
   getLiveState,
@@ -84,6 +85,13 @@ export async function POST(req: Request) {
       url: "/live",
     }).then(r => console.log(`[GO-LIVE] push: ${r.sent} sent, ${r.pruned} pruned`))
       .catch(e => console.error("[GO-LIVE] push failed:", (e as Error).message));
+
+    // Email the subscriber list too — the universal channel, and the only one
+    // that reaches iPhone users who haven't installed the site. No-ops
+    // harmlessly until RESEND_API_KEY exists.
+    sendLiveAlert(body.title || "An official broadcast", body.source)
+      .then(r => console.log(`[GO-LIVE] email: ${JSON.stringify(r)}`))
+      .catch(e => console.error("[GO-LIVE] email failed:", (e as Error).message));
     await setLiveState(state);
 
     console.log(`[GO-LIVE] Started: "${state.title}" (${state.videoId || "monitor mode"})`);
@@ -136,6 +144,14 @@ export async function POST(req: Request) {
 
   // Send a test notification to every subscriber — used to confirm the
   // delivery path end-to-end before relying on it for a real broadcast.
+  if ((body.action as string) === "test-email") {
+    const r = await sendLiveAlert(
+      (body as { title?: string }).title || "Test — Presidential Remarks on the Economy",
+      "Systems check"
+    );
+    return NextResponse.json({ ok: true, ...r });
+  }
+
   if ((body.action as string) === "test-push") {
     const r = await sendPushToAll({
       title: "🔴 Vote Unbiased — test alert",

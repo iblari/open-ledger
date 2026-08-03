@@ -280,6 +280,13 @@ export async function getSubscribers(): Promise<SubscriberRecord[]> {
 
 /** Append a subscriber. Dedupes by email (case-insensitive) — a repeat
  *  signup updates feedback/source but keeps the ORIGINAL signup date. */
+/** Replace the subscriber list (used by one-click unsubscribe). */
+export async function setSubscribers(list: SubscriberRecord[]): Promise<void> {
+  const json = JSON.stringify(list);
+  if (hasUpstash()) await upstashCmd("SET", SUBSCRIBERS_KEY, json);
+  else mem.set(SUBSCRIBERS_KEY, json);
+}
+
 export async function appendSubscriber(rec: SubscriberRecord): Promise<{ total: number; isNew: boolean }> {
   const all = await getSubscribers();
   const key = rec.email.trim().toLowerCase();
