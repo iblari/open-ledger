@@ -22,6 +22,12 @@ import { getSubscribers } from "./live-kv";
 
 const RESEND_URL = "https://api.resend.com/emails";
 const FROM = process.env.ALERT_FROM || "Vote Unbiased <alerts@voteunbiased.org>";
+// Until the domain's DNS records are verified with Resend, the branded sender
+// is rejected (403 validation_error). Rather than dropping the alert, retry
+// once from Resend's shared sender — deliverability is worse but the viewer
+// still gets told a broadcast is live. Once DNS verifies, the branded sender
+// succeeds on the first attempt and this never fires.
+const FALLBACK_FROM = "Vote Unbiased <onboarding@resend.dev>";
 const SITE = "https://voteunbiased.org";
 
 /** Stateless unsubscribe token — no extra storage, can't be forged. */
@@ -86,24 +92,30 @@ export async function sendLiveAlert(title: string, source?: string): Promise<Ale
   for (let i = 0; i < emails.length; i += 10) {
     const batch = emails.slice(i, i + 10);
     await Promise.all(batch.map(async (email) => {
+      const send = (from: string) => fetch(RESEND_URL, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+        signal: AbortSignal.timeout(15_000),
+        body: JSON.stringify({
+          from,
+          to: [email],
+          subject: `🔴 Live now: ${title}`,
+          html: html(title, sourceLabel, email),
+          headers: {
+            // Gmail/Apple render a native unsubscribe control from these.
+            "List-Unsubscribe": `<${unsubUrl(email)}>`,
+            "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+          },
+        }),
+      });
       try {
-        const r = await fetch(RESEND_URL, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-          signal: AbortSignal.timeout(15_000),
-          body: JSON.stringify({
-            from: FROM,
-            to: [email],
-            subject: `🔴 Live now: ${title}`,
-            html: html(title, sourceLabel, email),
-            headers: {
-              // Gmail/Apple render a native unsubscribe control from these.
-              "List-Unsubscribe": `<${unsubUrl(email)}>`,
-              "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-            },
-          }),
-        });
-        if (r.ok) sent++; else { failed++; console.error("[email] resend", r.status, await r.text().catch(() => "")); }
+        let r = await send(FROM);
+        if (r.status === 403 && FROM !== FALLBACK_FROM) {
+          console.warn("[email] branded sender rejected (domain not verified yet) — using fallback");
+          r = await send(FALLBACK_FROM);
+        }
+        if (r.ok) sent++;
+        else { failed++; console.error("[email] resend", r.status, await r.text().catch(() => "")); }
       } catch (e) { failed++; console.error("[email] failed:", (e as Error).message); }
     }));
   }
