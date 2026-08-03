@@ -17,7 +17,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { L, F, VERDICT_COLOR, toVerdict, type Verdict } from "@/lib/live-design";
+import { L, F, VERDICT_COLOR, toVerdict, toOutcome, type Verdict } from "@/lib/live-design";
 import CredibilityTimeline, { type TimelineTick } from "./CredibilityTimeline";
 import RunningScore from "./RunningScore";
 import ClaimCard, { type LiveClaimView } from "./ClaimCard";
@@ -68,7 +68,7 @@ export default function ControlRoom({
 
   const views: LiveClaimView[] = claims.map(c => ({
     id: c.id,
-    verdict: toVerdict(c.rating) ?? "unverifiable",
+    verdict: toOutcome(c.rating),
     time: stamp(c.videoTime ?? 0),
     quote: c.quote,
     claimed: c.claimedValue != null ? String(c.claimedValue) : null,
@@ -83,8 +83,12 @@ export default function ControlRoom({
     true: claims.filter(c => toVerdict(c.rating) === "true").length,
     misleading: claims.filter(c => toVerdict(c.rating) === "misleading").length,
     false: claims.filter(c => toVerdict(c.rating) === "false").length,
-    unverifiable: claims.filter(c => toVerdict(c.rating) === null).length,
+    // Everything that doesn't score, split by WHY it doesn't.
+    projection: claims.filter(c => toOutcome(c.rating) === "projection").length,
+    unconfirmed: claims.filter(c => toOutcome(c.rating) === "unconfirmed").length,
+    unverifiable: claims.filter(c => toOutcome(c.rating) === "unverifiable").length,
   };
+  const unscored = counts.projection + counts.unconfirmed + counts.unverifiable;
 
   const ticks: TimelineTick[] = claims
     .map(c => {
@@ -128,7 +132,17 @@ export default function ControlRoom({
 
   const FilterChips = (
     <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-      {([["all", `ALL ${views.length}`], ["false", `FALSE ${counts.false}`], ["misleading", `MISLEADING ${counts.misleading}`], ["true", `TRUE ${counts.true}`], ["unverifiable", `UNVERIFIABLE ${counts.unverifiable}`]] as const)
+      {(([
+        ["all", `ALL ${views.length}`],
+        ["false", `FALSE ${counts.false}`],
+        ["misleading", `MISLEADING ${counts.misleading}`],
+        ["true", `TRUE ${counts.true}`],
+        // Only offer a filter for outcomes actually present — an always-on
+        // "UNVERIFIABLE 0" chip advertised a weakness that wasn't there.
+        ...(counts.unconfirmed ? [["unconfirmed", `UNCONFIRMED ${counts.unconfirmed}`]] : []),
+        ...(counts.projection ? [["projection", `PROJECTION ${counts.projection}`]] : []),
+        ...(counts.unverifiable ? [["unverifiable", `UNVERIFIABLE ${counts.unverifiable}`]] : []),
+      ] as const))
         .filter(([k]) => k === "all" || counts[k as keyof typeof counts] > 0)
         .map(([k, label]) => {
           const active = filter === k;
@@ -259,7 +273,7 @@ export default function ControlRoom({
       <CredibilityTimeline ticks={ticks} position={elapsed}
         duration={Math.max(elapsed, ...ticks.map(t => t.at), 60)} onSeek={onSeek} />
       <RunningScore trueCount={counts.true} misleadingCount={counts.misleading}
-        falseCount={counts.false} unverifiableCount={counts.unverifiable} />
+        falseCount={counts.false} unverifiableCount={unscored} />
     </>
   );
 

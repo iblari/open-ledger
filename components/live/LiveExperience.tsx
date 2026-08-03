@@ -2275,7 +2275,7 @@ export default function LiveExperience({ autoStartReplay }: { autoStartReplay?: 
             }
             manualResult={manualResult?.map(c => ({
               id: c.id,
-              verdict: (toVerdict(c.rating) ?? "unverifiable") as "true" | "misleading" | "false" | "unverifiable" | "checking",
+              verdict: toOutcome(c.rating),
               time: `${Math.floor((c.videoTime ?? 0) / 60)}:${String(Math.floor((c.videoTime ?? 0) % 60)).padStart(2, "0")}`,
               quote: c.quote,
               claimed: c.claimedValue != null ? String(c.claimedValue) : null,

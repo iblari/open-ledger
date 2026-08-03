@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
             timestamp: new Date().toISOString(),
             id: `backfill-${b.videoId}-${Math.round(w.time)}-${Math.random().toString(36).slice(2, 6)}`,
           }));
-          await upgradeUnverifiable(mapped, 2, w.text).catch(() => {});
+          await upgradeUnverifiable(mapped, 6, w.text).catch(() => {});
           b.claims.push(...mapped);
           mapped.forEach(m => seen.push(m.quote));
           added += mapped.length;

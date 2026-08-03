@@ -76,7 +76,7 @@ export async function POST(req: Request) {
   }));
 
   // Tier 3: search the live web for anything our datasets couldn't settle.
-  try { await upgradeUnverifiable(claims, 3, `${context || ""}\n${text}`); } catch { /* keep original ratings */ }
+  try { await upgradeUnverifiable(claims, 8, `${context || ""}\n${text}`); } catch { /* keep original ratings */ }
 
   // ── Persist, so a manual check becomes part of the record ──
   // These are claims the automatic pass missed (or never reached, on a late

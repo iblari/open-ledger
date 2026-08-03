@@ -17,6 +17,9 @@ export const L = {
   true: "#0E7477",
   misleading: "#B45309",
   false: "#C2410C",
+  // Slate-blue: reads as "on the record but not settled" without borrowing
+  // the true/false palette. Deliberately NOT a verdict colour.
+  pending: "#4A6E8A",
   mutedDark: "#8A827A",
   mutedDark2: "#A79E93",
   mutedLight: "#8C8479",
@@ -30,10 +33,22 @@ export const F = {
   mono: "'DM Mono',ui-monospace,Menlo,monospace",
 } as const;
 
-export type Verdict = "true" | "misleading" | "false" | "unverifiable" | "checking";
+/**
+ * UNVERIFIABLE used to absorb four unrelated situations — a forecast, an
+ * unaudited official announcement, a genuine blank, and a search that simply
+ * gave up. Viewers read all four as "we couldn't be bothered". Splitting them
+ * lets every card say something true and specific.
+ */
+export type Verdict =
+  | "true" | "misleading" | "false"
+  | "projection"    // about the future — not checkable yet, tracked as a promise
+  | "unconfirmed"   // official announcement, no independent audit or dataset
+  | "unverifiable"  // genuinely nothing settles it
+  | "checking";
 
 export const VERDICT_COLOR: Record<Verdict, string> = {
   true: L.true, misleading: L.misleading, false: L.false,
+  projection: L.pending, unconfirmed: L.pending,
   unverifiable: L.mutedDark, checking: L.mutedDark,
 };
 
@@ -42,6 +57,9 @@ export const VERDICT_LABEL: Record<Verdict, string> = {
   true: "TRUE", misleading: "MISLEADING", false: "FALSE",
   // A claim nobody can settle is a finished RESULT, not work in progress —
   // labelling it CHECKING… promised an answer that was never coming.
+  // "PROJECTION" and "UNCONFIRMED" answer the viewer's question — is this a
+  // fact, a forecast, or a press release? — where UNVERIFIABLE just shrugged.
+  projection: "PROJECTION", unconfirmed: "UNCONFIRMED",
   unverifiable: "UNVERIFIABLE", checking: "CHECKING…",
 };
 
@@ -51,5 +69,19 @@ export function toVerdict(rating: string): Verdict | null {
   if (r === "TRUE" || r === "MOSTLY TRUE") return "true";
   if (r === "MISLEADING") return "misleading";
   if (r === "FALSE") return "false";
-  return null; // UNVERIFIABLE has no place on the credibility timeline
+  // Neither a forecast nor an unaudited announcement is a truth outcome, so
+  // none of these score on the credibility timeline — but unlike UNVERIFIABLE
+  // they still render a meaningful card.
+  return null;
+}
+
+/** The full outcome, including the non-scoring ones the feed still displays. */
+export function toOutcome(rating: string): Verdict {
+  const r = (rating || "").toUpperCase();
+  if (r === "TRUE" || r === "MOSTLY TRUE") return "true";
+  if (r === "MISLEADING") return "misleading";
+  if (r === "FALSE") return "false";
+  if (r === "PROJECTION") return "projection";
+  if (r === "UNCONFIRMED") return "unconfirmed";
+  return "unverifiable";
 }

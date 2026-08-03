@@ -22,6 +22,8 @@
  *    A slow search must never stall the live transcript.
  */
 
+import { quoteContainment } from "@/lib/claim-utils";
+
 const MODEL = "claude-haiku-4-5-20251001";
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 
@@ -34,22 +36,52 @@ export interface WebVerdict {
   explanation: string;
   sources: ClaimSource[];
   searched: true;
+  /** At least one source is a dataset/audit/filing published separately from
+   *  the claim — as opposed to coverage of the claim being made. */
+  independent: boolean;
 }
 
-const SYSTEM = `You are the research desk for Vote Unbiased, a nonpartisan live fact-checking service. You receive ONE claim that our internal datasets could not settle. Search the web and reach a verdict.
+const SYSTEM = `You are the research desk for Vote Unbiased, a nonpartisan live fact-checking service. You receive ONE claim our internal datasets could not settle. Search the web and reach a verdict.
 
 SOURCE PRIORITY — always prefer, in this order:
-1. The primary agency that publishes the number (BLS, BEA, Census, Treasury, CBO, GAO, CMS, FDA, EIA, Federal Reserve, DoD comptroller, state agencies)
+1. The primary agency that publishes the number (BLS, BEA, Census, Treasury, CBO, GAO, CMS, FDA, EIA, Federal Reserve, DoD comptroller, FBI UCR, CDC, state agencies)
 2. Official press releases, budget documents, regulatory filings
-3. Established data organizations (KFF, Peterson Foundation, Tax Foundation, OECD, IMF, World Bank)
+3. Established data organisations (KFF, Peterson Foundation, Tax Foundation, OECD, IMF, World Bank)
 4. Major news outlets ONLY for events/announcements, never as the source of a statistic
+
+DECISION PROCEDURE — work down this ladder and STOP at the first that fits.
+Do not skip to the bottom because a claim feels hard. Most claims are settled
+by step 1 or 2.
+
+1. Does a source give the actual figure?           -> TRUE / MOSTLY TRUE / MISLEADING / FALSE
+2. Is the claim about the FUTURE ("we will have",
+   "by next year", "is going to")?                 -> PROJECTION
+3. Do the ONLY sources trace back to this same
+   speaker or administration announcing it, with
+   no independent audit or published dataset?      -> UNCONFIRMED
+4. Genuinely nothing addresses it, or it is too
+   vague to pin down                               -> UNVERIFIABLE
 
 RATINGS
 - TRUE: sources confirm the figure within normal rounding
-- MOSTLY TRUE: directionally right, but the number is imprecise, cherry-picked or from a favourable time slice
-- MISLEADING: the number is technically defensible but the framing distorts it (wrong baseline, missing context, misattributed cause)
+- MOSTLY TRUE: directionally right, but imprecise, cherry-picked, or from a favourable time slice
+- MISLEADING: technically defensible but the framing distorts it (wrong baseline, missing context, a target quoted as an achievement, a projection stated as fact)
 - FALSE: sources contradict the figure materially
-- UNVERIFIABLE: use ONLY if no credible source addresses it, or the claim is too vague to pin down. Say precisely what would be needed to settle it.
+- PROJECTION: a forecast or target about the future. Not checkable today. State the CURRENT figure so viewers can judge the gap: "7 million families enrolled as of July 2026; 70 million is the stated goal."
+- UNCONFIRMED: an official announcement no independent source has verified. State who announced it, when, and what would confirm it: "Announced by VP Vance, 31 Jul 2026. No GAO or IG audit published."
+- UNVERIFIABLE: last resort only. Say precisely what would be needed to settle it.
+
+CRITICAL — A SOURCE THAT MERELY REPEATS THE CLAIM IS NOT EVIDENCE.
+News coverage of a speech, a transcript, or a post quoting the speaker proves
+only that the words were SAID. It never proves they are TRUE. If every source
+you find is coverage of this same statement, the answer is UNCONFIRMED, never
+TRUE. Independent confirmation means a dataset, audit or filing published
+separately from the announcement.
+
+A TARGET IS NOT AN ACHIEVEMENT. If the speaker states a goal in the past or
+present tense ("we have 70 million families") while sources show a smaller
+actual figure, that is MISLEADING, not PROJECTION — the tense misrepresents
+a goal as a result.
 
 RULES
 - Nonpartisan. Identical scrutiny regardless of speaker or party.
@@ -57,10 +89,13 @@ RULES
 - Judge the NUMBER, never the politics or the motive.
 - "explanation" must be under 30 words — this renders on a live card.
 - "actual" states what the sources say, WITH the publishing body and period, e.g. "CMS lists Ozempic's 2025 list price at $997/month."
-- If sources disagree, say so and rate MISLEADING or UNVERIFIABLE rather than picking a side.
+- If credible sources genuinely disagree, rate MISLEADING and say both figures.
 
 Respond ONLY with valid JSON, no markdown fences:
-{"rating":"TRUE","confidence":85,"actual":"...","explanation":"...","sources":[{"title":"BLS Employment Situation, May 2026","url":"https://..."}]}`;
+{"rating":"TRUE","confidence":85,"actual":"...","explanation":"...","independent":true,"sources":[{"title":"BLS Employment Situation, May 2026","url":"https://..."}]}
+
+"independent" is your own honest assessment: true only if at least one source
+is a dataset, audit or filing published separately from the claim itself.`;
 
 /** Extract every cited URL from the response content blocks. */
 interface ContentBlock {
@@ -81,6 +116,73 @@ function collectSources(content: ContentBlock[]): ClaimSource[] {
     }
   }
   return [...seen.entries()].map(([url, title]) => ({ url, title })).slice(0, 6);
+}
+
+/**
+ * Domains that only ever carry coverage OF a statement, never the underlying
+ * data. A hit here can establish that something was said; it can never
+ * establish that it is true.
+ */
+const ECHO_DOMAIN_RE = /(^|\.)(x\.com|twitter\.com|t\.co|truthsocial\.com|facebook\.com|instagram\.com|youtube\.com|rumble\.com)$/i;
+
+/** Bodies that publish measurements rather than announcements. */
+const STAT_AGENCY_RE = /(^|\.)(bls|bea|census|gao|cbo|treasury|federalreserve|cms|cdc|fbi|eia|usaspending|ssa|irs|oecd|imf|worldbank)\.gov$|(^|\.)(aspe\.hhs\.gov|data\.cdc\.gov|fred\.stlouisfed\.org|oecd\.org|imf\.org|worldbank\.org|kff\.org)$/i;
+
+/**
+ * Headlines that report someone SAYING something, rather than reporting a
+ * measured quantity. "JD Vance: Anti-Fraud Task Force Has Halted $56 Billion"
+ * shares almost no wording with the spoken claim, so overlap scoring misses
+ * it — but the structure is unmistakable, and a dataset never needs to name
+ * who said it.
+ */
+const ATTRIBUTION_VERB_RE =
+  /\b(says?|said|saying|claims?|claimed|announces?|announced|announcing|reveals?|revealed|touts?|touted|told|tells?|insists?|asserts?|according to|remarks|press briefing|fact sheet|full transcript)\b/i;
+
+/**
+ * A speaker prefix: "JD Vance:", "Trump:", "Sec. Hegseth:".
+ *
+ * Deliberately case-SENSITIVE. The first version folded this into the
+ * case-insensitive verb regex, where [A-Z] happily matched lowercase — so
+ * "Dollars and Cents: Real Hourly Wage Growth", a Cleveland Fed research
+ * paper, was read as an attribution and its data thrown away. Requiring every
+ * word before the colon to be genuinely capitalised separates a name from a
+ * title, because "and" in a headline is never capitalised.
+ */
+const SPEAKER_PREFIX_RE = /^[A-Z][A-Za-z.'\-]*(?:\s+[A-Z][A-Za-z.'\-]*){0,3}\s*:/;
+
+function looksLikeAttribution(title: string): boolean {
+  return SPEAKER_PREFIX_RE.test(title) || ATTRIBUTION_VERB_RE.test(title);
+}
+
+/**
+ * Is this "source" just the claim coming back at us?
+ *
+ * The $75bn defence-investment claim was cited to a post whose title was the
+ * speaker's own sentence, verbatim. That is circular: it proves the words
+ * were SAID, not that they are TRUE. We detect it by measuring how much of
+ * the claim is contained in the source's title, and by domain for platforms
+ * that only ever host reposts.
+ */
+export function isEchoSource(quote: string, src: ClaimSource): boolean {
+  let host = "";
+  try { host = new URL(src.url).hostname; } catch { return false; }
+
+  // Statistical agencies publish measurements, not announcements. They are
+  // never an echo, even when a headline happens to quote the same figure.
+  if (STAT_AGENCY_RE.test(host)) return false;
+
+  if (ECHO_DOMAIN_RE.test(host)) return true;
+
+  const title = src.title || "";
+  // Attribution is the giveaway. "JD Vance: Task Force Has Halted $56 Billion"
+  // shares few words with the spoken claim, so text overlap misses it — but
+  // the headline structure says plainly that this is a report of someone
+  // SPEAKING. A dataset never needs to name who said it.
+  if (looksLikeAttribution(title)) return true;
+
+  // A headline that reproduces the claim almost word-for-word is coverage of
+  // the utterance, not an independent measurement of the quantity.
+  return quoteContainment(quote, title) >= 0.8;
 }
 
 /**
@@ -147,9 +249,22 @@ export async function verifyClaimOnWeb(
     // No citations → no verdict. Prevents an unsourced upgrade.
     if (merged.length === 0) return null;
 
+    // ── Circular-evidence guard ──────────────────────────────────────
+    // A claim "confirmed" only by coverage of the speech that made it is
+    // not confirmed at all. If nothing independent survives the filter, the
+    // strongest honest verdict is UNCONFIRMED — which tells the viewer who
+    // said it and what would settle it, rather than asserting it as fact.
+    let rating = String(parsed.rating).toUpperCase();
+    const independentSources = merged.filter(m => !isEchoSource(claim.quote, m));
+    const modelSaysIndependent = (parsed as { independent?: boolean }).independent !== false;
+    if (independentSources.length === 0 || !modelSaysIndependent) {
+      if (rating === "TRUE" || rating === "MOSTLY TRUE") rating = "UNCONFIRMED";
+    }
+
     return {
-      rating: String(parsed.rating).toUpperCase(),
+      rating,
       confidence: typeof parsed.confidence === "number" ? parsed.confidence : 60,
+      independent: independentSources.length > 0 && modelSaysIndependent,
       actual: String(parsed.actual),
       explanation: String(parsed.explanation || "").slice(0, 240),
       sources: merged.slice(0, 6),
@@ -161,10 +276,18 @@ export async function verifyClaimOnWeb(
   }
 }
 
-/** Upgrade a batch of claims, bounded so live coverage never stalls. */
+/**
+ * Upgrade a batch of claims, bounded so live coverage never stalls.
+ *
+ * `max` was 3, which quietly meant the 4th and later unverifiable claims in a
+ * busy chunk were never searched AT ALL — they kept a tier-2 rating and shipped
+ * with no sources, which is exactly how two murder-rate claims reached the
+ * archive citing nothing. Raised to 8, run in parallel, so a dense passage
+ * still clears. The per-claim 25s timeout remains the real stall guard.
+ */
 export async function upgradeUnverifiable<T extends { rating: string; quote: string; actual?: string }>(
   claims: T[],
-  max = 3,
+  max = 8,
   context = ""
 ): Promise<T[]> {
   const targets = claims.filter(c => c.rating === "UNVERIFIABLE").slice(0, max);
@@ -179,6 +302,7 @@ export async function upgradeUnverifiable<T extends { rating: string; quote: str
       explanation: v.explanation || (c as { explanation?: string }).explanation,
       sources: v.sources,
       webVerified: true,
+      independent: v.independent,
     });
   }));
   return claims;

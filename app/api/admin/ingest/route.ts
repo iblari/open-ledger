@@ -115,7 +115,7 @@ export async function POST(req: Request) {
     // not that it was missing from our tables. Bounded to 3 per chunk so a
     // slow search can never stall coverage.
     try {
-      await upgradeUnverifiable(claims, 3, text);
+      await upgradeUnverifiable(claims, 8, text);
     } catch (e) {
       console.error("[ingest] web verification skipped:", (e as Error).message);
     }

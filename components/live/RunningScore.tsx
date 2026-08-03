@@ -67,7 +67,7 @@ export default function RunningScore({
           )}
           {unverifiableCount > 0 && (
             <span style={{ fontFamily: F.ui, fontSize: 10.5, letterSpacing: "0.06em", color: L.mutedDark }}>
-              +{unverifiableCount} unverifiable · excluded
+              +{unverifiableCount} not scored · forecasts &amp; unaudited claims
             </span>
           )}
         </div>
