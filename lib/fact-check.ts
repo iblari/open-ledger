@@ -46,7 +46,10 @@ For each claim found, return JSON with these fields:
 - explanation (string, under 30 words): one-sentence explanation
 
 GEOGRAPHIC SCOPE — CRITICAL:
-Our datasets are UNITED STATES federal statistics only. If a claim is about another country, a foreign central bank, a company, a single state or city, or any non-US entity, you MUST set metricKey to null — even when the topic (inflation, unemployment, GDP) matches one of our metrics. Checking "Iran's inflation is 180%" against US CPI would produce a false refutation. Set metricKey ONLY when the claim is about the United States as a whole.
+Our internal datasets are UNITED STATES federal statistics only.
+- STILL EXTRACT claims about other countries, foreign central banks, companies, states or cities — they are real, checkable factual claims and a later stage searches for the right country's data.
+- But set metricKey to null for them, even when the topic (inflation, unemployment, GDP) matches one of our metric names. Checking "Iran's inflation is 180%" against US CPI would publish a false refutation citing the wrong country's statistics.
+- Set metricKey ONLY when the claim is about the United States as a whole.
 
 STRUCTURED FIELDS (REQUIRED, set to null if not applicable):
 - metricKey (string|null): one of the metric anchor keys below, OR null if the claim doesn't map to any of them.
