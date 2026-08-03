@@ -14,7 +14,7 @@
 //   3. verifyClaim() re-rates numeric claims against ground-truth metrics data
 //   4. dedupeClaims() drops near-duplicate re-statements
 
-import { verifyClaim, metricAnchorPromptBlock, type RawClaim, type VerifiedClaim } from "./live-verify";
+import { verifyClaim, mentionsForeignSubject, metricAnchorPromptBlock, type RawClaim, type VerifiedClaim } from "./live-verify";
 import { lookupBenchmark, formatBenchValue, rateAgainstBenchmark, benchAnchorPromptBlock } from "./benchmark-verify";
 
 const MODEL = "claude-haiku-4-5-20251001";
@@ -44,6 +44,9 @@ For each claim found, return JSON with these fields:
   - FRED: cite the series ID (e.g. "FRED series UNRATE" or "FRED series CPIAUCSL")
   - CBO: cite the report (e.g. "CBO Budget Outlook, Feb 2025")
 - explanation (string, under 30 words): one-sentence explanation
+
+GEOGRAPHIC SCOPE — CRITICAL:
+Our datasets are UNITED STATES federal statistics only. If a claim is about another country, a foreign central bank, a company, a single state or city, or any non-US entity, you MUST set metricKey to null — even when the topic (inflation, unemployment, GDP) matches one of our metrics. Checking "Iran's inflation is 180%" against US CPI would produce a false refutation. Set metricKey ONLY when the claim is about the United States as a whole.
 
 STRUCTURED FIELDS (REQUIRED, set to null if not applicable):
 - metricKey (string|null): one of the metric anchor keys below, OR null if the claim doesn't map to any of them.
@@ -161,7 +164,9 @@ export async function extractAndVerifyClaims(
     };
   }
 
-  const claims = (parsed.claims || []).map((raw: RawClaim) => verifyClaim(raw));
+  // Pass the transcript chunk so the geographic-scope gate can see context
+  // the quote alone doesn't carry.
+  const claims = (parsed.claims || []).map((raw: RawClaim) => verifyClaim(raw, userContent));
 
   // Tier 1b — the full benchmark dataset (14 metrics × 10 administrations ×
   // ~450 monthly points). Runs for anything the 6 annual anchors above
@@ -169,6 +174,10 @@ export async function extractAndVerifyClaims(
   // web search on it.
   await Promise.all(claims.map(async (c: VerifiedClaim) => {
     if (c.verifiedFromSource || !c.metricKey) return;
+    if (mentionsForeignSubject(c.quote) || mentionsForeignSubject(userContent)) {
+      c.metricKey = null; // US series only — foreign subject in quote or context
+      return;
+    }
     const hit = await lookupBenchmark(origin, c.metricKey, c.admin ?? null, c.year ?? null);
     if (!hit) return;
     const shown = formatBenchValue(hit.value, hit.unit);

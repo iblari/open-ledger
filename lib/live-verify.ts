@@ -45,8 +45,46 @@ export interface VerifiedClaim extends RawClaim {
 /** Validate that the LLM's structured fields point at real entries in our
  *  metrics-data, and rewrite the rating + "actual" string when we have a
  *  ground truth to compare. Non-mutating; returns a new claim. */
-export function verifyClaim(raw: RawClaim): VerifiedClaim {
+/**
+ * Countries / non-US entities whose statistics must NEVER be checked against
+ * our US series. Observed failure: "now they got a 180% in inflation" —
+ * spoken about IRAN — was tagged metricKey=inflation, resolved against BLS
+ * CPI-U (2.9%) and published as FALSE with a Bureau of Labor Statistics
+ * citation. Refuting a claim about Iran with American data is a fabricated
+ * refutation, which is worse than saying nothing.
+ */
+const FOREIGN_SUBJECT_RE = new RegExp(
+  "\\b(" + [
+    "iran", "iranian", "china", "chinese", "russia", "russian", "ukraine", "ukrainian",
+    "venezuela", "venezuelan", "argentina", "argentine", "turkey", "turkish", "zimbabwe",
+    "germany", "german", "france", "french", "japan", "japanese", "india", "indian",
+    "mexico", "mexican", "canada", "canadian", "brazil", "brazilian", "israel", "israeli",
+    "gaza", "syria", "syrian", "iraq", "iraqi", "afghanistan", "korea", "korean",
+    "britain", "british", "uk", "europe", "european", "eu", "nato", "opec",
+    "cuba", "cuban", "nigeria", "egypt", "saudi", "pakistan", "vietnam", "taiwan",
+  ].join("|") + ")\\b", "i"
+);
+
+/** True when the claim is about a foreign subject rather than the US. */
+export function mentionsForeignSubject(text: string): boolean {
+  if (!text) return false;
+  return FOREIGN_SUBJECT_RE.test(text);
+}
+
+export function verifyClaim(raw: RawClaim, context = ""): VerifiedClaim {
   const out: VerifiedClaim = { ...raw, verifiedFromSource: false };
+
+  // Scope gate FIRST: a foreign subject invalidates every US metric anchor.
+  // The claim still gets fact-checked — it just goes to the web tier, which
+  // can find the right country's statistics.
+  // NOTE: check the surrounding transcript as well as the quote. The observed
+  // failure ("they got a 180% in inflation") contained no country word at
+  // all; "Iranian regimes" appeared two sentences earlier in the chunk.
+  if (out.metricKey && (mentionsForeignSubject(out.quote) || mentionsForeignSubject(context))) {
+    out.metricKey = null;
+    out.rating = "UNVERIFIABLE";
+    out.actual = "This claim is about a country other than the United States, so it cannot be checked against US federal data.";
+  }
 
   // Sanitize structured fields — LLM sometimes hands us a key that doesn't
   // exist, or a year outside our data range. Drop those rather than trust them.
