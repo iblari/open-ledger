@@ -1,0 +1,45 @@
+name: Refresh national series (AI, commerce, traffic, housing)
+
+# Cadences differ from LAUS, so this runs on its own schedule rather than
+# riding the monthly county refresh:
+#   BTOS      biweekly (Census rotates the AI question through waves)
+#   FHWA VMT  monthly
+#   Census e-commerce / FHFA HPI   quarterly
+#   Epoch AI  continuous, updated as models are catalogued
+# Weekly on Monday catches every one of those within a week of publication.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 13 * * 1"
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+
+      # jszip parses the BTOS workbook. No API keys are needed anywhere in
+      # this job: FRED's CSV endpoint is keyless, Census and FHWA are public
+      # files, and Epoch AI is CC-BY. Nothing here can break on a rotated
+      # secret, and a fork can run it unchanged.
+      - run: npm install jszip --no-save --no-audit --no-fund
+
+      - name: Ingest national series
+        run: node scripts/ingest-series.mjs
+
+      - name: Commit (only if the data actually changed)
+        run: |
+          git config user.name "vu-data-bot"
+          git config user.email "data-bot@voteunbiased.org"
+          git add public/observations/series.json
+          if git diff --cached --quiet -- public/observations/series.json; then
+            echo "No changes — no source has published since the last run."
+          else
+            git commit -m "📈 series refresh: AI, commerce, traffic, housing (auto)"
+            git push
+          fi

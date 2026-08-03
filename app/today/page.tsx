@@ -7,6 +7,7 @@ import { C, SERIF, SANS } from "@/lib/design-tokens";
 import { STATE_NAME_TO_CODE } from "@/lib/state-data";
 import TodayExplorer from "@/components/TodayExplorer";
 import TodaySubscribe from "@/components/TodaySubscribe";
+import NationalTrends from "@/components/today/NationalTrends";
 import feed from "../../public/observations/signals.json";
 
 /**
@@ -178,11 +179,13 @@ export default async function TodayPage() {
                   background: "#fff", border: `1px solid ${C.rule}`, borderRadius: 6, padding: "8px 14px",
                 }}>{label}</span>
               ))}
-              {["Business", "Health", "Risk"].map(l => (
-                <span key={l} title="Data source lands in a later phase" style={{
-                  fontFamily: SANS, fontSize: 11.5, fontWeight: 500, color: C.mute,
-                  background: "transparent", border: `1px dashed ${C.rule}`, borderRadius: 6, padding: "8px 14px",
-                }}>{l} · soon</span>
+              {/* These were dashed "· soon" placeholders promising data that
+                  didn't exist. They now have real series behind them. */}
+              {["AI", "Commerce", "Traffic"].map(l => (
+                <span key={l} style={{
+                  fontFamily: SANS, fontSize: 11.5, fontWeight: 600, color: C.ink,
+                  background: "#fff", border: `1px solid ${C.rule}`, borderRadius: 6, padding: "8px 14px",
+                }}>{l}</span>
               ))}
             </div>
           </section>
@@ -197,6 +200,8 @@ export default async function TodayPage() {
             <TodayExplorer initial={feed.spotlight} periods={(feed.spotlight?.series.periods as string[]) || []} />
           </aside>
         </div>
+
+        <NationalTrends />
 
         {/* ── Trust band ── */}
         <section style={{
@@ -219,10 +224,10 @@ export default async function TodayPage() {
               A shared geography and metric layer makes every state and county directly comparable.
             </p>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" as const }}>
-              {["Census", "BLS"].map(s => (
+              {["Census", "BLS", "FHFA", "FHWA", "Epoch AI"].map(s => (
                 <span key={s} style={{ fontFamily: SANS, fontSize: 10.5, fontWeight: 700, color: C.ink, background: "#fff", border: `1px solid ${C.rule}`, borderRadius: 12, padding: "4px 12px" }}>{s}</span>
               ))}
-              {["BEA", "FHFA", "CDC", "FEMA"].map(s => (
+              {["BEA", "CDC", "FEMA"].map(s => (
                 <span key={s} style={{ fontFamily: SANS, fontSize: 10.5, fontWeight: 500, color: C.mute, border: `1px dashed ${C.rule}`, borderRadius: 12, padding: "4px 12px" }}>{s} · soon</span>
               ))}
             </div>
