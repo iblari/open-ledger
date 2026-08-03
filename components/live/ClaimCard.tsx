@@ -14,6 +14,7 @@
  * Confidence is deliberately absent here and shown in the detail sheet.
  */
 
+import { useState } from "react";
 import { L, F, VERDICT_COLOR, VERDICT_LABEL, type Verdict } from "@/lib/live-design";
 
 export interface LiveClaimView {
@@ -30,17 +31,19 @@ export interface LiveClaimView {
 }
 
 export default function ClaimCard({
-  claim, isNew, onOpen, onSeek,
-}: { claim: LiveClaimView; isNew?: boolean; onOpen?: (c: LiveClaimView) => void; onSeek?: (c: LiveClaimView) => void }) {
+  claim, isNew, onSeek,
+}: { claim: LiveClaimView; isNew?: boolean; onSeek?: (c: LiveClaimView) => void }) {
+  const [open, setOpen] = useState(false);
   const color = VERDICT_COLOR[claim.verdict];
   const checking = claim.verdict === "checking";
+  const hasDetail = !!(claim.note || claim.sources?.length || claim.source || typeof claim.confidence === "number");
 
   return (
     <article
-      onClick={() => onOpen?.(claim)}
+      onClick={() => hasDetail && setOpen(o => !o)}
       style={{
         background: L.card, border: `1px solid ${L.cardBorder}`, borderRadius: 10,
-        padding: "13px 15px", marginBottom: 10, cursor: onOpen ? "pointer" : "default",
+        padding: "13px 15px", marginBottom: 10, cursor: hasDetail ? "pointer" : "default",
         animation: isNew ? "vuCardIn .45s ease" : undefined,
       }}
     >
@@ -78,11 +81,64 @@ export default function ClaimCard({
         </div>
       )}
 
-      {claim.source && !checking && (
-        <div style={{ fontFamily: F.ui, fontSize: 9.5, color: L.mutedDark, marginTop: 9, letterSpacing: "0.04em" }}>
-          {claim.source}
+      {/* Expanded analysis — inline, so the video, timeline and the rest of
+          the feed all stay exactly where they were. A modal sheet covered
+          the speech, which is the one thing this layout promises never to do. */}
+      {open && !checking && (
+        <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${L.cardBorder}` }}>
+          {claim.note && (
+            <>
+              <div style={{ fontFamily: F.ui, fontSize: 8.5, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: L.mutedDark, marginBottom: 4 }}>
+                Why the gap
+              </div>
+              <p style={{ fontFamily: F.ui, fontSize: 12, color: L.mutedDark2, lineHeight: 1.6, margin: "0 0 12px" }}>
+                {claim.note}
+              </p>
+            </>
+          )}
+          {(claim.sources?.length || claim.source) && (
+            <>
+              <div style={{ fontFamily: F.ui, fontSize: 8.5, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: L.mutedDark, marginBottom: 6 }}>
+                Source series
+              </div>
+              {claim.source && (
+                <div style={{ fontFamily: F.ui, fontSize: 11, color: L.mutedDark2, marginBottom: 6 }}>{claim.source}</div>
+              )}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                {claim.sources?.slice(0, 5).map(sr => (
+                  <a key={sr.url} href={sr.url} target="_blank" rel="noopener noreferrer"
+                    onClick={e => e.stopPropagation()}
+                    style={{
+                      fontFamily: F.ui, fontSize: 10, color: L.true, textDecoration: "none",
+                      border: `1px solid ${L.cardBorder}`, borderRadius: 4, padding: "4px 8px",
+                    }}>{sr.title.slice(0, 38)} ↗</a>
+                ))}
+              </div>
+            </>
+          )}
+          {typeof claim.confidence === "number" && (
+            <div style={{ fontFamily: F.mono, fontSize: 10, color: L.mutedDark, marginTop: 10 }}>
+              {claim.confidence}% model confidence
+            </div>
+          )}
         </div>
       )}
+
+      <div style={{
+        display: "flex", justifyContent: "space-between", alignItems: "center",
+        gap: 8, marginTop: 9,
+      }}>
+        {claim.source && !checking ? (
+          <span style={{ fontFamily: F.ui, fontSize: 9.5, color: L.mutedDark, letterSpacing: "0.04em", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {claim.source}
+          </span>
+        ) : <span />}
+        {hasDetail && !checking && (
+          <span style={{ fontFamily: F.ui, fontSize: 9.5, fontWeight: 700, color: L.true, flexShrink: 0 }}>
+            {open ? "Hide analysis ▲" : "Why ▼"}
+          </span>
+        )}
+      </div>
     </article>
   );
 }

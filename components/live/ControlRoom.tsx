@@ -17,7 +17,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { L, F, VERDICT_COLOR, VERDICT_LABEL, toVerdict, type Verdict } from "@/lib/live-design";
+import { L, F, VERDICT_COLOR, toVerdict, type Verdict } from "@/lib/live-design";
 import CredibilityTimeline, { type TimelineTick } from "./CredibilityTimeline";
 import RunningScore from "./RunningScore";
 import ClaimCard, { type LiveClaimView } from "./ClaimCard";
@@ -50,7 +50,6 @@ export default function ControlRoom({
   mob: boolean;
 }) {
   const [filter, setFilter] = useState<Verdict | "all">("all");
-  const [detail, setDetail] = useState<LiveClaimView | null>(null);
   const [showPill, setShowPill] = useState(false);
   const prevCount = useRef(claims.length);
 
@@ -171,7 +170,6 @@ export default function ControlRoom({
           </div>
         ) : shown.map(v => (
           <ClaimCard key={v.id} claim={v} isNew={newClaimIds.has(v.id)}
-            onOpen={setDetail}
             onSeek={c => { const src = claims.find(x => x.id === c.id); if (src?.videoTime != null) onSeek(src.videoTime); }} />
         ))}
       </div>
@@ -252,79 +250,6 @@ export default function ControlRoom({
     </>
   );
 
-  /* ── Detail sheet ──────────────────────────────────────────── */
-  const DetailSheet = detail && (
-    <div style={{ position: "fixed", inset: 0, zIndex: 320 }} onClick={() => setDetail(null)}>
-      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,.6)" }} />
-      <div onClick={e => e.stopPropagation()} style={{
-        position: "absolute", left: 0, right: 0, bottom: 0, maxHeight: "82vh", overflowY: "auto",
-        background: L.stage, borderTop: `1px solid ${L.cardBorder}`, borderRadius: "16px 16px 0 0",
-        padding: "10px 18px calc(22px + env(safe-area-inset-bottom))", maxWidth: 560, margin: "0 auto",
-      }}>
-        <div style={{ width: 36, height: 4, borderRadius: 2, background: L.cardBorder, margin: "4px auto 14px" }} />
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-          <span style={{
-            fontFamily: F.ui, fontSize: 9, fontWeight: 700, letterSpacing: "0.14em",
-            background: VERDICT_COLOR[detail.verdict], color: "#fff", padding: "3px 9px", borderRadius: 3,
-          }}>{VERDICT_LABEL[detail.verdict]}</span>
-          <span style={{ fontFamily: F.mono, fontSize: 11, color: L.mutedDark2 }}>{detail.time}</span>
-          {typeof detail.confidence === "number" && (
-            <span style={{ marginLeft: "auto", fontFamily: F.mono, fontSize: 10.5, color: L.mutedDark }}>
-              {detail.confidence}% confidence
-            </span>
-          )}
-        </div>
-        <blockquote style={{ fontFamily: F.display, fontSize: 19, fontWeight: 500, lineHeight: 1.35, color: "#F2EEE9", margin: "0 0 14px" }}>
-          &ldquo;{detail.quote}&rdquo;
-        </blockquote>
-
-        {/* Comparison bars: claimed muted, official in verdict colour. */}
-        {detail.claimed && (
-          <div style={{ marginBottom: 14 }}>
-            {([["Said", detail.claimed, L.mutedDark2], ["Official data", detail.actual, VERDICT_COLOR[detail.verdict]]] as const).map(([label, val, color]) => (
-              <div key={label} style={{ marginBottom: 8 }}>
-                <div style={{ fontFamily: F.ui, fontSize: 8.5, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: L.mutedDark, marginBottom: 3 }}>{label}</div>
-                <div style={{ fontFamily: F.mono, fontSize: 13, color, lineHeight: 1.5 }}>{val}</div>
-              </div>
-            ))}
-          </div>
-        )}
-        {!detail.claimed && (
-          <div style={{ fontFamily: F.mono, fontSize: 13, color: VERDICT_COLOR[detail.verdict], lineHeight: 1.55, marginBottom: 14 }}>
-            {detail.actual}
-          </div>
-        )}
-
-        {detail.note && (
-          <>
-            <div style={{ fontFamily: F.ui, fontSize: 8.5, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: L.mutedDark, marginBottom: 4 }}>Why the gap</div>
-            <p style={{ fontFamily: F.ui, fontSize: 12.5, color: L.mutedDark2, lineHeight: 1.6, margin: "0 0 14px" }}>{detail.note}</p>
-          </>
-        )}
-
-        {(detail.sources?.length || detail.source) && (
-          <>
-            <div style={{ fontFamily: F.ui, fontSize: 8.5, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: L.mutedDark, marginBottom: 6 }}>Source series</div>
-            {detail.source && <div style={{ fontFamily: F.ui, fontSize: 11.5, color: L.mutedDark2, marginBottom: 6 }}>{detail.source}</div>}
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-              {detail.sources?.map(s => (
-                <a key={s.url} href={s.url} target="_blank" rel="noopener noreferrer" style={{
-                  fontFamily: F.ui, fontSize: 10.5, color: L.true, textDecoration: "none",
-                  border: `1px solid ${L.cardBorder}`, borderRadius: 4, padding: "4px 9px",
-                }}>{s.title.slice(0, 44)} ↗</a>
-              ))}
-            </div>
-          </>
-        )}
-        <button onClick={() => setDetail(null)} style={{
-          width: "100%", marginTop: 18, padding: "11px 0", borderRadius: 8,
-          background: "none", border: `1px solid ${L.cardBorder}`, color: L.mutedDark2,
-          fontFamily: F.ui, fontSize: 12.5, cursor: "pointer",
-        }}>Close</button>
-      </div>
-    </div>
-  );
-
   /* ── Layouts ───────────────────────────────────────────────── */
 
   if (mob) {
@@ -341,7 +266,6 @@ export default function ControlRoom({
         {Feed}
         {Controls}
         {RecordBar}
-        {DetailSheet}
       </div>
     );
   }
@@ -374,7 +298,6 @@ export default function ControlRoom({
         {Feed}
         {RecordBar}
       </aside>
-      {DetailSheet}
     </div>
   );
 }
