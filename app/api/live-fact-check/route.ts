@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { extractAndVerifyClaims } from "@/lib/fact-check";
 import { likelyHasEconomicClaim, dedupeClaims } from "@/lib/claim-utils";
 import { upgradeUnverifiable } from "@/lib/web-verify";
+import { appendClaimsToBroadcast, claimsNearTime, appendLiveClaims } from "@/lib/live-kv";
 
 /**
  * POST /api/live-fact-check
@@ -13,7 +14,7 @@ import { upgradeUnverifiable } from "@/lib/web-verify";
  * lib/fact-check — shared with /api/admin/ingest so the two paths can't drift.
  */
 export async function POST(req: Request) {
-  let body: { text?: string; context?: string; recentQuotes?: string[] };
+  let body: { text?: string; context?: string; recentQuotes?: string[]; videoId?: string; videoTime?: number };
   try {
     body = await req.json();
   } catch {
@@ -30,6 +31,20 @@ export async function POST(req: Request) {
 
   if (!text || text.length < 30) {
     return NextResponse.json({ claims: [] });
+  }
+
+  // ── Answer from the record before spending credits ──
+  // "Check this moment" is a button people press repeatedly, and on a replay
+  // every viewer presses it at the same interesting passages. If this moment
+  // has already been checked, return what's on the record: identical answer,
+  // zero model or search spend.
+  const videoId = typeof body.videoId === "string" ? body.videoId : null;
+  const videoTime = typeof body.videoTime === "number" ? Math.round(body.videoTime) : null;
+  if (videoId && videoTime != null) {
+    const existing = await claimsNearTime(videoId, videoTime).catch(() => []);
+    if (existing.length) {
+      return NextResponse.json({ claims: existing, cached: true });
+    }
   }
 
   // Cheap regex pre-filter: chunks with no economic content skip the model
@@ -62,6 +77,20 @@ export async function POST(req: Request) {
 
   // Tier 3: search the live web for anything our datasets couldn't settle.
   try { await upgradeUnverifiable(claims, 3, `${context || ""}\n${text}`); } catch { /* keep original ratings */ }
+
+  // ── Persist, so a manual check becomes part of the record ──
+  // These are claims the automatic pass missed (or never reached, on a late
+  // join). Saving them means the next viewer sees them without re-paying,
+  // and they show up on the credibility timeline and in the export.
+  if (claims.length) {
+    const stamped = claims.map(c => ({ ...c, videoTime: videoTime ?? c.videoTime ?? 0 }));
+    try {
+      if (videoId) await appendClaimsToBroadcast(videoId, stamped);
+      else await appendLiveClaims(stamped);
+    } catch (e) {
+      console.error("[manual-check] persist failed:", (e as Error).message);
+    }
+  }
 
   return NextResponse.json({ claims });
 }

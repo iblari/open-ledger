@@ -1539,7 +1539,15 @@ export default function LiveFactCheckPage() {
       const res = await fetch("/api/live-fact-check", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: recentText, context: "User manually requested fact-check." }),
+        body: JSON.stringify({
+          text: recentText,
+          context: "User manually requested fact-check.",
+          // Persist the result against this broadcast so the next viewer gets
+          // it from the record instead of re-spending credits — and so the
+          // claim joins the timeline and the export.
+          videoId: videoId || undefined,
+          videoTime: Math.round(videoTime),
+        }),
       });
       const data = await res.json();
 

@@ -489,6 +489,30 @@ export async function setRecentBroadcasts(list: RecentBroadcast[]): Promise<void
   else mem.set(RECENT_BROADCASTS_KEY, json);
 }
 
+/** Append claims to an archived broadcast (manual "check this moment" on a
+ *  replay). Deduped by quote so repeated checks of the same passage don't
+ *  stack, and re-sorted by video time so the feed and timeline stay ordered. */
+export async function appendClaimsToBroadcast(videoId: string, claims: LiveClaim[]): Promise<number> {
+  const all = await getRecentBroadcasts();
+  const b = all.find(x => x.videoId === videoId);
+  if (!b) return 0;
+  const seen = new Set(b.claims.map(c => c.quote.trim().toLowerCase()));
+  const fresh = claims.filter(c => !seen.has(c.quote.trim().toLowerCase()));
+  if (!fresh.length) return 0;
+  b.claims = [...b.claims, ...fresh].sort((x, y) => (x.videoTime ?? 0) - (y.videoTime ?? 0));
+  await setRecentBroadcasts(all);
+  return fresh.length;
+}
+
+/** Claims already recorded near a point in a broadcast — lets a manual check
+ *  answer from the record instead of spending model + search credits again. */
+export async function claimsNearTime(videoId: string, videoTime: number, windowSec = 25): Promise<LiveClaim[]> {
+  const all = await getRecentBroadcasts();
+  const b = all.find(x => x.videoId === videoId);
+  if (!b) return [];
+  return b.claims.filter(c => c.videoTime != null && Math.abs(c.videoTime - videoTime) <= windowSec);
+}
+
 /** Remove one archived broadcast (ops/testing cleanup). */
 export async function removeRecentBroadcast(videoId: string): Promise<boolean> {
   const all = await getRecentBroadcasts();
