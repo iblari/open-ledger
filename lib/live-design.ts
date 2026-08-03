@@ -30,15 +30,19 @@ export const F = {
   mono: "'DM Mono',ui-monospace,Menlo,monospace",
 } as const;
 
-export type Verdict = "true" | "misleading" | "false" | "checking";
+export type Verdict = "true" | "misleading" | "false" | "unverifiable" | "checking";
 
 export const VERDICT_COLOR: Record<Verdict, string> = {
-  true: L.true, misleading: L.misleading, false: L.false, checking: L.mutedDark,
+  true: L.true, misleading: L.misleading, false: L.false,
+  unverifiable: L.mutedDark, checking: L.mutedDark,
 };
 
 /** Plain vocabulary in the feed (scannable); data-first in the export. */
 export const VERDICT_LABEL: Record<Verdict, string> = {
-  true: "TRUE", misleading: "MISLEADING", false: "FALSE", checking: "CHECKING…",
+  true: "TRUE", misleading: "MISLEADING", false: "FALSE",
+  // A claim nobody can settle is a finished RESULT, not work in progress —
+  // labelling it CHECKING… promised an answer that was never coming.
+  unverifiable: "UNVERIFIABLE", checking: "CHECKING…",
 };
 
 /** Map the pipeline's 5 ratings onto the spec's 3 verdicts. */

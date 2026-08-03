@@ -66,7 +66,7 @@ export default function ControlRoom({
 
   const views: LiveClaimView[] = claims.map(c => ({
     id: c.id,
-    verdict: toVerdict(c.rating) ?? "checking",
+    verdict: toVerdict(c.rating) ?? "unverifiable",
     time: stamp(c.videoTime ?? 0),
     quote: c.quote,
     claimed: c.claimedValue != null ? String(c.claimedValue) : null,
@@ -120,7 +120,7 @@ export default function ControlRoom({
 
   const FilterChips = (
     <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-      {([["all", `ALL ${views.length}`], ["false", `FALSE ${counts.false}`], ["misleading", `MISLEADING ${counts.misleading}`], ["true", `TRUE ${counts.true}`]] as const)
+      {([["all", `ALL ${views.length}`], ["false", `FALSE ${counts.false}`], ["misleading", `MISLEADING ${counts.misleading}`], ["true", `TRUE ${counts.true}`], ["unverifiable", `UNVERIFIABLE ${counts.unverifiable}`]] as const)
         .filter(([k]) => k === "all" || counts[k as keyof typeof counts] > 0)
         .map(([k, label]) => {
           const active = filter === k;
@@ -276,7 +276,7 @@ export default function ControlRoom({
       background: L.ink, borderRadius: 12, overflow: "hidden",
       border: `1px solid ${L.cardBorder}`, height: "calc(100vh - 140px)", minHeight: 560,
     }}>
-      <div style={{ display: "flex", flexDirection: "column", minWidth: 0, borderRight: `1px solid ${L.cardBorder}` }}>
+      <div style={{ display: "flex", flexDirection: "column", minWidth: 0, minHeight: 0, borderRight: `1px solid ${L.cardBorder}` }}>
         {ContextBar}
         {Stage}
         {Controls}
@@ -294,7 +294,10 @@ export default function ControlRoom({
           </div>
         </div>
       </div>
-      <aside style={{ display: "flex", flexDirection: "column", minWidth: 0, background: L.stageAlt }}>
+      {/* minHeight:0 is what makes the rail scroll: grid items default to
+          min-height:auto, so without it the feed grows to fit its content and
+          overflows the card instead of scrolling inside it. */}
+      <aside style={{ display: "flex", flexDirection: "column", minWidth: 0, minHeight: 0, background: L.stageAlt }}>
         <div style={{ padding: "12px 14px", borderBottom: `1px solid ${L.cardBorder}`, flexShrink: 0 }}>
           <div style={{
             display: "flex", justifyContent: "space-between", alignItems: "baseline",
