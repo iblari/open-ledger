@@ -279,8 +279,20 @@ export default function ControlRoom({
       <div style={{ display: "flex", flexDirection: "column", minWidth: 0, borderRight: `1px solid ${L.cardBorder}` }}>
         {ContextBar}
         {Stage}
-        <div style={{ flex: 1 }} />
         {Controls}
+        {/* The leftover height carries the running transcript rather than a
+            void. Previously a flex spacer pushed the controls to the bottom
+            of the column, leaving a large empty panel and burying the
+            "check this moment" button below the fold. */}
+        <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "14px 18px 18px" }}>
+          <div style={{
+            fontFamily: F.ui, fontSize: 9.5, fontWeight: 700, letterSpacing: "0.16em",
+            textTransform: "uppercase", color: L.mutedDark, marginBottom: 8,
+          }}>Transcript</div>
+          <div style={{ fontFamily: F.ui, fontSize: 13, lineHeight: 1.7, color: L.mutedDark2 }}>
+            {caption || <span style={{ opacity: 0.6 }}>Listening…</span>}
+          </div>
+        </div>
       </div>
       <aside style={{ display: "flex", flexDirection: "column", minWidth: 0, background: L.stageAlt }}>
         <div style={{ padding: "12px 14px", borderBottom: `1px solid ${L.cardBorder}`, flexShrink: 0 }}>

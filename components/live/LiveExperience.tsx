@@ -583,6 +583,15 @@ export default function LiveExperience({ autoStartReplay }: { autoStartReplay?: 
   // generated while it was LIVE preloaded into the panel — zero additional
   // Deepgram/Claude spend. No polling, no live pipeline.
   const [isReplay, setIsReplay] = useState(false);
+  /* ── Replay time realignment ──────────────────────────────────────────
+     Claim times are anchored to when the STREAM started, but the VOD that
+     YouTube keeps is often only the tail of it — one archived Cabinet
+     meeting carries claims out to 176:19 while the published video is
+     57:16, so every timecode overshoots and seeking lands nowhere.
+     Once the player reports its real duration we shift everything by the
+     overshoot, which aligns the end of our coverage with the end of the
+     video. Display-only: the stored record keeps its true stream times. */
+  const [timeShift, setTimeShift] = useState(0);
   // Full archived transcript shown in replay mode (live mode shows the
   // rolling Deepgram tail instead).
   const [replayTranscript, setReplayTranscript] = useState("");
@@ -966,6 +975,24 @@ export default function LiveExperience({ autoStartReplay }: { autoStartReplay?: 
     const target = recent.find(b => b.videoId === autoStartReplay);
     if (target) { autoStarted.current = true; startReplay(target); }
   }, [autoStartReplay, recent, startReplay]);
+
+  useEffect(() => {
+    if (!isReplay || !isPlaying) { setTimeShift(0); return; }
+    let tries = 0;
+    const id = setInterval(() => {
+      const dur = ytPlayerRef.current?.getDuration?.() ?? 0;
+      if (dur > 30) {
+        clearInterval(id);
+        const maxClaim = Math.max(0, ...claims.map(c => c.videoTime ?? 0));
+        const over = maxClaim - dur;
+        // Only correct a real overshoot; a minute of slack is normal drift.
+        setTimeShift(over > 60 ? Math.round(over) : 0);
+      } else if (++tries > 25) {
+        clearInterval(id);
+      }
+    }, 400);
+    return () => clearInterval(id);
+  }, [isReplay, isPlaying, claims]);
 
   /* ── Caption clock — drives the word-synced transcript strip ── */
   // 300ms tick while captions are loaded: fast enough that the highlighted
@@ -2180,7 +2207,10 @@ export default function LiveExperience({ autoStartReplay }: { autoStartReplay?: 
             mode={isReplay ? "replay" : isDemo ? "demo" : "live"}
             elapsed={captionClock}
             mob={mob}
-            claims={claims}
+            claims={timeShift ? claims.map(c => ({
+              ...c,
+              videoTime: Math.max(0, (c.videoTime ?? 0) - timeShift),
+            })) : claims}
             newClaimIds={newClaimIds}
             onSeek={seekVideo}
             onStop={stopSession}
@@ -2211,7 +2241,7 @@ export default function LiveExperience({ autoStartReplay }: { autoStartReplay?: 
             }
             caption={
               isReplay && replaySegments.length > 0
-                ? <SyncedReplayCaption segs={replaySegments} clock={captionClock} />
+                ? <SyncedReplayCaption segs={replaySegments} clock={captionClock + timeShift} />
                 : realCaptions && realCaptions.length > 0
                   ? <CaptionKaraoke captions={realCaptions} vt={captionClock} />
                   : liveTranscript
