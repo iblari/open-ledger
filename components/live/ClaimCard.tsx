@@ -33,23 +33,62 @@ export interface LiveClaimView {
 
 /** Keep the on-record figure short enough to sit beside the claimed one.
  *  Long sourced sentences move to the expanded analysis instead. */
+/**
+ * The DATA column shows a FIGURE, never a truncated sentence.
+ *
+ * Internally-verified claims lead with the number ("3.2% — GDP Growth…"),
+ * but web-verified ones lead with the source ("BLS reports real average
+ * hourly earnings increased 0.1%…"). Truncating those produced "BLS reports
+ * real average…", which tells the reader nothing. So: pull the first real
+ * quantity out of the sentence, and keep the whole sentence for the analysis.
+ */
+function extractFigure(text: string): string | null {
+  const t = (text || "").replace(/\s+/g, " ");
+  const patterns = [
+    /\$\s?[\d,]+(?:\.\d+)?\s?(?:trillion|billion|million|[TBMK])\b/i, // $1.2 trillion / $37.5B
+    /\$\s?[\d,]+(?:\.\d+)?/,                                          // $1,027.51
+    /[-+]?\d[\d,]*(?:\.\d+)?\s?(?:percentage points?|pp)\b/i,          // 2.3 pp
+    /[-+]?\d[\d,]*(?:\.\d+)?\s?%/,                                     // 0.1%
+    /[-+]?\d[\d,]*(?:\.\d+)?\s?(?:trillion|billion|million|thousand)\b/i,
+    /[-+]?\d[\d,]*(?:\.\d+)?\s?[TBMK]\b/,                             // 12.8M, +57K
+    /[-+]?\d[\d,]*(?:\.\d+)?/,                                          // bare number
+  ];
+  for (const re of patterns) {
+    const m = t.match(re);
+    if (m) return m[0].replace(/\s+/g, " ").trim();
+  }
+  return null;
+}
+
 function headline(actual: string): { figure: string; rest: string } {
   const t = (actual || "").trim();
   const MAX = 30;
-  // Our sourced strings lead with the figure and an em dash:
-  // "3.2% — GDP Growth for Trump II at month 18…". Split only on the em dash
-  // (a hyphen would cut "All-time high" into "All") and keep decimals intact.
+  // Leading-figure form: "3.2% — GDP Growth for Trump II at month 18…"
   const em = t.split(/\s+—\s+/);
   if (em.length > 1 && em[0].length <= MAX) {
     return { figure: em[0].trim(), rest: em.slice(1).join(" — ").trim() };
   }
   if (t.length <= MAX) return { figure: t, rest: "" };
-  // First sentence, if it's short enough to read as a figure.
-  const dot = t.match(/^(.{1,30}?)\.\s+(.+)$/s);
-  if (dot && dot[1].length <= MAX) return { figure: dot[1].trim(), rest: t };
+  const fig = extractFigure(t);
+  // Keep the full sentence in the analysis either way.
+  if (fig) return { figure: fig, rest: t };
   const cut = t.slice(0, MAX);
   const at = cut.lastIndexOf(" ");
   return { figure: (at > 12 ? cut.slice(0, at) : cut).trim() + "…", rest: t };
+}
+
+/** Raw claimed values arrive unformatted (1500000000000). Make them readable
+ *  at a glance so SAID and DATA are comparable. */
+function formatSaid(v: string | null | undefined): string {
+  if (v == null || v === "") return "—";
+  const n = Number(String(v).replace(/,/g, ""));
+  if (!Number.isFinite(n)) return String(v);
+  const abs = Math.abs(n);
+  if (abs >= 1e12) return `${(n / 1e12).toFixed(n % 1e12 === 0 ? 0 : 1)}T`;
+  if (abs >= 1e9) return `${(n / 1e9).toFixed(n % 1e9 === 0 ? 0 : 1)}B`;
+  if (abs >= 1e6) return `${(n / 1e6).toFixed(n % 1e6 === 0 ? 0 : 1)}M`;
+  if (abs >= 10000) return n.toLocaleString();
+  return String(v);
 }
 
 export default function ClaimCard({
@@ -104,7 +143,7 @@ export default function ClaimCard({
               textTransform: "uppercase", color: L.mutedDark, marginBottom: 6,
             }}>Said</div>
             <div style={{ fontFamily: F.mono, fontSize: 18, color: "#CFC7BD", lineHeight: 1.2 }}>
-              {claim.claimed || "—"}
+              {formatSaid(claim.claimed)}
             </div>
           </div>
 

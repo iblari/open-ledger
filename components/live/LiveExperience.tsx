@@ -2239,13 +2239,18 @@ export default function LiveExperience({ autoStartReplay }: { autoStartReplay?: 
                 </div>
               )
             }
-            transcriptLines={
-              isReplay && replaySegments.length > 0
-                ? replaySegments.map(sg => ({ t: sg.t - timeShift, text: sg.text }))
-                : liveTranscript
-                  ? [{ t: 0, text: liveTranscript }]
-                  : []
-            }
+            manualResult={manualResult?.map(c => ({
+              id: c.id,
+              verdict: (toVerdict(c.rating) ?? "unverifiable") as "true" | "misleading" | "false" | "unverifiable" | "checking",
+              time: `${Math.floor((c.videoTime ?? 0) / 60)}:${String(Math.floor((c.videoTime ?? 0) % 60)).padStart(2, "0")}`,
+              quote: c.quote,
+              claimed: c.claimedValue != null ? String(c.claimedValue) : null,
+              actual: c.actual,
+              note: c.explanation,
+              source: c.groundTruth?.source,
+              confidence: c.confidence,
+              sources: c.sources,
+            })) ?? null}
             caption={
               isReplay && replaySegments.length > 0
                 ? <SyncedReplayCaption segs={replaySegments} clock={captionClock + timeShift} />

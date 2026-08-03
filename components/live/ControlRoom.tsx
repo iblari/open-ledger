@@ -32,16 +32,16 @@ export interface ControlRoomClaim {
 const stamp = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 
 export default function ControlRoom({
-  title, mode, elapsed, videoSlot, caption, transcriptLines, claims, newClaimIds,
-  onSeek, onStop, onFactCheck, isChecking, onOpenRecord, mob,
+  title, mode, elapsed, videoSlot, caption, claims, newClaimIds,
+  onSeek, onStop, onFactCheck, isChecking, manualResult, onOpenRecord, mob,
 }: {
   title: string;
   mode: "live" | "replay" | "demo";
   elapsed: number;
   videoSlot: React.ReactNode;
   caption: React.ReactNode;
-  /** Everything said up to the playhead — fills the desktop column. */
-  transcriptLines?: { t: number; text: string }[];
+  /** Result of the viewer's own "check this moment". */
+  manualResult?: LiveClaimView[] | null;
   claims: ControlRoomClaim[];
   newClaimIds: Set<string>;
   onSeek: (seconds: number) => void;
@@ -52,14 +52,6 @@ export default function ControlRoom({
   mob: boolean;
 }) {
   const [filter, setFilter] = useState<Verdict | "all">("all");
-  const transcriptRef = useRef<HTMLDivElement>(null);
-  // Everything said up to the playhead, so the panel is a readable record
-  // rather than a single line stranded in a tall empty column.
-  const spoken = (transcriptLines || []).filter(l => l.t <= elapsed);
-  useEffect(() => {
-    const el = transcriptRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [spoken.length]);
   const [showPill, setShowPill] = useState(false);
   const prevCount = useRef(claims.length);
 
@@ -305,23 +297,28 @@ export default function ControlRoom({
             void. Previously a flex spacer pushed the controls to the bottom
             of the column, leaving a large empty panel and burying the
             "check this moment" button below the fold. */}
-        <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
-          <div style={{
-            fontFamily: F.ui, fontSize: 9.5, fontWeight: 700, letterSpacing: "0.16em",
-            textTransform: "uppercase", color: L.mutedDark, padding: "14px 18px 8px", flexShrink: 0,
-          }}>Transcript</div>
-          <div ref={transcriptRef} style={{
-            flex: 1, minHeight: 0, overflowY: "auto", padding: "0 18px 18px",
-            fontFamily: F.ui, fontSize: 13.5, lineHeight: 1.75, color: L.mutedDark2,
-          }}>
-            {spoken.length > 0
-              ? spoken.map((l, i) => (
-                  <span key={i} style={{ color: i === spoken.length - 1 ? "#E8E2DA" : L.mutedDark2 }}>
-                    {l.text}{" "}
-                  </span>
-                ))
-              : <span style={{ opacity: 0.6 }}>{caption || "Listening…"}</span>}
-          </div>
+        {/* This area belongs to "check this moment" — the result of a manual
+            check lands here, beside the video, instead of nowhere (it wasn't
+            rendered at all after the redesign). */}
+        <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "16px 18px 18px" }}>
+          {isChecking ? (
+            <div style={{ fontFamily: F.ui, fontSize: 12.5, color: L.mutedDark2 }}>
+              Checking what was just said against the data…
+            </div>
+          ) : manualResult && manualResult.length > 0 ? (
+            <>
+              <div style={{
+                fontFamily: F.ui, fontSize: 9.5, fontWeight: 700, letterSpacing: "0.16em",
+                textTransform: "uppercase", color: L.mutedDark, marginBottom: 10,
+              }}>You checked this moment</div>
+              {manualResult.map(c => <ClaimCard key={c.id} claim={c} />)}
+            </>
+          ) : (
+            <div style={{ fontFamily: F.ui, fontSize: 12.5, color: L.mutedDark, lineHeight: 1.6, maxWidth: "46ch" }}>
+              Heard something worth checking? Press <strong style={{ color: L.mutedDark2 }}>Check this moment</strong> and
+              we&rsquo;ll verify what was just said against official data. The result appears here and joins the record.
+            </div>
+          )}
         </div>
       </div>
       {/* minHeight:0 is what makes the rail scroll: grid items default to
