@@ -1520,6 +1520,13 @@ export default function LiveExperience({ autoStartReplay }: { autoStartReplay?: 
     if (ytPlayerRef.current?.getCurrentTime) {
       try { videoTime = Math.floor(ytPlayerRef.current.getCurrentTime()); } catch {}
     }
+    // TWO CLOCKS. The player reports VIDEO time, but archived transcripts and
+    // claims are stamped in STREAM time (the VOD is often only the tail of a
+    // longer stream — see timeShift). Selecting transcript segments with the
+    // raw player clock therefore picked text from a completely different part
+    // of the event, which is exactly what "it checked some random part" was.
+    // Everything below works in stream time; only seeking uses video time.
+    const streamTime = videoTime + timeShift;
 
     // Words spoken in the last `windowSec` seconds before the playhead.
     // Captions are ~15s blocks, so we interpolate per-word timing inside
@@ -1552,7 +1559,7 @@ export default function LiveExperience({ autoStartReplay }: { autoStartReplay?: 
       if (recentText.length < 30) recentText = wordsInWindow(30);
     } else if (isReplay && replaySegments.length > 0) {
       // Replay: fact-check what was said just before the current playhead.
-      const upTo = replaySegments.filter(sg => sg.t <= captionClock + 2);
+      const upTo = replaySegments.filter(sg => sg.t <= streamTime + 2);
       const pool = upTo.length ? upTo : replaySegments;
       recentText = pool.map(sg => sg.text).join(" ").split(" ").slice(-60).join(" ").trim();
     } else if (isReplay && replayTranscript) {
@@ -1584,7 +1591,9 @@ export default function LiveExperience({ autoStartReplay }: { autoStartReplay?: 
           // it from the record instead of re-spending credits — and so the
           // claim joins the timeline and the export.
           videoId: videoId || undefined,
-          videoTime: Math.round(videoTime),
+          // Stream time: matches how the worker stamps automatic claims, so a
+          // manual check lands at the right tick on the credibility timeline.
+          videoTime: Math.round(streamTime),
         }),
       });
       const data = await res.json();
@@ -1610,7 +1619,7 @@ export default function LiveExperience({ autoStartReplay }: { autoStartReplay?: 
           rating: "UNVERIFIABLE",
           actual: msg,
           explanation: "Try clicking during a section where specific numbers, percentages, or dollar figures are mentioned.",
-          videoTime, timestamp: new Date().toISOString(), id: `manual-${Date.now()}`,
+          videoTime: Math.round(streamTime), timestamp: new Date().toISOString(), id: `manual-${Date.now()}`,
         }]);
       }
     } catch (e) {
@@ -1627,7 +1636,10 @@ export default function LiveExperience({ autoStartReplay }: { autoStartReplay?: 
     setIsManualChecking(false);
     // Replay state must be in the deps — without it the callback closes over
     // the initial empty replaySegments and reports "no transcript" in replays.
-  }, [liveTranscript, realCaptions, isReplay, replaySegments, replayTranscript, captionClock]);
+    // timeShift and videoId belong here: without them the callback closes over
+    // their initial values (0 / "") and the check silently uses the wrong
+    // clock and fails to persist against the broadcast.
+  }, [liveTranscript, realCaptions, isReplay, replaySegments, replayTranscript, captionClock, timeShift, videoId]);
 
   /* ── Share ── */
   const shareResults = useCallback(() => {
