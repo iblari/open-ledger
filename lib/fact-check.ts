@@ -15,7 +15,7 @@
 //   4. dedupeClaims() drops near-duplicate re-statements
 
 import { verifyClaim, mentionsForeignSubject, metricAnchorPromptBlock, type RawClaim, type VerifiedClaim } from "./live-verify";
-import { lookupBenchmark, formatBenchValue, rateAgainstBenchmark, benchAnchorPromptBlock } from "./benchmark-verify";
+import { lookupBenchmark, formatBenchValue, rateAgainstBenchmark, isUnitMismatch, benchAnchorPromptBlock } from "./benchmark-verify";
 
 const MODEL = "claude-haiku-4-5-20251001";
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
@@ -187,8 +187,14 @@ export async function extractAndVerifyClaims(
     c.actual = `${shown} — ${hit.label} for ${hit.adminName} at month ${hit.monthOfTerm} of the term (~${hit.approxYear}), per FRED.`;
     c.verifiedFromSource = true;
     c.groundTruth = { value: hit.value, year: hit.approxYear, metricKey: c.metricKey, source: "FRED" };
-    if (typeof c.claimedValue === "number") {
+    if (typeof c.claimedValue === "number" && !isUnitMismatch(c.quote, c.claimedValue, hit.value, hit.unit)) {
       c.rating = rateAgainstBenchmark(c.claimedValue, hit.value, hit.unit);
+    } else if (typeof c.claimedValue === "number") {
+      // Same metric, different quantity (a rate vs a level). Show our figure
+      // as context but never claim the speaker was wrong.
+      c.rating = "UNVERIFIABLE";
+      c.actual = `${shown} — ${hit.label} (level) for ${hit.adminName}. The claim describes a change, which this series doesn't directly settle.`;
+      c.verifiedFromSource = false;
     } else if (c.rating === "UNVERIFIABLE") {
       // We hold the series but the speaker gave no number to compare — still
       // better than a blank: show the real figure and let the reader judge.

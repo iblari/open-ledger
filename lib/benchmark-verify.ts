@@ -116,6 +116,35 @@ export function formatBenchValue(v: number, unit: string): string {
   }
 }
 
+/**
+ * Guard against comparing a CHANGE to a LEVEL.
+ *
+ * Observed live: "wage increases 5.5%" was scored against Median Income
+ * ($83,700) and published as FALSE citing Census ACS. Both numbers are real;
+ * they measure different things. Refuting a growth-rate claim with a dollar
+ * level is a fabricated refutation, exactly like checking Iranian inflation
+ * against BLS.
+ *
+ * Two independent signals, either of which disqualifies the numeric re-rate:
+ *  1. Language — the quote describes a change ("up 5%", "grew", "increase")
+ *     while the metric is a level ($, M, K, T, B).
+ *  2. Scale — claimed and observed differ by >50x. Speakers round and
+ *     exaggerate, but they don't misstate a figure by two orders of
+ *     magnitude; that gap means the two numbers aren't the same quantity.
+ */
+const CHANGE_LANGUAGE = /\b(increase[ds]?|increases|growth|grew|grow|rose|rise|risen|up|down|fell|fall|declin\w*|gain\w*|jump\w*|surge\w*|cut|higher|lower|more than|less than|creat\w*|added|adding|lost|losing|brought back|since)\b/i;
+const LEVEL_UNITS = ["$", "M", "K", "T", "B"];
+
+export function isUnitMismatch(quote: string, claimed: number, truth: number, unit: string): boolean {
+  if (LEVEL_UNITS.includes(unit) && CHANGE_LANGUAGE.test(quote)) return true;
+  const a = Math.abs(claimed), b = Math.abs(truth);
+  if (a > 0 && b > 0) {
+    const ratio = Math.max(a, b) / Math.min(a, b);
+    if (ratio > 50) return true;
+  }
+  return false;
+}
+
 /** Same tolerance philosophy as live-verify: generous, since speakers round. */
 export function rateAgainstBenchmark(claimed: number, truth: number, unit: string): string {
   if (unit === "%") {

@@ -213,18 +213,33 @@ export default function ControlRoom({
 
   const Stage = (
     <>
-      <div style={{ position: "relative", width: "100%", aspectRatio: "16/9", background: "#000", flexShrink: 0 }}>
+      <div style={{
+        position: "relative", width: "100%", aspectRatio: "16/9", background: "#000",
+        flexShrink: 0,
+        // Spec reference is a 226px video on a 402x874 phone. Capping by
+        // viewport height keeps the feed usable on short screens instead of
+        // letting a 16:9 box eat everything above the fold.
+        maxHeight: mob ? "min(30vh, 240px)" : undefined,
+      }}>
         {videoSlot}
         {/* Live caption overlaid at the bottom of the video (spec: the words
             being spoken tie to the card that appears). */}
         {caption && (
           <div style={{
             position: "absolute", left: 0, right: 0, bottom: 0,
-            padding: "18px 14px 10px",
-            background: "linear-gradient(180deg, transparent, rgba(10,8,7,.88) 55%)",
-            pointerEvents: "none",
+            // Hard cap: the caption is a strip at the base of the frame, never
+            // a panel that can grow over the speaker. Two lines max, clipped.
+            maxHeight: "38%",
+            padding: "16px 12px 8px",
+            background: "linear-gradient(180deg, transparent, rgba(10,8,7,.92) 45%)",
+            pointerEvents: "none", overflow: "hidden",
           }}>
-            <div style={{ fontFamily: F.ui, fontSize: mob ? 12 : 13, lineHeight: 1.5, color: "#F2EEE9" }}>
+            <div style={{
+              fontFamily: F.ui, fontSize: mob ? 11.5 : 13, lineHeight: 1.45,
+              color: "#F2EEE9", textShadow: "0 1px 3px rgba(0,0,0,.9)",
+              display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
+              overflow: "hidden",
+            }}>
               {caption}
             </div>
           </div>

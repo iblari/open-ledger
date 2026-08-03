@@ -14,7 +14,7 @@
 //   - Override claims the LLM marked UNVERIFIABLE
 //   - Override when metricKey/year are absent
 
-import { BENCH_ANCHORS } from "./benchmark-verify";
+import { BENCH_ANCHORS, isUnitMismatch } from "./benchmark-verify";
 import {
   type MetricKey, type AdminId, METRIC_KEYS, METRICS_DATA, ADMINS_DATA,
   adminForYear, lookupValue, adminTenureValues, formatValue,
@@ -134,8 +134,16 @@ export function verifyClaim(raw: RawClaim, context = ""): VerifiedClaim {
   // from ground truth. This catches cases where the LLM marked a claim TRUE
   // but actually misremembered the real number itself.
   if (typeof out.claimedValue === "number") {
-    const newRating = rateNumericClaim(out.claimedValue, truthValue, metric.unit);
-    if (newRating) out.rating = newRating;
+    if (isUnitMismatch(out.quote, out.claimedValue, truthValue, metric.unit)) {
+      // A change-vs-level or wildly different-scale comparison: keep our
+      // figure as context, but don't manufacture a verdict from it.
+      out.rating = "UNVERIFIABLE";
+      out.verifiedFromSource = false;
+      out.actual = `${formatted} is the ${metric.label} level in ${out.year}; the claim describes a change, which this series doesn't directly settle.`;
+    } else {
+      const newRating = rateNumericClaim(out.claimedValue, truthValue, metric.unit);
+      if (newRating) out.rating = newRating;
+    }
   }
 
   return out;

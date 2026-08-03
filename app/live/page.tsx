@@ -2491,7 +2491,13 @@ function SyncedReplayCaption({ segs, clock }: { segs: { t: number; text: string 
   if (!visible.length) {
     return <span style={{ opacity: 0.6 }}>Transcript begins shortly…</span>;
   }
-  // Last two segments: enough context to read a full sentence without
-  // covering the speaker.
-  return <>{visible.slice(-2).map(s => s.text).join(" ")}</>;
+  // ONE line of what's being said right now. Archived segments are ~15s
+  // chunks (40-100+ words); rendering even two of them produced a wall of
+  // text that covered the entire video. Take the tail of the latest chunk,
+  // preferring the start of the last sentence so it reads naturally.
+  const latest = visible[visible.length - 1].text;
+  const sentences = latest.split(/(?<=[.!?])\s+/).filter(Boolean);
+  const tail = sentences[sentences.length - 1] || latest;
+  const words = tail.split(/\s+/);
+  return <>{words.length > 24 ? "… " + words.slice(-24).join(" ") : tail}</>;
 }
