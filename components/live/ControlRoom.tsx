@@ -32,7 +32,7 @@ export interface ControlRoomClaim {
 const stamp = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 
 export default function ControlRoom({
-  title, mode, elapsed, videoSlot, caption, claims, newClaimIds,
+  title, mode, elapsed, videoSlot, caption, transcriptLines, claims, newClaimIds,
   onSeek, onStop, onFactCheck, isChecking, onOpenRecord, mob,
 }: {
   title: string;
@@ -40,6 +40,8 @@ export default function ControlRoom({
   elapsed: number;
   videoSlot: React.ReactNode;
   caption: React.ReactNode;
+  /** Everything said up to the playhead — fills the desktop column. */
+  transcriptLines?: { t: number; text: string }[];
   claims: ControlRoomClaim[];
   newClaimIds: Set<string>;
   onSeek: (seconds: number) => void;
@@ -50,6 +52,14 @@ export default function ControlRoom({
   mob: boolean;
 }) {
   const [filter, setFilter] = useState<Verdict | "all">("all");
+  const transcriptRef = useRef<HTMLDivElement>(null);
+  // Everything said up to the playhead, so the panel is a readable record
+  // rather than a single line stranded in a tall empty column.
+  const spoken = (transcriptLines || []).filter(l => l.t <= elapsed);
+  useEffect(() => {
+    const el = transcriptRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [spoken.length]);
   const [showPill, setShowPill] = useState(false);
   const prevCount = useRef(claims.length);
 
@@ -91,7 +101,13 @@ export default function ControlRoom({
     })
     .filter((t): t is TimelineTick => t !== null);
 
-  const shown = filter === "all" ? views : views.filter(v => v.verdict === filter);
+  const secs = (t: string) => {
+    const [m, s2] = t.split(":").map(Number);
+    return (m || 0) * 60 + (s2 || 0);
+  };
+  const shown = (filter === "all" ? views : views.filter(v => v.verdict === filter))
+    .slice()
+    .sort((a, b) => secs(b.time) - secs(a.time)); // newest on top
   const modeLabel = mode === "replay" ? "REPLAY" : mode === "demo" ? "DEMO" : "LIVE";
   const modeColor = mode === "live" ? L.false : mode === "replay" ? "#1d4ed8" : "#B45309";
 
@@ -149,10 +165,15 @@ export default function ControlRoom({
         }}>New check landing…</div>
       )}
       <div style={{
-        flex: 1, minHeight: 0, overflowY: "auto", padding: "12px 14px 16px",
-        // Newest on top without reversing the array: element identity stays
-        // stable so only the genuinely new card animates in.
-        display: "flex", flexDirection: "column-reverse", justifyContent: "flex-end",
+        // Plain column flow. `column-reverse` with `justify-content:flex-end`
+        // packs the cards against the visual top and sends the overflow
+        // UPWARD, out of reach — the feed simply could not be scrolled.
+        // Newest-first ordering is done explicitly below instead, and the
+        // isNew flag already keeps the entry animation to the new card only.
+        flex: 1, minHeight: 0, overflowY: "auto",
+        WebkitOverflowScrolling: "touch",
+        padding: "12px 14px 16px",
+        display: "flex", flexDirection: "column",
       }}>
         {shown.length === 0 ? (
           <div style={{
@@ -284,13 +305,22 @@ export default function ControlRoom({
             void. Previously a flex spacer pushed the controls to the bottom
             of the column, leaving a large empty panel and burying the
             "check this moment" button below the fold. */}
-        <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "14px 18px 18px" }}>
+        <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
           <div style={{
             fontFamily: F.ui, fontSize: 9.5, fontWeight: 700, letterSpacing: "0.16em",
-            textTransform: "uppercase", color: L.mutedDark, marginBottom: 8,
+            textTransform: "uppercase", color: L.mutedDark, padding: "14px 18px 8px", flexShrink: 0,
           }}>Transcript</div>
-          <div style={{ fontFamily: F.ui, fontSize: 13, lineHeight: 1.7, color: L.mutedDark2 }}>
-            {caption || <span style={{ opacity: 0.6 }}>Listening…</span>}
+          <div ref={transcriptRef} style={{
+            flex: 1, minHeight: 0, overflowY: "auto", padding: "0 18px 18px",
+            fontFamily: F.ui, fontSize: 13.5, lineHeight: 1.75, color: L.mutedDark2,
+          }}>
+            {spoken.length > 0
+              ? spoken.map((l, i) => (
+                  <span key={i} style={{ color: i === spoken.length - 1 ? "#E8E2DA" : L.mutedDark2 }}>
+                    {l.text}{" "}
+                  </span>
+                ))
+              : <span style={{ opacity: 0.6 }}>{caption || "Listening…"}</span>}
           </div>
         </div>
       </div>
