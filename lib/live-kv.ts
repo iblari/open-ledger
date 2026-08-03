@@ -465,6 +465,15 @@ export async function archiveBroadcast(b: RecentBroadcast): Promise<void> {
   }
 }
 
+/** Overwrite the archive wholesale. Used by re-verification, which UPDATES
+ *  existing claims in place — archiveBroadcast() merges by claim id and skips
+ *  ones it already has, so it would silently discard those updates. */
+export async function setRecentBroadcasts(list: RecentBroadcast[]): Promise<void> {
+  const json = JSON.stringify(list.slice(0, 30));
+  if (hasUpstash()) await upstashCmd("SET", RECENT_BROADCASTS_KEY, json);
+  else mem.set(RECENT_BROADCASTS_KEY, json);
+}
+
 /** Remove one archived broadcast (ops/testing cleanup). */
 export async function removeRecentBroadcast(videoId: string): Promise<boolean> {
   const all = await getRecentBroadcasts();
