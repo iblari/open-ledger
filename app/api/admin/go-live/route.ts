@@ -134,6 +134,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, state });
   }
 
+  // Send a test notification to every subscriber — used to confirm the
+  // delivery path end-to-end before relying on it for a real broadcast.
+  if ((body.action as string) === "test-push") {
+    const r = await sendPushToAll({
+      title: "🔴 Vote Unbiased — test alert",
+      body: "Push notifications are working. You'll get one like this the moment a live fact-check begins.",
+      url: "/live",
+    });
+    return NextResponse.json({ ok: true, ...r });
+  }
+
   // Ops cleanup: drop one archived broadcast (e.g. a pipeline rehearsal).
   if ((body.action as string) === "delete-recent") {
     const vid = (body as { videoId?: string }).videoId;

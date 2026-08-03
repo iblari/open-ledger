@@ -2674,23 +2674,22 @@ function SyncedReplayTranscript({ segs, clock }: {
 }
 
 
-/* ── Web-push opt-in — "alert me the moment coverage starts" ─────────
-   Replaces the calendar's undeliverable 15-minute-reminder promise with a
-   real push: the server pings every subscriber when the site flips live.
-   iPhone requires the site to be installed to the Home Screen first
-   (Apple's rule for web push). */
+/* ── Alert opt-in — the whole point of the live feature is being THERE ─────
+   Official broadcasts are announced hours ahead at most, so a notification at
+   go-live is the only channel that reliably gets a viewer to the page. On
+   iPhone, Apple requires the site be added to the Home Screen before it may
+   request permission — so instead of one line of small print, we detect the
+   platform and walk the user through it. */
 function NotifyToggle() {
   const [state, setState] = useState<"checking" | "unsupported" | "ios-install" | "off" | "on" | "busy" | "denied">("checking");
+  const [showHow, setShowHow] = useState(false);
 
   useEffect(() => {
     const standalone = window.matchMedia("(display-mode: standalone)").matches
       || (navigator as unknown as { standalone?: boolean }).standalone === true;
     const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
-      setState(isIOS && !standalone ? "ios-install" : "unsupported");
-      return;
-    }
     if (isIOS && !standalone) { setState("ios-install"); return; }
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) { setState("unsupported"); return; }
     if (Notification.permission === "denied") { setState("denied"); return; }
     navigator.serviceWorker.getRegistration().then(reg => {
       if (!reg) { setState("off"); return; }
@@ -2722,35 +2721,85 @@ function NotifyToggle() {
       const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
       await fetch("/api/push", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ subscription: sub.toJSON() }) });
       setState("on");
+      // Immediate proof it works, rather than asking the user to take it on faith.
+      try { new Notification("Alerts on", { body: "We'll ping you the moment a live fact-check starts.", icon: "/icon-light-32x32.png" }); } catch { /* fine */ }
     } catch {
       setState(prev === "on" ? "on" : "off");
     }
   };
 
-  if (state === "checking" || state === "unsupported") return null;
+  if (state === "checking") return null;
+
+  const box: React.CSSProperties = {
+    background: "#0d73770d", border: "1px solid #0d737733", borderRadius: 8,
+    padding: "12px 14px", fontFamily: "'DM Sans',sans-serif",
+  };
+
   if (state === "ios-install") {
     return (
-      <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: T.mute, lineHeight: 1.55 }}>
-        🔔 iPhone: add this site to your Home Screen (Share → Add to Home Screen),
-        then open it from there to enable live alerts.
+      <div style={box}>
+        <div style={{ fontSize: 12.5, fontWeight: 700, color: T.ink, marginBottom: 4 }}>
+          🔔 Get an alert the moment a broadcast starts
+        </div>
+        <div style={{ fontSize: 11.5, color: T.sub, lineHeight: 1.55 }}>
+          iPhone needs this site on your Home Screen before it can send notifications.
+          {" "}
+          <button onClick={() => setShowHow(v => !v)} style={{
+            background: "none", border: "none", padding: 0, color: T.blue,
+            fontFamily: "inherit", fontSize: 11.5, fontWeight: 700, cursor: "pointer", textDecoration: "underline",
+          }}>{showHow ? "Hide steps" : "Show me how (15 seconds)"}</button>
+        </div>
+        {showHow && (
+          <ol style={{ margin: "8px 0 0", paddingLeft: 18, fontSize: 11.5, color: T.sub, lineHeight: 1.75 }}>
+            <li>Tap the <strong>Share</strong> button in Safari&rsquo;s toolbar (□ with an ↑)</li>
+            <li>Scroll and tap <strong>Add to Home Screen</strong> → <strong>Add</strong></li>
+            <li>Open Vote Unbiased from the new icon</li>
+            <li>Come back here and tap <strong>Turn on alerts</strong></li>
+          </ol>
+        )}
       </div>
     );
   }
+
+  if (state === "unsupported") {
+    return (
+      <div style={box}>
+        <div style={{ fontSize: 11.5, color: T.sub, lineHeight: 1.55 }}>
+          🔔 This browser can&rsquo;t receive alerts. Chrome, Edge or Safari (added to your
+          Home Screen on iPhone) can — or subscribe to the monthly email below.
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <button onClick={toggle} disabled={state === "busy" || state === "denied"} style={{
-      fontFamily: "'DM Sans',sans-serif", fontSize: 11, fontWeight: 700,
-      color: state === "on" ? "#0d7377" : "#fff",
-      background: state === "on" ? "#0d737715" : "#0d7377",
-      border: state === "on" ? "1px solid #0d7377" : "none",
-      padding: "7px 14px", borderRadius: 6, letterSpacing: 0.3,
-      cursor: state === "denied" ? "not-allowed" : "pointer",
-      opacity: state === "busy" ? 0.6 : 1,
-      alignSelf: "flex-start",
-    }}>
-      {state === "on" ? "🔔 Live alerts on — tap to disable"
-        : state === "denied" ? "🔕 Notifications blocked in browser settings"
-        : state === "busy" ? "…"
-        : "🔔 Alert me when a broadcast goes live"}
-    </button>
+    <div style={box}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <button onClick={toggle} disabled={state === "busy" || state === "denied"} style={{
+          fontFamily: "'DM Sans',sans-serif", fontSize: 12, fontWeight: 700,
+          color: state === "on" ? "#0d7377" : "#fff",
+          background: state === "on" ? "transparent" : "#0d7377",
+          border: state === "on" ? "1px solid #0d7377" : "none",
+          padding: "9px 16px", borderRadius: 6,
+          cursor: state === "denied" ? "not-allowed" : "pointer",
+          opacity: state === "busy" ? 0.6 : 1,
+        }}>
+          {state === "on" ? "🔔 Alerts on — tap to turn off"
+            : state === "denied" ? "🔕 Blocked in browser settings"
+            : state === "busy" ? "…"
+            : "🔔 Turn on alerts"}
+        </button>
+        <span style={{ fontSize: 11, color: T.sub, lineHeight: 1.5, flex: 1, minWidth: 180 }}>
+          {state === "on"
+            ? "You'll get a notification the moment live fact-checking begins."
+            : "One notification when a broadcast goes live. Nothing else."}
+        </span>
+      </div>
+      {state === "denied" && (
+        <div style={{ fontSize: 10.5, color: T.mute, marginTop: 6, lineHeight: 1.5 }}>
+          Re-enable in your browser&rsquo;s site settings for voteunbiased.org, then reload.
+        </div>
+      )}
+    </div>
   );
 }
