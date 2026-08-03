@@ -32,6 +32,8 @@ const RESERVE_MIN = 10;
 const deadline = Date.now() + WATCH_MIN * 60_000;
 
 const covered = new Set();   // videoIds already handled this session
+const ADMIN_KEY = process.env.ADMIN_KEY || "";
+const BACKFILL_EVERY_POLLS = 10;   // ~20 minutes at a 2-minute poll
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const log = (...a) => console.log(`[${new Date().toISOString().slice(11, 19)}]`, ...a);
 
@@ -46,6 +48,38 @@ async function autoCoverChannels() {
   const cfg = await getJson(`${API}/live-channels.json`).catch(() => null);
   const list = cfg?.channels || [];
   return new Map(list.filter(c => c.autoCover).map(c => [c.id, c]));
+}
+
+/**
+ * Repair late joins. The watcher can only start covering a stream once
+ * YouTube reports it live, so a broadcast already in progress is captured
+ * from the moment we arrive. Once a stream ENDS, YouTube publishes captions
+ * for the whole video — so the missing head becomes recoverable a few
+ * minutes later. This sweep is idempotent and skips anything without a gap,
+ * which is why it's safe to run on a timer rather than reasoning about
+ * exactly when captions appear.
+ *
+ * It lives in the watcher (not a cron job) because the watcher is the one
+ * process we know runs continuously — GitHub's scheduled runs are throttled
+ * to 57-227 minute gaps.
+ */
+async function sweepBackfill(reason) {
+  if (!ADMIN_KEY) return;
+  try {
+    const r = await fetch(`${API}/api/admin/backfill`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${ADMIN_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ checkClaims: true, limit: 10 }),
+      signal: AbortSignal.timeout(280_000),
+    });
+    const j = await r.json().catch(() => ({}));
+    const filled = (j.report || []).filter(x => x.segmentsAdded);
+    if (filled.length) {
+      log(`↩ backfill (${reason}): ${filled.map(f => `${f.videoId} +${f.segmentsAdded} segs/+${f.claimsAdded} claims`).join(", ")}`);
+    }
+  } catch (e) {
+    log("backfill sweep failed:", e.message);
+  }
 }
 
 /** Run the coverage pipeline; resolves when the broadcast ends. */
@@ -96,11 +130,19 @@ while (Date.now() < deadline - RESERVE_MIN * 60_000) {
       const cap = Math.min(remain, ch.maxCoverMinutes || 180);
       if (cap > 3) {
         await cover(hit.url, hit.title || `${ch.label} live`, cap);
+        // YouTube needs a few minutes after a stream ends to publish captions.
+        log("waiting 5min for YouTube captions, then repairing any late-join gap…");
+        await sleep(5 * 60_000);
+        await sweepBackfill("post-coverage");
       } else {
         log(`skipping ${hit.videoId}: only ${Math.round(remain)}min left in this watch window`);
       }
       continue;
     }
+
+    // Periodic self-repair while idle — catches broadcasts covered by a
+    // previous watcher run that retired before captions were ready.
+    if (polls % BACKFILL_EVERY_POLLS === 0) await sweepBackfill("periodic");
 
     if (polls % 15 === 1) {
       const left = Math.round((deadline - Date.now()) / 60_000);
