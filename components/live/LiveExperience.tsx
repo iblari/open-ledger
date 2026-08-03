@@ -2239,6 +2239,13 @@ export default function LiveExperience({ autoStartReplay }: { autoStartReplay?: 
                 </div>
               )
             }
+            transcriptLines={
+              isReplay && replaySegments.length > 0
+                ? replaySegments.map(sg => ({ t: sg.t - timeShift, text: sg.text }))
+                : liveTranscript
+                  ? [{ t: 0, text: liveTranscript }]
+                  : []
+            }
             caption={
               isReplay && replaySegments.length > 0
                 ? <SyncedReplayCaption segs={replaySegments} clock={captionClock + timeShift} />
