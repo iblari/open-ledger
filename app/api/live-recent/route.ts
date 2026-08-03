@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getRecentBroadcasts } from "@/lib/live-kv";
 
 /**
- * GET /api/live-recent — broadcasts from the last 24 hours, each with the
+ * GET /api/live-recent — broadcasts from the last 72 hours, each with the
  * full set of fact-checked claims generated while it was live. Powers the
  * "Recent broadcasts" replay section on /live: watching back costs zero
  * additional Deepgram/Claude — the analysis was done once, live.

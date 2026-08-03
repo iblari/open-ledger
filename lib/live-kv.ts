@@ -363,13 +363,14 @@ export async function getCalendarPollStats(): Promise<CalendarPollStats> {
   };
 }
 
-// ── Recent broadcasts (24h replay) ────────────────────────────────
+// ── Recent broadcasts (72h replay) ────────────────────────────────
 //
 // When a live session ends, the whole thing — title, timing, every
-// fact-checked claim — is archived here for 24 hours. Viewers who missed
+// fact-checked claim — is archived here for 72 hours. Viewers who missed
 // the live moment can replay the video WITH all the verdicts already
 // attached: zero additional Deepgram or Claude spend (the analysis was
-// paid for once, live). Entries expire 24h after the broadcast ended.
+// paid for once, live). Entries expire 72h after the broadcast ended —
+// a weekend's worth, so a Friday briefing is still there on Monday.
 
 export interface RecentBroadcast {
   videoId: string;
@@ -383,7 +384,7 @@ export interface RecentBroadcast {
 }
 
 const RECENT_BROADCASTS_KEY = "live:recent";
-const RECENT_TTL_MS = 24 * 3600 * 1000;
+const RECENT_TTL_MS = 72 * 3600 * 1000;
 
 export async function getRecentBroadcasts(): Promise<RecentBroadcast[]> {
   let raw: string | null | undefined;
@@ -403,7 +404,7 @@ export async function getRecentBroadcasts(): Promise<RecentBroadcast[]> {
 }
 
 /** Archive an ended broadcast (deduped by videoId — a re-covered stream
- *  replaces its earlier entry, merging claims). Prunes >24h entries. */
+ *  replaces its earlier entry, merging claims). Prunes >72h entries. */
 export async function archiveBroadcast(b: RecentBroadcast): Promise<void> {
   // Cap the transcript to its final ~120K chars (~3h of speech) so a single
   // marathon session can't blow up the recent-broadcasts KV entry.
@@ -428,7 +429,32 @@ export async function archiveBroadcast(b: RecentBroadcast): Promise<void> {
     all.unshift(b);
   }
   // Cap total entries defensively.
-  const json = JSON.stringify(all.slice(0, 20));
+  let kept = all.slice(0, 30);
+
+  // Size guard. At 72h retention a busy news cycle can stack a dozen-plus
+  // sessions, and each carries a full transcript (up to 120K chars) — enough
+  // to exceed the KV value limit in one write. Shed transcripts from the
+  // OLDEST entries first (claims and metadata are tiny and stay intact), so
+  // recent replays keep their scrolling transcript and older ones gracefully
+  // degrade to their fact-checks rather than the whole archive failing.
+  const BUDGET = 700_000; // bytes, comfortably under Upstash's limit
+  let json = JSON.stringify(kept);
+  if (json.length > BUDGET) {
+    const byOldest = [...kept].sort((a, b) => (a.endedAt || "").localeCompare(b.endedAt || ""));
+    for (const entry of byOldest) {
+      if (json.length <= BUDGET) break;
+      if (entry.transcript) {
+        entry.transcript = undefined;
+        json = JSON.stringify(kept);
+      }
+    }
+    // Still too big (pathological claim volume): drop the oldest entries.
+    while (json.length > BUDGET && kept.length > 1) {
+      kept = kept.slice(0, kept.length - 1);
+      json = JSON.stringify(kept);
+    }
+    console.warn(`[live-kv] recent-broadcasts trimmed to ${kept.length} entries / ${json.length}B`);
+  }
   if (hasUpstash()) {
     await upstashCmd("SET", RECENT_BROADCASTS_KEY, json);
   } else {

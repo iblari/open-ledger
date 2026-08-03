@@ -93,7 +93,7 @@ export async function POST(req: Request) {
   if (body.action === "stop") {
     const prev = await getLiveState();
 
-    // Archive the ended session for the 24h "recent broadcasts" replay —
+    // Archive the ended session for the 72h "recent broadcasts" replay —
     // viewers who missed the live moment get the video + every claim the
     // pipeline already paid to check. Only when the session was actually
     // LIVE (the workflow's always()-cleanup calls stop repeatedly; archiving
@@ -114,7 +114,7 @@ export async function POST(req: Request) {
             claims,
             transcript: transcript || undefined,
           });
-          console.log(`[GO-LIVE] Archived "${prev.title}" with ${claims.length} claims for 24h replay`);
+          console.log(`[GO-LIVE] Archived "${prev.title}" with ${claims.length} claims for 72h replay`);
         }
       } catch (e) {
         console.error("[GO-LIVE] archive failed:", e);

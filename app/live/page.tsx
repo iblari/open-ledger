@@ -884,7 +884,7 @@ export default function LiveFactCheckPage() {
     return () => clearInterval(interval);
   }, [isPlaying, isDemo, isReplay, pollError]);
 
-  /* ── Recent broadcasts (last 24h, replayable with stored claims) ── */
+  /* ── Recent broadcasts (last 72h, replayable with stored claims) ── */
   const [recent, setRecent] = useState<{
     videoId: string; title: string; source: string;
     startedAt: string; endedAt: string; claims: Claim[];
@@ -2032,7 +2032,7 @@ export default function LiveFactCheckPage() {
               );
             })()}
 
-            {/* ── Recent broadcasts — replayable for 24h with stored facts ── */}
+            {/* ── Recent broadcasts — replayable for 72h with stored facts ── */}
             {recent.length > 0 && (
               <div style={{ maxWidth: 900, margin: "0 auto 32px" }}>
                 <div style={{
@@ -2040,7 +2040,7 @@ export default function LiveFactCheckPage() {
                   textTransform: "uppercase", letterSpacing: "0.14em", color: T.sub,
                   marginBottom: 6, paddingLeft: 4,
                 }}>
-                  Last 24 hours · Replay
+                  Last 72 hours · Replay
                 </div>
                 <div style={{
                   fontFamily: "'Source Serif 4',serif", fontSize: mob ? 20 : 26,
