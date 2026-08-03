@@ -139,3 +139,10 @@
   from { opacity: 0; transform: translateY(-10px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+
+/* "Check any video" progress shuttle (spec: progress bar → pulling
+   transcript → found N claims). */
+@keyframes vuProgress {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(320%); }
+}
