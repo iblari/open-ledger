@@ -1,5 +1,6 @@
 import { createHash } from "crypto";
 import { type ScheduledEvent } from "@/lib/schedule";
+import { knownEvents } from "@/lib/known-events";
 import { loadAllScheduleEvents } from "@/lib/schedule-store";
 import { recordCalendarPoll } from "@/lib/live-kv";
 
@@ -74,7 +75,21 @@ export async function GET(req: Request) {
     if (e.youtubeUrl?.includes("REPLACE_WITH")) return false;
     return Date.parse(e.scheduledEnd) > now - 24 * 3600 * 1000;
   });
-  const selected = only ? upcoming.filter(e => e.id === only) : upcoming;
+  // Known economic events (FOMC decisions, jobs + CPI releases) are published
+  // a year ahead — without them a subscribed calendar is usually EMPTY, which
+  // is why nobody kept the subscription.
+  const known: ScheduledEvent[] = knownEvents().slice(0, 40).map(k => ({
+    id: k.id,
+    title: k.title,
+    speaker: k.source,
+    source: k.source,
+    youtubeUrl: k.sourceUrl,
+    scheduledStart: k.startsAt,
+    scheduledEnd: new Date(Date.parse(k.startsAt) + k.durationMin * 60000).toISOString(),
+  } as ScheduledEvent));
+
+  const merged = [...upcoming, ...known];
+  const selected = only ? merged.filter(e => e.id === only) : merged;
 
   const ics = [
     "BEGIN:VCALENDAR",

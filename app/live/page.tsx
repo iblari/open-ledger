@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { isDuplicateQuote } from "@/lib/claim-utils";
+import UpcomingEvents from "@/components/UpcomingEvents";
 
 /* ── Design Tokens (matching dashboard) ───────────────────────── */
 const T = {
@@ -1847,196 +1848,13 @@ export default function LiveFactCheckPage() {
               </div>
             )}
 
-            {/* ── Upcoming schedule + calendar subscribe — STANDALONE ── */}
-            {/* Always visible on the idle page. It used to render inside the
-                'no live broadcast' card, which is hidden whenever a
-                discovered-stream card shows — and C-SPAN streams nearly
-                24/7, so the schedule (and the subscribe button) were almost
-                never visible. Driven by public/live-schedule.json via
-                /api/live-schedule; the GitHub Action reads the same
-                endpoint, so what's shown is exactly what auto-triggers. */}
-            {(() => {
-              const upcomingReal = (schedule?.upcoming || []).filter(
-                e => !(e.youtubeUrl || "").includes("REPLACE_WITH")
-              );
-              // No events scheduled (most of the time — official streams are
-              // usually announced only hours ahead): still show the calendar
-              // block, or nobody ever discovers the subscribe loop. Viewers
-              // who subscribe NOW get every future event automatically.
-              if (!schedule || (!schedule.active && upcomingReal.length === 0)) {
-                return (
-                  <div style={{ maxWidth: 700, margin: "0 auto 28px", textAlign: "center" }}>
-                    <div style={{
-                      padding: "14px 18px", background: T.paper,
-                      borderRadius: 8, border: `1px solid ${T.rule}`,
-                      display: "inline-flex", flexDirection: "column", gap: 8,
-                      minWidth: 300, maxWidth: "100%", textAlign: "left",
-                    }}>
-                      <div style={{
-                        fontFamily: "'DM Sans',sans-serif", fontSize: 10, fontWeight: 700,
-                        textTransform: "uppercase", letterSpacing: 1.5, color: T.sub,
-                      }}>UPCOMING BROADCASTS</div>
-                      <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 12, color: T.sub, lineHeight: 1.6 }}>
-                        Official events (President, VP, cabinet) appear here automatically as
-                        soon as they&rsquo;re announced. For an alert the moment we go live,
-                        turn on notifications — the calendar links below are a schedule
-                        view for your calendar app (calendar apps refresh too slowly for
-                        reliable reminders).
-                      </div>
-                      <NotifyToggle />
-                      {/* webcal:// → iOS/macOS open the native Calendar
-                          subscribe dialog (an https .ics link makes Safari
-                          try to "download", which iPhones can't). Google
-                          Calendar subscribes via its add-by-URL cid param. */}
-                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                        <a href="webcal://voteunbiased.org/api/schedule.ics" style={{
-                          fontFamily: "'DM Sans',sans-serif", fontSize: 11, fontWeight: 700,
-                          color: "#fff", background: T.ink, textDecoration: "none",
-                          padding: "7px 14px", borderRadius: 6, letterSpacing: 0.3,
-                        }}>
-                          📅 Apple / Outlook
-                        </a>
-                        <a
-                          href={`https://calendar.google.com/calendar/r?cid=${encodeURIComponent("webcal://voteunbiased.org/api/schedule.ics")}`}
-                          target="_blank" rel="noopener noreferrer"
-                          style={{
-                            fontFamily: "'DM Sans',sans-serif", fontSize: 11, fontWeight: 700,
-                            color: T.ink, background: T.card, border: `1px solid ${T.rule}`,
-                            textDecoration: "none", padding: "6px 14px", borderRadius: 6, letterSpacing: 0.3,
-                          }}>
-                          📅 Google Calendar
-                        </a>
-                      </div>
-                    </div>
-                  </div>
-                );
-              }
-              return (
-                <div style={{ maxWidth: 700, margin: "0 auto 28px", textAlign: "center" }}>
-                  <div style={{
-                    padding: "14px 18px", background: T.paper,
-                    borderRadius: 8, border: `1px solid ${T.rule}`,
-                    display: "inline-flex", flexDirection: "column", gap: 10,
-                    minWidth: 300, maxWidth: "100%", textAlign: "left",
-                  }}>
-                    {/* Currently live (auto-triggered by the GitHub Action) */}
-                    {schedule.active && (() => {
-                      const startMs = Date.parse(schedule.active!.scheduledStart);
-                      const nowMs = Date.now();
-                      const hasStarted = nowMs >= startMs;
-                      return (
-                        <div>
-                          <div style={{
-                            display: "flex", alignItems: "center", gap: 6,
-                            fontFamily: "'DM Sans',sans-serif", fontSize: 10, fontWeight: 700,
-                            textTransform: "uppercase", letterSpacing: 1.5,
-                            color: hasStarted ? "#dc2626" : T.gold,
-                          }}>
-                            <span style={{
-                              width: 6, height: 6, borderRadius: "50%",
-                              background: hasStarted ? "#dc2626" : T.gold,
-                              animation: hasStarted ? "pulse 2s infinite" : "none",
-                            }} />
-                            {hasStarted ? "LIVE NOW" : "STARTING SOON"}
-                          </div>
-                          <div style={{ fontFamily: "'Source Serif 4',serif", fontSize: 16, fontWeight: 600, color: T.ink, marginTop: 4 }}>
-                            {schedule.active!.title}
-                          </div>
-                          <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: T.sub, marginTop: 2 }}>
-                            {schedule.active!.speaker} · {schedule.active!.source}
-                          </div>
-                          {!hasStarted && (
-                            <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: T.gold, marginTop: 4, fontWeight: 600 }}>
-                              Starts {fmtCountdown(Math.floor((startMs - nowMs) / 1000))}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })()}
-
-                    {/* Next scheduled (or all upcoming if nothing's live yet) */}
-                    {(schedule.active ? upcomingReal.filter(e => e.id !== schedule.active!.id).slice(0, 2) : upcomingReal.slice(0, 3)).map((ev) => {
-                      const secs = Math.floor((Date.parse(ev.scheduledStart) - Date.now()) / 1000);
-                      return (
-                        <div key={ev.id} style={{
-                          paddingTop: schedule.active ? 8 : 0,
-                          borderTop: schedule.active ? `1px solid ${T.rule}` : "none",
-                        }}>
-                          {(!schedule.active) && (
-                            <div style={{
-                              fontFamily: "'DM Sans',sans-serif", fontSize: 10, fontWeight: 700,
-                              textTransform: "uppercase", letterSpacing: 1.5, color: T.sub, marginBottom: 4,
-                            }}>NEXT BROADCAST</div>
-                          )}
-                          <div style={{
-                            fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: T.ink,
-                            display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap",
-                          }}>
-                            <span style={{ fontWeight: 600 }}>{ev.title}</span>
-                            <span style={{ color: T.mute, fontSize: 11 }}>· {ev.speaker}</span>
-                          </div>
-                          <div style={{
-                            fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: T.sub, marginTop: 2,
-                            display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap",
-                          }}>
-                            <span>{fmtEventDate(ev.scheduledStart)}</span>
-                            {secs > 0 && (
-                              <>
-                                <span style={{ color: T.mute }}>·</span>
-                                <span style={{ color: T.accent, fontWeight: 600 }}>{fmtCountdown(secs)}</span>
-                              </>
-                            )}
-                          </div>
-                          {/* Reminder links — Google prefill + .ics (Apple/
-                              Outlook) with a built-in 15-min alarm. */}
-                          {secs > 0 && (
-                            <div style={{
-                              display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap",
-                              fontFamily: "'DM Sans',sans-serif",
-                            }}>
-                              {[
-                                { label: "📅 Google", href: gcalUrl(ev), ext: true },
-                                { label: "📅 Apple / Outlook", href: `/api/schedule.ics?event=${encodeURIComponent(ev.id)}`, ext: false },
-                              ].map(l => (
-                                <a key={l.label} href={l.href}
-                                  {...(l.ext ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-                                  style={{
-                                    fontSize: 10, fontWeight: 600, color: T.sub, textDecoration: "none",
-                                    padding: "3px 8px", borderRadius: 4,
-                                    border: `1px solid ${T.rule}`, background: T.card,
-                                  }}>
-                                  {l.label}
-                                </a>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-
-                    {/* Tiny footer reassuring viewers this isn't manually
-                        operated — sets expectations correctly. */}
-                    <div style={{
-                      fontFamily: "'DM Sans',sans-serif", fontSize: 9, color: T.mute,
-                      letterSpacing: 0.5, marginTop: 4, paddingTop: 6,
-                      borderTop: `1px solid ${T.rule}`,
-                      display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap",
-                    }}>
-                      <span>Auto-broadcast · fact-checks appear in real time when the event begins</span>
-                      {/* Subscribe once → every future event lands in the
-                          viewer's calendar app with a 15-min reminder.
-                          webcal:// for the native Apple/Outlook dialog. */}
-                      <a href="webcal://voteunbiased.org/api/schedule.ics" style={{
-                        color: T.blue, textDecoration: "none", fontWeight: 700, fontSize: 9,
-                        letterSpacing: 0.5, whiteSpace: "nowrap",
-                      }}>
-                        📅 SUBSCRIBE TO BROADCAST CALENDAR
-                      </a>
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
+            {/* ── What's coming: upcoming streams + the year-ahead economic
+                calendar, with alert opt-in front and centre. Replaces a panel
+                that was empty most of the time (official events are announced
+                only hours ahead), which is why nobody could plan around it. ── */}
+            <div style={{ maxWidth: 700, margin: "0 auto 28px" }}>
+              <UpcomingEvents notifySlot={<NotifyToggle />} />
+            </div>
 
             {/* ── Recent broadcasts — replayable for 72h with stored facts ── */}
             {recent.length > 0 && (
