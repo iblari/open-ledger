@@ -51,8 +51,64 @@ function gcal(title: string, startIso: string, minutes: number, details: string)
   return `https://calendar.google.com/calendar/render?${p}`;
 }
 
+/** Email capture for live alerts. Separate consent from the monthly
+ *  dispatch: these people are agreeing to a ping per broadcast. */
+function AlertEmailSignup({ prompt }: { prompt: string }) {
+  const [email, setEmail] = useState("");
+  const [st, setSt] = useState<"idle" | "busy" | "ok" | "err">("idle");
+  const go = async () => {
+    if (!email.trim() || st === "busy") return;
+    setSt("busy");
+    try {
+      const r = await fetch("/api/subscribe", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim(), source: "live-alerts", liveAlerts: true }),
+      });
+      setSt(r.ok ? "ok" : "err");
+    } catch { setSt("err"); }
+  };
+  if (st === "ok") {
+    return (
+      <div style={{ fontFamily: SANS, fontSize: 11.5, color: T.teal, fontWeight: 700, lineHeight: 1.5 }}>
+        ✓ You&rsquo;re on the list — we&rsquo;ll email you the moment a broadcast goes live.
+      </div>
+    );
+  }
+  return (
+    <div>
+      <div style={{ fontFamily: SANS, fontSize: 11.5, color: T.sub, marginBottom: 6, lineHeight: 1.5 }}>{prompt}</div>
+      <div style={{ display: "flex", gap: 6 }}>
+        <input
+          type="email" value={email} onChange={e => setEmail(e.target.value)}
+          onKeyDown={e => { if (e.key === "Enter") go(); }}
+          placeholder="you@example.com"
+          style={{
+            flex: 1, minWidth: 0, padding: "9px 12px", borderRadius: 5,
+            border: `1px solid ${T.rule}`, background: "#fff",
+            fontFamily: SANS, fontSize: 16, color: T.ink, outline: "none",
+          }}
+        />
+        <button onClick={go} disabled={st === "busy"} style={{
+          background: T.ink, color: "#fff", border: "none", borderRadius: 5,
+          padding: "9px 15px", fontFamily: SANS, fontSize: 12, fontWeight: 700,
+          cursor: "pointer", flexShrink: 0, opacity: st === "busy" ? 0.6 : 1,
+        }}>{st === "busy" ? "…" : "Email me"}</button>
+      </div>
+      {st === "err" && (
+        <div style={{ fontFamily: SANS, fontSize: 10.5, color: T.accent, marginTop: 5 }}>
+          Something went wrong — try again.
+        </div>
+      )}
+      <div style={{ fontFamily: SANS, fontSize: 9.5, color: T.mute, marginTop: 5, lineHeight: 1.45 }}>
+        Only when a broadcast starts. Unsubscribe in one click.
+      </div>
+    </div>
+  );
+}
+
 export default function UpcomingEvents({ notifySlot }: { notifySlot?: React.ReactNode }) {
   const [streams, setStreams] = useState<DiscoveredUpcoming[]>([]);
+  const [bookmarked, setBookmarked] = useState<string | null>(null);
   const known = upcomingKnownEvents(5);
 
   useEffect(() => {
@@ -63,8 +119,8 @@ export default function UpcomingEvents({ notifySlot }: { notifySlot?: React.Reac
   }, []);
 
   const Row = ({
-    title, when, detail, badge, badgeColor, addUrl, watchUrl,
-  }: { title: string; when: string; detail: string; badge: string; badgeColor: string; addUrl: string; watchUrl?: string }) => (
+    title, when, detail, badge, badgeColor, addUrl, watchUrl, onBookmark,
+  }: { title: string; when: string; detail: string; badge: string; badgeColor: string; addUrl: string; watchUrl?: string; onBookmark?: (t: string) => void }) => (
     <div style={{
       display: "flex", gap: 12, padding: "12px 0", borderBottom: `1px solid ${T.rule}`,
       alignItems: "flex-start", flexWrap: "wrap",
@@ -90,11 +146,13 @@ export default function UpcomingEvents({ notifySlot }: { notifySlot?: React.Reac
             padding: "6px 11px", borderRadius: 5, textDecoration: "none", whiteSpace: "nowrap",
           }}>Watch ↗</a>
         )}
-        <a href={addUrl} target="_blank" rel="noopener noreferrer" style={{
-          fontFamily: SANS, fontSize: 10.5, fontWeight: 700, color: T.ink, background: T.card,
-          border: `1px solid ${T.rule}`, padding: "6px 11px", borderRadius: 5,
-          textDecoration: "none", whiteSpace: "nowrap",
-        }}>+ Calendar</a>
+        <a href={addUrl} target="_blank" rel="noopener noreferrer"
+          onClick={() => onBookmark?.(title)}
+          style={{
+            fontFamily: SANS, fontSize: 10.5, fontWeight: 700, color: T.ink, background: T.card,
+            border: `1px solid ${T.rule}`, padding: "6px 11px", borderRadius: 5,
+            textDecoration: "none", whiteSpace: "nowrap",
+          }}>+ Calendar</a>
       </div>
     </div>
   );
@@ -116,6 +174,21 @@ export default function UpcomingEvents({ notifySlot }: { notifySlot?: React.Reac
 
       {notifySlot && <div style={{ margin: "10px 0 4px" }}>{notifySlot}</div>}
 
+      {/* Calendars won't reliably remind anyone (providers refresh on their own
+          slow cycle), so the moment someone bookmarks an event is exactly when
+          to offer the channel that WILL reach them. */}
+      <div style={{
+        background: bookmarked ? "#b8372d0d" : T.paper,
+        border: `1px solid ${bookmarked ? "#b8372d33" : T.rule}`,
+        borderRadius: 8, padding: "12px 14px", margin: "10px 0 6px",
+      }}>
+        <AlertEmailSignup prompt={
+          bookmarked
+            ? `Added to your calendar. Calendar apps refresh slowly and often won't remind you in time — want an email the moment "${bookmarked.slice(0, 46)}" actually starts?`
+            : "Get an email the moment a broadcast goes live — no schedule-watching required."
+        } />
+      </div>
+
       {streams.length > 0 && streams.map(s => (
         <Row key={s.videoId}
           title={s.title}
@@ -124,6 +197,7 @@ export default function UpcomingEvents({ notifySlot }: { notifySlot?: React.Reac
           badge="Scheduled stream" badgeColor={T.accent}
           watchUrl={s.url}
           addUrl={gcal(s.title, s.scheduledStart, 90, `${s.channelLabel} live stream.`)}
+          onBookmark={setBookmarked}
         />
       ))}
 
@@ -135,6 +209,7 @@ export default function UpcomingEvents({ notifySlot }: { notifySlot?: React.Reac
           badge={e.liveCoverage ? "Live coverage" : "Data release"}
           badgeColor={e.liveCoverage ? T.teal : T.mute}
           addUrl={gcal(e.title, e.startsAt, e.durationMin, e.detail)}
+          onBookmark={setBookmarked}
         />
       ))}
 

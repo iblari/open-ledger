@@ -11,7 +11,7 @@ function isValidEmail(email: string): boolean {
 }
 
 export async function POST(req: Request) {
-  let body: { email?: string; feedback?: string | null; source?: string };
+  let body: { email?: string; feedback?: string | null; source?: string; liveAlerts?: boolean };
   try {
     body = await req.json();
   } catch {
@@ -37,6 +37,7 @@ export async function POST(req: Request) {
     feedback,
     signed_up_at: new Date().toISOString(),
     source,
+    liveAlerts: body.liveAlerts === true || source === "live-alerts",
   };
 
   // ALWAYS persist to our own KV first — this is the durable system of

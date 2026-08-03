@@ -261,6 +261,11 @@ export interface SubscriberRecord {
   feedback: string;
   source: string;
   signed_up_at: string;
+  /** Consent scope. Subscribers who signed up for the monthly dispatch did
+   *  NOT ask to be pinged every time a broadcast starts — a few alerts a week
+   *  is a different deal. Anyone who opts in at a live-alert entry point gets
+   *  liveAlerts: true; everyone else keeps the monthly-only default. */
+  liveAlerts?: boolean;
 }
 
 export async function getSubscribers(): Promise<SubscriberRecord[]> {
@@ -296,6 +301,9 @@ export async function appendSubscriber(rec: SubscriberRecord): Promise<{ total: 
     isNew = false;
     if (rec.feedback) existing.feedback = rec.feedback;
     existing.source = rec.source;
+    // Opting in is additive; re-subscribing via the monthly form never
+    // silently revokes a live-alert consent.
+    if (rec.liveAlerts) existing.liveAlerts = true;
   } else {
     all.push(rec);
   }

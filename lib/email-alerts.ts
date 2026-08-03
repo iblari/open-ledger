@@ -82,8 +82,11 @@ export async function sendLiveAlert(title: string, source?: string): Promise<Ale
   if (!key) return { sent: 0, failed: 0, skipped: "RESEND_API_KEY not configured" };
 
   const subs = await getSubscribers();
-  const emails = [...new Set(subs.map(s => s.email).filter(e => /.+@.+\..+/.test(e)))];
-  if (!emails.length) return { sent: 0, failed: 0, skipped: "no subscribers" };
+  // Consent gate: only people who opted into LIVE alerts. Monthly-dispatch
+  // subscribers asked for one email a month, not one per broadcast.
+  const optedIn = subs.filter(s => s.liveAlerts === true);
+  const emails = [...new Set(optedIn.map(s => s.email).filter(e => /.+@.+\..+/.test(e)))];
+  if (!emails.length) return { sent: 0, failed: 0, skipped: "no live-alert subscribers yet" };
 
   const sourceLabel = source ? `Source: ${source}.` : "";
   let sent = 0, failed = 0;
