@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getRecentBroadcasts, setRecentBroadcasts, type LiveClaim } from "@/lib/live-kv";
-import { lookupBenchmark, formatBenchValue, rateAgainstBenchmark } from "@/lib/benchmark-verify";
+import { lookupBenchmark, formatBenchValue, rateAgainstBenchmark, isUnitMismatch } from "@/lib/benchmark-verify";
 import { verifyClaimOnWeb } from "@/lib/web-verify";
 
 export const maxDuration = 300;
@@ -33,6 +33,29 @@ export async function POST(req: NextRequest) {
       if (c.rating === "UNVERIFIABLE") before.UNVERIFIABLE++; else before.other++;
     }
   }
+
+  // ── Repair pass: undo verdicts the old verifier produced by comparing a
+  // CHANGE to a LEVEL (e.g. "wage increases 5.5%" refuted with $83.7K median
+  // income). These are already rated, so the UNVERIFIABLE queue below never
+  // reaches them — but a wrong FALSE is the most damaging thing on the page,
+  // so it gets cleared first and re-checked against the web.
+  let repaired = 0;
+  for (const b of broadcasts) {
+    for (const c of b.claims) {
+      if (!c.groundTruth || typeof c.claimedValue !== "number") continue;
+      const unitGuess = /\$/.test(c.actual) ? "$" : /%/.test(c.actual) ? "%" : "";
+      if (unitGuess && isUnitMismatch(c.quote, c.claimedValue, c.groundTruth.value, unitGuess)) {
+        c.rating = "UNVERIFIABLE";
+        c.verifiedFromSource = false;
+        c.webVerified = false;
+        c.actual = "Withdrawn: this claim describes a change, and it had been compared against a level from a different series. Re-checking.";
+        c.explanation = "";
+        delete c.groundTruth;
+        repaired++;
+      }
+    }
+  }
+  if (repaired) await setRecentBroadcasts(broadcasts);
 
   // Collect the work queue across all broadcasts, oldest-first for stability.
   const queue: { b: (typeof broadcasts)[number]; c: LiveClaim }[] = [];
@@ -95,6 +118,7 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({
     ok: true,
+    repaired,
     processed: batch.length,
     remaining: Math.max(0, queue.length - batch.length),
     benchFixed, webFixed,
