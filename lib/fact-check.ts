@@ -15,6 +15,7 @@
 //   4. dedupeClaims() drops near-duplicate re-statements
 
 import { verifyClaim, metricAnchorPromptBlock, type RawClaim, type VerifiedClaim } from "./live-verify";
+import { lookupBenchmark, formatBenchValue, rateAgainstBenchmark, benchAnchorPromptBlock } from "./benchmark-verify";
 
 const MODEL = "claude-haiku-4-5-20251001";
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
@@ -51,6 +52,8 @@ STRUCTURED FIELDS (REQUIRED, set to null if not applicable):
 - claimedValue (number|null): the numeric value the speaker claimed, if extractable. E.g. for "unemployment is 4.2 percent", claimedValue is 4.2. Use the natural unit of the metric (e.g. percent as 4.2 not 0.042; index points for S&P 500).
 
 ${metricAnchorPromptBlock()}
+
+${benchAnchorPromptBlock()}
 
 RULES:
 - Skip pure opinions, promises and policy arguments — but DO extract any specific number presented as fact, including in Q&A exchanges and testimony
@@ -97,7 +100,8 @@ function parseClaimsJson(raw: string): { claims?: RawClaim[] } | null {
  * — callers attach those (they differ between the live feed and demo paths).
  */
 export async function extractAndVerifyClaims(
-  userContent: string
+  userContent: string,
+  origin = "https://voteunbiased.org"
 ): Promise<ExtractResult> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
@@ -158,5 +162,28 @@ export async function extractAndVerifyClaims(
   }
 
   const claims = (parsed.claims || []).map((raw: RawClaim) => verifyClaim(raw));
+
+  // Tier 1b — the full benchmark dataset (14 metrics × 10 administrations ×
+  // ~450 monthly points). Runs for anything the 6 annual anchors above
+  // didn't already settle, so we exhaust the data we OWN before spending a
+  // web search on it.
+  await Promise.all(claims.map(async (c: VerifiedClaim) => {
+    if (c.verifiedFromSource || !c.metricKey) return;
+    const hit = await lookupBenchmark(origin, c.metricKey, c.admin ?? null, c.year ?? null);
+    if (!hit) return;
+    const shown = formatBenchValue(hit.value, hit.unit);
+    c.actual = `${shown} — ${hit.label} for ${hit.adminName} at month ${hit.monthOfTerm} of the term (~${hit.approxYear}), per FRED.`;
+    c.verifiedFromSource = true;
+    c.groundTruth = { value: hit.value, year: hit.approxYear, metricKey: c.metricKey, source: "FRED" };
+    if (typeof c.claimedValue === "number") {
+      c.rating = rateAgainstBenchmark(c.claimedValue, hit.value, hit.unit);
+    } else if (c.rating === "UNVERIFIABLE") {
+      // We hold the series but the speaker gave no number to compare — still
+      // better than a blank: show the real figure and let the reader judge.
+      c.rating = "UNVERIFIABLE";
+      c.explanation = `${c.explanation || ""} Our data for this metric: ${shown}.`.trim();
+    }
+  }));
+
   return { claims };
 }

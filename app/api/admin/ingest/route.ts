@@ -88,7 +88,8 @@ export async function POST(req: Request) {
   const mm = Math.floor(videoTime / 60);
   const ss = String(Math.floor(videoTime % 60)).padStart(2, "0");
   const result = await extractAndVerifyClaims(
-    `Live broadcast transcript chunk (at ${mm}:${ss}):\n"${text}"`
+    `Live broadcast transcript chunk (at ${mm}:${ss}):\n"${text}"`,
+    new URL(req.url).origin
   );
 
   if (result.error) {

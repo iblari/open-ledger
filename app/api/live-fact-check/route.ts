@@ -40,7 +40,8 @@ export async function POST(req: Request) {
   }
 
   const result = await extractAndVerifyClaims(
-    `Context from earlier in the speech:\n"${context || "Start of broadcast"}"\n\nNew transcript chunk:\n"${text}"`
+    `Context from earlier in the speech:\n"${context || "Start of broadcast"}"\n\nNew transcript chunk:\n"${text}"`,
+    new URL(req.url).origin
   );
 
   if (result.error) {
