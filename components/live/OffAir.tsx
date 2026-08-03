@@ -189,6 +189,15 @@ function AlertButton() {
             padding: "10px 12px", borderRadius: 5,
             border: err ? "1.5px solid #E88A72" : "1.5px solid transparent",
             fontFamily: SANS, fontSize: 16, outline: "none",
+            // Explicit, not inherited. This field sits on a near-black strip,
+            // and with nothing declared the browser resolved it to dark text
+            // on a dark box — you could not see what you were typing.
+            // colorScheme pins it to light so a dark-mode OS can't restyle the
+            // control back out from under us.
+            background: "#FFFEFC",
+            color: C.ink,
+            caretColor: C.ink,
+            colorScheme: "light",
           }}
         />
         <button onClick={go} disabled={state === "busy"} style={{
