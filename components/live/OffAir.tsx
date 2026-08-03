@@ -121,23 +121,31 @@ function CheckAnyVideo() {
 function AlertButton() {
   const [email, setEmail] = useState("");
   const [state, setState] = useState<"idle" | "open" | "busy" | "on">("idle");
+  const [err, setErr] = useState<string | null>(null);
 
   const go = async () => {
-    if (!email.trim()) return;
+    const v = email.trim();
+    // Tell people what's wrong instead of doing nothing. The old version
+    // silently returned on an empty field, so a mis-typed address looked
+    // identical to a broken button.
+    if (!v) { setErr("Enter your email address first."); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v)) { setErr("That doesn't look like an email address."); return; }
+    setErr(null);
     setState("busy");
     try {
       const r = await fetch("/api/subscribe", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), source: "live-alerts", liveAlerts: true }),
+        body: JSON.stringify({ email: v, source: "live-alerts", liveAlerts: true }),
       });
-      setState(r.ok ? "on" : "open");
-    } catch { setState("open"); }
+      if (r.ok) setState("on");
+      else { setState("open"); setErr("Couldn't sign you up just then — try again?"); }
+    } catch { setState("open"); setErr("Network trouble — try again?"); }
   };
 
   if (state === "on") {
     return (
       <span style={{ fontFamily: SANS, fontSize: 12, fontWeight: 700, color: "#7FD1C7", whiteSpace: "nowrap" }}>
-        ✓ Alerts on · one ping, nothing else
+        ✓ You&rsquo;re on the list — we&rsquo;ll email you when a broadcast starts
       </span>
     );
   }
@@ -150,22 +158,53 @@ function AlertButton() {
       }}>Alert me when we go live</button>
     );
   }
+  // Open state takes a FULL ROW of the strip rather than competing with the
+  // schedule text for leftover space. Previously this sat in a flexShrink:0
+  // span next to a flex:1 sibling, and on a wide screen with a long event
+  // title the field collapsed to a bare caret — no visible box, no
+  // placeholder, no clue what to type. That's what people were hitting.
   return (
-    <span style={{ display: "inline-flex", gap: 6, flexShrink: 0 }}>
-      <input
-        autoFocus value={email} onChange={e => setEmail(e.target.value)}
-        onKeyDown={e => { if (e.key === "Enter") go(); }}
-        placeholder="you@example.com"
-        style={{
-          padding: "9px 11px", borderRadius: 5, border: "none", minWidth: 150,
-          fontFamily: SANS, fontSize: 16, outline: "none",
-        }}
-      />
-      <button onClick={go} disabled={state === "busy"} style={{
-        background: C.ok, color: "#fff", border: "none", borderRadius: 5,
-        padding: "9px 14px", fontFamily: SANS, fontSize: 12, fontWeight: 700, cursor: "pointer",
-      }}>{state === "busy" ? "…" : "Done"}</button>
-    </span>
+    <div style={{ flexBasis: "100%", minWidth: 0 }}>
+      <label htmlFor="vu-alert-email" style={{
+        display: "block", fontFamily: SANS, fontSize: 11, fontWeight: 700,
+        letterSpacing: "0.1em", textTransform: "uppercase", color: C.faint, marginBottom: 7,
+      }}>
+        Your email address
+      </label>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+        <input
+          id="vu-alert-email"
+          autoFocus
+          type="email"
+          inputMode="email"
+          autoComplete="email"
+          value={email}
+          onChange={e => { setEmail(e.target.value); if (err) setErr(null); }}
+          onKeyDown={e => { if (e.key === "Enter") go(); }}
+          placeholder="you@example.com"
+          aria-label="Your email address"
+          aria-invalid={err ? true : undefined}
+          style={{
+            flex: "1 1 240px", minWidth: 200, maxWidth: 340,
+            padding: "10px 12px", borderRadius: 5,
+            border: err ? "1.5px solid #E88A72" : "1.5px solid transparent",
+            fontFamily: SANS, fontSize: 16, outline: "none",
+          }}
+        />
+        <button onClick={go} disabled={state === "busy"} style={{
+          background: C.ok, color: "#fff", border: "none", borderRadius: 5,
+          padding: "10px 16px", fontFamily: SANS, fontSize: 12, fontWeight: 700,
+          cursor: state === "busy" ? "default" : "pointer", whiteSpace: "nowrap",
+        }}>{state === "busy" ? "Signing you up…" : "Email me when live"}</button>
+        <button onClick={() => { setState("idle"); setErr(null); }} style={{
+          background: "none", border: "none", color: C.faint,
+          fontFamily: SANS, fontSize: 11.5, cursor: "pointer", padding: "10px 4px",
+        }}>Cancel</button>
+      </div>
+      <div style={{ fontFamily: SANS, fontSize: 11.5, color: err ? "#E88A72" : C.faint, marginTop: 7, lineHeight: 1.5 }}>
+        {err || "One email when a broadcast starts. Nothing else, and you can unsubscribe from any of them."}
+      </div>
+    </div>
   );
 }
 
