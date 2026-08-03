@@ -14,6 +14,7 @@
 //   - Override claims the LLM marked UNVERIFIABLE
 //   - Override when metricKey/year are absent
 
+import { BENCH_ANCHORS } from "./benchmark-verify";
 import {
   type MetricKey, type AdminId, METRIC_KEYS, METRICS_DATA, ADMINS_DATA,
   adminForYear, lookupValue, adminTenureValues, formatValue,
@@ -49,7 +50,14 @@ export function verifyClaim(raw: RawClaim): VerifiedClaim {
 
   // Sanitize structured fields — LLM sometimes hands us a key that doesn't
   // exist, or a year outside our data range. Drop those rather than trust them.
-  if (out.metricKey && !METRIC_KEYS.includes(out.metricKey as MetricKey)) out.metricKey = null;
+  // Keep keys this module can't resolve but the BENCHMARK tier can (jobs,
+  // gas, wages, fed_rate, trade, mfg, lfpr…). Nulling them here silently
+  // disabled tier 1b and pushed those claims to a paid web search.
+  if (out.metricKey
+      && !METRIC_KEYS.includes(out.metricKey as MetricKey)
+      && !(out.metricKey in BENCH_ANCHORS)) {
+    out.metricKey = null;
+  }
   if (out.admin && !ADMINS_DATA[out.admin as AdminId]) out.admin = null;
 
   // If we have a metricKey but no year, try to infer the year from the admin
@@ -62,6 +70,7 @@ export function verifyClaim(raw: RawClaim): VerifiedClaim {
   // Need both to do a point lookup.
   if (!out.metricKey || out.year == null) return out;
 
+  if (!METRIC_KEYS.includes(out.metricKey as MetricKey)) return out; // benchmark tier owns it
   const metric = METRICS_DATA[out.metricKey as MetricKey];
   const truthValue = lookupValue(out.metricKey as MetricKey, out.year);
   if (truthValue == null) return out; // year out of range
