@@ -440,6 +440,14 @@ async function fetchTimedtext(
 async function getWebPageCaptionTracks(
   videoId: string
 ): Promise<{ title: string; captionTracks: CaptionTrack[] } | null> {
+  // Two egress paths, same as InnerTube. This mattered more than it looks:
+  // ytFetch defaults to the proxy whenever one is configured, so the web
+  // scrape — the fallback that exists precisely for when the API path fails
+  // — was itself going out through the same burned IP. Meanwhile
+  // /api/live-discover fetches YouTube pages from this very server with a
+  // plain fetch() and works, which is what proved page loads are still
+  // allowed while the InnerTube POST API is not.
+  for (const egress of egressOrder()) {
   try {
     const resp = await ytFetch(`https://www.youtube.com/watch?v=${videoId}`, {
       headers: {
@@ -448,12 +456,15 @@ async function getWebPageCaptionTracks(
         Cookie:
           "SOCS=CAESEwgDEgk2ODE4NTkxNjQaAmVuIAEaBgiA_LyaBg; CONSENT=YES+cb.20210328-17-p0.en+FX+299",
       },
-    });
+    }, egress);
 
-    if (!resp.ok) return null;
+    if (!resp.ok) { console.log(`[${videoId}] WebPage(${egress}) ${resp.status}`); continue; }
 
     const html = await resp.text();
-    if (html.includes('class="g-recaptcha"')) return null;
+    if (html.includes('class="g-recaptcha"')) {
+      console.log(`[${videoId}] WebPage(${egress}) hit a captcha wall`);
+      continue;
+    }
 
     const titleMatch = html.match(/<title>([^<]*)<\/title>/);
     const title = titleMatch
@@ -462,7 +473,7 @@ async function getWebPageCaptionTracks(
 
     const startToken = "var ytInitialPlayerResponse = ";
     const startIndex = html.indexOf(startToken);
-    if (startIndex === -1) return null;
+    if (startIndex === -1) { console.log(`[${videoId}] WebPage(${egress}) no ytInitialPlayerResponse`); continue; }
 
     const jsonStart = startIndex + startToken.length;
     let depth = 0;
@@ -478,18 +489,24 @@ async function getWebPageCaptionTracks(
       }
     }
 
-    if (jsonEnd === -1) return null;
+    if (jsonEnd === -1) continue;
 
     const playerResponse = JSON.parse(html.slice(jsonStart, jsonEnd));
     const captionTracks: CaptionTrack[] | undefined =
       playerResponse?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
 
-    if (!Array.isArray(captionTracks) || captionTracks.length === 0) return null;
+    if (!Array.isArray(captionTracks) || captionTracks.length === 0) {
+      console.log(`[${videoId}] WebPage(${egress}) page had no caption tracks`);
+      continue;
+    }
 
+    preferredEgress = egress;
     return { title, captionTracks };
-  } catch {
-    return null;
+  } catch (e) {
+    console.error(`[${videoId}] WebPage(${egress}) error:`, e);
   }
+  }
+  return null;
 }
 
 export async function POST(req: Request) {
