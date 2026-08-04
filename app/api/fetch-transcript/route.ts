@@ -38,21 +38,90 @@ const ytDispatcher: Dispatcher | undefined = YT_PROXY_URL
  *  passing its ProxyAgent into Next's built-in fetch fails with
  *  UND_ERR_INVALID_ARG ("invalid onRequestStart method") because they are
  *  two different undici copies (verified in production logs). */
-function ytFetch(url: string, init: RequestInit = {}): Promise<Response> {
-  if (ytDispatcher) {
+function ytFetch(url: string, init: RequestInit = {}, egress: Egress = "auto"): Promise<Response> {
+  const useProxy = ytDispatcher && egress !== "direct";
+  if (useProxy) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return undiciFetch(url, { ...(init as any), dispatcher: ytDispatcher }) as unknown as Promise<Response>;
   }
   return fetch(url, init);
 }
 
+/**
+ * WHICH WAY OUT — proxy or straight from the server.
+ *
+ * The proxy exists because YouTube once blocked this app's datacenter IP.
+ * But a shared residential proxy gets burned too: on 3 Aug 2026 every
+ * InnerTube call through it came back HTTP 200 carrying
+ * playabilityStatus LOGIN_REQUIRED — "Sign in to confirm you're not a bot"
+ * — with zero caption tracks, while the very same call sent directly from a
+ * plain datacenter IP returned OK with a track. The proxy had become the
+ * cause of the outage it was added to prevent.
+ *
+ * The old code routed EVERYTHING through the proxy whenever YT_PROXY_URL
+ * was set, with no fallback, so one burned IP was a total blackout. Now both
+ * paths are tried and the one that works is remembered, so whichever of the
+ * two YouTube is currently tolerating gets used.
+ *
+ * Note this failure is invisible to ordinary retry logic: it is not a 403 or
+ * a timeout, it is a 200 with a bot-check body. It has to be detected at the
+ * InnerTube level, which is why the decision lives here and not in fetch.
+ */
+type Egress = "proxy" | "direct" | "auto";
+
+let preferredEgress: Egress | null = null;
+
+function egressOrder(): Egress[] {
+  if (!ytDispatcher) return ["direct"];
+  if (preferredEgress === "direct") return ["direct", "proxy"];
+  return ["proxy", "direct"];
+}
+
 /** GET /api/fetch-transcript — capability probe for the UI. */
+/**
+ * GET — capability probe.
+ *
+ * This used to answer "proxy configured" and stop there, which is why a
+ * burned proxy looked healthy from the outside: the flag was set, so the
+ * probe said fine, while every real request came back empty. It now makes an
+ * actual InnerTube call down each available path and reports what happened.
+ */
 export async function GET() {
+  // A short, well-captioned public video used purely as a liveness canary.
+  const CANARY = "jNQXAC9IVRw";
+  const paths: Egress[] = ytDispatcher ? ["proxy", "direct"] : ["direct"];
+  const results: Record<string, string> = {};
+
+  for (const egress of paths) {
+    try {
+      const resp = await ytFetch(INNERTUBE_API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "User-Agent": INNERTUBE_USER_AGENT },
+        body: JSON.stringify({
+          context: { client: { clientName: "ANDROID", clientVersion: INNERTUBE_CLIENT_VERSION } },
+          videoId: CANARY,
+        }),
+      }, egress);
+      if (!resp.ok) { results[egress] = `http ${resp.status}`; continue; }
+      const data = await resp.json();
+      const status = data?.playabilityStatus?.status;
+      const tracks = data?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
+      results[egress] = status === "OK" && Array.isArray(tracks) && tracks.length
+        ? "ok"
+        : `blocked (${status || "no status"})`;
+    } catch (e) {
+      results[egress] = `error: ${(e as Error).message}`;
+    }
+  }
+
+  const working = Object.entries(results).filter(([, v]) => v === "ok").map(([k]) => k);
   return NextResponse.json({
-    enabled: Boolean(YT_PROXY_URL),
-    reason: YT_PROXY_URL
-      ? "proxy configured"
-      : "no YT_PROXY_URL — YouTube blocks caption access from datacenter IPs",
+    enabled: working.length > 0,
+    egress: results,
+    preferred: preferredEgress,
+    reason: working.length
+      ? `working via ${working.join(" and ")}`
+      : "no working egress — YouTube is blocking every path we have",
   });
 }
 
@@ -254,6 +323,7 @@ async function getInnerTubeData(
   captionTracks: CaptionTrack[];
 } | null> {
   liveHint = false;
+  for (const egress of egressOrder()) {
   for (const client of INNERTUBE_CLIENTS) {
     try {
       const headers: Record<string, string> = {
@@ -269,15 +339,24 @@ async function getInnerTubeData(
         method: "POST",
         headers,
         body: JSON.stringify({ context: client.context, videoId }),
-      });
+      }, egress);
 
       if (!resp.ok) {
-        console.log(`[${videoId}] InnerTube(${client.label}) returned ${resp.status}`);
+        console.log(`[${videoId}] InnerTube(${client.label}/${egress}) returned ${resp.status}`);
         continue;
       }
 
       const data = await resp.json();
       const status = data?.playabilityStatus?.status;
+
+      // The bot check arrives as HTTP 200 with LOGIN_REQUIRED inside, so it
+      // must be caught here. Every client will fail identically on a flagged
+      // IP, so abandon this egress path immediately rather than burning
+      // three more round trips on it.
+      if (status === "LOGIN_REQUIRED" || status === "ERROR") {
+        console.log(`[${videoId}] InnerTube(${client.label}/${egress}) blocked: ${status} — ${data?.playabilityStatus?.reason || ""}`);
+        break;
+      }
 
       const title = data?.videoDetails?.title || "YouTube Video";
       const captionTracks: CaptionTrack[] | undefined =
@@ -299,10 +378,13 @@ async function getInnerTubeData(
         `[${videoId}] InnerTube(${client.label}): ${captionTracks.length} tracks, first: ${captionTracks[0].languageCode} (${captionTracks[0].kind || "manual"})`
       );
 
+      // Remember what worked; the next request starts there.
+      preferredEgress = egress;
       return { title, captionTracks };
     } catch (e) {
-      console.error(`[${videoId}] InnerTube(${client.label}) error:`, e);
+      console.error(`[${videoId}] InnerTube(${client.label}/${egress}) error:`, e);
     }
+  }
   }
   return null;
 }
@@ -314,31 +396,41 @@ async function fetchTimedtext(
   videoId: string,
   baseUrl: string
 ): Promise<TranscriptItem[] | null> {
+  // Caption content is served from a different edge than the player API and
+  // can be blocked independently, so it gets the same two-path treatment.
+  for (const egress of egressOrder()) {
   try {
     const txResp = await ytFetch(baseUrl, {
       headers: { "User-Agent": WEB_USER_AGENT },
-    });
+    }, egress);
 
     if (!txResp.ok) {
-      console.log(`[${videoId}] Timedtext fetch returned ${txResp.status}`);
-      return null;
+      console.log(`[${videoId}] Timedtext(${egress}) returned ${txResp.status}`);
+      continue;
     }
 
     const xml = await txResp.text();
-    console.log(`[${videoId}] Timedtext XML length: ${xml.length}`);
+    console.log(`[${videoId}] Timedtext(${egress}) XML length: ${xml.length}`);
 
+    // `continue`, not `return`: an empty body on one egress path says nothing
+    // about the other, and returning here would waste the retry this loop
+    // exists to provide.
     if (!xml || xml.length < 50) {
-      console.log(`[${videoId}] Timedtext XML too short or empty`);
-      return null;
+      console.log(`[${videoId}] Timedtext(${egress}) XML too short or empty`);
+      continue;
     }
 
     const items = parseTranscriptXml(xml);
-    console.log(`[${videoId}] Parsed ${items.length} transcript items`);
-    return items.length > 0 ? items : null;
+    console.log(`[${videoId}] Timedtext(${egress}) parsed ${items.length} items`);
+    if (items.length > 0) {
+      preferredEgress = egress;
+      return items;
+    }
   } catch (e) {
-    console.error(`[${videoId}] Timedtext error:`, e);
-    return null;
+    console.error(`[${videoId}] Timedtext(${egress}) error:`, e);
   }
+  }
+  return null;
 }
 
 /**
