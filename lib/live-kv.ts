@@ -604,3 +604,124 @@ export async function setPromises(file: PromiseFile): Promise<void> {
   if (hasUpstash()) await upstashCmd("SET", PROMISES_KEY, json);
   else mem.set(PROMISES_KEY, json);
 }
+
+// ── On-demand video check queue ────────────────────────────────────
+/**
+ * "Check any video" used to fetch YouTube captions straight from the web
+ * server. As of 3 Aug 2026 YouTube blocks that from every egress path this
+ * app has — the player API answers "Sign in to confirm you're not a bot" and
+ * the watch page is served stripped of caption metadata — while the GitHub
+ * Actions worker still gets through.
+ *
+ * So the request becomes a JOB. The web app enqueues; the long-running
+ * watcher (scripts/watch-live.mjs) drains the queue on its normal 2-minute
+ * poll and does the work from a runner. Deliberately NO workflow_dispatch:
+ * that needs a PAT, and the same reasoning that made the watcher poll-driven
+ * in the first place applies here — a queue in KV needs no token, no webhook
+ * and no inbound access to the repo.
+ */
+const CHECK_QUEUE_KEY = "vu:check:queue";
+const CHECK_JOB_PREFIX = "vu:check:job:";
+const CHECK_JOB_TTL_SEC = 60 * 60 * 24; // a day is plenty to collect a result
+
+export type CheckJobStatus = "queued" | "running" | "done" | "failed";
+
+export interface CheckJob {
+  videoId: string;
+  url: string;
+  status: CheckJobStatus;
+  requestedAt: string;
+  startedAt?: string;
+  finishedAt?: string;
+  /** Position when it was accepted, so the UI can say something honest. */
+  queuedBehind?: number;
+  title?: string;
+  claimCount?: number;
+  error?: string;
+}
+
+async function readJob(videoId: string): Promise<CheckJob | null> {
+  const key = CHECK_JOB_PREFIX + videoId;
+  const raw = hasUpstash() ? ((await upstashCmd("GET", key)) as string | null) : mem.get(key);
+  if (!raw) return null;
+  try { return JSON.parse(raw); } catch { return null; }
+}
+
+async function writeJob(job: CheckJob): Promise<void> {
+  const key = CHECK_JOB_PREFIX + job.videoId;
+  const json = JSON.stringify(job);
+  if (hasUpstash()) await upstashCmd("SET", key, json, "EX", CHECK_JOB_TTL_SEC);
+  else mem.set(key, json);
+}
+
+export async function getCheckJob(videoId: string): Promise<CheckJob | null> {
+  return readJob(videoId);
+}
+
+/** Enqueue a check. Idempotent: asking twice for the same video returns the
+ *  job already in flight rather than queueing duplicate work. */
+export async function enqueueCheck(videoId: string, url: string): Promise<CheckJob> {
+  const existing = await readJob(videoId);
+  if (existing && existing.status !== "failed") return existing;
+
+  const queue = await getCheckQueue();
+  const job: CheckJob = {
+    videoId,
+    url,
+    status: "queued",
+    requestedAt: new Date().toISOString(),
+    queuedBehind: queue.length,
+  };
+  await writeJob(job);
+  if (!queue.includes(videoId)) {
+    if (hasUpstash()) await upstashCmd("RPUSH", CHECK_QUEUE_KEY, videoId);
+    else mem.set(CHECK_QUEUE_KEY, JSON.stringify([...queue, videoId]));
+  }
+  return job;
+}
+
+export async function getCheckQueue(): Promise<string[]> {
+  if (hasUpstash()) {
+    const r = (await upstashCmd("LRANGE", CHECK_QUEUE_KEY, 0, 49)) as string[] | null;
+    return Array.isArray(r) ? r : [];
+  }
+  try { return JSON.parse(mem.get(CHECK_QUEUE_KEY) || "[]"); } catch { return []; }
+}
+
+/** Worker: take the next job, marking it running. Returns null when idle. */
+export async function claimNextCheck(): Promise<CheckJob | null> {
+  let videoId: string | null = null;
+  if (hasUpstash()) {
+    videoId = (await upstashCmd("LPOP", CHECK_QUEUE_KEY)) as string | null;
+  } else {
+    const q = await getCheckQueue();
+    videoId = q.shift() || null;
+    mem.set(CHECK_QUEUE_KEY, JSON.stringify(q));
+  }
+  if (!videoId) return null;
+
+  const job = (await readJob(videoId)) || {
+    videoId, url: `https://www.youtube.com/watch?v=${videoId}`,
+    status: "queued" as CheckJobStatus, requestedAt: new Date().toISOString(),
+  };
+  job.status = "running";
+  job.startedAt = new Date().toISOString();
+  await writeJob(job);
+  return job;
+}
+
+export async function finishCheck(
+  videoId: string,
+  result: { title?: string; claimCount?: number; error?: string }
+): Promise<void> {
+  const job = (await readJob(videoId)) || {
+    videoId, url: `https://www.youtube.com/watch?v=${videoId}`,
+    status: "running" as CheckJobStatus, requestedAt: new Date().toISOString(),
+  };
+  job.status = result.error ? "failed" : "done";
+  job.finishedAt = new Date().toISOString();
+  if (result.title) job.title = result.title;
+  if (result.claimCount != null) job.claimCount = result.claimCount;
+  if (result.error) job.error = result.error;
+  await writeJob(job);
+}

@@ -82,6 +82,117 @@ async function sweepBackfill(reason) {
   }
 }
 
+/**
+ * ── On-demand video checks ─────────────────────────────────────────
+ *
+ * As of 3 Aug 2026 YouTube refuses caption access to the web server from
+ * every egress path it has: the player API answers "Sign in to confirm
+ * you're not a bot" on both the proxy IP and Vercel's, and the watch page
+ * comes back stripped of caption metadata. Actions runners still get
+ * through, so "Check any video" enqueues in KV and this loop does the work.
+ *
+ * Drained on the same 2-minute poll as live discovery, which is why no
+ * dispatch token is needed — the same reasoning that made this watcher
+ * poll-driven in the first place.
+ */
+const INNERTUBE = "https://www.youtube.com/youtubei/v1/player?prettyPrint=false";
+const IT_CLIENTS = [
+  { name: "ANDROID", ver: "20.10.38", ua: "com.google.android.youtube/20.10.38 (Linux; U; Android 14)" },
+  { name: "IOS", ver: "20.10.4", ua: "com.google.ios.youtube/20.10.4 (iPhone16,2; U; CPU iOS 17_5_1 like Mac OS X)" },
+  { name: "WEB", ver: "2.20250101.00.00", ua: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36" },
+];
+
+async function fetchCaptions(videoId) {
+  for (const c of IT_CLIENTS) {
+    try {
+      const resp = await fetch(INNERTUBE, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "User-Agent": c.ua },
+        body: JSON.stringify({ context: { client: { clientName: c.name, clientVersion: c.ver } }, videoId }),
+        signal: AbortSignal.timeout(20_000),
+      });
+      if (!resp.ok) continue;
+      const data = await resp.json();
+      const status = data?.playabilityStatus?.status;
+      if (status === "LOGIN_REQUIRED" || status === "ERROR") {
+        log(`  ${c.name}: ${status} — this runner IP is flagged too`);
+        continue;
+      }
+      const tracks = data?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
+      if (!Array.isArray(tracks) || !tracks.length) continue;
+
+      // Prefer a human-made English track; auto-generated ("asr") is the
+      // fallback because its punctuation is worse and the extractor keys off
+      // sentence boundaries.
+      const en = tracks.filter(t => (t.languageCode || "").startsWith("en"));
+      const track = en.find(t => t.kind !== "asr") || en[0] || tracks[0];
+
+      const xml = await fetch(track.baseUrl, {
+        headers: { "User-Agent": c.ua },
+        signal: AbortSignal.timeout(30_000),
+      }).then(r => (r.ok ? r.text() : ""));
+      if (!xml || xml.length < 50) continue;
+
+      const segments = [];
+      for (const m of xml.matchAll(/<text start="([\d.]+)"[^>]*>(.*?)<\/text>/gs)) {
+        const text = m[2]
+          .replace(/&amp;#39;/g, "'").replace(/&amp;quot;/g, '"')
+          .replace(/&amp;amp;/g, "&").replace(/&amp;lt;/g, "<").replace(/&amp;gt;/g, ">")
+          .replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, "&")
+          .replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+        if (text) segments.push({ time: Math.round(Number(m[1])), text });
+      }
+      if (segments.length) {
+        return { title: data?.videoDetails?.title || "YouTube video", segments };
+      }
+    } catch (e) {
+      log(`  caption fetch (${c.name}) failed: ${e.message}`);
+    }
+  }
+  return null;
+}
+
+async function drainCheckQueue() {
+  if (!ADMIN_KEY) return;
+  const auth = { Authorization: `Bearer ${ADMIN_KEY}`, "Content-Type": "application/json" };
+  // One job per poll. A queued check should never delay noticing that a
+  // broadcast has gone live — that is this process's actual job.
+  try {
+    const r = await fetch(`${API}/api/admin/check-queue`, { headers: auth, signal: AbortSignal.timeout(20_000) });
+    const { job } = await r.json().catch(() => ({}));
+    if (!job) return;
+
+    log(`▷ on-demand check: ${job.videoId}`);
+    const got = await fetchCaptions(job.videoId);
+
+    if (!got) {
+      await fetch(`${API}/api/admin/check-queue`, {
+        method: "POST", headers: auth,
+        body: JSON.stringify({ videoId: job.videoId, error: "No captions available for this video, or YouTube blocked the request." }),
+      });
+      log(`  ✗ ${job.videoId}: no captions`);
+      return;
+    }
+
+    await fetch(`${API}/api/admin/check-queue`, {
+      method: "POST", headers: auth,
+      body: JSON.stringify({ videoId: job.videoId, title: got.title, segments: got.segments }),
+      signal: AbortSignal.timeout(60_000),
+    });
+    log(`  ✓ ${job.videoId}: ${got.segments.length} segments archived — fact-checking`);
+
+    // Backfill turns the archived transcript into verified claims. Reusing it
+    // means there is exactly one implementation of that step.
+    await fetch(`${API}/api/admin/backfill`, {
+      method: "POST", headers: auth,
+      body: JSON.stringify({ videoId: job.videoId, checkClaims: true, limit: 1 }),
+      signal: AbortSignal.timeout(280_000),
+    }).catch(e => log(`  fact-check failed: ${e.message}`));
+  } catch (e) {
+    log("check queue error:", e.message);
+  }
+}
+
 /** Run the coverage pipeline; resolves when the broadcast ends. */
 function cover(url, title, minutes) {
   return new Promise((resolve) => {
@@ -139,6 +250,9 @@ while (Date.now() < deadline - RESERVE_MIN * 60_000) {
       }
       continue;
     }
+
+    // Nothing live — spend the idle poll on any queued on-demand checks.
+    await drainCheckQueue();
 
     // Periodic self-repair while idle — catches broadcasts covered by a
     // previous watcher run that retired before captions were ready.

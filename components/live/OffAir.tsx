@@ -51,25 +51,66 @@ function CheckAnyVideo() {
   const [phase, setPhase] = useState<"idle" | "pulling" | "done" | "error">("idle");
   const [msg, setMsg] = useState("");
 
+  /**
+   * Queued, not immediate. YouTube blocks caption access from the web
+   * server's every egress path, so the check runs on a GitHub Actions
+   * runner that still gets through. We enqueue, then poll.
+   *
+   * The honest tradeoff — a wait of a couple of minutes instead of a couple
+   * of seconds — is stated up front rather than discovered by staring at a
+   * spinner.
+   */
   const submit = async () => {
     if (!url.trim() || phase === "pulling") return;
-    setPhase("pulling"); setMsg("Pulling transcript…");
+    setPhase("pulling"); setMsg("Queuing this video…");
     try {
-      const r = await fetch("/api/fetch-transcript", {
+      const r = await fetch("/api/check-video", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url: url.trim() }),
       });
       const d = await r.json();
-      if (!r.ok || !d.segments?.length) {
-        setPhase("error");
-        setMsg(d.error || "No captions available for that video yet.");
+      if (d.error) { setPhase("error"); setMsg(d.error); return; }
+
+      if (d.status === "done") {
+        setPhase("done");
+        setMsg("Already on the record — opening it.");
+        setTimeout(() => { window.location.href = `/live?replay=${d.videoId}`; }, 600);
         return;
       }
-      setPhase("done");
-      setMsg(`Transcript found · ${d.segments.length} segments · opening the record`);
-      setTimeout(() => { window.location.href = `/live?url=${encodeURIComponent(url.trim())}`; }, 700);
+
+      setMsg(d.queuedBehind > 0
+        ? `Queued behind ${d.queuedBehind} other video${d.queuedBehind === 1 ? "" : "s"} — usually a few minutes.`
+        : "Queued — the checker picks this up within about two minutes.");
+
+      // Poll until the worker archives it. Capped at ~10 minutes: past that
+      // something is wrong and a spinner is a lie.
+      const started = Date.now();
+      const tick = async () => {
+        if (Date.now() - started > 10 * 60_000) {
+          setPhase("error");
+          setMsg("Still queued after 10 minutes. The checker may be busy covering a live broadcast — try again shortly.");
+          return;
+        }
+        try {
+          const s = await fetch(`/api/check-video?videoId=${d.videoId}`).then(x => x.json());
+          if (s.status === "done") {
+            setPhase("done");
+            setMsg("Done — opening the record.");
+            setTimeout(() => { window.location.href = `/live?replay=${d.videoId}`; }, 600);
+            return;
+          }
+          if (s.status === "failed") {
+            setPhase("error");
+            setMsg(s.error || "That video has no captions we can read.");
+            return;
+          }
+          if (s.status === "running") setMsg("Pulling the transcript and checking claims…");
+        } catch { /* transient — keep polling */ }
+        setTimeout(tick, 8000);
+      };
+      setTimeout(tick, 8000);
     } catch {
-      setPhase("error"); setMsg("Couldn't reach that video.");
+      setPhase("error"); setMsg("Couldn't reach the checker.");
     }
   };
 
@@ -81,6 +122,7 @@ function CheckAnyVideo() {
       </h3>
       <p style={{ fontFamily: SANS, fontSize: 12, color: C.secondary, lineHeight: 1.55, margin: "0 0 11px" }}>
         Paste a YouTube link to a speech or hearing — we&rsquo;ll pull the transcript and check every economic claim in it.
+        Checks run on our transcription worker, so allow a couple of minutes.
       </p>
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
         <input
