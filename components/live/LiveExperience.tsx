@@ -694,10 +694,16 @@ export default function LiveExperience({ autoStartReplay }: { autoStartReplay?: 
   //     (audio chunking + Deepgram + Claude) is ~8s and roughly constant.
   const LIVE_PIPELINE_DELAY_S = 8;
   const seekToClaim = useCallback((claim: Claim) => {
-    // Replays: claim.videoTime is on the VOD timeline — seek straight to it.
-    // The wall-clock-age mapping below is only meaningful at the live edge.
+    // Three different origins, one function. The wall-clock mapping below is
+    // only meaningful at the live edge; replays need the stream->video shift.
     if (isReplay) {
-      if (claim.videoTime != null && claim.videoTime > 0) seekVideo(claim.videoTime);
+      // Stored claims are stamped in STREAM time; the player runs on VIDEO
+      // time, and for a VOD that is only the tail of a longer stream the two
+      // differ by timeShift. Seeking with the raw stored number therefore
+      // landed minutes away from the quote.
+      if (claim.videoTime != null && claim.videoTime > 0) {
+        seekVideo(Math.max(0, claim.videoTime - timeShift));
+      }
       return;
     }
     if (!isDemo) {
@@ -714,7 +720,11 @@ export default function LiveExperience({ autoStartReplay }: { autoStartReplay?: 
       }
     }
     if (claim.videoTime != null && claim.videoTime > 0) seekVideo(claim.videoTime);
-  }, [isDemo, isReplay, seekVideo]);
+    // timeShift MUST be here. Without it this closure captures the initial 0
+    // and every replay seek silently ignores the stream/video offset — the
+    // fourth stale-closure bug in this file, and the reason the ESLint rule
+    // react-hooks/exhaustive-deps is worth turning on.
+  }, [isDemo, isReplay, seekVideo, timeShift]);
 
   /* ── Load config — check live-feed API first, fall back to static JSON ── */
   // Re-polled every 30s while idle: previously this ran once on mount, so a
@@ -2246,7 +2256,16 @@ export default function LiveExperience({ autoStartReplay }: { autoStartReplay?: 
               videoTime: Math.max(0, (c.videoTime ?? 0) - timeShift),
             })) : claims}
             newClaimIds={newClaimIds}
-            onSeek={seekVideo}
+            onSeek={(secs, claimId) => {
+              // A claim click resolves against the UNSHIFTED claim and goes
+              // through seekToClaim, which knows the three different origins
+              // (replay VOD / live worker clock / demo captions). Clicking a
+              // fact used to call seekVideo with the raw stored number, which
+              // is only a player position in one of those three cases.
+              const src = claimId ? claims.find(c => c.id === claimId) : null;
+              if (src) seekToClaim(src);
+              else seekVideo(secs); // timeline scrub — already in player time
+            }}
             onStop={stopSession}
             onFactCheck={manualFactCheck}
             isChecking={isManualChecking}

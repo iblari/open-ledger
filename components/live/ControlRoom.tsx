@@ -44,7 +44,14 @@ export default function ControlRoom({
   manualResult?: LiveClaimView[] | null;
   claims: ControlRoomClaim[];
   newClaimIds: Set<string>;
-  onSeek: (seconds: number) => void;
+  /**
+   * `seconds` is a position on the TIMELINE SHOWN HERE. `claimId`, when
+   * present, says the request came from clicking a claim — the parent then
+   * maps it through its own origin logic instead of trusting our number,
+   * because a live claim's videoTime is measured from when the worker
+   * started capturing, which is not a position on the viewer's player.
+   */
+  onSeek: (seconds: number, claimId?: string) => void;
   onStop: () => void;
   onFactCheck: () => void;
   isChecking: boolean;
@@ -197,7 +204,7 @@ export default function ControlRoom({
           </div>
         ) : shown.map(v => (
           <ClaimCard key={v.id} claim={v} isNew={newClaimIds.has(v.id)}
-            onSeek={c => { const src = claims.find(x => x.id === c.id); if (src?.videoTime != null) onSeek(src.videoTime); }} />
+            onSeek={c => onSeek(c.videoTime ? Number(c.videoTime) : 0, c.id)} />
         ))}
       </div>
     </div>
@@ -279,19 +286,52 @@ export default function ControlRoom({
 
   /* ── Layouts ───────────────────────────────────────────────── */
 
+  // Stop only — the check button has its own row above the feed on mobile.
+  const MobileControls = (
+    <div style={{
+      display: "flex", alignItems: "center", gap: 8, padding: "10px 14px",
+      background: L.stage, borderTop: `1px solid ${L.cardBorder}`, flexShrink: 0,
+    }}>
+      <button onClick={onStop} style={{
+        background: "transparent", border: `1px solid ${L.cardBorder}`, color: L.mutedDark2,
+        borderRadius: 6, padding: "7px 14px", fontFamily: F.ui, fontSize: 11.5, fontWeight: 600, cursor: "pointer",
+      }}>■ Stop</button>
+    </div>
+  );
+
   if (mob) {
     // Fixed vertical stack: only the feed scrolls, so the video is never
     // pushed off screen by what you're reading.
     return (
       <div style={{
-        position: "fixed", inset: 0, zIndex: 60, background: L.ink,
+        // 100dvh, not inset:0. The DYNAMIC viewport unit tracks the visible
+        // area as mobile browser chrome shows and hides; inset:0 resolves
+        // against the layout viewport, which extends underneath the toolbar
+        // and quietly hides whatever is at the bottom of the stack.
+        position: "fixed", top: 0, left: 0, right: 0,
+        height: "100dvh", maxHeight: "100dvh",
+        zIndex: 60, background: L.ink,
         display: "flex", flexDirection: "column",
       }}>
         {ContextBar}
         {Stage}
+        {/* The primary action gets its own full-width row DIRECTLY under the
+            video, not the bottom control bar. On a phone the bottom of a
+            fixed stack sits under the browser toolbar and the home
+            indicator, so "Check this moment" was there in the DOM and
+            unreachable on screen. Above the feed it cannot be pushed
+            anywhere. */}
+        <div style={{ padding: "10px 14px 0", background: L.ink, flexShrink: 0 }}>
+          <button onClick={onFactCheck} disabled={isChecking} style={{
+            width: "100%", background: L.true, border: "none", color: "#fff",
+            borderRadius: 8, padding: "13px 14px", fontFamily: F.ui,
+            fontSize: 14, fontWeight: 700, cursor: isChecking ? "default" : "pointer",
+            opacity: isChecking ? 0.6 : 1,
+          }}>{isChecking ? "Checking…" : "🔍 Check this moment"}</button>
+        </div>
         <div style={{ padding: "8px 14px 0", background: L.ink, flexShrink: 0 }}>{FilterChips}</div>
         {Feed}
-        {Controls}
+        {MobileControls}
         {RecordBar}
       </div>
     );
