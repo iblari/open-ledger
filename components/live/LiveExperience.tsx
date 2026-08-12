@@ -1649,6 +1649,17 @@ export default function LiveExperience({ autoStartReplay }: { autoStartReplay?: 
         }));
         setManualResult(results);
 
+        // Highlight is set OUTSIDE the updater. The previous version called
+        // setNewClaimIds inside the setClaims updater — a side effect in a
+        // function React is free to re-execute while rebasing state, and
+        // each re-execution scheduled ANOTHER update (a new Set every time).
+        // That's an unbounded update loop: the tab hangs, the browser kills
+        // it, and the user sees "This page couldn't load". Marking an id
+        // that turns out to be a duplicate is harmless — it just animates
+        // the existing card — so the highlight doesn't need to know the
+        // dedup outcome.
+        setNewClaimIds(new Set(results.map(c => c.id)));
+
         // Only add what the feed doesn't already hold. The record is
         // deduplicated server-side, but the panel was appending every
         // response regardless — so re-checking a passage stacked copies.
@@ -1657,7 +1668,6 @@ export default function LiveExperience({ autoStartReplay }: { autoStartReplay?: 
           const fresh = results.filter(r =>
             !prev.some(p => p.id === r.id) && !isDuplicateQuote(r.quote, existingQuotes)
           );
-          setNewClaimIds(new Set(fresh.map(c => c.id)));
           return fresh.length ? [...fresh, ...prev] : prev;
         });
       } else {
