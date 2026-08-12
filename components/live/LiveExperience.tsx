@@ -7,7 +7,7 @@ import CredibilityTimeline, { type TimelineTick } from "@/components/live/Credib
 import RunningScore from "@/components/live/RunningScore";
 import RecordSheet from "@/components/live/RecordSheet";
 import ControlRoom from "@/components/live/ControlRoom";
-import { toVerdict } from "@/lib/live-design";
+import { toVerdict, toOutcome } from "@/lib/live-design";
 
 /* ── Design Tokens (matching dashboard) ───────────────────────── */
 const T = {
