@@ -702,12 +702,17 @@ export default function LiveExperience({ autoStartReplay }: { autoStartReplay?: 
       // differ by timeShift. Seeking with the raw stored number therefore
       // landed minutes away from the quote.
       if (claim.videoTime != null && claim.videoTime > 0) {
-        // Land a breath BEFORE the quote, not on top of it. The stamp is
-        // taken when the transcript chunk is checked, i.e. at the END of the
-        // ~15s of speech that contains the quote — seeking to the stamp puts
-        // you after the words. Eight seconds of lead-in means you hear the
-        // sentence arrive, which is also what makes the alignment verifiable.
-        const LEAD_S = 8;
+        // Land WELL before the quote and let it arrive. Calibrated against
+        // the Aug 10 signing replay: with an 8s lead the quoted line was
+        // still 10–15s BEFORE the landing point — the stamp marks the end of
+        // a transcript chunk that itself trails the speech by the pipeline's
+        // assembly-and-check delay, so the words sit 20–30s ahead of the
+        // stamp, not ~15. A 30s lead puts the quote ~5–15s AFTER landing:
+        // you get a breath of context and then hear the line, which beats
+        // landing "exactly" on it and clipping the front half. Deliberately
+        // biased early — hearing 15s of lead-in is mildly slow, but landing
+        // after the quote makes the feature feel broken.
+        const LEAD_S = 30;
         seekVideo(Math.max(0, claim.videoTime - timeShift - LEAD_S));
       }
       return;
