@@ -702,7 +702,13 @@ export default function LiveExperience({ autoStartReplay }: { autoStartReplay?: 
       // differ by timeShift. Seeking with the raw stored number therefore
       // landed minutes away from the quote.
       if (claim.videoTime != null && claim.videoTime > 0) {
-        seekVideo(Math.max(0, claim.videoTime - timeShift));
+        // Land a breath BEFORE the quote, not on top of it. The stamp is
+        // taken when the transcript chunk is checked, i.e. at the END of the
+        // ~15s of speech that contains the quote — seeking to the stamp puts
+        // you after the words. Eight seconds of lead-in means you hear the
+        // sentence arrive, which is also what makes the alignment verifiable.
+        const LEAD_S = 8;
+        seekVideo(Math.max(0, claim.videoTime - timeShift - LEAD_S));
       }
       return;
     }
@@ -994,8 +1000,18 @@ export default function LiveExperience({ autoStartReplay }: { autoStartReplay?: 
       const dur = ytPlayerRef.current?.getDuration?.() ?? 0;
       if (dur > 30) {
         clearInterval(id);
+        // ANCHOR ON THE TRANSCRIPT END, not the last claim. The worker
+        // records until the stream ends, so the final transcript marker is
+        // the stream's true length; the last CLAIM can fall minutes earlier
+        // (nobody makes checkable claims during the walk-out music). On the
+        // Aug 10 signing the last claim was 50:06 but the transcript ran to
+        // 51:49 — anchoring on the claim underestimated the shift by 103s,
+        // so every fact-click landed ~1:43 after the words were spoken.
+        const lastSegment = replaySegments.length
+          ? replaySegments[replaySegments.length - 1].t : 0;
         const maxClaim = Math.max(0, ...claims.map(c => c.videoTime ?? 0));
-        const over = maxClaim - dur;
+        const streamEnd = Math.max(lastSegment, maxClaim);
+        const over = streamEnd - dur;
         // Only correct a real overshoot; a minute of slack is normal drift.
         setTimeShift(over > 60 ? Math.round(over) : 0);
       } else if (++tries > 25) {
@@ -1003,7 +1019,7 @@ export default function LiveExperience({ autoStartReplay }: { autoStartReplay?: 
       }
     }, 400);
     return () => clearInterval(id);
-  }, [isReplay, isPlaying, claims]);
+  }, [isReplay, isPlaying, claims, replaySegments]);
 
   /* ── Caption clock — drives the word-synced transcript strip ── */
   // 300ms tick while captions are loaded: fast enough that the highlighted

@@ -246,12 +246,18 @@ export default function ControlRoom({
   const Stage = (
     <>
       <div style={{
-        position: "relative", width: "100%", aspectRatio: "16/9", background: "#000",
+        position: "relative", aspectRatio: "16/9", background: "#000",
         flexShrink: 0,
-        // Spec reference is a 226px video on a 402x874 phone. Capping by
-        // viewport height keeps the feed usable on short screens instead of
-        // letting a 16:9 box eat everything above the fold.
-        maxHeight: mob ? "min(30vh, 240px)" : undefined,
+        // The stage must NEVER be allowed to be taller than the column,
+        // because the column sits in an overflow:hidden grid — whatever the
+        // video pushes past the bottom simply ceases to exist. On desktop a
+        // full-width 16:9 in a wide window is taller than the viewport, so
+        // Stop and "Check this moment" were clipped clean off; the same bug
+        // as mobile, one layer up. Width is derived FROM the height cap
+        // (h × 16/9) so the box stays true 16:9 instead of letterboxing.
+        maxHeight: mob ? "min(30vh, 240px)" : "min(52vh, 620px)",
+        width: mob ? "100%" : "min(100%, calc(min(52vh, 620px) * 16 / 9))",
+        margin: mob ? undefined : "0 auto",
       }}>
         {videoSlot}
         {/* Live caption overlaid at the bottom of the video (spec: the words
