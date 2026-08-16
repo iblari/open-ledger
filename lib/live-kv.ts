@@ -426,6 +426,14 @@ export async function getRecentBroadcasts(): Promise<RecentBroadcast[]> {
 /** Archive an ended broadcast (deduped by videoId — a re-covered stream
  *  replaces its earlier entry, merging claims). Prunes >72h entries. */
 export async function archiveBroadcast(b: RecentBroadcast): Promise<void> {
+  // Record it permanently FIRST. The block below is a 72-hour cache that
+  // prunes on every write; if this call came after it, a broadcast could be
+  // pruned before it was ever recorded. Failure here must not block the
+  // replay write, so it is caught rather than awaited into the happy path.
+  recordInLedger(b).catch(e =>
+    console.error("[ledger] failed to record", b.videoId, (e as Error).message)
+  );
+
   // Cap the transcript to its final ~120K chars (~3h of speech) so a single
   // marathon session can't blow up the recent-broadcasts KV entry.
   if (b.transcript && b.transcript.length > 120_000) {
@@ -724,4 +732,137 @@ export async function finishCheck(
   if (result.claimCount != null) job.claimCount = result.claimCount;
   if (result.error) job.error = result.error;
   await writeJob(job);
+}
+
+// ── Permanent broadcast ledger ─────────────────────────────────────
+/**
+ * The 72-hour store above is a REPLAY CACHE, not a record. It prunes on
+ * every write, so a broadcast is gone three days after it airs — transcript,
+ * claims, verdicts, all of it. That is correct for replay (transcripts are
+ * heavy) and catastrophic for history: every broadcast covered before this
+ * shipped has already been destroyed.
+ *
+ * This is the record. One small row per broadcast — no transcript, just what
+ * you would want to count later: who, when, how long, and the verdict mix.
+ * A row is well under 1KB, so a year of daily coverage is a few megabytes.
+ *
+ * Append-only by design. Re-covering the same videoId updates its row rather
+ * than adding a second, and nothing here is ever pruned by age.
+ */
+const LEDGER_KEY = "live:ledger";
+
+export interface LedgerEntry {
+  videoId: string;
+  title: string;
+  /** Best-effort speaker from the title. Null when it can't be read — a
+   *  wrong attribution is worse than an absent one on this product. */
+  speaker: string | null;
+  channel: string;
+  startedAt: string;
+  endedAt: string;
+  durationSec: number;
+  /** Verdict counts. `unscored` covers projections and unaudited claims,
+   *  which deliberately don't count toward accuracy. */
+  counts: {
+    total: number;
+    true: number;
+    misleading: number;
+    false: number;
+    unverifiable: number;
+    unconfirmed: number;
+    projection: number;
+  };
+  /** Claims kept WITHOUT transcript context: quote, verdict, figures, source. */
+  claims: {
+    quote: string; rating: string; actual?: string;
+    videoTime?: number; sources?: { title: string; url: string }[];
+  }[];
+  recordedAt: string;
+}
+
+/**
+ * Read a speaker out of a broadcast title.
+ *
+ * Deliberately conservative. "President Trump Delivers Remarks" is
+ * unambiguous; a Cabinet meeting has eight people making claims and no title
+ * can tell you which said what. Returning null there is the honest answer —
+ * real per-speaker attribution needs diarization at ingest, which would only
+ * apply to future broadcasts anyway.
+ */
+export function speakerFromTitle(title: string): string | null {
+  const t = (title || "").replace(/\s+/g, " ").trim();
+  if (!t) return null;
+  // Multi-speaker formats: no single attribution is defensible.
+  if (/\b(cabinet meeting|roundtable|hearing|panel|committee|press briefing|briefing room|joint|summit)\b/i.test(t)) return null;
+
+  // ONE name token after the role. Allowing an optional second token made
+  // the match swallow the verb — "President Trump Delivers Remarks" came
+  // back as "President Trump Delivers". Two-word surnames are rare enough
+  // that missing them beats inventing a name from a verb.
+  const named = t.match(/\b(Vice President|Attorney General|President|Secretary|Governor|Senator|Speaker)\s+([A-Z][a-zA-Z.'-]+)/);
+  if (!named) return null;
+  // Guard anyway: a title like "President Delivers Remarks" would otherwise
+  // attribute the speech to someone called "Delivers".
+  const VERBS = /^(Delivers?|Signs?|Holds?|Speaks?|Announces?|Meets?|Visits?|Hosts?|Addresses|Participates?|Attends?|Remarks?|Departs?|Arrives?)$/i;
+  if (VERBS.test(named[2])) return null;
+  return `${named[1]} ${named[2]}`.trim();
+}
+
+export async function getLedger(): Promise<LedgerEntry[]> {
+  const raw = hasUpstash()
+    ? ((await upstashCmd("GET", LEDGER_KEY)) as string | null)
+    : mem.get(LEDGER_KEY);
+  if (!raw) return [];
+  try { const p = JSON.parse(raw); return Array.isArray(p) ? p : []; } catch { return []; }
+}
+
+async function setLedger(list: LedgerEntry[]): Promise<void> {
+  const json = JSON.stringify(list);
+  if (hasUpstash()) await upstashCmd("SET", LEDGER_KEY, json);
+  else mem.set(LEDGER_KEY, json);
+}
+
+/** Record (or update) one broadcast in the permanent ledger. */
+export async function recordInLedger(b: RecentBroadcast): Promise<LedgerEntry> {
+  const counts = {
+    total: b.claims.length, true: 0, misleading: 0, false: 0,
+    unverifiable: 0, unconfirmed: 0, projection: 0,
+  };
+  for (const c of b.claims) {
+    const r = (c.rating || "").toUpperCase();
+    if (r === "TRUE" || r === "MOSTLY TRUE") counts.true++;
+    else if (r === "MISLEADING") counts.misleading++;
+    else if (r === "FALSE") counts.false++;
+    else if (r === "UNCONFIRMED") counts.unconfirmed++;
+    else if (r === "PROJECTION") counts.projection++;
+    else counts.unverifiable++;
+  }
+
+  const start = Date.parse(b.startedAt), end = Date.parse(b.endedAt);
+  const entry: LedgerEntry = {
+    videoId: b.videoId,
+    title: b.title,
+    speaker: speakerFromTitle(b.title),
+    channel: b.source || "unknown",
+    startedAt: b.startedAt,
+    endedAt: b.endedAt,
+    durationSec: Number.isFinite(start) && Number.isFinite(end) ? Math.max(0, Math.round((end - start) / 1000)) : 0,
+    counts,
+    claims: b.claims.map(c => ({
+      quote: c.quote,
+      rating: c.rating,
+      actual: c.actual,
+      videoTime: c.videoTime,
+      sources: (c as { sources?: { title: string; url: string }[] }).sources,
+    })),
+    recordedAt: new Date().toISOString(),
+  };
+
+  const all = await getLedger();
+  const i = all.findIndex(x => x.videoId === entry.videoId);
+  // Re-coverage updates in place; a broadcast is one row forever.
+  if (i >= 0) all[i] = { ...entry, recordedAt: all[i].recordedAt };
+  else all.unshift(entry);
+  await setLedger(all);
+  return entry;
 }
