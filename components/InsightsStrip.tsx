@@ -37,6 +37,21 @@ interface Props {
 // Small accent colors per insight kind. Used as a 4px left bar on each card
 // — a visual hint of the kind without needing an icon library. Picked from
 // the existing palette so nothing clashes with the editorial language.
+/**
+ * Direction, not judgment.
+ *
+ * Two hues that read as "moved up" and "moved down" without either being the
+ * good one. Red and green are deliberately absent: whether a falling saving
+ * rate is healthy spending or households running down their buffers is
+ * contested, and asserting an answer in colour is exactly the editorial call
+ * this site leaves to the reader. Direction is a fact; valence is an opinion.
+ */
+const DIR_COLOR = { up: "#0d7377", down: "#4A6E8A" } as const;
+
+/** One resolver, so rule / arrow / headline / hover can't drift apart. */
+const tint = (i: { direction?: "up" | "down"; kind: InsightKind }) =>
+  i.direction ? DIR_COLOR[i.direction] : KIND_COLOR[i.kind];
+
 const KIND_COLOR: Record<InsightKind, string> = {
   extreme_high:    EC.improveStrong, // record value (teal — neutral "noteworthy")
   extreme_low:     EC.improveStrong,
@@ -160,14 +175,14 @@ export function InsightsStrip({ limit = 3, mob, eyebrow }: Props) {
               display: "block",
               background: EC.card,
               border: `1px solid ${EC.rule}`,
-              borderLeft: `3px solid ${KIND_COLOR[i.kind]}`,
+              borderLeft: `3px solid ${tint(i)}`,
               borderRadius: 4,
               padding: mob ? "12px 14px" : "14px 16px",
               textDecoration: "none", color: "inherit",
               transition: "all 0.15s",
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.borderColor = KIND_COLOR[i.kind]; e.currentTarget.style.borderLeftColor = KIND_COLOR[i.kind]; }}
-            onMouseLeave={(e) => { e.currentTarget.style.borderColor = EC.rule; e.currentTarget.style.borderLeftColor = KIND_COLOR[i.kind]; }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = tint(i); e.currentTarget.style.borderLeftColor = tint(i); }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = EC.rule; e.currentTarget.style.borderLeftColor = tint(i); }}
           >
             {/* Eyebrow row: metric label + arrow */}
             <div style={{
@@ -177,7 +192,7 @@ export function InsightsStrip({ limit = 3, mob, eyebrow }: Props) {
               color: EC.mute, marginBottom: 6,
             }}>
               <span>{i.metricLabel}{i.admin ? ` · ${adminName(i.admin)}` : ""}</span>
-              <span style={{ color: KIND_COLOR[i.kind], fontSize: 12 }}>→</span>
+              <span style={{ color: tint(i), fontSize: 12 }}>→</span>
             </div>
             {/* Headline */}
             {/* The change is the only thing that differs between these
@@ -186,7 +201,7 @@ export function InsightsStrip({ limit = 3, mob, eyebrow }: Props) {
                 size and they all scanned identically. */}
             <div style={{
               fontFamily: ESERIF, fontSize: mob ? 19 : 22, fontWeight: 600,
-              color: KIND_COLOR[i.kind], lineHeight: 1.15, letterSpacing: "-0.02em",
+              color: tint(i), lineHeight: 1.15, letterSpacing: "-0.02em",
               marginBottom: 5,
             }}>
               {i.headline}

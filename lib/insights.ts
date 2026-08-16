@@ -48,6 +48,16 @@ export interface Insight {
   admin: AdminId | null;
   /** What kind of observation this is. */
   kind: InsightKind;
+  /**
+   * Which way the number moved — NOT whether that is good.
+   *
+   * The site takes no position on whether a falling saving rate is healthy
+   * spending or households running down their buffers; economists disagree,
+   * and asserting either with a red or green card would be the editorial
+   * judgment this product exists to avoid. Direction is a fact, so it is
+   * safe to encode. Valence is an opinion, so it is not.
+   */
+  direction?: "up" | "down";
   /** Editorial headline, ~6-10 words. Templated, no LLM. */
   headline: string;
   /** One-line context (~12-18 words) that explains the headline. */
