@@ -206,41 +206,105 @@ function detectMonthOfTermRank(key: string, m: LiveMetric): Insight | null {
   };
 }
 
-/** Latest value vs the entire current-admin series — is this a new high/low
- *  for this presidency? (e.g. "Inflation at 2.1% — lowest of Trump II's term.") */
-function detectTermExtreme(key: string, m: LiveMetric): Insight | null {
+/**
+ * Is this metric TRENDING, and how hard?
+ *
+ * This replaces a term-extremum detector ("Debt-to-GDP at term high:
+ * 122.6%"). The trouble with an extremum test is that in a monotonic series
+ * it is true every single month by construction — real wages had not risen
+ * once this term, so "at term low" was guaranteed the moment the metric was
+ * picked. The panel reported the DIRECTION of a trend and presented it as
+ * news, and said the same three things month after month.
+ *
+ * Scored the same way as /today, so "notable" means one thing across the
+ * site: 45% magnitude, 35% persistence, 20% acceleration.
+ *
+ * UNITS MATTER HERE. A percent change on a RATE is a rate of a rate, and it
+ * explodes near zero — GDP growth going -0.6% to 1.5% computes as "+350%",
+ * which is arithmetically true and communicates nothing. Rates move in
+ * percentage points; levels move in percent.
+ */
+const RATE_UNITS = new Set(["%"]);
+
+function detectTrend(key: string, m: LiveMetric): Insight | null {
   const latest = getLatest(m);
-  if (!latest || latest.admin.data.length < 4) return null;
-  const arr = latest.admin.data;
-  const cur = arr[arr.length - 1];
-  const prior = arr.slice(0, -1).map(p => p.value);
-  if (cur.value >= Math.max(...prior)) {
-    const dateLabel = fmtMonthLabel(latest.admin.id, cur.month);
-    return {
-      id: `${key}:term_high`,
-      metricKey: key as never, metricLabel: m.label,
-      year: monthToDate(latest.admin.id, cur.month).getFullYear(),
-      admin: toAdminId(latest.admin.id),
-      kind: "extreme_high",
-      headline: `${m.label} at term high: ${fmtVal(cur.value, m.unit)}`,
-      context: `As of ${dateLabel} — the highest level of ${latest.admin.name}'s term so far.`,
-      score: m.lowerBetter ? 65 : 50, // bad-news high is more interesting
-    };
+  if (!latest) return null;
+  const pts = latest.admin.data.filter(p => p && Number.isFinite(p.value));
+  // Six points is the floor for saying anything about persistence.
+  if (pts.length < 6) return null;
+
+  const v = pts.map(p => p.value);
+  const first = v[0], last = v[v.length - 1];
+  const delta = last - first;
+  if (delta === 0) return null;
+
+  const isRate = RATE_UNITS.has(m.unit);
+  // A series that is negative, or crosses zero, cannot use percent change
+  // either. Nonfarm payrolls went -48K to -23K: arithmetically "+52.1%", but
+  // that reads as growth when the real story is "still shrinking, less
+  // fast". Trade balance has the same shape. Report the absolute move.
+  const spansZero = Math.min(...v) <= 0 && Math.max(...v) >= 0;
+  const signFlipRisk = first <= 0 || spansZero;
+
+  let magnitude: number, changeLabel: string;
+  if (isRate) {
+    // 3 percentage points is a large move for a rate.
+    magnitude = Math.min(1, Math.abs(delta) / 3);
+    changeLabel = `${delta > 0 ? "+" : "−"}${Math.abs(delta).toFixed(1)} pts`;
+  } else if (signFlipRisk) {
+    // Scale against the series' own spread — the only reference available
+    // when there is no meaningful base to divide by.
+    const spread = Math.max(...v) - Math.min(...v) || 1;
+    magnitude = Math.min(1, Math.abs(delta) / spread);
+    changeLabel = `${delta > 0 ? "+" : "−"}${fmtVal(Math.abs(delta), m.unit)}`;
+  } else {
+    if (first === 0) return null;
+    const pct = (delta / Math.abs(first)) * 100;
+    magnitude = Math.min(1, Math.abs(pct) / 40);
+    changeLabel = `${pct > 0 ? "+" : "−"}${Math.abs(pct).toFixed(1)}%`;
   }
-  if (cur.value <= Math.min(...prior)) {
-    const dateLabel = fmtMonthLabel(latest.admin.id, cur.month);
-    return {
-      id: `${key}:term_low`,
-      metricKey: key as never, metricLabel: m.label,
-      year: monthToDate(latest.admin.id, cur.month).getFullYear(),
-      admin: toAdminId(latest.admin.id),
-      kind: "extreme_low",
-      headline: `${m.label} at term low: ${fmtVal(cur.value, m.unit)}`,
-      context: `As of ${dateLabel} — the lowest level of ${latest.admin.name}'s term so far.`,
-      score: m.lowerBetter ? 55 : 65,
-    };
-  }
-  return null;
+
+  // Persistence: of the months that MOVED, how many moved with the trend?
+  //
+  // Flat steps are excluded from the denominator, because several series
+  // here are quarterly interpolated to monthly — two of every three steps
+  // are flat by construction. Counting those as "failed to follow the
+  // trend" scored debt-to-GDP at 21% persistence when it had in fact risen
+  // in every quarter that moved. That is measuring the interpolation, not
+  // the economy.
+  const moves = v.slice(1).map((x, i) => x - v[i]).filter(d => d !== 0);
+  if (moves.length < 3) return null;
+  const withTrend = moves.filter(d => d * delta > 0).length;
+  const persistence = withTrend / moves.length;
+
+  // Acceleration: is the second half moving faster than the first?
+  const h = Math.floor(v.length / 2);
+  const early = Math.abs(v[h] - v[0]) / Math.max(1, h);
+  const late = Math.abs(v[v.length - 1] - v[h]) / Math.max(1, v.length - 1 - h);
+  const accelerating = late > early;
+
+  const score = 100 * (0.45 * magnitude + 0.35 * persistence + 0.20 * (accelerating ? 1 : 0));
+  if (score < 30) return null;
+
+  const cur = pts[pts.length - 1];
+  const dateLabel = fmtMonthLabel(latest.admin.id, cur.month);
+  const dir = delta > 0 ? "Rose" : "Fell";
+  const worse = m.lowerBetter ? delta > 0 : delta < 0;
+
+  return {
+    id: `${key}:trend`,
+    metricKey: key as never,
+    metricLabel: m.label,
+    year: monthToDate(latest.admin.id, cur.month).getFullYear(),
+    admin: toAdminId(latest.admin.id),
+    kind: worse ? "extreme_high" : "extreme_low",
+    headline: `${m.label} ${changeLabel} this term`,
+    // Says something NEW each month: persistence and acceleration both move.
+    // "of the months that moved", not "of months" — flat steps are excluded
+    // from the denominator, so the looser phrasing would overstate it.
+    context: `${fmtVal(first, m.unit)} → ${fmtVal(last, m.unit)} · ${dir.toLowerCase()} in ${Math.round(persistence * 100)}% of the months it moved${accelerating ? ", and faster lately" : ""} · through ${dateLabel}`,
+    score,
+  };
 }
 
 // ── Public API ────────────────────────────────────────────────────
@@ -255,7 +319,7 @@ export function generateLiveInsights(
   const candidates: Insight[] = [];
   for (const [key, m] of Object.entries(payload.metrics)) {
     for (const detector of [
-      detectTermExtreme,
+      detectTrend,
       detectMonthOfTermRank,
       detectMonthlyChange,
       detectLatestPrint,
