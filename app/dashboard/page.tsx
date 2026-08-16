@@ -906,7 +906,9 @@ function App(){
   const [gc,setGc]=useState(["us","china","india","uk"]);
   const [cf,setCf]=useState("all");
   const [openFacts,setOpenFacts]=useState(false);
-  const [mobileView,setMobileView]=useState<"table"|"cards">("cards");
+  // Fixed to "cards" — the toggle is gone, but the flag stays because the
+  // card-building effect below keys off it.
+  const [mobileView]=useState<"table"|"cards">("cards");
   const [selectedPres,setSelectedPres]=useState("clinton");
   const [scenarioMetric,setScenarioMetric]=useState("gdp");
   const [activeScenario,setActiveScenario]=useState<ScenarioId>("no_covid");
@@ -1313,15 +1315,11 @@ function App(){
 
             {/* Mobile view toggle */}
             {mob && (
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-                <div style={{display:"flex",border:`1px solid ${T.rule}`,borderRadius:6,overflow:"hidden"}}>
-                  {[["cards","Cards"],["table","Table"]].map(([v,l])=>(
-                    <button key={v} onClick={()=>setMobileView(v as "table"|"cards")} style={{
-                      padding:"8px 14px",border:"none",background:mobileView===v?T.accent:T.card,
-                      color:mobileView===v?"#fff":T.sub,fontSize:12,fontWeight:600,fontFamily:"'DM Sans',sans-serif"
-                    }}>{l}</button>
-                  ))}
-                </div>
+              <div style={{display:"flex",justifyContent:"flex-end",alignItems:"center",marginBottom:16}}>
+                {/* Cards/Table toggle removed: a six-column administration
+                    table on a 393px screen scrolls sideways and is
+                    unreadable, so the toggle only offered a worse view of the
+                    same numbers. Cards are the mobile view. */}
                 {mobileView==="cards" && (
                   <select 
                     value={selectedPres} 
