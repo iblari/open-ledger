@@ -1,5 +1,6 @@
 "use client";
 import { useState, useMemo, useEffect, useRef, Suspense } from "react";
+import ShareRow from "@/components/ShareRow";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { BarChart, Bar, LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell as RechartsCell } from "recharts";
@@ -1867,6 +1868,14 @@ function App(){
             <span style={{fontSize:14,lineHeight:1}}>↳</span>
             <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,lineHeight:1.6,color:"#78716c"}}><strong style={{color:T.ink}}>Context: </strong>{m.ctx}</div>
           </div>
+
+          {/* Share this metric. The link carries the metric key so a
+              recipient opens the same chart, not the dashboard default. */}
+          <ShareRow
+            url={`https://voteunbiased.org/dashboard?tab=data&metric=${am}`}
+            text={`${m.l} — Vote Unbiased`}
+            tone={{ rule: T.rule, mute: T.mute, sub: T.sub, accent: T.accent, ok: EC.improveStrong, sans: "'DM Sans',sans-serif" }}
+          />
 
           {/* Facts */}
           {m.facts?.length>0&&<div style={{borderLeft:`2px solid ${T.accent}`,marginTop:10,paddingLeft:16}}>
