@@ -1619,6 +1619,9 @@ export default function LiveExperience({ autoStartReplay }: { autoStartReplay?: 
     try {
       const res = await fetch("/api/live-fact-check", {
         method: "POST",
+        // Bounded so a stalled request can't leave the button spinning
+        // forever with no explanation.
+        signal: AbortSignal.timeout(120_000),
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           text: recentText,
@@ -1632,14 +1635,29 @@ export default function LiveExperience({ autoStartReplay }: { autoStartReplay?: 
           videoTime: Math.round(streamTime),
         }),
       });
-      const data = await res.json();
+      // A killed serverless function returns an HTML error page, not JSON.
+      // Parsing that threw, and the throw was swallowed into a generic
+      // catch — which is how a press became a silent no-op.
+      let data: {
+        claims?: Claim[]; error?: string; detail?: string;
+        cached?: boolean; skipped?: string;
+      } = {};
+      try {
+        data = await res.json();
+      } catch {
+        throw new Error(
+          res.ok
+            ? "The checker returned something we couldn't read."
+            : `The checker timed out (${res.status}). This passage needed more verification than the request allowed.`
+        );
+      }
       // The route answers from the record when this moment was already
       // checked (cached:true) — say so rather than silently repeating.
       setManualNote(data.cached ? "Already on the record — no new check needed." : null);
       
 
-      if (data.claims?.length > 0) {
-        const results: Claim[] = data.claims.map((c: Claim) => ({
+      if ((data.claims?.length ?? 0) > 0) {
+        const results: Claim[] = data.claims!.map((c: Claim) => ({
           ...c,
           // Stream time, to match how the feed and timeline stamp everything
           // else. Using the raw player clock here put the card at a different

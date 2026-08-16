@@ -11,7 +11,7 @@ await page.goto("https://voteunbiased.org/live", { waitUntil: "domcontentloaded"
 await page.waitForTimeout(4000);
 
 // open the archived broadcast like a user would
-const row = page.locator("text=Executive Order").first();
+const row = page.locator("text=Delivers Remarks").first();
 console.log("archive row visible:", await row.isVisible().catch(() => false));
 await row.click({ timeout: 5000 }).catch(e => console.log("row click failed:", e.message.slice(0,100)));
 

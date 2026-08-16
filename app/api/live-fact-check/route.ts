@@ -13,6 +13,23 @@ import { appendClaimsToBroadcast, claimsNearTime, appendLiveClaims } from "@/lib
  * The prompt, model call, parsing, and ground-truth verification all live in
  * lib/fact-check — shared with /api/admin/ingest so the two paths can't drift.
  */
+/**
+ * THE FUNCTION MUST BE ALLOWED TO FINISH.
+ *
+ * This route had no maxDuration, so it ran on Vercel's ~10-15s default while
+ * doing work that routinely takes far longer: claim extraction (a Haiku
+ * call) plus tier-3 web verification, which allows up to 8 claims at a 25s
+ * search timeout each. Fast paths — a cache hit, or a chunk with no claims —
+ * returned inside the limit and worked. Slow paths were killed mid-flight,
+ * the client got a platform error page instead of JSON, and the press
+ * appeared to do nothing.
+ *
+ * That is exactly the "works sometimes" pattern: the outcome depended on how
+ * much verification the passage happened to need. The admin routes doing the
+ * same work already set 300.
+ */
+export const maxDuration = 300;
+
 export async function POST(req: Request) {
   let body: { text?: string; context?: string; recentQuotes?: string[]; videoId?: string; videoTime?: number };
   try {

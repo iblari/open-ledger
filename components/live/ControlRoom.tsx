@@ -292,6 +292,41 @@ export default function ControlRoom({
 
   /* ── Layouts ───────────────────────────────────────────────── */
 
+  /**
+   * The manual-check result, for the mobile stack.
+   *
+   * This block only ever existed in the desktop branch, which returns AFTER
+   * the mobile one — so on a phone, pressing "Check this moment" produced
+   * literally nothing visible. The request fired, the answer came back, and
+   * it had nowhere to render. That is the "sometimes I click and nothing
+   * happens" report.
+   *
+   * It sits directly under the button rather than in the feed, so the answer
+   * appears where the thumb just was, and it always renders SOMETHING once
+   * pressed — including "no claim found" — because a silent no-op is
+   * indistinguishable from a broken button.
+   */
+  const MobileManualResult = (isChecking || (manualResult && manualResult.length > 0)) ? (
+    <div style={{
+      padding: "10px 14px 0", background: L.ink, flexShrink: 0,
+      maxHeight: "38vh", overflowY: "auto",
+    }}>
+      {isChecking ? (
+        <div style={{ fontFamily: F.ui, fontSize: 12.5, color: L.mutedDark2, padding: "6px 0" }}>
+          Checking what was just said against the data…
+        </div>
+      ) : (
+        <>
+          <div style={{
+            fontFamily: F.ui, fontSize: 9.5, fontWeight: 700, letterSpacing: "0.16em",
+            textTransform: "uppercase", color: L.mutedDark, margin: "2px 0 8px",
+          }}>You checked this moment</div>
+          {manualResult!.map(c => <ClaimCard key={c.id} claim={c} />)}
+        </>
+      )}
+    </div>
+  ) : null;
+
   // Stop only — the check button has its own row above the feed on mobile.
   const MobileControls = (
     <div style={{
@@ -335,6 +370,7 @@ export default function ControlRoom({
             opacity: isChecking ? 0.6 : 1,
           }}>{isChecking ? "Checking…" : "🔍 Check this moment"}</button>
         </div>
+        {MobileManualResult}
         <div style={{ padding: "8px 14px 0", background: L.ink, flexShrink: 0 }}>{FilterChips}</div>
         {Feed}
         {MobileControls}
