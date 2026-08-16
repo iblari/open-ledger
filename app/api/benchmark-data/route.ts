@@ -39,7 +39,13 @@ const FRED_SERIES: Record<string, string> = {
   PAYEMS:            'PAYEMS',            // Nonfarm payrolls thousands, monthly, from 1939
   MANEMP:            'MANEMP',            // Manufacturing employment thousands, monthly, from 1939
   FEDFUNDS:          'FEDFUNDS',          // Federal funds rate %, monthly, from 1954
-  CSCICP03USM665S:   'CSCICP03USM665S',   // Consumer confidence, monthly, from 1960
+  // OECD's CSCICP03USM665S was DISCONTINUED — its last observation is
+  // 2024-01-01. The whole of Trump II falls after that cutoff, which is why
+  // the Consumer Confidence chart rendered as flat dead lines with nothing
+  // for the current administration. UMCSENT (University of Michigan) runs
+  // to last month and back to 1952, covering MORE administrations than the
+  // series it replaces.
+  UMCSENT:           'UMCSENT',            // Consumer sentiment, monthly, from 1952
   GFDEGDQ188S:       'GFDEGDQ188S',       // Debt-to-GDP %, quarterly, from 1966
   GASREGCOVM:        'GASREGCOVM',        // Gas price $/gal, monthly, from 1990
   LES1252881600Q:    'LES1252881600Q',    // Median weekly earnings $, quarterly, from 1979
@@ -77,7 +83,7 @@ const METRICS: MetricDef[] = [
   { key: 'debt_gdp', label: 'Debt-to-GDP', short: 'D/GDP', unit: '%', lowerBetter: true, cat: 'fiscal', transform: 'quarterly', fredKey: 'GFDEGDQ188S' },
   { key: 'trade', label: 'Trade Balance', short: 'Trade', unit: 'B', lowerBetter: false, cat: 'fiscal', transform: 'trade_billions', fredKey: 'BOPGSTB' },
   // Sentiment
-  { key: 'consumer_conf', label: 'Consumer Confidence', short: 'Conf', unit: '', lowerBetter: false, cat: 'sentiment', transform: 'direct', fredKey: 'CSCICP03USM665S' },
+  { key: 'consumer_conf', label: 'Consumer Sentiment', short: 'Sent', unit: '', lowerBetter: false, cat: 'sentiment', transform: 'direct', fredKey: 'UMCSENT' },
 ];
 
 const CATS: Record<string, string> = {
