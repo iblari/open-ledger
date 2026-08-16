@@ -48,9 +48,16 @@ export async function POST(req: Request) {
   }
 
   // Cheap regex pre-filter: chunks with no economic content skip the model
-  // call entirely. In a typical speech that's most chunks — this is the
-  // single biggest latency/cost lever in the pipeline.
-  if (!likelyHasEconomicClaim(text)) {
+  // call entirely. In a typical speech that's most chunks — the single
+  // biggest latency/cost lever in the AUTOMATIC pipeline.
+  //
+  // It must NOT gate a manual check. Someone pressing "check this moment"
+  // has explicitly asked, and silently answering "nothing here" because a
+  // keyword regex didn't match is why the button felt broken — press it five
+  // times, and the fifth window happens to contain a "%" so it "suddenly
+  // works". One Haiku call is the right price for an explicit request.
+  const isManual = /manually requested/i.test(context || "");
+  if (!isManual && !likelyHasEconomicClaim(text)) {
     return NextResponse.json({ claims: [], skipped: "no-economic-content" });
   }
 

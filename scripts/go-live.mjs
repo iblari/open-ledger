@@ -409,13 +409,31 @@ function currentVideoTime(nowMs) {
   return Math.floor((nowMs - startTime) / 1000); // fallback: worker-relative
 }
 
+// Words carried from the end of one chunk into the start of the next.
+//
+// Chunks used to be DISJOINT: the buffer was emptied on every send. A claim
+// straddling a boundary was therefore cut in half — "unemployment is down
+// to" in one chunk, "4.1 percent, the lowest since" in the next — and
+// neither fragment survives the economic pre-filter or gives the extractor a
+// checkable sentence. At a 15-second cadence that is a blind spot every
+// fifteen seconds, roughly 240 of them in an hour-long broadcast, which is
+// why claims were being "skipped" during live coverage.
+//
+// An overlap costs one thing: the same claim can be detected twice, once in
+// each chunk. That is already handled — dedupeClaims runs on ingest and
+// appendClaimsToBroadcast dedupes again on write, both with the containment
+// rule that catches a claim transcribed at two different lengths.
+const CHUNK_OVERLAP_WORDS = 30;
+
 function ingestBufferedChunk(force = false) {
   const now = Date.now();
   if (!force && now - lastIngestTime < INGEST_INTERVAL) return;
   if (transcriptBuffer.trim().length < 30) return;
   lastIngestTime = now;
   const chunk = transcriptBuffer.trim();
-  transcriptBuffer = "";
+  // Keep the tail so the next chunk starts mid-sentence rather than after it.
+  const tail = chunk.split(/\s+/).slice(-CHUNK_OVERLAP_WORDS).join(" ");
+  transcriptBuffer = force ? "" : " " + tail;
   const videoTime = currentVideoTime(now);
   adminCall("/api/admin/ingest", { text: chunk, videoTime })
     .then((resp) => {

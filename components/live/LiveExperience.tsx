@@ -1587,17 +1587,21 @@ export default function LiveExperience({ autoStartReplay }: { autoStartReplay?: 
     // last ~15s of speech — use it directly.
     let recentText: string;
     if (realCaptions && realCaptions.length > 0) {
-      recentText = wordsInWindow(15);
-      if (recentText.length < 30) recentText = wordsInWindow(30);
+      // 75 seconds, not 15. "This moment" to a viewer means the passage they
+      // just heard, not the last breath — and a 15-second slice of political
+      // speech usually contains no checkable number at all, so the check came
+      // back empty and the button looked dead. Widen, then widen again.
+      recentText = wordsInWindow(75);
+      if (recentText.length < 60) recentText = wordsInWindow(150);
     } else if (isReplay && replaySegments.length > 0) {
       // Replay: fact-check what was said just before the current playhead.
       const upTo = replaySegments.filter(sg => sg.t <= streamTime + 2);
       const pool = upTo.length ? upTo : replaySegments;
-      recentText = pool.map(sg => sg.text).join(" ").split(" ").slice(-60).join(" ").trim();
+      recentText = pool.map(sg => sg.text).join(" ").split(" ").slice(-220).join(" ").trim();
     } else if (isReplay && replayTranscript) {
-      recentText = replayTranscript.replace(/\[\d+:\d\d\]/g, " ").split(/\s+/).slice(-60).join(" ").trim();
+      recentText = replayTranscript.replace(/\[\d+:\d\d\]/g, " ").split(/\s+/).slice(-220).join(" ").trim();
     } else {
-      recentText = liveTranscript.split(" ").slice(-50).join(" ").trim();
+      recentText = liveTranscript.split(" ").slice(-220).join(" ").trim();
     }
 
     if (recentText.length < 20) {
@@ -1676,7 +1680,9 @@ export default function LiveExperience({ autoStartReplay }: { autoStartReplay?: 
           ? (data.error === "ANTHROPIC_API_KEY not configured"
             ? "API key not configured — add ANTHROPIC_API_KEY to Vercel env vars."
             : data.error)
-          : "No verifiable economic claims detected in this section of the speech.";
+          : data.skipped === "no-economic-content"
+            ? "Nothing with a number in it was said in the last minute or so."
+            : "We read the last ~75 seconds and found no claim with a figure we can check.";
         setManualResult([{
           quote: recentText.slice(0, 100) + (recentText.length > 100 ? "..." : ""),
           rating: "UNVERIFIABLE",

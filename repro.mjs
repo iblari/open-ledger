@@ -8,7 +8,7 @@ page.on("pageerror", e => events.push(`PAGEERROR: ${String(e).slice(0,250)}`));
 page.on("crash", () => events.push("!!! PAGE CRASHED !!!"));
 
 await page.goto("https://voteunbiased.org/live", { waitUntil: "domcontentloaded" });
-await page.waitForTimeout(5000);
+await page.waitForTimeout(4000);
 
 // open the archived broadcast like a user would
 const row = page.locator("text=Executive Order").first();
@@ -16,8 +16,8 @@ console.log("archive row visible:", await row.isVisible().catch(() => false));
 await row.click({ timeout: 5000 }).catch(e => console.log("row click failed:", e.message.slice(0,100)));
 
 let sawBtn = false;
-for (let i = 0; i < 14; i++) {
-  await page.waitForTimeout(2500);
+for (let i = 0; i < 6; i++) {
+  await page.waitForTimeout(1800);
   if (await page.locator("text=Check this moment").first().isVisible().catch(() => false)) {
     console.log(`check button appeared after ~${(i+1)*2.5}s`); sawBtn = true; break;
   }
@@ -25,8 +25,8 @@ for (let i = 0; i < 14; i++) {
 if (sawBtn) {
   await page.locator("text=Check this moment").first().click();
   console.log("CLICKED check-this-moment");
-  for (let i = 0; i < 14; i++) {
-    await page.waitForTimeout(2500).catch(() => {});
+  for (let i = 0; i < 6; i++) {
+    await page.waitForTimeout(1800).catch(() => {});
     if (page.isClosed()) { events.push("page closed"); break; }
     const alive = await page.evaluate(() => 1).then(() => true).catch(() => false);
     if (!alive) { events.push(`RENDERER UNRESPONSIVE/GONE after ~${(i+1)*2.5}s`); break; }
