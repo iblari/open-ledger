@@ -274,13 +274,23 @@ function Hero({ mob, med }: { mob: boolean; med: boolean }) {
 
           {/* Stats */}
           <div style={{
-            display: "grid", gridTemplateColumns: mob ? "1fr 1fr" : "repeat(4, 1fr)",
+            display: "grid", gridTemplateColumns: mob ? "1fr 1fr" : "repeat(3, 1fr)",
             marginTop: 48, paddingTop: 28, borderTop: `1px solid ${C.rule}`, gap: mob ? 16 : 24,
           }}>
-            {[{ n: "19", l: "Economic metrics" }, { n: "4", l: "Active conflicts tracked" }, { n: "5", l: "Administrations" }, { n: "32", l: "Years of data", suffix: "yrs" }].map((s, i) => (
+            {/* "Active conflicts tracked" removed — a defence stat sat oddly
+                among three economic ones, and it was the only figure here
+                nobody was maintaining.
+
+                The rest gain a "+": these are floors, not exact counts. The
+                metric count in particular moved from 14 to 20 on the
+                benchmark today without anyone editing this line, which is
+                precisely why a bare number here goes stale silently. */}
+            {[{ n: 19, l: "Economic metrics" }, { n: 5, l: "Administrations" }, { n: 32, l: "Years of data", suffix: "yrs" }].map((s, i) => (
               <div key={i}>
                 <div style={{ fontFamily: SERIF, fontSize: mob ? 28 : 40, lineHeight: 1, letterSpacing: "-0.025em", fontVariantNumeric: "tabular-nums" }}>
-                  {s.suffix ? <>{s.n}<span style={{ color: C.mute }}>{s.suffix}</span></> : s.n}
+                  <CountUp to={s.n} />
+                  {s.suffix && <span style={{ color: C.mute }}>{s.suffix}</span>}
+                  <span style={{ color: C.mute }}>+</span>
                 </div>
                 <div style={{ marginTop: 8, fontSize: 11, color: C.sub, letterSpacing: "0.09em", textTransform: "uppercase", fontWeight: 500 }}>{s.l}</div>
               </div>
@@ -294,6 +304,56 @@ function Hero({ mob, med }: { mob: boolean; med: boolean }) {
       </div>
     </header>
   );
+}
+
+/**
+ * Counts a stat up when it first scrolls into view.
+ *
+ * Deliberately restrained: it runs ONCE, on entry, and only for figures that
+ * are round headline counts. Animating a real measurement would be worse
+ * than static — a number sliding past values it never held reads as data
+ * changing, which on this site it must not.
+ *
+ * Honours prefers-reduced-motion by rendering the final value immediately.
+ * An IntersectionObserver is used rather than a mount timer so the count is
+ * actually seen rather than finishing above the fold before anyone scrolls.
+ */
+function CountUp({ to, ms = 900 }: { to: number; ms?: number }) {
+  const ref = useRef<HTMLSpanElement | null>(null);
+  const [n, setN] = useState(0);
+  const done = useRef(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const reduce = typeof window !== "undefined"
+      && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) { setN(to); return; }
+
+    const io = new IntersectionObserver((entries) => {
+      if (!entries[0].isIntersecting || done.current) return;
+      done.current = true;
+      io.disconnect();
+      const t0 = performance.now();
+      let raf = 0;
+      const step = (t: number) => {
+        const p = Math.min(1, (t - t0) / ms);
+        // Ease out — fast start, settle at the end, so it reads as landing
+        // on the number rather than ticking up to it.
+        setN(Math.round(to * (1 - Math.pow(1 - p, 3))));
+        if (p < 1) raf = requestAnimationFrame(step);
+      };
+      raf = requestAnimationFrame(step);
+      return () => cancelAnimationFrame(raf);
+    }, { threshold: 0.4 });
+
+    io.observe(el);
+    return () => io.disconnect();
+  }, [to, ms]);
+
+  // The final value is in the DOM for assistive tech and for search engines
+  // regardless of whether the animation ever runs.
+  return <span ref={ref} aria-label={String(to)}>{n}</span>;
 }
 
 /* ── Scorecard Heatmap ── */
