@@ -138,11 +138,27 @@ export default function ControlRoom({
         color: "#F2EEE9", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
       }}>{title}</span>
       <span style={{ fontFamily: F.mono, fontSize: 12, color: L.mutedDark2, flexShrink: 0 }}>{stamp(elapsed)}</span>
+      {/* Stop lives here now. As its own full-width bar it cost ~46px of a
+          phone screen to expose an action people use once, at the end. */}
+      {mob && (
+        <button onClick={onStop} aria-label="Stop" style={{
+          background: "transparent", border: `1px solid ${L.cardBorder}`, color: L.mutedDark2,
+          borderRadius: 6, padding: "3px 9px", marginLeft: 8, fontFamily: F.ui,
+          fontSize: 11, fontWeight: 600, cursor: "pointer", flexShrink: 0,
+        }}>■</button>
+      )}
     </div>
   );
 
   const FilterChips = (
-    <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+    // One row that scrolls sideways on mobile instead of wrapping to two.
+    // Seven verdict chips wrapped into a second line and cost ~55px of feed.
+    <div style={{
+      display: "flex", gap: 5,
+      flexWrap: mob ? "nowrap" : "wrap",
+      overflowX: mob ? "auto" : undefined,
+      scrollbarWidth: "none",
+    }}>
       {(([
         ["all", `ALL ${views.length}`],
         ["false", `FALSE ${counts.false}`],
@@ -264,7 +280,9 @@ export default function ControlRoom({
         // Stop and "Check this moment" were clipped clean off; the same bug
         // as mobile, one layer up. Width is derived FROM the height cap
         // (h × 16/9) so the box stays true 16:9 instead of letterboxing.
-        maxHeight: mob ? "min(30vh, 240px)" : "min(52vh, 620px)",
+        // 30vh -> 25vh. Every point given back here goes straight to the
+        // feed, which was down to roughly one and a half visible cards.
+        maxHeight: mob ? "min(25vh, 210px)" : "min(52vh, 620px)",
         width: mob ? "100%" : "min(100%, calc(min(52vh, 620px) * 16 / 9))",
         margin: mob ? undefined : "0 auto",
       }}>
@@ -303,7 +321,7 @@ export default function ControlRoom({
           : Math.max(elapsed, ...ticks.map(t => t.at), 60)}
         onSeek={onSeek} />
       <RunningScore trueCount={counts.true} misleadingCount={counts.misleading}
-        falseCount={counts.false} unverifiableCount={unscored} />
+        falseCount={counts.false} unverifiableCount={unscored} mob={mob} />
     </>
   );
 
@@ -344,19 +362,6 @@ export default function ControlRoom({
     </div>
   ) : null;
 
-  // Stop only — the check button has its own row above the feed on mobile.
-  const MobileControls = (
-    <div style={{
-      display: "flex", alignItems: "center", gap: 8, padding: "10px 14px",
-      background: L.stage, borderTop: `1px solid ${L.cardBorder}`, flexShrink: 0,
-    }}>
-      <button onClick={onStop} style={{
-        background: "transparent", border: `1px solid ${L.cardBorder}`, color: L.mutedDark2,
-        borderRadius: 6, padding: "7px 14px", fontFamily: F.ui, fontSize: 11.5, fontWeight: 600, cursor: "pointer",
-      }}>■ Stop</button>
-    </div>
-  );
-
   if (mob) {
     // Fixed vertical stack: only the feed scrolls, so the video is never
     // pushed off screen by what you're reading.
@@ -382,15 +387,14 @@ export default function ControlRoom({
         <div style={{ padding: "10px 14px 0", background: L.ink, flexShrink: 0 }}>
           <button onClick={onFactCheck} disabled={isChecking} style={{
             width: "100%", background: L.true, border: "none", color: "#fff",
-            borderRadius: 8, padding: "13px 14px", fontFamily: F.ui,
-            fontSize: 14, fontWeight: 700, cursor: isChecking ? "default" : "pointer",
+            borderRadius: 8, padding: "9px 14px", fontFamily: F.ui,
+            fontSize: 13.5, fontWeight: 700, cursor: isChecking ? "default" : "pointer",
             opacity: isChecking ? 0.6 : 1,
           }}>{isChecking ? "Checking…" : "🔍 Check this moment"}</button>
         </div>
         {MobileManualResult}
         <div style={{ padding: "8px 14px 0", background: L.ink, flexShrink: 0 }}>{FilterChips}</div>
         {Feed}
-        {MobileControls}
         {RecordBar}
       </div>
     );

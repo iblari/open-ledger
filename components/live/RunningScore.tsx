@@ -15,8 +15,8 @@
 import { L, F } from "@/lib/live-design";
 
 export default function RunningScore({
-  trueCount, misleadingCount, falseCount, unverifiableCount,
-}: { trueCount: number; misleadingCount: number; falseCount: number; unverifiableCount: number }) {
+  trueCount, misleadingCount, falseCount, unverifiableCount, mob = false,
+}: { trueCount: number; misleadingCount: number; falseCount: number; unverifiableCount: number; mob?: boolean }) {
   const checked = trueCount + misleadingCount + falseCount;
   const pct = checked > 0 ? Math.round((trueCount / checked) * 100) : null;
 
@@ -31,12 +31,15 @@ export default function RunningScore({
 
   return (
     <div style={{
-      background: L.ink, padding: "14px 18px 16px",
+      // On a phone this block was ~190px of a ~640px usable column — more
+      // than the fact feed it sits above. Everything shrinks; nothing is
+      // removed, because the score is the headline number.
+      background: L.ink, padding: mob ? "8px 14px 9px" : "14px 18px 16px",
       borderBottom: `1px solid ${L.cardBorder}`,
-      display: "flex", alignItems: "center", gap: 18,
+      display: "flex", alignItems: "center", gap: mob ? 11 : 18,
     }}>
       <span style={{
-        fontFamily: F.display, fontSize: 38, fontWeight: 600, lineHeight: 1,
+        fontFamily: F.display, fontSize: mob ? 25 : 38, fontWeight: 600, lineHeight: 1,
         color: "#F2EEE9", flexShrink: 0, letterSpacing: "-0.02em",
       }}>
         {pct !== null ? `${pct}%` : "—"}
