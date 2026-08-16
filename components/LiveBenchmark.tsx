@@ -38,6 +38,50 @@ const META: Record<string, {
   bench: { good: string; target: string; warn: string; why: string };
   facts: { t: string; x: string }[];
 }> = {
+  // ── Metrics added Aug 2026. Without a META entry the explainer panel
+  // renders empty, so a new series must always arrive with its definition.
+  saving: {
+    label: "Saving Rate", sub: "% of disposable income",
+    def: "Personal saving as a share of disposable personal income, from the BEA. What households have left after spending, taxes and interest.",
+    bench: { good: "5–8%", target: "The post-1960 average is about 8%", warn: "Below 4% means households have little buffer for a shock", why: "A falling rate is genuinely ambiguous. It can mean confident households spending more, or households under cost pressure drawing down savings to keep up. Read it alongside real wages and consumer sentiment before concluding which." },
+    ctx: "Revised often, and sharply — pandemic-era readings were restated by several points.",
+    facts: [{ t: "It spiked to 32% in April 2020", x: "Stimulus arrived while spending was impossible. That distortion still skews long-run averages." }],
+  },
+  core_cpi: {
+    label: "Core Inflation (YoY)", sub: "% change, ex food & energy",
+    def: "CPI excluding food and energy, year over year. Strips the two most volatile components to show the underlying price trend.",
+    bench: { good: "About 2%", target: "The Fed targets 2% (on PCE, which runs a little below CPI)", warn: "Above 4% sustained", why: "Food and energy swing on weather and geopolitics, so headline CPI can move sharply without the trend changing. Core is what central banks actually steer by." },
+    ctx: "Politicians quote headline or core depending on which is lower. Comparing both is the point of having them side by side.",
+    facts: [{ t: "Core moves more slowly", x: "It reacts later than headline in both directions, so it can still be falling after headline has turned." }],
+  },
+  mortgage: {
+    label: "Mortgage Rate (30y)", sub: "% average fixed rate",
+    def: "Freddie Mac's weekly average for a 30-year fixed-rate mortgage. The headline cost of financing a home.",
+    bench: { good: "Below 5%", target: "The 1971–2024 average is around 7.7%", warn: "Above 7% prices out many first-time buyers", why: "Mortgage rates track the 10-year Treasury more than the Fed funds rate, so they can move well before or against a Fed decision." },
+    ctx: "Weekly, so it is the most current series on this page.",
+    facts: [{ t: "It peaked above 18% in 1981", x: "Today's rates look high against the 2020s, not against the historical record." }],
+  },
+  housing_starts: {
+    label: "Housing Starts", sub: "Thousands of units, annualized",
+    def: "New privately-owned housing units on which construction began, from the Census Bureau, at a seasonally adjusted annual rate.",
+    bench: { good: "1.4–1.6M", target: "Roughly 1.5M a year keeps pace with household formation", warn: "Below 1M signals a construction slowdown", why: "Starts lead the housing supply by a year or more, so today's number is about affordability in 2027, not now." },
+    ctx: "Volatile month to month and revised routinely. The trend matters, single prints do not.",
+    facts: [{ t: "Starts collapsed after 2008", x: "They did not return to 1.5M until 2021, which is a large part of the current shortage." }],
+  },
+  openings: {
+    label: "Job Openings", sub: "Millions of unfilled roles",
+    def: "Unfilled positions on the last business day of the month, from the BLS JOLTS survey.",
+    bench: { good: "Openings roughly equal to unemployed people", target: "A ratio near 1.0 is a balanced labour market", warn: "Well below 1.0 means workers competing for jobs", why: "Openings against unemployed workers is a tighter read on labour-market slack than the unemployment rate alone." },
+    ctx: "The series only starts in December 2000, so it covers Bush 43 onward.",
+    facts: [{ t: "It hit 12M in March 2022", x: "Nearly two openings per unemployed worker — the tightest labour market on record for this series." }],
+  },
+  retail: {
+    label: "Retail Sales", sub: "$B per month",
+    def: "Advance monthly retail and food services sales from the Census Bureau, seasonally adjusted.",
+    bench: { good: "Steady growth above inflation", target: "Real growth means sales rising faster than prices", warn: "Falling in nominal terms signals contracting demand", why: "This is a NOMINAL figure — it rises with inflation even when people buy less. Compare it against CPI before reading growth as strength." },
+    ctx: "Consumption is about 70% of GDP, so retail sales lead the growth numbers.",
+    facts: [{ t: "Not adjusted for inflation", x: "In a high-inflation year sales can set records while real volumes fall." }],
+  },
   gdp_growth: {
     label: "GDP Growth", sub: "Quarterly Annualized %",
     def: "(GDP this quarter − GDP last quarter) / GDP last quarter × 100, annualized. Measures how fast the economy expanded or contracted.",
@@ -1221,35 +1265,37 @@ export default function LiveBenchmark() {
           </div>
         )}
 
-        {/* ── Methodology callout (DESKTOP — mobile folds it into About) ── */}
-        {!mob && <div style={{
+        {/* ── What this metric is (DESKTOP) ──
+             Replaces a fixed "How this works" block plus a hardcoded list of
+             five excluded metrics. Both said the same thing on every tab, and
+             the exclusion list had gone stale — it still claimed five metrics
+             were missing after six were added. This changes with the tab, so
+             it earns its space. */}
+        {!mob && META[metric] && <div style={{
           background: EC.paper, border: `1px solid ${EC.rule}`, borderLeft: `3px solid ${EC.accent}`,
-          borderRadius: 4, padding: "14px 18px", marginBottom: 16,
+          borderRadius: 4, padding: "14px 18px", marginBottom: 20,
         }}>
-          <div style={{ fontFamily: ESERIF, fontSize: 13, fontWeight: 600, color: EC.ink, marginBottom: 4 }}>
-            How this works
+          <div style={{ fontFamily: ESERIF, fontSize: 14, fontWeight: 600, color: EC.ink, marginBottom: 6 }}>
+            What is {META[metric].label.toLowerCase()}?
           </div>
-          <div style={{ fontFamily: ESANS, fontSize: 12, lineHeight: 1.7, color: EC.sub }}>
-            Every administration is aligned to month 0 (inauguration day). So you&apos;re comparing Trump month {currentMonth} to Obama month {currentMonth} to Reagan month {currentMonth} — not calendar years. This isolates the trajectory of each presidency from the conditions they inherited. Data is pulled live from FRED. GDP and debt-to-GDP are quarterly (interpolated to monthly). CPI inflation and wage growth are year-over-year % changes. Some metrics (gas, trade, wages) don&apos;t go back to Nixon — those charts show fewer administrations.
+          <div style={{ fontFamily: ESANS, fontSize: 12.5, lineHeight: 1.7, color: EC.sub, marginBottom: 10 }}>
+            {META[metric].def}
           </div>
-        </div>}
-
-        {/* ── Not included (DESKTOP) ── */}
-        {!mob && <div style={{
-          background: EC.card, border: `1px solid ${EC.rule}`, borderLeft: `3px solid ${EC.mute}`,
-          borderRadius: 4, padding: "12px 16px", marginBottom: 20,
-        }}>
+          <div style={{ fontFamily: ESANS, fontSize: 12.5, lineHeight: 1.7, color: EC.sub, marginBottom: 10 }}>
+            <strong style={{ color: EC.ink, fontWeight: 600 }}>How to read it: </strong>
+            {META[metric].bench.why}
+          </div>
+          {META[metric].facts?.[0] && (
+            <div style={{ fontFamily: ESANS, fontSize: 12, lineHeight: 1.65, color: EC.mute, fontStyle: "italic" }}>
+              {META[metric].facts[0].t} — {META[metric].facts[0].x}
+            </div>
+          )}
           <div style={{
-            fontFamily: ESANS, fontSize: 11, fontWeight: 700, color: EC.mute,
-            marginBottom: 4, letterSpacing: 1, textTransform: "uppercase",
+            fontFamily: ESANS, fontSize: 11, color: EC.mute, lineHeight: 1.6,
+            marginTop: 11, paddingTop: 9, borderTop: `1px solid ${EC.rule}`,
           }}>
-            Not included in benchmark
-          </div>
-          <div style={{ fontFamily: ESANS, fontSize: 12, color: EC.sub, lineHeight: 1.6 }}>
-            5 metrics from the main dashboard aren&apos;t available for month-aligned comparison:{" "}
-            <strong>Median Income</strong> and <strong>Budget Deficit</strong> (annual data only),{" "}
-            <strong>S&amp;P 500</strong> (FRED data too recent), <strong>Poverty Rate</strong> and{" "}
-            <strong>Inequality</strong> (not on FRED monthly). See the Data tab for those.
+            Every administration is aligned to month 0, so this compares month {currentMonth} to
+            month {currentMonth} — not calendar years.
           </div>
         </div>}
 
