@@ -1239,36 +1239,36 @@ export default function LiveBenchmark() {
           </div>
         )}
 
-        {/* ── Share card (DESKTOP) ── */}
+        {/* ── Share row (DESKTOP) ──
+             Was a full card: uppercase header, a button row, and the tweet
+             text echoed in its own tinted panel — about 150px to expose
+             three buttons. The preview said nothing the chart above it
+             hadn't just said, so it is now a title attribute on the post
+             link instead of a block of duplicated prose. */}
         {!mob && stats && md && (
           <div style={{
-            background: EC.card, border: `1px solid ${EC.rule}`, borderRadius: 4,
-            padding: "16px 20px", marginBottom: 20,
+            display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
+            padding: "10px 0 14px", marginBottom: 16,
+            borderBottom: `1px solid ${EC.rule}`,
           }}>
-            <div style={{
-              fontFamily: ESANS, fontSize: 10, fontWeight: 700, letterSpacing: 1.5,
-              textTransform: "uppercase", color: EC.mute, marginBottom: 12,
+            <span style={{
+              fontFamily: ESANS, fontSize: 10, fontWeight: 700, letterSpacing: 1.2,
+              textTransform: "uppercase", color: EC.mute, marginRight: 2,
             }}>
-              Share this benchmark
-            </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
-              <button onClick={handleDownload} style={shareBtnStyle(false)}>↓ Download PNG</button>
-              <button onClick={handleCopyImage} style={shareBtnStyle(false)}>⎘ Copy image</button>
-              <a href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}`}
-                 target="_blank" rel="noopener noreferrer" style={shareBtnStyle(true)}>
-                𝕏 Post
-              </a>
-            </div>
+              Share
+            </span>
+            <button onClick={handleDownload} style={shareBtnStyle(false)}>↓ PNG</button>
+            <button onClick={handleCopyImage} style={shareBtnStyle(false)}>⎘ Copy</button>
+            <a href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}`}
+               target="_blank" rel="noopener noreferrer" title={tweetText}
+               style={shareBtnStyle(true)}>
+              𝕏 Post
+            </a>
             {shareStatus && (
-              <div style={{ fontFamily: ESANS, fontSize: 12, color: EC.improveStrong, fontWeight: 600, marginBottom: 8 }}>
+              <span style={{ fontFamily: ESANS, fontSize: 11.5, color: EC.improveStrong, fontWeight: 600 }}>
                 {shareStatus}
-              </div>
+              </span>
             )}
-            <div style={{ background: EC.paper, borderRadius: 4, padding: "10px 14px" }}>
-              <div style={{ fontFamily: ESANS, fontSize: 11, color: EC.sub, lineHeight: 1.6, whiteSpace: "pre-line" }}>
-                {tweetText}
-              </div>
-            </div>
           </div>
         )}
 
