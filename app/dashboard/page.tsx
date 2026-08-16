@@ -925,6 +925,13 @@ function App(){
   useEffect(() => {
     const m = searchParams.get("metric");
     if (m && M[m]) { setAm(m); setDetail(m); }
+    // Scenarios are shared as a PAIR — the counterfactual and the metric
+    // it's charted on. Restoring only one opens a different chart than the
+    // sender was looking at, which is the failure mode a share link is most
+    // prone to: it appears to have worked.
+    const sc = searchParams.get("scenario");
+    if (sc && SCENARIOS[sc as ScenarioId]) setActiveScenario(sc as ScenarioId);
+    if (m && M[m]) setScenarioMetric(m);
     const t = searchParams.get("tab");
     // TABS_DESKTOP is the source of truth for valid tab keys. Previously this
     // line referenced an undefined `TABS`, which threw ReferenceError every
@@ -2598,6 +2605,17 @@ function App(){
           <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:T.mute}}>
             Source: All baseline data from BEA, BLS, Treasury, Census. Scenario values are mechanically derived via OLS trend extrapolation.
           </div>
+
+          {/* The link carries BOTH the scenario and the metric — a scenario
+              is the pair, so sending only one reproduces a different chart.
+              The share text names it as a counterfactual: these are modelled
+              values, and a bare number from here could be mistaken for a
+              measurement once it leaves the page. */}
+          <ShareRow
+            url={`https://voteunbiased.org/dashboard?tab=scenarios&scenario=${activeScenario}&metric=${scenarioMetric}`}
+            text={`What if: ${SCENARIOS[activeScenario].label} — modelled ${(M[scenarioMetric]?.l || scenarioMetric)} counterfactual, Vote Unbiased`}
+            tone={{ rule: T.rule, mute: T.mute, sub: T.sub, accent: T.accent, ok: EC.improveStrong, sans: "'DM Sans',sans-serif" }}
+          />
         </div>)}
 
         {/* ═══ HEAD TO HEAD ═══ */}
