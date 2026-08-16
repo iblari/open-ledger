@@ -56,6 +56,7 @@ const FRED_SERIES: Record<string, string> = {
   JTSJOL:            'JTSJOL',            // Job openings, thousands, monthly, from 2000
   RSAFS:             'RSAFS',             // Retail sales, $M, monthly, from 1992
   PSAVERT:           'PSAVERT',           // Personal saving rate %, monthly, from 1959
+  UNEMPLOY:          'UNEMPLOY',          // Unemployment LEVEL (thousands), monthly, from 1948
   GFDEGDQ188S:       'GFDEGDQ188S',       // Debt-to-GDP %, quarterly, from 1966
   GASREGCOVM:        'GASREGCOVM',        // Gas price $/gal, monthly, from 1990
   LES1252881600Q:    'LES1252881600Q',    // Median weekly earnings $, quarterly, from 1979
@@ -70,8 +71,10 @@ interface MetricDef {
   unit: string;
   lowerBetter: boolean;
   cat: string;
-  transform: 'direct' | 'cpi_yoy' | 'quarterly' | 'gdp_trillions' | 'payroll_change' | 'mfg_millions' | 'wage_yoy' | 'trade_billions' | 'purchasing' | 'retail_billions';
+  transform: 'direct' | 'cpi_yoy' | 'quarterly' | 'gdp_trillions' | 'payroll_change' | 'mfg_millions' | 'wage_yoy' | 'trade_billions' | 'purchasing' | 'retail_billions' | 'ratio';
   fredKey: string;
+  /** Second series, for metrics that are a RATIO of two series. */
+  divisorKey?: string;
 }
 
 const METRICS: MetricDef[] = [
@@ -99,6 +102,11 @@ const METRICS: MetricDef[] = [
   { key: 'housing_starts', label: 'Housing Starts', short: 'Starts', unit: 'K', lowerBetter: false, cat: 'growth', transform: 'direct', fredKey: 'HOUST' },
   { key: 'retail', label: 'Retail Sales', short: 'Retail', unit: 'B', lowerBetter: false, cat: 'growth', transform: 'retail_billions', fredKey: 'RSAFS' },
   { key: 'openings', label: 'Job Openings', short: 'Open', unit: 'M', lowerBetter: false, cat: 'labor', transform: 'mfg_millions', fredKey: 'JTSJOL' },
+  // Openings PER UNEMPLOYED WORKER (the V/U ratio). Openings alone rise with
+  // the size of the labour force, so the level says little about tightness —
+  // 7M openings means something very different against 6M unemployed than
+  // against 15M. Economists read this ratio, not the raw count.
+  { key: 'openings_per_worker', label: 'Openings per Job Seeker', short: 'V/U', unit: 'x', lowerBetter: false, cat: 'labor', transform: 'ratio', fredKey: 'JTSJOL', divisorKey: 'UNEMPLOY' },
   { key: 'saving', label: 'Saving Rate', short: 'Save', unit: '%', lowerBetter: false, cat: 'fiscal', transform: 'direct', fredKey: 'PSAVERT' },
   // Sentiment
   { key: 'consumer_conf', label: 'Consumer Sentiment', short: 'Sent', unit: '', lowerBetter: false, cat: 'sentiment', transform: 'direct', fredKey: 'UMCSENT' },
@@ -316,6 +324,23 @@ export async function GET() {
         case 'trade_billions':
           transformed = toBillions(raw);
           break;
+        case 'ratio': {
+          // Align on year+month: both series are monthly but their first
+          // observations differ, so index-pairing would silently offset one
+          // against the other and produce a plausible, wrong curve.
+          const den = parsedMap[m.divisorKey || ''] || [];
+          const byMonth = new Map<string, number>();
+          for (const d of den) {
+            byMonth.set(`${d.date.getUTCFullYear()}-${d.date.getUTCMonth()}`, d.value);
+          }
+          transformed = raw
+            .map(n => {
+              const v = byMonth.get(`${n.date.getUTCFullYear()}-${n.date.getUTCMonth()}`);
+              return v && v !== 0 ? { date: n.date, value: n.value / v } : null;
+            })
+            .filter((x): x is { date: Date; value: number } => x !== null);
+          break;
+        }
         case 'retail_billions':
           // RSAFS is reported in MILLIONS of dollars; every other headline
           // figure on this page is billions or trillions, so leaving it raw

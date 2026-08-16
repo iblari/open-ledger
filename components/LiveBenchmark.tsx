@@ -68,6 +68,13 @@ const META: Record<string, {
     ctx: "Volatile month to month and revised routinely. The trend matters, single prints do not.",
     facts: [{ t: "Starts collapsed after 2008", x: "They did not return to 1.5M until 2021, which is a large part of the current shortage." }],
   },
+  openings_per_worker: {
+    label: "Openings per Job Seeker", sub: "Unfilled roles ÷ unemployed people",
+    def: "JOLTS job openings divided by the number of unemployed workers. How many vacancies exist for each person looking for work.",
+    bench: { good: "Around 1.0", target: "1.0 means roughly one opening per job seeker", warn: "Below 0.5 means two job seekers per opening", why: "This is the measure of labour-market tightness economists actually use. The raw openings count rises with the size of the workforce, so 7M openings means something very different against 6M unemployed than against 15M — the ratio controls for that." },
+    ctx: "Starts December 2000, so it covers Bush 43 onward.",
+    facts: [{ t: "It fell below 0.2 in 2009", x: "Five job seekers per opening at the depth of the financial crisis, against roughly two openings each in 2022." }],
+  },
   openings: {
     label: "Job Openings", sub: "Millions of unfilled roles",
     def: "Unfilled positions on the last business day of the month, from the BLS JOLTS survey.",
