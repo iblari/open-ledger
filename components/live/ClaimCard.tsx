@@ -102,6 +102,9 @@ export default function ClaimCard({
 
   return (
     <article
+      // Addressable so a manual check can scroll its result into view now
+      // that it lands in the feed rather than a panel of its own.
+      id={`vu-claim-${claim.id}`}
       onClick={() => hasDetail && setOpen(o => !o)}
       style={{
         background: L.card, border: `1px solid ${L.cardBorder}`, borderRadius: 12,

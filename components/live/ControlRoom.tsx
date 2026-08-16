@@ -77,6 +77,19 @@ export default function ControlRoom({
     prevCount.current = claims.length;
   }, [claims.length]);
 
+  // Bring a freshly-checked claim into view. The feed sorts newest-first by
+  // TIMECODE, so a check made at 26:45 lands mid-list, not at the top —
+  // without this the press would look like it did nothing.
+  useEffect(() => {
+    if (!newClaimIds.size) return;
+    const id = [...newClaimIds][0];
+    const t = setTimeout(() => {
+      document.getElementById(`vu-claim-${id}`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 80);
+    return () => clearTimeout(t);
+  }, [newClaimIds]);
+
   const views: LiveClaimView[] = claims.map(c => ({
     id: c.id,
     verdict: toOutcome(c.rating),
@@ -329,40 +342,14 @@ export default function ControlRoom({
   /* ── Layouts ───────────────────────────────────────────────── */
 
   /**
-   * The manual-check result, for the mobile stack.
+   * A manual check no longer gets its own panel on mobile.
    *
-   * This block only ever existed in the desktop branch, which returns AFTER
-   * the mobile one — so on a phone, pressing "Check this moment" produced
-   * literally nothing visible. The request fired, the answer came back, and
-   * it had nowhere to render. That is the "sometimes I click and nothing
-   * happens" report.
-   *
-   * It sits directly under the button rather than in the feed, so the answer
-   * appears where the thumb just was, and it always renders SOMETHING once
-   * pressed — including "no claim found" — because a silent no-op is
-   * indistinguishable from a broken button.
+   * Its claims are already added to `claims`, so a separate block rendered
+   * the same card twice and pushed the feed further down the screen. The
+   * result now lands in the feed like any other claim; the effect below
+   * scrolls it into view so pressing the button still visibly does
+   * something.
    */
-  const MobileManualResult = (isChecking || (manualResult && manualResult.length > 0)) ? (
-    <div style={{
-      padding: "10px 14px 0", background: L.ink, flexShrink: 0,
-      maxHeight: "38vh", overflowY: "auto",
-    }}>
-      {isChecking ? (
-        <div style={{ fontFamily: F.ui, fontSize: 12.5, color: L.mutedDark2, padding: "6px 0" }}>
-          Checking what was just said against the data…
-        </div>
-      ) : (
-        <>
-          <div style={{
-            fontFamily: F.ui, fontSize: 9.5, fontWeight: 700, letterSpacing: "0.16em",
-            textTransform: "uppercase", color: L.mutedDark, margin: "2px 0 8px",
-          }}>You checked this moment</div>
-          {manualResult!.map(c => <ClaimCard key={c.id} claim={c} compact />)}
-        </>
-      )}
-    </div>
-  ) : null;
-
   if (mob) {
     // Fixed vertical stack: only the feed scrolls, so the video is never
     // pushed off screen by what you're reading.
@@ -399,7 +386,6 @@ export default function ControlRoom({
             figures and the padding can all give a little without losing
             anything. Done in CSS so ClaimCard needs no new prop and desktop
             is provably untouched. */}
-        {MobileManualResult}
         <div style={{ padding: "8px 14px 0", background: L.ink, flexShrink: 0 }}>{FilterChips}</div>
         {Feed}
         {RecordBar}

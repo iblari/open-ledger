@@ -34,12 +34,12 @@ export default function RunningScore({
       // On a phone this block was ~190px of a ~640px usable column — more
       // than the fact feed it sits above. Everything shrinks; nothing is
       // removed, because the score is the headline number.
-      background: L.ink, padding: mob ? "8px 14px 9px" : "14px 18px 16px",
+      background: L.ink, padding: mob ? "6px 14px 7px" : "14px 18px 16px",
       borderBottom: `1px solid ${L.cardBorder}`,
       display: "flex", alignItems: "center", gap: mob ? 11 : 18,
     }}>
       <span style={{
-        fontFamily: F.display, fontSize: mob ? 25 : 38, fontWeight: 600, lineHeight: 1,
+        fontFamily: F.display, fontSize: mob ? 22 : 38, fontWeight: 600, lineHeight: 1,
         color: "#F2EEE9", flexShrink: 0, letterSpacing: "-0.02em",
       }}>
         {pct !== null ? `${pct}%` : "—"}
@@ -47,15 +47,15 @@ export default function RunningScore({
 
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{
-          display: "flex", height: 9, borderRadius: 5, overflow: "hidden",
-          background: "#2A2420", marginBottom: 9,
+          display: "flex", height: mob ? 6 : 9, borderRadius: 5, overflow: "hidden",
+          background: "#2A2420", marginBottom: mob ? 5 : 9,
         }}>
           {checked > 0
             ? [seg(trueCount, L.true, "true"), seg(misleadingCount, L.misleading, "misleading"), seg(falseCount, L.false, "false")]
             : null}
         </div>
 
-        <div style={{ display: "flex", gap: 18, flexWrap: "wrap", alignItems: "baseline" }}>
+        <div style={{ display: "flex", gap: mob ? 11 : 18, flexWrap: "wrap", alignItems: "baseline" }}>
           {counts.filter(([n]) => n > 0).map(([n, label]) => (
             <span key={label} style={{ display: "inline-flex", gap: 6, alignItems: "baseline" }}>
               <span style={{ fontFamily: F.display, fontSize: 15, fontWeight: 600, color: "#F2EEE9" }}>{n}</span>
@@ -70,7 +70,9 @@ export default function RunningScore({
           )}
           {unverifiableCount > 0 && (
             <span style={{ fontFamily: F.ui, fontSize: 10.5, letterSpacing: "0.06em", color: L.mutedDark }}>
-              +{unverifiableCount} not scored · forecasts &amp; unaudited claims
+              {/* On a phone the explanatory tail wrapped onto its own line,
+                  costing ~30px to restate what the legend already implies. */}
+              +{unverifiableCount} not scored{mob ? "" : " · forecasts & unaudited claims"}
             </span>
           )}
         </div>
