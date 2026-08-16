@@ -180,10 +180,14 @@ export function InsightsStrip({ limit = 3, mob, eyebrow }: Props) {
               <span style={{ color: KIND_COLOR[i.kind], fontSize: 12 }}>→</span>
             </div>
             {/* Headline */}
+            {/* The change is the only thing that differs between these
+                cards, so it carries the weight and the direction colour.
+                Previously every card was one flat serif line at the same
+                size and they all scanned identically. */}
             <div style={{
-              fontFamily: ESERIF, fontSize: mob ? 15 : 16, fontWeight: 500,
-              color: EC.ink, lineHeight: 1.25, letterSpacing: "-0.01em",
-              marginBottom: 4,
+              fontFamily: ESERIF, fontSize: mob ? 19 : 22, fontWeight: 600,
+              color: KIND_COLOR[i.kind], lineHeight: 1.15, letterSpacing: "-0.02em",
+              marginBottom: 5,
             }}>
               {i.headline}
             </div>
