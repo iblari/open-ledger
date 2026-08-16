@@ -1320,22 +1320,29 @@ function App(){
               {/* Data tab intro paragraph removed per design — headline only. */}
             </div>
 
-            {/* Mobile view toggle */}
+            {/* Administration picker.
+                Once the Cards/Table toggle went, this was left right-aligned
+                against a wide empty gap — a control with nothing to balance
+                against reads as misplaced rather than deliberate. It now owns
+                the row: a labelled, full-width select, which is also the
+                standard mobile filter shape and a much bigger tap target. */}
             {mob && (
-              <div style={{display:"flex",justifyContent:"flex-end",alignItems:"center",marginBottom:16}}>
-                {/* Cards/Table toggle removed: a six-column administration
-                    table on a 393px screen scrolls sideways and is
-                    unreadable, so the toggle only offered a worse view of the
-                    same numbers. Cards are the mobile view. */}
-                {mobileView==="cards" && (
-                  <select 
-                    value={selectedPres} 
+              <div style={{marginBottom:16}}>
+                {mobileView==="cards" && (<>
+                  <label htmlFor="vu-admin-pick" style={{
+                    display:"block",fontFamily:"'DM Sans',sans-serif",fontSize:10,
+                    fontWeight:700,letterSpacing:"0.12em",textTransform:"uppercase",
+                    color:T.mute,marginBottom:6,
+                  }}>Showing</label>
+                  <select
+                    id="vu-admin-pick"
+                    value={selectedPres}
                     onChange={e=>setSelectedPres(e.target.value)}
-                    style={{padding:"8px 12px",border:`1px solid ${T.rule}`,borderRadius:6,background:T.card,fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:600,color:ADMINS[selectedPres]?.color||T.ink}}
+                    style={{width:"100%",padding:"11px 12px",border:`1px solid ${T.rule}`,borderRadius:6,background:T.card,fontFamily:"'DM Sans',sans-serif",fontSize:15,fontWeight:600,color:ADMINS[selectedPres]?.color||T.ink}}
                   >
                     {AID.map(id=><option key={id} value={id}>{ADMINS[id].name} ({ADMINS[id].years})</option>)}
                   </select>
-                )}
+                </>)}
               </div>
             )}
 
