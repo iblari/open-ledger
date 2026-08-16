@@ -127,7 +127,7 @@ function Nav({ mob }: { mob: boolean }) {
         {/* Links — desktop only */}
         {!mob && (
           <div style={{ display: "flex", gap: 24, fontSize: 13, color: C.sub, fontWeight: 500 }}>
-            <a href="#scorecard" style={{ padding: "4px 0", color: C.sub, transition: "color 0.15s" }}>Scorecard</a>
+            <a href="/dashboard?tab=data" style={{ padding: "4px 0", color: C.sub, transition: "color 0.15s" }}>Scorecard</a>
             <a href="#data" style={{ padding: "4px 0", color: C.sub }}>Deep Dive</a>
             <a href="#method" style={{ padding: "4px 0", color: C.sub }}>Methodology</a>
             <a href="#sources" style={{ padding: "4px 0", color: C.sub }}>Sources</a>
@@ -1678,7 +1678,6 @@ export default function LandingPage() {
       <div style={{ maxWidth: 1280, margin: "0 auto", padding: mob ? "0 20px" : "0 32px", borderBottom: `1px solid ${C.rule}` }}>
         <InsightsStrip mob={mob} limit={3} eyebrow="What's notable right now" />
       </div>
-      <ScorecardSection mob={mob} med={med} />
       <DeepDiveSection mob={mob} med={med} />
       <ComingSoonSection mob={mob} med={med} />
       <PrinciplesSection mob={mob} med={med} />
