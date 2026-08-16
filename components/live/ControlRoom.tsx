@@ -32,12 +32,16 @@ export interface ControlRoomClaim {
 const stamp = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 
 export default function ControlRoom({
-  title, mode, elapsed, videoSlot, caption, claims, newClaimIds,
+  title, mode, elapsed, videoDuration, videoSlot, caption, claims, newClaimIds,
   onSeek, onStop, onFactCheck, isChecking, manualResult, onOpenRecord, mob,
 }: {
   title: string;
   mode: "live" | "replay" | "demo";
   elapsed: number;
+  /** The video's true length, when the player knows it. Without this the
+   *  timeline scales itself to the furthest CLAIM, so the playhead sits near
+   *  the right edge while the video is only a third of the way through. */
+  videoDuration?: number;
   videoSlot: React.ReactNode;
   caption: React.ReactNode;
   /** Result of the viewer's own "check this moment". */
@@ -204,7 +208,12 @@ export default function ControlRoom({
           </div>
         ) : shown.map(v => (
           <ClaimCard key={v.id} claim={v} isNew={newClaimIds.has(v.id)}
-            onSeek={c => onSeek(c.videoTime ? Number(c.videoTime) : 0, c.id)} />
+            // Seconds are 0 on purpose: the parent resolves the claim by id
+            // and applies its own origin logic. LiveClaimView carries a
+            // formatted `time` string, not a number, so reading videoTime
+            // here was always undefined — a real type error hidden by
+            // ignoreBuildErrors.
+            onSeek={c => onSeek(0, c.id)} />
         ))}
       </div>
     </div>
@@ -283,8 +292,16 @@ export default function ControlRoom({
           </div>
         )}
       </div>
+      {/* The axis is the VIDEO, not the claims. Scaling to the last tick
+          made the playhead race ahead of the picture: at 27:46 of a 1:09:51
+          replay whose last claim sits at 31:51, the marker rendered at 87%
+          while the video was 40% through. Fall back to the old behaviour
+          only while the player has not reported a duration yet (live edge). */}
       <CredibilityTimeline ticks={ticks} position={elapsed}
-        duration={Math.max(elapsed, ...ticks.map(t => t.at), 60)} onSeek={onSeek} />
+        duration={videoDuration && videoDuration > 60
+          ? videoDuration
+          : Math.max(elapsed, ...ticks.map(t => t.at), 60)}
+        onSeek={onSeek} />
       <RunningScore trueCount={counts.true} misleadingCount={counts.misleading}
         falseCount={counts.false} unverifiableCount={unscored} />
     </>

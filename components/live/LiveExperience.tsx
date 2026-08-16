@@ -1031,6 +1031,8 @@ export default function LiveExperience({ autoStartReplay }: { autoStartReplay?: 
   // word advances smoothly (speech ≈ 2-3 words/sec), cheap enough that the
   // re-render (one small component) is negligible.
   const [captionClock, setCaptionClock] = useState(0);
+  // The player's own reported length, so the timeline axis is the video.
+  const [videoDuration, setVideoDuration] = useState(0);
   useEffect(() => {
     const hasSync = (realCaptions && realCaptions.length > 0) || (isReplay && replaySegments.length > 0);
     if (!isPlaying || !hasSync) return;
@@ -1040,6 +1042,8 @@ export default function LiveExperience({ autoStartReplay }: { autoStartReplay?: 
         try { t = ytPlayerRef.current.getCurrentTime(); } catch { /* wall-clock fallback */ }
       }
       setCaptionClock(t);
+      const d = ytPlayerRef.current?.getDuration?.() ?? 0;
+      if (d > 60) setVideoDuration(prev => (Math.abs(prev - d) > 1 ? d : prev));
     }, 300);
     return () => clearInterval(id);
   }, [isPlaying, realCaptions, isReplay, replaySegments]);
@@ -2305,6 +2309,7 @@ export default function LiveExperience({ autoStartReplay }: { autoStartReplay?: 
             title={title || "Live broadcast"}
             mode={isReplay ? "replay" : isDemo ? "demo" : "live"}
             elapsed={captionClock}
+            videoDuration={videoDuration}
             mob={mob}
             claims={timeShift ? claims.map(c => ({
               ...c,
@@ -2347,10 +2352,15 @@ export default function LiveExperience({ autoStartReplay }: { autoStartReplay?: 
                 </div>
               )
             }
-            manualResult={manualResult?.map(c => ({
+            manualResult={manualResult?.map(c => {
+              // Shift to VIDEO time, exactly as the feed claims above are.
+              // This was the one path that skipped it, so a manual card read
+              // 68:20 while the identical claim in the feed read 27:46.
+              const vt = Math.max(0, (c.videoTime ?? 0) - timeShift);
+              return {
               id: c.id,
               verdict: toOutcome(c.rating),
-              time: `${Math.floor((c.videoTime ?? 0) / 60)}:${String(Math.floor((c.videoTime ?? 0) % 60)).padStart(2, "0")}`,
+              time: `${Math.floor(vt / 60)}:${String(Math.floor(vt % 60)).padStart(2, "0")}`,
               quote: c.quote,
               claimed: c.claimedValue != null ? String(c.claimedValue) : null,
               actual: c.actual,
@@ -2358,7 +2368,8 @@ export default function LiveExperience({ autoStartReplay }: { autoStartReplay?: 
               source: c.groundTruth?.source,
               confidence: c.confidence,
               sources: c.sources,
-            })) ?? null}
+              };
+            }) ?? null}
             caption={
               isReplay && replaySegments.length > 0
                 ? <SyncedReplayCaption segs={replaySegments} clock={captionClock + timeShift} />
