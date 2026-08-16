@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Brand from "@/components/Brand";
 import Link from "next/link";
 import WhatsChanging from "@/components/WhatsChanging";
 import { C, SERIF, SANS } from "@/lib/design-tokens";
@@ -21,9 +22,7 @@ export default function TrendsPage() {
           maxWidth: 1280, margin: "0 auto", padding: "0 20px",
           display: "flex", alignItems: "center", justifyContent: "space-between",
         }}>
-          <Link href="/" style={{ fontFamily: SERIF, fontSize: 16, fontWeight: 900, color: C.ink, textDecoration: "none" }}>
-            Vote Unbiased
-          </Link>
+          <Brand />
           <div style={{ display: "flex", gap: 16, alignItems: "center", fontFamily: SANS, fontSize: 13 }}>
             <Link href="/dashboard" style={{ color: C.sub, textDecoration: "none", fontWeight: 500 }}>Data</Link>
             <Link href="/live" style={{ color: C.accent, textDecoration: "none", fontWeight: 700 }}>Live</Link>

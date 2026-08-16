@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Brand from "@/components/Brand";
 import Link from "next/link";
 import { C, SERIF, SANS } from "@/lib/design-tokens";
 import { STATUS_LABEL, STATUS_COLOR, type PromiseFile, type PromiseRecord, type PromiseStatus } from "@/lib/promises";
@@ -106,7 +107,7 @@ export default async function PromisesPage() {
     <div style={{ minHeight: "100vh", background: C.bg, color: C.ink }}>
       <nav style={{ borderBottom: `1px solid ${C.rule}`, background: "#fff", padding: "12px 0" }}>
         <div style={{ maxWidth: 1080, margin: "0 auto", padding: "0 20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <Link href="/" style={{ fontFamily: SERIF, fontSize: 16, fontWeight: 900, color: C.ink, textDecoration: "none" }}>Vote Unbiased</Link>
+          <Brand />
           <div style={{ display: "flex", gap: 16, fontFamily: SANS, fontSize: 13 }}>
             <Link href="/today" style={{ color: C.sub, textDecoration: "none", fontWeight: 500 }}>Today</Link>
             <Link href="/dashboard" style={{ color: C.sub, textDecoration: "none", fontWeight: 500 }}>Data</Link>

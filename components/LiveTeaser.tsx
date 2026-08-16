@@ -18,6 +18,7 @@
  */
 
 import React, { useEffect, useRef, useState } from "react";
+import Brand from "@/components/Brand";
 
 /* ── Tokens (mirror lib/design-tokens + /live) ── */
 const T = {
@@ -504,7 +505,7 @@ function SceneLive({ t }: { t: number }) {
           display: "flex", alignItems: "center", justifyContent: "center",
         }}>
           <div style={{ width: 1408, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span style={{ fontFamily: SERIF, fontSize: 16, fontWeight: 900, color: T.ink }}>Vote Unbiased</span>
+            <Brand />
             <div style={{ display: "flex", gap: 20, fontFamily: SANS, fontSize: 13, alignItems: "center" }}>
               <span style={{ color: T.sub, fontWeight: 500 }}>Data</span>
               <span style={{ color: T.sub, fontWeight: 500 }}>Scenarios</span>

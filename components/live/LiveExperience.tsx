@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import Brand from "@/components/Brand";
 import Link from "next/link";
 import { isDuplicateQuote } from "@/lib/claim-utils";
 import UpcomingEvents from "@/components/UpcomingEvents";
@@ -1787,12 +1788,7 @@ export default function LiveExperience({ autoStartReplay }: { autoStartReplay?: 
         padding: mob ? "10px 16px" : "12px 32px",
         display: "flex", alignItems: "center", justifyContent: "space-between",
       }}>
-        <Link href="/" style={{
-          fontFamily: "'Source Serif 4',serif", fontSize: mob ? 14 : 16,
-          fontWeight: 900, color: T.ink, textDecoration: "none",
-        }}>
-          Vote Unbiased
-        </Link>
+        <Brand mob={mob} />
         <div style={{ display: "flex", gap: mob ? 12 : 20, fontFamily: "'DM Sans',sans-serif", fontSize: mob ? 11 : 13 }}>
           <Link href="/dashboard" style={{ color: T.sub, textDecoration: "none", fontWeight: 500 }}>Data</Link>
           <Link href="/dashboard?tab=scenarios" style={{ color: T.sub, textDecoration: "none", fontWeight: 500 }}>Scenarios</Link>
