@@ -8,14 +8,17 @@
 
 import { useState } from "react";
 import { L, F } from "@/lib/live-design";
-import { buildMarkdown, buildCsv, buildText, type RecordClaim, type RecordMeta } from "@/lib/live-record";
+import { buildMarkdown, buildCsv, buildText, buildHtml, type RecordClaim, type RecordMeta } from "@/lib/live-record";
 
-type Fmt = "md" | "csv" | "txt";
+// "doc" first and default: the record is usually an attachment to a story,
+// and markdown source is the wrong artefact to hand an editor. It opens in
+// any browser and prints to PDF with the page furniture stripped.
+type Fmt = "doc" | "md" | "csv" | "txt";
 
 export default function RecordSheet({
   open, onClose, meta, claims, transcript,
 }: { open: boolean; onClose: () => void; meta: RecordMeta; claims: RecordClaim[]; transcript?: string }) {
-  const [fmt, setFmt] = useState<Fmt>("md");
+  const [fmt, setFmt] = useState<Fmt>("doc");
   const [includeTranscript, setIncludeTranscript] = useState(false);
   const [includeSources, setIncludeSources] = useState(true);
   const [contradictedOnly, setContradictedOnly] = useState(false);
@@ -23,12 +26,16 @@ export default function RecordSheet({
 
   const download = () => {
     const o = { transcript, includeTranscript, includeSources, contradictedOnly };
-    const body = fmt === "csv" ? buildCsv(claims, o) : fmt === "txt" ? buildText(meta, claims, o) : buildMarkdown(meta, claims, o);
-    const mime = fmt === "csv" ? "text/csv" : "text/plain";
+    const body =
+      fmt === "doc" ? buildHtml(meta, claims, o) :
+      fmt === "csv" ? buildCsv(claims, o) :
+      fmt === "txt" ? buildText(meta, claims, o) :
+      buildMarkdown(meta, claims, o);
+    const mime = fmt === "doc" ? "text/html" : fmt === "csv" ? "text/csv" : "text/plain";
     const slug = meta.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 50).replace(/^-|-$/g, "");
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([body], { type: `${mime};charset=utf-8` }));
-    a.download = `${slug || "fact-check-record"}-${meta.date}.${fmt}`;
+    a.download = `${slug || "fact-check-record"}-${meta.date}.${fmt === "doc" ? "html" : fmt}`;
     a.click();
     URL.revokeObjectURL(a.href);
     onClose();
@@ -69,7 +76,7 @@ export default function RecordSheet({
         </p>
 
         <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-          {(["md", "csv", "txt"] as Fmt[]).map(f => (
+          {(["doc", "md", "csv", "txt"] as Fmt[]).map(f => (
             <button key={f} onClick={() => setFmt(f)} style={{
               flex: 1, padding: "9px 0", borderRadius: 6, cursor: "pointer",
               fontFamily: F.mono, fontSize: 12,
