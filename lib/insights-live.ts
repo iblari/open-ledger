@@ -299,6 +299,7 @@ function detectTrend(key: string, m: LiveMetric): Insight | null {
     admin: toAdminId(latest.admin.id),
     kind: worse ? "extreme_high" : "extreme_low",
     direction: delta > 0 ? "up" : "down",
+    valence: worse ? "worse" : "better",
     // No metric name here — the card's eyebrow already reads
     // "SAVING RATE · TRUMP II", so repeating it pushed the number, which is
     // the only thing that differs between cards, into the middle of the line.

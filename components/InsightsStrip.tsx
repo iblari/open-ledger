@@ -38,19 +38,18 @@ interface Props {
 // — a visual hint of the kind without needing an icon library. Picked from
 // the existing palette so nothing clashes with the editorial language.
 /**
- * Direction, not judgment.
+ * Green when a metric is improving, red when it is deteriorating.
  *
- * Two hues that read as "moved up" and "moved down" without either being the
- * good one. Red and green are deliberately absent: whether a falling saving
- * rate is healthy spending or households running down their buffers is
- * contested, and asserting an answer in colour is exactly the editorial call
- * this site leaves to the reader. Direction is a fact; valence is an opinion.
+ * "Improving" is not decided here — it comes from each metric's own
+ * `lowerBetter` flag, the same definition the benchmark charts use. That
+ * matters: unemployment falling and inflation falling are both green,
+ * debt-to-GDP rising is red, and nothing has to be re-decided per surface.
  */
-const DIR_COLOR = { up: "#0d7377", down: "#4A6E8A" } as const;
+const VALENCE_COLOR = { better: EC.improveStrong, worse: EC.accent } as const;
 
 /** One resolver, so rule / arrow / headline / hover can't drift apart. */
-const tint = (i: { direction?: "up" | "down"; kind: InsightKind }) =>
-  i.direction ? DIR_COLOR[i.direction] : KIND_COLOR[i.kind];
+const tint = (i: { valence?: "better" | "worse"; kind: InsightKind }) =>
+  i.valence ? VALENCE_COLOR[i.valence] : KIND_COLOR[i.kind];
 
 const KIND_COLOR: Record<InsightKind, string> = {
   extreme_high:    EC.improveStrong, // record value (teal — neutral "noteworthy")
