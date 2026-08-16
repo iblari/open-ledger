@@ -2625,36 +2625,11 @@ function App(){
           </div>}
         </div>)}
 
-        {/* ── FOOTER ── */}
-        <div style={{borderTop:`2px solid ${T.rule}`,paddingTop:32,marginTop:56,fontFamily:"'DM Sans',sans-serif"}}>
-          <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 1fr",gap:24,marginBottom:24}}>
-            <div>
-              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
-                <div style={{display:"flex",gap:2}}>
-                  <div style={{width:3,height:14,background:T.accent,borderRadius:1}}/>
-                  <div style={{width:3,height:14,background:T.accent,borderRadius:1,opacity:0.5}}/>
-                </div>
-                <span style={{fontSize:12,fontWeight:800,letterSpacing:2,textTransform:"uppercase",color:T.sub}}>Open Ledger</span>
-              </div>
-              <p style={{fontSize:12,color:T.sub,lineHeight:1.7,margin:0}}>
-                Built for transparency, not persuasion. Every data point is sourced from official government agencies and can be independently verified.
-              </p>
-            </div>
-            <div>
-              <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:1.5,color:T.mute,marginBottom:8}}>Data Sources</div>
-              <div style={{fontSize:11,color:T.sub,lineHeight:1.8}}>
-                BEA (Bureau of Economic Analysis) · BLS (Bureau of Labor Statistics) · U.S. Treasury · CBO (Congressional Budget Office) · EIA (Energy Information Administration) · Census Bureau · Conference Board · S&P Global · World Bank · IMF · World Inequality Database
-              </div>
-            </div>
-          </div>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingTop:16,borderTop:`1px solid ${T.rule}`,flexWrap:"wrap",gap:12}}>
-            <span style={{fontSize:10,color:T.mute}}>v7.0 — Last updated April 2026</span>
-            <div style={{display:"flex",gap:16}}>
-              <button disabled title="Coming soon" style={{fontSize:10,color:T.accent,background:"none",border:"none",fontWeight:600,padding:0,cursor:"default",opacity:0.5}}>Methodology</button>
-              <button disabled title="Coming soon" style={{fontSize:10,color:T.accent,background:"none",border:"none",fontWeight:600,padding:0,cursor:"default",opacity:0.5}}>Download Data</button>
-            </div>
-          </div>
-        </div>
+        {/* Footer removed: the site-wide masthead, source list, "v7.0 —
+            Last updated April 2026" and two disabled "Coming soon" buttons
+            appeared at the bottom of every page. The version string was
+            months stale and the buttons went nowhere, so it advertised
+            neglect on a product whose whole claim is currency. */}
       </div>
       <FeedbackBanner />
     </div>
