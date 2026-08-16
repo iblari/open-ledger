@@ -47,7 +47,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let body: { text?: string; videoTime?: number };
+  let body: { text?: string; videoTime?: number; context?: string };
   try {
     body = await req.json();
   } catch {
@@ -88,8 +88,15 @@ export async function POST(req: Request) {
 
   const mm = Math.floor(videoTime / 60);
   const ss = String(Math.floor(videoTime % 60)).padStart(2, "0");
+  // Context is what the speaker said just before. Without it the extractor
+  // has no antecedent for "they", "it" or "that number", and a claim split
+  // across a chunk boundary is unreadable.
+  const context = typeof body.context === "string" ? body.context.slice(0, 1500) : "";
   const result = await extractAndVerifyClaims(
-    `Live broadcast transcript chunk (at ${mm}:${ss}):\n"${text}"`,
+    [
+      context ? `Said just before (context only — do NOT extract claims from this):\n"${context}"\n` : "",
+      `Live broadcast transcript chunk (at ${mm}:${ss}) — extract claims from THIS:\n"${text}"`,
+    ].join("\n"),
     new URL(req.url).origin
   );
 

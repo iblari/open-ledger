@@ -425,6 +425,8 @@ function currentVideoTime(nowMs) {
 // rule that catches a claim transcribed at two different lengths.
 const CHUNK_OVERLAP_WORDS = 30;
 
+let lastChunkText = "";
+
 function ingestBufferedChunk(force = false) {
   const now = Date.now();
   if (!force && now - lastIngestTime < INGEST_INTERVAL) return;
@@ -435,7 +437,12 @@ function ingestBufferedChunk(force = false) {
   const tail = chunk.split(/\s+/).slice(-CHUNK_OVERLAP_WORDS).join(" ");
   transcriptBuffer = force ? "" : " " + tail;
   const videoTime = currentVideoTime(now);
-  adminCall("/api/admin/ingest", { text: chunk, videoTime })
+  // The preceding passage travels with the chunk. The extractor needs to
+  // know who "they" are and what "it" refers to; a bare chunk stripped of
+  // antecedents is a large part of why claims went unrecognised.
+  const context = lastChunkText.split(/\s+/).slice(-120).join(" ");
+  lastChunkText = chunk;
+  adminCall("/api/admin/ingest", { text: chunk, videoTime, context })
     .then((resp) => {
       if (resp.claims?.length > 0) {
         totalClaims += resp.claims.length;
@@ -453,7 +460,23 @@ function ingestBufferedChunk(force = false) {
     .catch((e) => console.error("   Ingest error:", e.message));
 }
 
-const INGEST_INTERVAL = 15000; // 15 seconds
+// 45 seconds, not 15.
+//
+// Measured against a real archived broadcast: at a 15-second cadence the
+// model was called 119 times and produced 14 claims. It is not that chunks
+// were being filtered out — 47% passed the pre-filter and reached the model
+// — it is that ~40 words of speech rarely contains a COMPLETE checkable
+// sentence. The claim and its number routinely sit either side of a cut, so
+// the extractor sees a fragment and correctly declines to check it.
+//
+// This is exactly why "Check this moment" finds claims the feed missed: it
+// sends ~75 seconds of speech, not 15. The manual path was simply being
+// given enough text to work with.
+//
+// The cost of the change is latency — a claim now surfaces up to 45s after
+// it is spoken rather than 15s — and that is the right trade for a feed
+// whose job is to be complete. It also cuts model calls by two thirds.
+const INGEST_INTERVAL = Number(process.env.INGEST_INTERVAL_MS || 45000);
 
 /** Build one audio→STT chain and resolve when any part of it dies. */
 async function runChain(url) {
