@@ -121,6 +121,25 @@ export function StateAtlas() {
   const [pickerOpen, setPickerOpen] = useState(false);
   // Fullscreen 3D county dive — non-null renders the overlay.
   const [diveState, setDiveState] = useState<StateCode | null>(null);
+  const [shareStatus, setShareStatus] = useState("");
+
+  // Restore a shared view from the URL. Without this the share link carries
+  // ?metric=&states= and the page ignores them — the recipient opens a blank
+  // map and the share is worse than none. Runs once; a bad or unknown code
+  // is dropped rather than throwing.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const q = new URLSearchParams(window.location.search);
+    const m = q.get("metric");
+    if (m && STATE_METRIC_ORDER.includes(m)) setMk(m);
+    const st = q.get("states");
+    if (st) {
+      const codes = st.split(",")
+        .map(x => x.trim().toUpperCase())
+        .filter(x => x in STATE_NAMES) as StateCode[];
+      if (codes.length) setSelected(codes.slice(0, MAX_SELECTED));
+    }
+  }, []);
   const mob = useIsMobile();
   const wrapRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -546,6 +565,63 @@ export function StateAtlas() {
         Tip: click any state on the map to chart it — then dive deeper into its counties in 3D. Up to {MAX_SELECTED} at a time.
       </p>
     )}
+
+    {/* ── Share ──
+         The link carries the metric AND the selected states, so a recipient
+         opens the same comparison rather than a blank map. Sharing a view
+         that doesn't reproduce is worse than not offering it. */}
+    <div style={{
+      display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
+      padding: "12px 0 0", marginTop: 14, borderTop: `1px solid ${EC.rule}`,
+    }}>
+      <span style={{
+        fontFamily: ESANS, fontSize: 10, fontWeight: 700, letterSpacing: 1.2,
+        textTransform: "uppercase", color: EC.mute, marginRight: 2,
+      }}>Share</span>
+      {(() => {
+        const url = `https://voteunbiased.org/dashboard?tab=state_atlas&metric=${mk}`
+          + (selected.length ? `&states=${selected.join(",")}` : "");
+        const text = selected.length
+          ? `${metric.label} across ${selected.join(", ")} — Vote Unbiased State Atlas`
+          : `${metric.label} by state — Vote Unbiased State Atlas`;
+        const btn = (accent: boolean) => ({
+          fontFamily: ESANS, fontSize: 11.5, fontWeight: 600,
+          padding: "6px 11px", borderRadius: 4, cursor: "pointer",
+          border: `1px solid ${accent ? EC.accent : EC.rule}`,
+          background: "transparent", color: accent ? EC.accent : EC.sub,
+          textDecoration: "none", display: "inline-block",
+        });
+        return (
+          <>
+            <button onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(url);
+                setShareStatus("Link copied");
+                setTimeout(() => setShareStatus(""), 2000);
+              } catch { setShareStatus("Couldn't copy"); }
+            }} style={btn(false)}>⎘ Copy link</button>
+            <a href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`}
+               target="_blank" rel="noopener noreferrer" title={text} style={btn(true)}>𝕏 Post</a>
+            <a href={`https://wa.me/?text=${encodeURIComponent(`${text}\n${url}`)}`}
+               target="_blank" rel="noopener noreferrer" title={text} style={btn(false)}>WhatsApp</a>
+            {/* sms: body separator differs by platform — "?&body=" is the
+                form both iOS and Android parse. */}
+            <a href={`sms:?&body=${encodeURIComponent(`${text}\n${url}`)}`}
+               title={text} style={btn(false)}>Messages</a>
+            {/* Facebook strips prefilled text, so this sends the link only. */}
+            <a href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`}
+               target="_blank" rel="noopener noreferrer"
+               title="Facebook shares the link only — it strips prefilled text"
+               style={btn(false)}>Facebook</a>
+            {shareStatus && (
+              <span style={{ fontFamily: ESANS, fontSize: 11.5, color: EC.improveStrong, fontWeight: 600 }}>
+                {shareStatus}
+              </span>
+            )}
+          </>
+        );
+      })()}
+    </div>
 
     {/* Fullscreen 3D county dive overlay */}
     {diveState && <StateDive stateCode={diveState} onClose={() => setDiveState(null)} />}
