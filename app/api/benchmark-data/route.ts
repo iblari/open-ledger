@@ -46,6 +46,16 @@ const FRED_SERIES: Record<string, string> = {
   // to last month and back to 1952, covering MORE administrations than the
   // series it replaces.
   UMCSENT:           'UMCSENT',            // Consumer sentiment, monthly, from 1952
+  // ── Added: six live series, all verified current before wiring ──
+  // Every one is keyless via the CSV endpoint, so none of these can break on
+  // a rotated secret. Coverage varies; the benchmark already handles a
+  // series that doesn't reach Nixon by simply showing fewer administrations.
+  CPILFESL:          'CPILFESL',          // Core CPI (ex food & energy), monthly, from 1957
+  MORTGAGE30US:      'MORTGAGE30US',      // 30-year fixed mortgage %, WEEKLY, from 1971
+  HOUST:             'HOUST',             // Housing starts, thousands SAAR, monthly, from 1959
+  JTSJOL:            'JTSJOL',            // Job openings, thousands, monthly, from 2000
+  RSAFS:             'RSAFS',             // Retail sales, $M, monthly, from 1992
+  PSAVERT:           'PSAVERT',           // Personal saving rate %, monthly, from 1959
   GFDEGDQ188S:       'GFDEGDQ188S',       // Debt-to-GDP %, quarterly, from 1966
   GASREGCOVM:        'GASREGCOVM',        // Gas price $/gal, monthly, from 1990
   LES1252881600Q:    'LES1252881600Q',    // Median weekly earnings $, quarterly, from 1979
@@ -60,7 +70,7 @@ interface MetricDef {
   unit: string;
   lowerBetter: boolean;
   cat: string;
-  transform: 'direct' | 'cpi_yoy' | 'quarterly' | 'gdp_trillions' | 'payroll_change' | 'mfg_millions' | 'wage_yoy' | 'trade_billions' | 'purchasing';
+  transform: 'direct' | 'cpi_yoy' | 'quarterly' | 'gdp_trillions' | 'payroll_change' | 'mfg_millions' | 'wage_yoy' | 'trade_billions' | 'purchasing' | 'retail_billions';
   fredKey: string;
 }
 
@@ -82,6 +92,14 @@ const METRICS: MetricDef[] = [
   { key: 'fed_rate', label: 'Interest Rate', short: 'Rate', unit: '%', lowerBetter: true, cat: 'fiscal', transform: 'direct', fredKey: 'FEDFUNDS' },
   { key: 'debt_gdp', label: 'Debt-to-GDP', short: 'D/GDP', unit: '%', lowerBetter: true, cat: 'fiscal', transform: 'quarterly', fredKey: 'GFDEGDQ188S' },
   { key: 'trade', label: 'Trade Balance', short: 'Trade', unit: 'B', lowerBetter: false, cat: 'fiscal', transform: 'trade_billions', fredKey: 'BOPGSTB' },
+  { key: 'core_cpi', label: 'Core Inflation (YoY)', short: 'Core', unit: '%', lowerBetter: true, cat: 'prices', transform: 'cpi_yoy', fredKey: 'CPILFESL' },
+  { key: 'mortgage', label: 'Mortgage Rate (30y)', short: 'Mtg', unit: '%', lowerBetter: true, cat: 'prices', transform: 'direct', fredKey: 'MORTGAGE30US' },
+  // Housing supply and consumer behaviour sit under fiscal/labour rather
+  // than getting their own tab for six metrics.
+  { key: 'housing_starts', label: 'Housing Starts', short: 'Starts', unit: 'K', lowerBetter: false, cat: 'growth', transform: 'direct', fredKey: 'HOUST' },
+  { key: 'retail', label: 'Retail Sales', short: 'Retail', unit: 'B', lowerBetter: false, cat: 'growth', transform: 'retail_billions', fredKey: 'RSAFS' },
+  { key: 'openings', label: 'Job Openings', short: 'Open', unit: 'M', lowerBetter: false, cat: 'labor', transform: 'mfg_millions', fredKey: 'JTSJOL' },
+  { key: 'saving', label: 'Saving Rate', short: 'Save', unit: '%', lowerBetter: false, cat: 'fiscal', transform: 'direct', fredKey: 'PSAVERT' },
   // Sentiment
   { key: 'consumer_conf', label: 'Consumer Sentiment', short: 'Sent', unit: '', lowerBetter: false, cat: 'sentiment', transform: 'direct', fredKey: 'UMCSENT' },
 ];
@@ -297,6 +315,12 @@ export async function GET() {
           break;
         case 'trade_billions':
           transformed = toBillions(raw);
+          break;
+        case 'retail_billions':
+          // RSAFS is reported in MILLIONS of dollars; every other headline
+          // figure on this page is billions or trillions, so leaving it raw
+          // would print "763,602" next to "2.8" and read as nonsense.
+          transformed = raw.map(d => ({ date: d.date, value: d.value / 1000 }));
           break;
         case 'purchasing':
           transformed = purchasingPower(raw);
