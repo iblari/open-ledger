@@ -24,7 +24,7 @@ const GlobeView = nextDynamic(() => import("@/components/GlobeView"), {
 import { HEADER_METRICS, THEATERS, PERSONNEL_BY_COUNTRY, POSTURE_ASSETS, ASSET_TYPES, ALERT_COLORS, THEATER_COLORS, POSTURE_FEED, type PostureAsset, type AssetType, type FeedItem } from "@/lib/abroad-data";
 import { CONFLICT_STREAMS, estimateTotal, estimateGrandTotal, formatUSD, formatUSDFull, MONTHLY_SPEND, computeDeltas, type ConflictStream, type SpendRow, type DeltaRow } from "@/lib/war-costs";
 import { SCENARIOS, SCENARIO_ORDER, applyScenario, type ScenarioId, type DataPoint } from "@/lib/scenarios";
-import { SCENARIO_DETAILS, METHODOLOGY_TEXT } from "@/lib/scenario-descriptions";
+import { SCENARIO_DETAILS } from "@/lib/scenario-descriptions";
 // Shared editorial design tokens + per-metric display helpers — same lib the
 // landing page uses, so the Data tab redesign matches that aesthetic exactly.
 import { C as EC, SERIF as ESERIF, SANS as ESANS } from "@/lib/design-tokens";
@@ -912,7 +912,6 @@ function App(){
   const [selectedPres,setSelectedPres]=useState("clinton");
   const [scenarioMetric,setScenarioMetric]=useState("gdp");
   const [activeScenario,setActiveScenario]=useState<ScenarioId>("no_covid");
-  const [showMethodology,setShowMethodology]=useState(false);
   // Per-metric display toggles for the Data tab heatmap.
   const [displayMode,setDisplayMode]=useState<DisplayMode>("per_metric");
   const [dollarMode,setDollarMode]=useState<DollarMode>("real");
@@ -2581,33 +2580,12 @@ function App(){
             );
           })()}
 
-          {/* Methodology disclosure */}
-          <div style={{...sty.card,padding:0,marginBottom:16,overflow:"hidden"}}>
-            <button onClick={()=>setShowMethodology(!showMethodology)} style={{
-              width:"100%",padding:"14px 20px",border:"none",background:"transparent",cursor:"pointer",
-              display:"flex",alignItems:"center",justifyContent:"space-between",
-              fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:700,color:T.ink
-            }}>
-              <span style={{fontFamily:ESANS,fontSize:12,fontWeight:500,letterSpacing:"0.04em",color:EC.sub,textTransform:"uppercase"}}>{METHODOLOGY_TEXT.title}</span>
-              <span style={{fontSize:10,color:EC.mute,transform:showMethodology?"rotate(180deg)":"rotate(0deg)",transition:"transform 0.2s"}}>▾</span>
-            </button>
-            {showMethodology&&(
-              <div style={{padding:"0 20px 20px",borderTop:`1px solid ${T.rule}`}}>
-                {METHODOLOGY_TEXT.paragraphs.map((p,i)=>(
-                  <p key={i} style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:T.sub,lineHeight:1.7,margin:"12px 0 0"}}>{p}</p>
-                ))}
-                <div style={{marginTop:16}}>
-                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:1.5,color:T.mute,marginBottom:8}}>Limitations</div>
-                  {METHODOLOGY_TEXT.limitations.map((l,i)=>(
-                    <div key={i} style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:T.sub,lineHeight:1.6,marginBottom:6,paddingLeft:12,borderLeft:`2px solid ${T.rule}`}}>{l}</div>
-                  ))}
-                </div>
-                <div style={{marginTop:16,padding:"12px 16px",background:T.highlight,borderRadius:4,borderLeft:`3px solid ${T.gold}`}}>
-                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:T.ink,lineHeight:1.6,fontWeight:500}}>{METHODOLOGY_TEXT.disclaimer}</div>
-                </div>
-              </div>
-            )}
-          </div>
+          {/* "How Scenario Modeling Works" disclosure removed. The one line
+              that must not go with it is the method itself, which stays in
+              the source note below: these are OLS trend extrapolations, not
+              measurements. A counterfactual chart with no visible statement
+              of how it was produced would be the single most misleading
+              thing on the site. */}
 
           <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:T.mute}}>
             Source: All baseline data from BEA, BLS, Treasury, Census. Scenario values are mechanically derived via OLS trend extrapolation.
