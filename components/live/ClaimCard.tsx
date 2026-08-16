@@ -92,8 +92,8 @@ function formatSaid(v: string | null | undefined): string {
 }
 
 export default function ClaimCard({
-  claim, isNew, onSeek,
-}: { claim: LiveClaimView; isNew?: boolean; onSeek?: (c: LiveClaimView) => void }) {
+  claim, isNew, onSeek, compact = false,
+}: { claim: LiveClaimView; isNew?: boolean; onSeek?: (c: LiveClaimView) => void; compact?: boolean }) {
   const [open, setOpen] = useState(false);
   const color = VERDICT_COLOR[claim.verdict];
   const checking = claim.verdict === "checking";
@@ -105,7 +105,11 @@ export default function ClaimCard({
       onClick={() => hasDetail && setOpen(o => !o)}
       style={{
         background: L.card, border: `1px solid ${L.cardBorder}`, borderRadius: 12,
-        padding: "15px 17px", marginBottom: 11,
+        // Compact is the phone. The card is sized for a desktop rail, where
+        // it has a 404px column to itself; on a 393px screen that same card
+        // is 206px tall and only 1.6 of them fit the feed.
+        padding: compact ? "10px 12px" : "15px 17px",
+        marginBottom: compact ? 8 : 11,
         cursor: hasDetail ? "pointer" : "default",
         animation: isNew ? "vuCardIn .45s ease" : undefined,
       }}
@@ -130,7 +134,14 @@ export default function ClaimCard({
 
       {/* the quote */}
       <blockquote style={{
-        fontFamily: F.display, fontSize: 18.5, fontWeight: 500, lineHeight: 1.4,
+        fontFamily: F.display, fontSize: compact ? 15 : 18.5, fontWeight: 500,
+        lineHeight: compact ? 1.32 : 1.4,
+        // Three lines is enough to recognise a quote; the full text is one
+        // tap away in the detail.
+        ...(compact ? {
+          display: "-webkit-box", WebkitLineClamp: 3,
+          WebkitBoxOrient: "vertical" as const, overflow: "hidden",
+        } : {}),
         color: "#F5F1EC", margin: "0 0 16px",
       }}>&ldquo;{claim.quote}&rdquo;</blockquote>
 
@@ -142,7 +153,7 @@ export default function ClaimCard({
               fontFamily: F.ui, fontSize: 10.5, fontWeight: 500, letterSpacing: "0.14em",
               textTransform: "uppercase", color: L.mutedDark, marginBottom: 6,
             }}>Said</div>
-            <div style={{ fontFamily: F.mono, fontSize: 18, color: "#CFC7BD", lineHeight: 1.2 }}>
+            <div style={{ fontFamily: F.mono, fontSize: compact ? 15 : 18, color: "#CFC7BD", lineHeight: 1.2 }}>
               {formatSaid(claim.claimed)}
             </div>
           </div>
@@ -157,7 +168,7 @@ export default function ClaimCard({
               fontFamily: F.ui, fontSize: 10.5, fontWeight: 500, letterSpacing: "0.14em",
               textTransform: "uppercase", color: L.mutedDark, marginBottom: 6,
             }}>Data</div>
-            <div style={{ fontFamily: F.mono, fontSize: 18, color, lineHeight: 1.2, wordBreak: "break-word" }}>
+            <div style={{ fontFamily: F.mono, fontSize: compact ? 15 : 18, color, lineHeight: 1.2, wordBreak: "break-word" }}>
               {figure}
             </div>
           </div>

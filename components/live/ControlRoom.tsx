@@ -224,7 +224,7 @@ export default function ControlRoom({
             )}
           </div>
         ) : shown.map(v => (
-          <ClaimCard key={v.id} claim={v} isNew={newClaimIds.has(v.id)}
+          <ClaimCard key={v.id} claim={v} compact={mob} isNew={newClaimIds.has(v.id)}
             // Seconds are 0 on purpose: the parent resolves the claim by id
             // and applies its own origin logic. LiveClaimView carries a
             // formatted `time` string, not a number, so reading videoTime
@@ -357,7 +357,7 @@ export default function ControlRoom({
             fontFamily: F.ui, fontSize: 9.5, fontWeight: 700, letterSpacing: "0.16em",
             textTransform: "uppercase", color: L.mutedDark, margin: "2px 0 8px",
           }}>You checked this moment</div>
-          {manualResult!.map(c => <ClaimCard key={c.id} claim={c} />)}
+          {manualResult!.map(c => <ClaimCard key={c.id} claim={c} compact />)}
         </>
       )}
     </div>
@@ -399,15 +399,6 @@ export default function ControlRoom({
             figures and the padding can all give a little without losing
             anything. Done in CSS so ClaimCard needs no new prop and desktop
             is provably untouched. */}
-        <style>{`
-          .vu-feed-mob article { padding: 10px 12px !important; margin-bottom: 8px !important; }
-          .vu-feed-mob article > div:nth-child(2) {
-            font-size: 15px !important; line-height: 1.32 !important;
-            display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
-            overflow: hidden;
-          }
-          .vu-feed-mob article [style*="font-size: 18px"] { font-size: 15px !important; }
-        `}</style>
         {MobileManualResult}
         <div style={{ padding: "8px 14px 0", background: L.ink, flexShrink: 0 }}>{FilterChips}</div>
         {Feed}
