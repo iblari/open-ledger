@@ -188,7 +188,8 @@ export default function ControlRoom({
   );
 
   const Feed = (
-    <div style={{ position: "relative", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+    <div className={mob ? "vu-feed-mob" : undefined}
+      style={{ position: "relative", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
       {showPill && (
         <div style={{
           position: "absolute", top: 8, left: "50%", transform: "translateX(-50%)", zIndex: 5,
@@ -392,6 +393,21 @@ export default function ControlRoom({
             opacity: isChecking ? 0.6 : 1,
           }}>{isChecking ? "Checking…" : "🔍 Check this moment"}</button>
         </div>
+        {/* Compact the cards themselves. Reclaiming layout space got the
+            feed to 335px, but a card is 206px — so still only 1.6 fit. The
+            card is sized for a desktop rail; on a phone the quote, the two
+            figures and the padding can all give a little without losing
+            anything. Done in CSS so ClaimCard needs no new prop and desktop
+            is provably untouched. */}
+        <style>{`
+          .vu-feed-mob article { padding: 10px 12px !important; margin-bottom: 8px !important; }
+          .vu-feed-mob article > div:nth-child(2) {
+            font-size: 15px !important; line-height: 1.32 !important;
+            display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+            overflow: hidden;
+          }
+          .vu-feed-mob article [style*="font-size: 18px"] { font-size: 15px !important; }
+        `}</style>
         {MobileManualResult}
         <div style={{ padding: "8px 14px 0", background: L.ink, flexShrink: 0 }}>{FilterChips}</div>
         {Feed}
