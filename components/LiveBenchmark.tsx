@@ -1264,6 +1264,28 @@ export default function LiveBenchmark() {
                style={shareBtnStyle(true)}>
               𝕏 Post
             </a>
+            <a href={`https://wa.me/?text=${encodeURIComponent(`${tweetText}\n${shareUrl}`)}`}
+               target="_blank" rel="noopener noreferrer" title={tweetText}
+               style={shareBtnStyle(false)}>
+              WhatsApp
+            </a>
+            {/* sms: takes the body as a query param, and the separator differs
+                by platform — iOS wants "&body=", Android "?body=". "?&body="
+                is the form both parse, and it is why this is a plain anchor
+                rather than a share-intent URL. Opens Messages on macOS too. */}
+            <a href={`sms:?&body=${encodeURIComponent(`${tweetText}\n${shareUrl}`)}`}
+               title={tweetText} style={shareBtnStyle(false)}>
+              Messages
+            </a>
+            {/* Facebook's sharer ignores prefilled text — they removed the
+                `quote` parameter — so this shares the LINK only. Passing text
+                would look like it worked and silently drop it. */}
+            <a href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`}
+               target="_blank" rel="noopener noreferrer"
+               title="Facebook shares the link only — it strips prefilled text"
+               style={shareBtnStyle(false)}>
+              Facebook
+            </a>
             {shareStatus && (
               <span style={{ fontFamily: ESANS, fontSize: 11.5, color: EC.improveStrong, fontWeight: 600 }}>
                 {shareStatus}
