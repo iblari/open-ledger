@@ -28,7 +28,6 @@ import nextDynamic from "next/dynamic";
 const StateDive = nextDynamic(() => import("@/components/StateDive"), { ssr: false });
 // "What's Changing in America" feed — county-derived trends live with the
 // county data (homepage strip removed per design; /trends remains shareable).
-const WhatsChanging = nextDynamic(() => import("@/components/WhatsChanging"), { ssr: false });
 import {
   STATE_METRICS,
   STATE_METRIC_ORDER,
@@ -547,9 +546,6 @@ export function StateAtlas() {
         Tip: click any state on the map to chart it — then dive deeper into its counties in 3D. Up to {MAX_SELECTED} at a time.
       </p>
     )}
-
-    {/* ── What's changing across America's counties (trend feed) ── */}
-    <WhatsChanging variant="full" embedded />
 
     {/* Fullscreen 3D county dive overlay */}
     {diveState && <StateDive stateCode={diveState} onClose={() => setDiveState(null)} />}
