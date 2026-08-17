@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-10T14:17:54.524Z",
+  "generatedAt": "2026-08-17T13:35:06.849Z",
   "series": [
     {
       "id": "ai_business_adoption",
@@ -87,20 +87,24 @@
         {
           "t": "2026-07-13",
           "v": 21.5
+        },
+        {
+          "t": "2026-07-27",
+          "v": 21.8
         }
       ],
       "latest": {
-        "t": "2026-07-13",
-        "v": 21.5
+        "t": "2026-07-27",
+        "v": 21.8
       },
       "first": {
         "t": "2025-11-17",
         "v": 17.3
       },
-      "score": 55.9,
-      "yoy": 37.2,
+      "score": 55.6,
+      "yoy": 37.7,
       "changeUnit": "percent",
-      "changeWindowDays": 238,
+      "changeWindowDays": 252,
       "comparedWith": {
         "t": "2025-11-17",
         "v": 17.3
@@ -2991,7 +2995,7 @@
         "t": "2000-01-01",
         "v": 227235
       },
-      "score": 31.7,
+      "score": 28.5,
       "yoy": 0.5,
       "changeUnit": "percent",
       "changeWindowDays": 365,
@@ -2999,7 +3003,9 @@
         "t": "2025-06-01",
         "v": 276641
       },
-      "confidenceNotes": []
+      "confidenceNotes": [
+        "no update in 3 months"
+      ]
     }
   ],
   "failures": []
