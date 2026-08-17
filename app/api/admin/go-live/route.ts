@@ -28,6 +28,14 @@ import {
  *     -H "Content-Type: application/json" \
  *     -d '{"action":"start","videoId":"abc123","title":"White House Press Briefing"}'
  */
+/**
+ * Notifications now run INSIDE this request, so it needs room: the
+ * subscriber list is walked in batches of ten with a round trip each, plus
+ * the push fan-out. On the ~10-15s default the send would be cut off partway
+ * down the list — the same class of failure as the fire-and-forget above.
+ */
+export const maxDuration = 300;
+
 export async function POST(req: Request) {
   // Auth check
   const adminKey = process.env.ADMIN_KEY;
@@ -79,19 +87,33 @@ export async function POST(req: Request) {
 
     // Ping push subscribers the moment coverage actually begins — this is
     // the alert the calendar could never reliably deliver.
-    sendPushToAll({
-      title: "🔴 Live fact-check in progress",
-      body: body.title || "An official broadcast is being fact-checked right now.",
-      url: "/live",
-    }).then(r => console.log(`[GO-LIVE] push: ${r.sent} sent, ${r.pruned} pruned`))
-      .catch(e => console.error("[GO-LIVE] push failed:", (e as Error).message));
+    // AWAITED, not fire-and-forget.
+    //
+    // These were dispatched with .then() and the handler returned straight
+    // afterwards. A serverless function is frozen the moment it responds, so
+    // a promise still in flight is killed — and this one is ALWAYS in
+    // flight, because sendLiveAlert walks the subscriber list in batches of
+    // ten with a round trip to Resend for each.
+    //
+    // The symptom was "the alert doesn't reach people": whether a given
+    // address got mailed depended on how far the loop happened to get before
+    // the response went out. Nothing about the subscriber record was wrong.
+    //
+    // Neither can fail the request — a failed notification must not stop the
+    // broadcast being marked live.
+    const [pushRes, mailRes] = await Promise.allSettled([
+      sendPushToAll({
+        title: "🔴 Live fact-check in progress",
+        body: body.title || "An official broadcast is being fact-checked right now.",
+        url: "/live",
+      }),
+      // Email is the universal channel, and the only one reaching iPhone
+      // users who haven't installed the site. No-ops until RESEND_API_KEY.
+      sendLiveAlert(body.title || "An official broadcast", body.source),
+    ]);
+    console.log(`[GO-LIVE] push: ${pushRes.status === "fulfilled" ? `${pushRes.value.sent} sent, ${pushRes.value.pruned} pruned` : `FAILED ${pushRes.reason}`}`);
+    console.log(`[GO-LIVE] email: ${mailRes.status === "fulfilled" ? JSON.stringify(mailRes.value) : `FAILED ${mailRes.reason}`}`);
 
-    // Email the subscriber list too — the universal channel, and the only one
-    // that reaches iPhone users who haven't installed the site. No-ops
-    // harmlessly until RESEND_API_KEY exists.
-    sendLiveAlert(body.title || "An official broadcast", body.source)
-      .then(r => console.log(`[GO-LIVE] email: ${JSON.stringify(r)}`))
-      .catch(e => console.error("[GO-LIVE] email failed:", (e as Error).message));
     await setLiveState(state);
 
     console.log(`[GO-LIVE] Started: "${state.title}" (${state.videoId || "monitor mode"})`);
