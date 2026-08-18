@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-08-03T16:26:35.146Z",
+ "generatedAt": "2026-08-18T14:22:34.111Z",
  "formula": "score = 30% magnitude + 25% acceleration + 20% persistence + 15% peer divergence + 10% recency − confidence penalties. Weights are v1 defaults pending backtests.",
  "universe": {
   "counties": 3221,
@@ -288,7 +288,7 @@
     "url": "https://www.bls.gov/lau/",
     "metric": "Unemployment rate (NSA)",
     "period": "June 2026",
-    "retrieved": "2026-08-03"
+    "retrieved": "2026-08-18"
    }
   },
   {
@@ -353,7 +353,7 @@
     "url": "https://www.bls.gov/lau/",
     "metric": "Unemployment rate (NSA)",
     "period": "June 2026",
-    "retrieved": "2026-08-03"
+    "retrieved": "2026-08-18"
    }
   },
   {
@@ -417,7 +417,7 @@
     "url": "https://www.bls.gov/lau/",
     "metric": "Unemployment rate (NSA)",
     "period": "June 2026",
-    "retrieved": "2026-08-03"
+    "retrieved": "2026-08-18"
    }
   },
   {
@@ -482,7 +482,7 @@
     "url": "https://www.bls.gov/lau/",
     "metric": "Unemployment rate (NSA)",
     "period": "June 2026",
-    "retrieved": "2026-08-03"
+    "retrieved": "2026-08-18"
    }
   },
   {
@@ -547,7 +547,7 @@
     "url": "https://www.bls.gov/lau/",
     "metric": "Unemployment rate (NSA)",
     "period": "June 2026",
-    "retrieved": "2026-08-03"
+    "retrieved": "2026-08-18"
    }
   },
   {
@@ -612,7 +612,7 @@
     "url": "https://www.bls.gov/lau/",
     "metric": "Unemployment rate (NSA)",
     "period": "June 2026",
-    "retrieved": "2026-08-03"
+    "retrieved": "2026-08-18"
    }
   },
   {
@@ -677,7 +677,7 @@
     "url": "https://www.bls.gov/lau/",
     "metric": "Unemployment rate (NSA)",
     "period": "June 2026",
-    "retrieved": "2026-08-03"
+    "retrieved": "2026-08-18"
    }
   },
   {
@@ -742,7 +742,7 @@
     "url": "https://www.bls.gov/lau/",
     "metric": "Unemployment rate (NSA)",
     "period": "June 2026",
-    "retrieved": "2026-08-03"
+    "retrieved": "2026-08-18"
    }
   },
   {
@@ -807,7 +807,7 @@
     "url": "https://www.bls.gov/lau/",
     "metric": "Unemployment rate (NSA)",
     "period": "June 2026",
-    "retrieved": "2026-08-03"
+    "retrieved": "2026-08-18"
    }
   },
   {
@@ -872,7 +872,7 @@
     "url": "https://www.bls.gov/lau/",
     "metric": "Unemployment rate (NSA)",
     "period": "June 2026",
-    "retrieved": "2026-08-03"
+    "retrieved": "2026-08-18"
    }
   },
   {
@@ -937,7 +937,7 @@
     "url": "https://www.bls.gov/lau/",
     "metric": "Unemployment rate (NSA)",
     "period": "June 2026",
-    "retrieved": "2026-08-03"
+    "retrieved": "2026-08-18"
    }
   },
   {
@@ -1002,7 +1002,7 @@
     "url": "https://www.bls.gov/lau/",
     "metric": "Unemployment rate (NSA)",
     "period": "June 2026",
-    "retrieved": "2026-08-03"
+    "retrieved": "2026-08-18"
    }
   },
   {
@@ -1067,7 +1067,7 @@
     "url": "https://www.bls.gov/lau/",
     "metric": "Unemployment rate (NSA)",
     "period": "June 2026",
-    "retrieved": "2026-08-03"
+    "retrieved": "2026-08-18"
    }
   },
   {
@@ -1098,7 +1098,7 @@
     "url": "https://www.census.gov/programs-surveys/acs",
     "metric": "Median gross rent vs median household income",
     "period": "2018 → 2023",
-    "retrieved": "2026-08-03"
+    "retrieved": "2026-08-18"
    }
   },
   {
@@ -1129,7 +1129,7 @@
     "url": "https://www.census.gov/programs-surveys/acs",
     "metric": "Total population",
     "period": "2018 → 2023",
-    "retrieved": "2026-08-03"
+    "retrieved": "2026-08-18"
    }
   }
  ]
