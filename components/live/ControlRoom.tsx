@@ -424,9 +424,22 @@ export default function ControlRoom({
               {manualResult.map(c => <ClaimCard key={c.id} claim={c} />)}
             </>
           ) : (
-            <div style={{ fontFamily: F.ui, fontSize: 12.5, color: L.mutedDark, lineHeight: 1.6, maxWidth: "46ch" }}>
-              Heard something worth checking? Press <strong style={{ color: L.mutedDark2 }}>Check this moment</strong> and
-              we&rsquo;ll verify what was just said against official data. The result appears here and joins the record.
+            // Centred, not pinned to the top. This panel is as tall as the
+            // video beside it, so a two-line prompt at the top left a large
+            // black void underneath that read as a broken or still-loading
+            // region rather than an empty one.
+            <div style={{
+              minHeight: "100%", display: "flex", alignItems: "center", justifyContent: "center",
+              textAlign: "center",
+            }}>
+              <div style={{ fontFamily: F.ui, fontSize: 12.5, color: L.mutedDark, lineHeight: 1.6, maxWidth: "42ch" }}>
+                {/* Explicit {" "} — JSX strips whitespace that sits against a
+                    line break, which is what glued "moment" to "and". */}
+                Heard something worth checking? Press{" "}
+                <strong style={{ color: L.mutedDark2 }}>Check this moment</strong>{" "}
+                and we&rsquo;ll verify what was just said against official data.
+                The result appears here and joins the record.
+              </div>
             </div>
           )}
         </div>
