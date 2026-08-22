@@ -32,7 +32,7 @@ export interface ControlRoomClaim {
 const stamp = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 
 export default function ControlRoom({
-  title, mode, elapsed, videoDuration, videoSlot, caption, claims, newClaimIds,
+  title, mode, elapsed, videoDuration, silentFor, videoSlot, caption, claims, newClaimIds,
   onSeek, onStop, onFactCheck, isChecking, manualResult, onOpenRecord, mob,
 }: {
   title: string;
@@ -42,6 +42,9 @@ export default function ControlRoom({
    *  timeline scales itself to the furthest CLAIM, so the playhead sits near
    *  the right edge while the video is only a third of the way through. */
   videoDuration?: number;
+  /** Seconds since the transcriber last delivered speech, or null when it
+   *  has never delivered any this session. Drives the honest empty state. */
+  silentFor?: number | null;
   videoSlot: React.ReactNode;
   caption: React.ReactNode;
   /** Result of the viewer's own "check this moment". */
@@ -226,15 +229,31 @@ export default function ControlRoom({
           <div style={{
             textAlign: "center", padding: "40px 16px", fontFamily: F.ui, color: L.mutedDark,
           }}>
-            <div style={{ fontSize: 26, marginBottom: 8 }}>📡</div>
-            <div style={{ fontSize: 12.5, fontWeight: 600, color: L.mutedDark2 }}>
-              {views.length === 0 ? "Listening for claims…" : "No claims match this filter"}
-            </div>
-            {views.length === 0 && (
-              <div style={{ fontSize: 10.5, marginTop: 4, lineHeight: 1.5 }}>
-                Checks appear here as economic claims are spoken.
-              </div>
-            )}
+            {/* Don't claim to be listening when no audio is arriving.
+                A broadcast where the transcriber has fallen over looked
+                identical to one where nobody had said anything checkable
+                yet — the viewer waits indefinitely for a feed that is not
+                coming. Two minutes of silence is well past the 45s chunk
+                cadence, so it means the chain, not the speaker. */}
+            {(() => {
+              const stalled = silentFor != null && silentFor > 120;
+              if (views.length > 0) return (
+                <div style={{ fontSize: 12.5, fontWeight: 600, color: L.mutedDark2 }}>
+                  No claims match this filter
+                </div>
+              );
+              return (<>
+                <div style={{ fontSize: 26, marginBottom: 8 }}>{stalled ? "⚠️" : "📡"}</div>
+                <div style={{ fontSize: 12.5, fontWeight: 600, color: stalled ? L.misleading : L.mutedDark2 }}>
+                  {stalled ? "Not receiving audio" : "Listening for claims…"}
+                </div>
+                <div style={{ fontSize: 10.5, marginTop: 4, lineHeight: 1.5, maxWidth: "36ch", marginLeft: "auto", marginRight: "auto" }}>
+                  {stalled
+                    ? `No speech has reached the transcriber for ${Math.round(silentFor! / 60)} min. Coverage is reconnecting — the record will be completed from captions after the broadcast.`
+                    : "Checks appear here as economic claims are spoken."}
+                </div>
+              </>);
+            })()}
           </div>
         ) : shown.map(v => (
           <ClaimCard key={v.id} claim={v} compact={mob} isNew={newClaimIds.has(v.id)}

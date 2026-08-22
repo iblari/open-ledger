@@ -600,6 +600,27 @@ export default function LiveExperience({ autoStartReplay }: { autoStartReplay?: 
   const [title, setTitle] = useState("");
   const [claims, setClaims] = useState<Claim[]>([]);
   const [liveTranscript, setLiveTranscript] = useState("");
+  // When the transcriber last delivered speech this session. Null until the
+  // first line arrives, so a broadcast that never starts transcribing is
+  // distinguishable from one that has simply gone quiet.
+  const lastSpeechAt = useRef<number | null>(null);
+  const [silentFor, setSilentFor] = useState<number | null>(null);
+  useEffect(() => {
+    if (!liveTranscript) return;
+    lastSpeechAt.current = Date.now();
+    setSilentFor(0);
+  }, [liveTranscript]);
+  useEffect(() => {
+    if (!isPlaying || isDemo || isReplay) { setSilentFor(null); return; }
+    // Measured from when this session started watching if nothing has ever
+    // arrived — otherwise a dead chain reads as "0 seconds silent" forever.
+    const started = Date.now();
+    const id = setInterval(() => {
+      const base = lastSpeechAt.current ?? started;
+      setSilentFor(Math.round((Date.now() - base) / 1000));
+    }, 5000);
+    return () => clearInterval(id);
+  }, [isPlaying, isDemo, isReplay]);
   // Real YouTube captions for the currently-loaded demo speech.
   // Demo JSONs have paraphrased segment.text + approximate segment.time
   // (hand-curated, often on round-minute marks), which means:
@@ -2315,6 +2336,7 @@ export default function LiveExperience({ autoStartReplay }: { autoStartReplay?: 
             mode={isReplay ? "replay" : isDemo ? "demo" : "live"}
             elapsed={captionClock}
             videoDuration={videoDuration}
+            silentFor={silentFor}
             mob={mob}
             claims={timeShift ? claims.map(c => ({
               ...c,

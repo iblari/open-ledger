@@ -478,6 +478,23 @@ function ingestBufferedChunk(force = false) {
 // whose job is to be complete. It also cuts model calls by two thirds.
 const INGEST_INTERVAL = Number(process.env.INGEST_INTERVAL_MS || 45000);
 
+/**
+ * Which egress the NEXT chain should use for the audio fetch.
+ *
+ * ffmpeg was routed through YT_PROXY_URL whenever one was set, with no
+ * fallback — the same single-point-of-failure the caption fetcher had.
+ * A burned proxy returns an HTML error page instead of media, which is
+ * exactly what "Invalid data found when processing input" means, and the
+ * supervisor then re-extracted a fresh URL and fed it down the same dead
+ * path until the circuit breaker gave up.
+ *
+ * Alternating means one bad egress costs a single chain, not the broadcast.
+ */
+let useProxy = Boolean(process.env.YT_PROXY_URL);
+
+/** Last ffmpeg stderr line that indicated a blocked/non-media response. */
+let lastFfmpegFatal = null;
+
 /** Build one audio→STT chain and resolve when any part of it dies. */
 async function runChain(url) {
   const dgWs = await connectDeepgram(["nova-3", "nova-2", "base"]);
@@ -501,10 +518,10 @@ async function runChain(url) {
 
   // Audio download must ALSO go through the proxy when one is set: YouTube
   // binds stream URLs to the requesting IP.
+  const viaProxy = useProxy && Boolean(process.env.YT_PROXY_URL) && /^https?:/i.test(url);
+  console.log(`  audio egress: ${viaProxy ? "proxy" : "direct"}`);
   const ffmpeg = spawn("ffmpeg", [
-    ...(process.env.YT_PROXY_URL && /^https?:/i.test(url)
-      ? ["-http_proxy", process.env.YT_PROXY_URL]
-      : []),
+    ...(viaProxy ? ["-http_proxy", process.env.YT_PROXY_URL] : []),
     // Aggressive reconnect flags: survive transient TLS/proxy hiccups on
     // long-lived live streams without tearing the whole chain down.
     ...(/^https?:/i.test(url)
@@ -525,7 +542,13 @@ async function runChain(url) {
   });
   ffmpeg.stderr.on("data", (d) => {
     const msg = d.toString().trim();
-    if (msg) console.error("  ffmpeg:", msg);
+    if (!msg) return;
+    console.error("  ffmpeg:", msg);
+    // "Invalid data found" means the URL served something that is not media
+    // — an error page. That is an EGRESS verdict, not a stream verdict, so
+    // record it and let the supervisor swap paths rather than retrying the
+    // same blocked route with a fresh URL.
+    if (/Invalid data found|403|Forbidden|Server returned/i.test(msg)) lastFfmpegFatal = msg.slice(0, 200);
   });
 
   // Resolve when EITHER side dies; the supervisor decides what to do next.
@@ -576,6 +599,7 @@ console.log("🎙️  LIVE — transcribing and fact-checking in real-time...\n"
 
 let restarts = 0;
 const deaths = []; // wall-clock ms of recent chain deaths (circuit breaker)
+let bytesThisChain = 0;
 
 let chainUrl = audioUrl;
 for (;;) {
@@ -600,6 +624,13 @@ for (;;) {
   }
 
   restarts++;
+  // Swap egress when the last chain died because the fetch returned a
+  // non-media body. Re-extracting the URL cannot fix a blocked route.
+  if (lastFfmpegFatal && process.env.YT_PROXY_URL) {
+    useProxy = !useProxy;
+    console.log(`  ↔ audio fetch returned non-media (${lastFfmpegFatal}) — switching to ${useProxy ? "proxy" : "direct"}`);
+    lastFfmpegFatal = null;
+  }
   console.log(`  ↻ Restarting audio chain (restart #${restarts}) in 5s — re-extracting stream URL...`);
   await sleep(5000);
   const fresh = await extractAudioUrl();
