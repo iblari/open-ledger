@@ -871,8 +871,15 @@ export default function LiveExperience({ autoStartReplay }: { autoStartReplay?: 
           return;
         }
         const feed = await resp.json();
-        // Clear stale error on a successful poll.
-        if (pollError) setPollError(null);
+        // Clear via the updater form, and never read pollError here.
+        //
+        // pollError was in this effect's dependency array while the poll
+        // both set and cleared it — so every flap tore down the interval and
+        // built a new one, and a single failed poll followed by a good one
+        // restarted the timer mid-broadcast. Reading it also captured a
+        // stale value in the closure. The updater touches state only when it
+        // actually changes, so the interval now survives the whole session.
+        setPollError(prev => (prev === null ? prev : null));
 
         // Update transcript — ONLY while the ingest pipeline is actually
         // live. The KV transcript persists after a broadcast (and after
@@ -929,7 +936,9 @@ export default function LiveExperience({ autoStartReplay }: { autoStartReplay?: 
     // Initial poll immediately
     poll();
     return () => clearInterval(interval);
-  }, [isPlaying, isDemo, isReplay, pollError]);
+    // pollError deliberately NOT a dependency — see above. The interval must
+    // outlive transient feed errors.
+  }, [isPlaying, isDemo, isReplay]);
 
   /* ── Recent broadcasts (last 72h, replayable with stored claims) ── */
   const [recent, setRecent] = useState<{
