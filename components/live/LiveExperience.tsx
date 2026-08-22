@@ -1143,7 +1143,31 @@ export default function LiveExperience({ autoStartReplay }: { autoStartReplay?: 
         height: "100%",
         playerVars: { autoplay: 1, rel: 0, playsinline: 1 },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        events: { onReady: (e: any) => { e.target.playVideo(); } },
+        events: { onReady: (e: any) => {
+          e.target.playVideo();
+          // Permit picture-in-picture on the iframe the API just built.
+          //
+          // An embedded player cannot enter PiP unless the parent frame
+          // grants it, and the IFrame API creates this element itself, so
+          // there is nowhere to declare it up front. Without this the PiP
+          // control is simply absent and a viewer has to choose between
+          // watching and using their phone.
+          //
+          // playsinline stays 1 deliberately: dropping it lets iOS take the
+          // whole screen, which hides the fact-check feed — the actual
+          // product. PiP is the better answer than native fullscreen here
+          // because the page keeps running underneath.
+          try {
+            const f = e.target.getIframe?.() as HTMLIFrameElement | undefined;
+            if (f) {
+              const allow = f.getAttribute("allow") || "";
+              if (!allow.includes("picture-in-picture")) {
+                f.setAttribute("allow", `${allow ? allow + "; " : ""}picture-in-picture`);
+              }
+              f.setAttribute("allowfullscreen", "true");
+            }
+          } catch { /* player shape changed — PiP just stays unavailable */ }
+        } },
       });
     };
 
