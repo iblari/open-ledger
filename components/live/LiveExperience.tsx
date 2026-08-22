@@ -1819,7 +1819,14 @@ export default function LiveExperience({ autoStartReplay }: { autoStartReplay?: 
         display: "flex", alignItems: "center", justifyContent: "space-between",
       }}>
         <Brand mob={mob} />
-        <div style={{ display: "flex", gap: mob ? 12 : 20, fontFamily: "'DM Sans',sans-serif", fontSize: mob ? 11 : 13 }}>
+        {/* alignItems:center — without it the flex default stretches each
+            child to full height, so the plain "Data" link's text sits at the
+            top of a tall box while the padded button centres its own. They
+            looked misaligned by a few pixels for exactly that reason. */}
+        <div style={{
+          display: "flex", alignItems: "center", gap: mob ? 12 : 20,
+          fontFamily: "'DM Sans',sans-serif", fontSize: mob ? 11 : 13,
+        }}>
           <Link href="/dashboard" style={{ color: T.sub, textDecoration: "none", fontWeight: 500 }}>Data</Link>
           {/* "Live" pointed at /live from inside /live, and "Scenarios" sent
               someone mid-broadcast to a counterfactual chart. Replaced with
