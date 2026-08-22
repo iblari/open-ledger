@@ -158,6 +158,22 @@ if (durationSec) {
 }
 console.log(``);
 
+/**
+ * Which egress BOTH the URL resolution and the media fetch use.
+ *
+ * These must never diverge: YouTube binds a resolved stream URL to the IP
+ * that requested it, so extracting through the proxy and downloading direct
+ * fails by design. One flag drives both.
+ *
+ * It flips only when ffmpeg reports a non-media response — an error page
+ * rather than audio — because that is a verdict on the route, and
+ * re-extracting a fresh URL down the same blocked route cannot help.
+ */
+let useProxy = Boolean(process.env.YT_PROXY_URL);
+
+/** Last ffmpeg stderr line that indicated a blocked/non-media response. */
+let lastFfmpegFatal = null;
+
 // ── Step 1: Get audio stream URL via yt-dlp ────────────────────
 //
 // ORDER MATTERS: extract audio BEFORE flipping the site to live. The old
@@ -193,7 +209,11 @@ function tryYtDlp(extraArgs) {
     // YT_PROXY_URL (static-residential proxy) routes extraction around
     // YouTube's datacenter-IP bot-check — set it as a GitHub secret and
     // every attempt in the ladder uses it automatically.
-    if (process.env.YT_PROXY_URL) args.unshift("--proxy", process.env.YT_PROXY_URL);
+    // MUST match the egress ffmpeg will use for the media fetch. YouTube
+    // binds a resolved stream URL to the IP that asked for it, so resolving
+    // through the proxy and downloading direct (or vice versa) is rejected
+    // by design. useProxy is the single source of truth for both.
+    if (useProxy && process.env.YT_PROXY_URL) args.unshift("--proxy", process.env.YT_PROXY_URL);
     const proc = spawn("yt-dlp", args);
     let out = "";
     let errText = "";
@@ -259,7 +279,11 @@ if (!sourceIsYouTube) {
   console.log("→ Pre-flight: verifying stream is live...");
   const status = await new Promise((resolve) => {
     const args = ["--print", "live_status", YOUTUBE_URL];
-    if (process.env.YT_PROXY_URL) args.unshift("--proxy", process.env.YT_PROXY_URL);
+    // MUST match the egress ffmpeg will use for the media fetch. YouTube
+    // binds a resolved stream URL to the IP that asked for it, so resolving
+    // through the proxy and downloading direct (or vice versa) is rejected
+    // by design. useProxy is the single source of truth for both.
+    if (useProxy && process.env.YT_PROXY_URL) args.unshift("--proxy", process.env.YT_PROXY_URL);
     const proc = spawn("yt-dlp", args);
     let out = "";
     proc.stdout.on("data", (d) => { out += d.toString(); });
@@ -490,10 +514,7 @@ const INGEST_INTERVAL = Number(process.env.INGEST_INTERVAL_MS || 45000);
  *
  * Alternating means one bad egress costs a single chain, not the broadcast.
  */
-let useProxy = Boolean(process.env.YT_PROXY_URL);
-
-/** Last ffmpeg stderr line that indicated a blocked/non-media response. */
-let lastFfmpegFatal = null;
+/** Declared near the top — see the egress note above extractAudioUrl. */
 
 /** Build one audio→STT chain and resolve when any part of it dies. */
 async function runChain(url) {
