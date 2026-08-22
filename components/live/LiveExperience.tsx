@@ -1821,16 +1821,15 @@ export default function LiveExperience({ autoStartReplay }: { autoStartReplay?: 
         <Brand mob={mob} />
         <div style={{ display: "flex", gap: mob ? 12 : 20, fontFamily: "'DM Sans',sans-serif", fontSize: mob ? 11 : 13 }}>
           <Link href="/dashboard" style={{ color: T.sub, textDecoration: "none", fontWeight: 500 }}>Data</Link>
-          <Link href="/dashboard?tab=scenarios" style={{ color: T.sub, textDecoration: "none", fontWeight: 500 }}>Scenarios</Link>
-          <Link href="/live" style={{
-            color: T.accent, textDecoration: "none", fontWeight: 700,
-            display: "flex", alignItems: "center", gap: 5,
+          {/* "Live" pointed at /live from inside /live, and "Scenarios" sent
+              someone mid-broadcast to a counterfactual chart. Replaced with
+              the one action worth offering a viewer who is already here and
+              engaged: a way to be told about the next one. */}
+          <Link href="/today#newsletter" style={{
+            color: "#fff", background: T.accent, textDecoration: "none", fontWeight: 700,
+            padding: mob ? "6px 11px" : "7px 15px", borderRadius: 6, whiteSpace: "nowrap",
           }}>
-            <span style={{
-              width: 6, height: 6, borderRadius: "50%", background: "#dc2626",
-              animation: config?.status === "live" ? "pulse 2s infinite" : "none",
-            }} />
-            Live
+            Join our newsletter
           </Link>
         </div>
       </nav>
