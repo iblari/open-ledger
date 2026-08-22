@@ -9,7 +9,7 @@ const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: 'Vote Unbiased — The Economy Under Every President, In Data',
-  description: '19 economic metrics, 5 administrations, 4 active conflicts, 32 years of data. No spin. No editorial. You interpret.',
+  description: 'Official broadcasts fact-checked live against BLS, BEA, Census and Fed data. Every claim shows the quote, the real figure and the source. No spin. You interpret.',
   metadataBase: new URL('https://voteunbiased.org'),
   verification: {
     google: 'o9EM5aUToekdkqIelamubG94gJfUyFp9si6LfrhZd2M',
@@ -37,25 +37,16 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: 'Vote Unbiased — The Economy Under Every President, In Data',
-    description: '19 economic metrics, 5 administrations, 4 active conflicts, 32 years of data. No spin. No editorial. You interpret.',
+    description: 'Official broadcasts fact-checked live against BLS, BEA, Census and Fed data. Every claim shows the quote, the real figure and the source. No spin. You interpret.',
     url: 'https://voteunbiased.org',
     siteName: 'Vote Unbiased',
-    images: [
-      {
-        url: '/og-image.png',
-        width: 1200,
-        height: 630,
-        alt: 'Vote Unbiased — Economic data across every presidential administration',
-      },
-    ],
     locale: 'en_US',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
     title: 'Vote Unbiased — The Economy Under Every President, In Data',
-    description: '19 economic metrics, 5 administrations, 4 active conflicts, 32 years of data. No spin. No editorial. You interpret.',
-    images: ['/og-image.png'],
+    description: 'Official broadcasts fact-checked live against BLS, BEA, Census and Fed data. Every claim shows the quote, the real figure and the source. No spin. You interpret.',
   },
 }
 
