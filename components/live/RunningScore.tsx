@@ -38,11 +38,28 @@ export default function RunningScore({
       borderBottom: `1px solid ${L.cardBorder}`,
       display: "flex", alignItems: "center", gap: mob ? 11 : 18,
     }}>
-      <span style={{
-        fontFamily: F.display, fontSize: mob ? 22 : 38, fontWeight: 600, lineHeight: 1,
-        color: "#F2EEE9", flexShrink: 0, letterSpacing: "-0.02em",
-      }}>
-        {pct !== null ? `${pct}%` : "—"}
+      {/* The percentage now carries its own denominator.
+          A bare "52%" beside a politician's face reads as an approval
+          rating or an overall honesty score, and it is neither: it is
+          TRUE / (TRUE + MISLEADING + FALSE) over the economic claims this
+          broadcast happened to surface. Unlabelled, it was the one number
+          on the page that could travel in a screenshot and mean something
+          the site never said. */}
+      <span style={{ flexShrink: 0, display: "flex", flexDirection: "column", gap: 2 }}>
+        <span style={{
+          fontFamily: F.display, fontSize: mob ? 22 : 38, fontWeight: 600, lineHeight: 1,
+          color: "#F2EEE9", letterSpacing: "-0.02em",
+        }}>
+          {pct !== null ? `${pct}%` : "—"}
+        </span>
+        <span style={{
+          fontFamily: F.ui, fontSize: mob ? 9 : 10, lineHeight: 1.3,
+          color: L.mutedDark, letterSpacing: "0.02em", maxWidth: mob ? 92 : 118,
+        }}>
+          {pct !== null
+            ? `matched the data · of ${checked} checkable claim${checked === 1 ? "" : "s"}`
+            : "no checkable claims yet"}
+        </span>
       </span>
 
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -65,9 +82,7 @@ export default function RunningScore({
               }}>{label}</span>
             </span>
           ))}
-          {checked === 0 && (
-            <span style={{ fontFamily: F.ui, fontSize: 11.5, color: L.mutedDark }}>no checkable claims yet</span>
-          )}
+
           {unverifiableCount > 0 && (
             <span style={{ fontFamily: F.ui, fontSize: 10.5, letterSpacing: "0.06em", color: L.mutedDark }}>
               {/* On a phone the explanatory tail wrapped onto its own line,
