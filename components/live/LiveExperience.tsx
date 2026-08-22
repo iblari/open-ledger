@@ -1832,7 +1832,9 @@ export default function LiveExperience({ autoStartReplay }: { autoStartReplay?: 
               someone mid-broadcast to a counterfactual chart. Replaced with
               the one action worth offering a viewer who is already here and
               engaged: a way to be told about the next one. */}
-          <Link href="/today#newsletter" style={{
+          {/* The monthly-dispatch section on the homepage — the fuller sign-up with
+              the pitch attached, rather than the compact form on /today. */}
+          <Link href="/#cta" style={{
             color: "#fff", background: T.accent, textDecoration: "none", fontWeight: 700,
             padding: mob ? "6px 11px" : "7px 15px", borderRadius: 6, whiteSpace: "nowrap",
           }}>

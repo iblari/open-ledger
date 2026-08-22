@@ -233,8 +233,7 @@ export default async function TodayPage() {
             </div>
           </div>
           <div style={{ background: C.ink, borderRadius: 8, padding: "18px 20px" }}>
-            {/* Anchor target for the "Join our newsletter" nav button. */}
-            <div id="newsletter" style={{ scrollMarginTop: 80, fontFamily: SERIF, fontSize: 16, fontWeight: 600, color: "#f8f5f0", marginBottom: 4 }}>The weekly signal</div>
+            <div style={{ fontFamily: SERIF, fontSize: 16, fontWeight: 600, color: "#f8f5f0", marginBottom: 4 }}>The weekly signal</div>
             <p style={{ fontFamily: SANS, fontSize: 11.5, color: "#b8b0a8", lineHeight: 1.55, margin: "0 0 12px" }}>
               The most important shifts — before they become headlines.
             </p>

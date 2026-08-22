@@ -1109,6 +1109,10 @@ function CTASection({ mob, med }: { mob: boolean; med: boolean }) {
 
   return (
     <section id="cta" style={{
+      // Anchor target for the "Join our newsletter" button in the /live nav.
+      // scrollMarginTop keeps the headline clear of the sticky header on
+      // arrival — without it the anchor lands with the form under the nav.
+      scrollMarginTop: 72,
       padding: mob ? "48px 0" : "72px 0",
       background: `linear-gradient(180deg, ${C.bg} 0%, ${C.paper} 100%)`,
     }}>
