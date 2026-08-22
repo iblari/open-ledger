@@ -1107,6 +1107,34 @@ function CTASection({ mob, med }: { mob: boolean; med: boolean }) {
     }
   };
 
+  // Spotlight the field when someone arrives via #cta.
+  //
+  // The "Join our newsletter" button drops you two thirds down a long page,
+  // and the form sits to the RIGHT of the headline — so the thing you came
+  // for is not where your eye lands. A brief ring plus focus says "type
+  // here" without a tooltip or a colour that reads as an error.
+  //
+  // Focus alone would be enough on desktop but does nothing visible on
+  // touch, where no caret appears until you tap; the ring covers both.
+  const emailRef = useRef<HTMLInputElement | null>(null);
+  const [spotlight, setSpotlight] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined" || window.location.hash !== "#cta") return;
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    // Wait for the browser's own anchor scroll to settle, or the ring
+    // appears while the page is still flying past it.
+    const on = setTimeout(() => {
+      setSpotlight(true);
+      // Don't steal focus on touch: it summons the keyboard over the page
+      // the moment someone lands, which is hostile.
+      if (!reduce && window.matchMedia?.("(hover: hover)").matches) {
+        emailRef.current?.focus({ preventScroll: true });
+      }
+    }, 600);
+    const off = setTimeout(() => setSpotlight(false), 4000);
+    return () => { clearTimeout(on); clearTimeout(off); };
+  }, []);
+
   return (
     <section id="cta" style={{
       // Anchor target for the "Join our newsletter" button in the /live nav.
@@ -1143,11 +1171,17 @@ function CTASection({ mob, med }: { mob: boolean; med: boolean }) {
             <>
               <div style={{ display: "flex", gap: 8, flexDirection: mob ? "column" : "row" }}>
                 <input
+                  ref={emailRef}
                   type="email" placeholder="name@domain.com" required value={email}
                   onChange={e => setEmail(e.target.value)}
                   style={{
                     flex: 1, padding: "14px 18px", font: "inherit", fontSize: mob ? 16 : 17,
-                    border: `1px solid ${C.rule}`, borderRadius: 4, background: C.card, color: C.ink,
+                    border: `1px solid ${spotlight ? C.accent : C.rule}`, borderRadius: 4,
+                    background: C.card, color: C.ink,
+                    // A ring rather than a colour swap: the field keeps its
+                    // normal appearance, so nothing looks like an error state.
+                    boxShadow: spotlight ? `0 0 0 4px ${C.accent}22` : "none",
+                    transition: "box-shadow .25s ease, border-color .25s ease",
                   }}
                 />
                 <button type="submit" disabled={status === "loading"} style={{
