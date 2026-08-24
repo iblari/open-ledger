@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-17T13:35:06.849Z",
+  "generatedAt": "2026-08-24T13:56:51.924Z",
   "series": [
     {
       "id": "ai_business_adoption",
@@ -112,6 +112,280 @@
       "confidenceNotes": [
         "series shorter than a year"
       ]
+    },
+    {
+      "id": "frontier_training_compute",
+      "topic": "ai",
+      "label": "Largest model trained to date",
+      "unit": "log10 FLOP",
+      "cadence": "quarterly",
+      "geography": "global",
+      "scale": "log",
+      "source": {
+        "id": "epoch_ai",
+        "name": "Epoch AI, Data on AI Models",
+        "url": "https://epoch.ai/data/ai-models",
+        "licence": "CC-BY-4.0",
+        "licenceUrl": "https://creativecommons.org/licenses/by/4.0/",
+        "attribution": "Epoch AI, 'Data on AI Models'. Published online at epoch.ai.",
+        "note": "Running maximum training compute among notable models, by publication quarter. Flat stretches mean no larger model has been catalogued — frontier labs increasingly do not disclose compute."
+      },
+      "points": [
+        {
+          "t": "2015-01-01",
+          "v": 19.38,
+          "label": "MSRA (C, PReLU) · Microsoft Research"
+        },
+        {
+          "t": "2015-04-01",
+          "v": 19.38,
+          "label": "MSRA (C, PReLU) · Microsoft Research"
+        },
+        {
+          "t": "2015-07-01",
+          "v": 19.38,
+          "label": "MSRA (C, PReLU) · Microsoft Research"
+        },
+        {
+          "t": "2015-10-01",
+          "v": 20.58,
+          "label": "AlphaGo Fan · DeepMind"
+        },
+        {
+          "t": "2016-01-01",
+          "v": 21.28,
+          "label": "AlphaGo Lee · DeepMind"
+        },
+        {
+          "t": "2016-04-01",
+          "v": 21.28,
+          "label": "AlphaGo Lee · DeepMind"
+        },
+        {
+          "t": "2016-07-01",
+          "v": 21.82,
+          "label": "GNMT · Google"
+        },
+        {
+          "t": "2016-10-01",
+          "v": 21.82,
+          "label": "GNMT · Google"
+        },
+        {
+          "t": "2017-01-01",
+          "v": 21.82,
+          "label": "GNMT · Google"
+        },
+        {
+          "t": "2017-04-01",
+          "v": 21.82,
+          "label": "GNMT · Google"
+        },
+        {
+          "t": "2017-07-01",
+          "v": 21.82,
+          "label": "GNMT · Google"
+        },
+        {
+          "t": "2017-10-01",
+          "v": 21.82,
+          "label": "GNMT · Google"
+        },
+        {
+          "t": "2018-01-01",
+          "v": 21.82,
+          "label": "GNMT · Google"
+        },
+        {
+          "t": "2018-04-01",
+          "v": 21.94,
+          "label": "ResNeXt-101 32x48d · Facebook"
+        },
+        {
+          "t": "2018-07-01",
+          "v": 21.94,
+          "label": "ResNeXt-101 32x48d · Facebook"
+        },
+        {
+          "t": "2018-10-01",
+          "v": 21.94,
+          "label": "ResNeXt-101 32x48d · Facebook"
+        },
+        {
+          "t": "2019-01-01",
+          "v": 21.94,
+          "label": "ResNeXt-101 32x48d · Facebook"
+        },
+        {
+          "t": "2019-04-01",
+          "v": 21.94,
+          "label": "ResNeXt-101 32x48d · Facebook"
+        },
+        {
+          "t": "2019-07-01",
+          "v": 22.34,
+          "label": "Megatron-BERT · NVIDIA"
+        },
+        {
+          "t": "2019-10-01",
+          "v": 23.03,
+          "label": "AlphaStar · DeepMind"
+        },
+        {
+          "t": "2020-01-01",
+          "v": 23.05,
+          "label": "Meena · Google Brain"
+        },
+        {
+          "t": "2020-04-01",
+          "v": 23.5,
+          "label": "GPT-3 175B (davinci) · OpenAI"
+        },
+        {
+          "t": "2020-07-01",
+          "v": 23.5,
+          "label": "GPT-3 175B (davinci) · OpenAI"
+        },
+        {
+          "t": "2020-10-01",
+          "v": 23.5,
+          "label": "GPT-3 175B (davinci) · OpenAI"
+        },
+        {
+          "t": "2021-01-01",
+          "v": 23.5,
+          "label": "GPT-3 175B (davinci) · OpenAI"
+        },
+        {
+          "t": "2021-04-01",
+          "v": 23.5,
+          "label": "GPT-3 175B (davinci) · OpenAI"
+        },
+        {
+          "t": "2021-07-01",
+          "v": 24.31,
+          "label": "FLAN 137B · Google Research"
+        },
+        {
+          "t": "2021-10-01",
+          "v": 24.31,
+          "label": "FLAN 137B · Google Research"
+        },
+        {
+          "t": "2022-01-01",
+          "v": 24.41,
+          "label": "GPT-3.5 (davinci-002) · OpenAI"
+        },
+        {
+          "t": "2022-04-01",
+          "v": 24.44,
+          "label": "Minerva (540B) · Google"
+        },
+        {
+          "t": "2022-07-01",
+          "v": 24.44,
+          "label": "Minerva (540B) · Google"
+        },
+        {
+          "t": "2022-10-01",
+          "v": 24.44,
+          "label": "Minerva (540B) · Google"
+        },
+        {
+          "t": "2023-01-01",
+          "v": 25.32,
+          "label": "GPT-4 (Mar 2023) · OpenAI"
+        },
+        {
+          "t": "2023-04-01",
+          "v": 25.32,
+          "label": "GPT-4 (Mar 2023) · OpenAI"
+        },
+        {
+          "t": "2023-07-01",
+          "v": 25.32,
+          "label": "GPT-4 (Mar 2023) · OpenAI"
+        },
+        {
+          "t": "2023-10-01",
+          "v": 25.7,
+          "label": "Gemini 1.0 Ultra · Google DeepMind"
+        },
+        {
+          "t": "2024-01-01",
+          "v": 25.7,
+          "label": "Gemini 1.0 Ultra · Google DeepMind"
+        },
+        {
+          "t": "2024-04-01",
+          "v": 25.7,
+          "label": "Gemini 1.0 Ultra · Google DeepMind"
+        },
+        {
+          "t": "2024-07-01",
+          "v": 25.7,
+          "label": "Gemini 1.0 Ultra · Google DeepMind"
+        },
+        {
+          "t": "2024-10-01",
+          "v": 25.7,
+          "label": "Gemini 1.0 Ultra · Google DeepMind"
+        },
+        {
+          "t": "2025-01-01",
+          "v": 26.58,
+          "label": "GPT-4.5 · OpenAI"
+        },
+        {
+          "t": "2025-04-01",
+          "v": 26.58,
+          "label": "GPT-4.5 · OpenAI"
+        },
+        {
+          "t": "2025-07-01",
+          "v": 26.7,
+          "label": "Grok 4 · xAI"
+        },
+        {
+          "t": "2025-10-01",
+          "v": 26.7,
+          "label": "Grok 4 · xAI"
+        },
+        {
+          "t": "2026-01-01",
+          "v": 26.7,
+          "label": "Grok 4 · xAI"
+        },
+        {
+          "t": "2026-04-01",
+          "v": 26.7,
+          "label": "Grok 4 · xAI"
+        },
+        {
+          "t": "2026-07-01",
+          "v": 26.7,
+          "label": "Grok 4 · xAI"
+        }
+      ],
+      "latest": {
+        "t": "2026-07-01",
+        "v": 26.7,
+        "label": "Grok 4 · xAI"
+      },
+      "first": {
+        "t": "2015-01-01",
+        "v": 19.38,
+        "label": "MSRA (C, PReLU) · Microsoft Research"
+      },
+      "score": 46.8,
+      "yoy": 0,
+      "changeUnit": "oom",
+      "changeWindowDays": 365,
+      "comparedWith": {
+        "t": "2025-07-01",
+        "v": 26.7
+      },
+      "confidenceNotes": []
     },
     {
       "id": "ecommerce_share",
@@ -550,298 +824,28 @@
         },
         {
           "t": "2026-01-01",
-          "v": 16.9
+          "v": 17
+        },
+        {
+          "t": "2026-04-01",
+          "v": 17.1
         }
       ],
       "latest": {
-        "t": "2026-01-01",
-        "v": 16.9
+        "t": "2026-04-01",
+        "v": 17.1
       },
       "first": {
         "t": "1999-10-01",
         "v": 0.6
       },
-      "score": 48.1,
-      "yoy": 5.6,
+      "score": 45.6,
+      "yoy": 4.9,
       "changeUnit": "percent",
       "changeWindowDays": 365,
       "comparedWith": {
-        "t": "2025-01-01",
-        "v": 16
-      },
-      "confidenceNotes": []
-    },
-    {
-      "id": "frontier_training_compute",
-      "topic": "ai",
-      "label": "Largest model trained to date",
-      "unit": "log10 FLOP",
-      "cadence": "quarterly",
-      "geography": "global",
-      "scale": "log",
-      "source": {
-        "id": "epoch_ai",
-        "name": "Epoch AI, Data on AI Models",
-        "url": "https://epoch.ai/data/ai-models",
-        "licence": "CC-BY-4.0",
-        "licenceUrl": "https://creativecommons.org/licenses/by/4.0/",
-        "attribution": "Epoch AI, 'Data on AI Models'. Published online at epoch.ai.",
-        "note": "Running maximum training compute among notable models, by publication quarter. Flat stretches mean no larger model has been catalogued — frontier labs increasingly do not disclose compute."
-      },
-      "points": [
-        {
-          "t": "2015-01-01",
-          "v": 19.38,
-          "label": "MSRA (C, PReLU) · Microsoft Research"
-        },
-        {
-          "t": "2015-04-01",
-          "v": 19.38,
-          "label": "MSRA (C, PReLU) · Microsoft Research"
-        },
-        {
-          "t": "2015-07-01",
-          "v": 19.38,
-          "label": "MSRA (C, PReLU) · Microsoft Research"
-        },
-        {
-          "t": "2015-10-01",
-          "v": 20.58,
-          "label": "AlphaGo Fan · DeepMind"
-        },
-        {
-          "t": "2016-01-01",
-          "v": 21.28,
-          "label": "AlphaGo Lee · DeepMind"
-        },
-        {
-          "t": "2016-04-01",
-          "v": 21.28,
-          "label": "AlphaGo Lee · DeepMind"
-        },
-        {
-          "t": "2016-07-01",
-          "v": 21.82,
-          "label": "GNMT · Google"
-        },
-        {
-          "t": "2016-10-01",
-          "v": 21.82,
-          "label": "GNMT · Google"
-        },
-        {
-          "t": "2017-01-01",
-          "v": 21.82,
-          "label": "GNMT · Google"
-        },
-        {
-          "t": "2017-04-01",
-          "v": 21.82,
-          "label": "GNMT · Google"
-        },
-        {
-          "t": "2017-07-01",
-          "v": 21.82,
-          "label": "GNMT · Google"
-        },
-        {
-          "t": "2017-10-01",
-          "v": 21.82,
-          "label": "GNMT · Google"
-        },
-        {
-          "t": "2018-01-01",
-          "v": 21.82,
-          "label": "GNMT · Google"
-        },
-        {
-          "t": "2018-04-01",
-          "v": 21.94,
-          "label": "ResNeXt-101 32x48d · Facebook"
-        },
-        {
-          "t": "2018-07-01",
-          "v": 21.94,
-          "label": "ResNeXt-101 32x48d · Facebook"
-        },
-        {
-          "t": "2018-10-01",
-          "v": 21.94,
-          "label": "ResNeXt-101 32x48d · Facebook"
-        },
-        {
-          "t": "2019-01-01",
-          "v": 21.94,
-          "label": "ResNeXt-101 32x48d · Facebook"
-        },
-        {
-          "t": "2019-04-01",
-          "v": 21.94,
-          "label": "ResNeXt-101 32x48d · Facebook"
-        },
-        {
-          "t": "2019-07-01",
-          "v": 22.34,
-          "label": "Megatron-BERT · NVIDIA"
-        },
-        {
-          "t": "2019-10-01",
-          "v": 23.03,
-          "label": "AlphaStar · DeepMind"
-        },
-        {
-          "t": "2020-01-01",
-          "v": 23.05,
-          "label": "Meena · Google Brain"
-        },
-        {
-          "t": "2020-04-01",
-          "v": 23.5,
-          "label": "GPT-3 175B (davinci) · OpenAI"
-        },
-        {
-          "t": "2020-07-01",
-          "v": 23.5,
-          "label": "GPT-3 175B (davinci) · OpenAI"
-        },
-        {
-          "t": "2020-10-01",
-          "v": 23.5,
-          "label": "GPT-3 175B (davinci) · OpenAI"
-        },
-        {
-          "t": "2021-01-01",
-          "v": 23.5,
-          "label": "GPT-3 175B (davinci) · OpenAI"
-        },
-        {
-          "t": "2021-04-01",
-          "v": 23.5,
-          "label": "GPT-3 175B (davinci) · OpenAI"
-        },
-        {
-          "t": "2021-07-01",
-          "v": 24.31,
-          "label": "FLAN 137B · Google Research"
-        },
-        {
-          "t": "2021-10-01",
-          "v": 24.31,
-          "label": "FLAN 137B · Google Research"
-        },
-        {
-          "t": "2022-01-01",
-          "v": 24.41,
-          "label": "GPT-3.5 (davinci-002) · OpenAI"
-        },
-        {
-          "t": "2022-04-01",
-          "v": 24.44,
-          "label": "Minerva (540B) · Google"
-        },
-        {
-          "t": "2022-07-01",
-          "v": 24.44,
-          "label": "Minerva (540B) · Google"
-        },
-        {
-          "t": "2022-10-01",
-          "v": 24.44,
-          "label": "Minerva (540B) · Google"
-        },
-        {
-          "t": "2023-01-01",
-          "v": 25.32,
-          "label": "GPT-4 (Mar 2023) · OpenAI"
-        },
-        {
-          "t": "2023-04-01",
-          "v": 25.32,
-          "label": "GPT-4 (Mar 2023) · OpenAI"
-        },
-        {
-          "t": "2023-07-01",
-          "v": 25.32,
-          "label": "GPT-4 (Mar 2023) · OpenAI"
-        },
-        {
-          "t": "2023-10-01",
-          "v": 25.7,
-          "label": "Gemini 1.0 Ultra · Google DeepMind"
-        },
-        {
-          "t": "2024-01-01",
-          "v": 25.7,
-          "label": "Gemini 1.0 Ultra · Google DeepMind"
-        },
-        {
-          "t": "2024-04-01",
-          "v": 25.7,
-          "label": "Gemini 1.0 Ultra · Google DeepMind"
-        },
-        {
-          "t": "2024-07-01",
-          "v": 25.7,
-          "label": "Gemini 1.0 Ultra · Google DeepMind"
-        },
-        {
-          "t": "2024-10-01",
-          "v": 25.7,
-          "label": "Gemini 1.0 Ultra · Google DeepMind"
-        },
-        {
-          "t": "2025-01-01",
-          "v": 26.58,
-          "label": "GPT-4.5 · OpenAI"
-        },
-        {
-          "t": "2025-04-01",
-          "v": 26.58,
-          "label": "GPT-4.5 · OpenAI"
-        },
-        {
-          "t": "2025-07-01",
-          "v": 26.7,
-          "label": "Grok 4 · xAI"
-        },
-        {
-          "t": "2025-10-01",
-          "v": 26.7,
-          "label": "Grok 4 · xAI"
-        },
-        {
-          "t": "2026-01-01",
-          "v": 26.7,
-          "label": "Grok 4 · xAI"
-        },
-        {
-          "t": "2026-04-01",
-          "v": 26.7,
-          "label": "Grok 4 · xAI"
-        },
-        {
-          "t": "2026-07-01",
-          "v": 26.7,
-          "label": "Grok 4 · xAI"
-        }
-      ],
-      "latest": {
-        "t": "2026-07-01",
-        "v": 26.7,
-        "label": "Grok 4 · xAI"
-      },
-      "first": {
-        "t": "2015-01-01",
-        "v": 19.38,
-        "label": "MSRA (C, PReLU) · Microsoft Research"
-      },
-      "score": 46.8,
-      "yoy": 0,
-      "changeUnit": "oom",
-      "changeWindowDays": 365,
-      "comparedWith": {
-        "t": "2025-07-01",
-        "v": 26.7
+        "t": "2025-04-01",
+        "v": 16.3
       },
       "confidenceNotes": []
     },
@@ -1689,7 +1693,7 @@
         "t": "1975-01-01",
         "v": 59.9
       },
-      "score": 39,
+      "score": 35.1,
       "yoy": 3.4,
       "changeUnit": "percent",
       "changeWindowDays": 365,
@@ -1697,7 +1701,9 @@
         "t": "2025-01-01",
         "v": 689.94
       },
-      "confidenceNotes": []
+      "confidenceNotes": [
+        "no update in 8 months"
+      ]
     },
     {
       "id": "vehicle_miles",
