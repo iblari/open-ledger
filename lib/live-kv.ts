@@ -789,23 +789,45 @@ export interface LedgerEntry {
  * real per-speaker attribution needs diarization at ingest, which would only
  * apply to future broadcasts anyway.
  */
+/**
+ * The people we actually cover. Matching against a known roster beats parsing
+ * names out of arbitrary titles: the old role-based regex read "Vice President
+ * JD Vance" as "Vice President JD" (it took exactly one token after the role to
+ * avoid swallowing verbs like "Delivers"), and missed "JD Vance leads..."
+ * entirely because no role word preceded the name.
+ */
+const PRINCIPALS: { name: string; re: RegExp }[] = [
+  { name: "Donald Trump", re: /\b(?:president\s+)?donald\s+(?:j\.?\s+)?trump\b|\bpresident\s+trump\b/i },
+  { name: "JD Vance", re: /\bj\.?\s?d\.?\s+vance\b|\bvice\s+president\s+vance\b/i },
+  { name: "Melania Trump", re: /\b(?:first\s+lady\s+)?melania\s+trump\b/i },
+  { name: "Marco Rubio", re: /\b(?:secretary\s+)?marco\s+rubio\b|\bsecretary\s+rubio\b/i },
+  { name: "Pam Bondi", re: /\b(?:attorney\s+general\s+)?pam\s+bondi\b|\battorney\s+general\s+bondi\b/i },
+  { name: "Scott Bessent", re: /\b(?:secretary\s+)?scott\s+bessent\b|\bsecretary\s+bessent\b/i },
+  { name: "Karoline Leavitt", re: /\bkaroline\s+leavitt\b/i },
+  { name: "Pete Hegseth", re: /\b(?:secretary\s+)?pete\s+hegseth\b|\bsecretary\s+hegseth\b/i },
+  { name: "Jerome Powell", re: /\b(?:chair(?:man)?\s+)?jerome\s+powell\b|\bchair(?:man)?\s+powell\b/i },
+];
+
+/** Formats where several principals share the microphone by design, so no
+ *  single attribution is defensible even when one name appears in the title. */
+const SHARED_FORMAT = /\b(cabinet meeting|roundtable|round table|hearing|panel|committee|summit|town hall|debate|joint (?:address|session|press conference))\b/i;
+
+/**
+ * Read the broadcast's principal speaker from its title.
+ *
+ * Caveat worth remembering when reading any per-speaker number: this is
+ * BROADCAST-level attribution, not claim-level. Every claim in a Q&A or a
+ * press briefing is credited to whoever is at the podium, including the ones
+ * a reporter or a guest actually said. Fixing that needs speaker diarisation
+ * of the transcript, which we don't do yet.
+ */
 export function speakerFromTitle(title: string): string | null {
   const t = (title || "").replace(/\s+/g, " ").trim();
   if (!t) return null;
-  // Multi-speaker formats: no single attribution is defensible.
-  if (/\b(cabinet meeting|roundtable|hearing|panel|committee|press briefing|briefing room|joint|summit)\b/i.test(t)) return null;
-
-  // ONE name token after the role. Allowing an optional second token made
-  // the match swallow the verb — "President Trump Delivers Remarks" came
-  // back as "President Trump Delivers". Two-word surnames are rare enough
-  // that missing them beats inventing a name from a verb.
-  const named = t.match(/\b(Vice President|Attorney General|President|Secretary|Governor|Senator|Speaker)\s+([A-Z][a-zA-Z.'-]+)/);
-  if (!named) return null;
-  // Guard anyway: a title like "President Delivers Remarks" would otherwise
-  // attribute the speech to someone called "Delivers".
-  const VERBS = /^(Delivers?|Signs?|Holds?|Speaks?|Announces?|Meets?|Visits?|Hosts?|Addresses|Participates?|Attends?|Remarks?|Departs?|Arrives?)$/i;
-  if (VERBS.test(named[2])) return null;
-  return `${named[1]} ${named[2]}`.trim();
+  if (SHARED_FORMAT.test(t)) return null;
+  const hits = PRINCIPALS.filter(p => p.re.test(t));
+  // Two principals named means we cannot say who spoke which claim.
+  return hits.length === 1 ? hits[0].name : null;
 }
 
 export async function getLedger(): Promise<LedgerEntry[]> {
@@ -813,7 +835,15 @@ export async function getLedger(): Promise<LedgerEntry[]> {
     ? ((await upstashCmd("GET", LEDGER_KEY)) as string | null)
     : mem.get(LEDGER_KEY);
   if (!raw) return [];
-  try { const p = JSON.parse(raw); return Array.isArray(p) ? p : []; } catch { return []; }
+  try {
+    const p = JSON.parse(raw);
+    if (!Array.isArray(p)) return [];
+    // Speaker is derived, never trusted from storage. Entries written before
+    // the roster fix carry "Vice President JD" (a truncation) or null where a
+    // principal was in fact named, and re-reading the title heals both without
+    // a migration.
+    return (p as LedgerEntry[]).map(e => ({ ...e, speaker: speakerFromTitle(e.title) }));
+  } catch { return []; }
 }
 
 async function setLedger(list: LedgerEntry[]): Promise<void> {

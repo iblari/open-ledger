@@ -20,7 +20,10 @@ function isoWeek(d: Date): string {
   return `${t.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  // Claim text is opt-in: it is far larger than the rollup and only the
+  // repeat-claim work needs it, so the default response stays small.
+  const wantClaims = new URL(req.url).searchParams.get("claims") === "1";
   // Self-healing backfill: anything sitting in the 72-hour cache that never
   // made it into the ledger gets recorded now. This is what rescues the
   // broadcasts already in flight when the ledger shipped — after their 72
@@ -68,6 +71,13 @@ export async function GET() {
     },
     weeks: [...weeks.values()].sort((a, b) => b.week.localeCompare(a.week)),
     bySpeaker: [...bySpeaker.values()].sort((a, b) => b.claims - a.claims),
-    broadcasts: entries.map(({ claims, ...meta }) => ({ ...meta, claimCount: claims.length })),
+    // Per-speaker numbers are BROADCAST-level: every claim in a briefing is
+    // credited to whoever is at the podium, including ones a reporter said.
+    attribution: "broadcast-principal",
+    broadcasts: entries.map(({ claims, ...meta }) => ({
+      ...meta,
+      claimCount: claims.length,
+      ...(wantClaims ? { claims } : {}),
+    })),
   });
 }
