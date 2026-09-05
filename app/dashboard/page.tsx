@@ -23,8 +23,6 @@ const GlobeView = nextDynamic(() => import("@/components/GlobeView"), {
 });
 import { HEADER_METRICS, THEATERS, PERSONNEL_BY_COUNTRY, POSTURE_ASSETS, ASSET_TYPES, ALERT_COLORS, THEATER_COLORS, POSTURE_FEED, type PostureAsset, type AssetType, type FeedItem } from "@/lib/abroad-data";
 import { CONFLICT_STREAMS, estimateTotal, estimateGrandTotal, formatUSD, formatUSDFull, MONTHLY_SPEND, computeDeltas, type ConflictStream, type SpendRow, type DeltaRow } from "@/lib/war-costs";
-import { SCENARIOS, SCENARIO_ORDER, applyScenario, type ScenarioId, type DataPoint } from "@/lib/scenarios";
-import { SCENARIO_DETAILS } from "@/lib/scenario-descriptions";
 // Shared editorial design tokens + per-metric display helpers — same lib the
 // landing page uses, so the Data tab redesign matches that aesthetic exactly.
 import { C as EC, SERIF as ESERIF, SANS as ESANS } from "@/lib/design-tokens";
@@ -244,12 +242,6 @@ function inheritedStart(mk: string, id: string): number {
   return pts.length > 0 ? pts[0].v : 0;
 }
 
-const GLOBAL_METRICS={
-  gdp_g:{l:"GDP Growth",u:"%",src:"World Bank/IMF",facts:[{t:"China slowing",x:"10%+ in 2000s → ~5% now."},{t:"India rising",x:"Fastest-growing major economy."}],
-    d:[{y:2000,us:4.1,china:8.5,uk:3.4,india:3.8,germany:3.0,japan:2.8,skorea:9.1},{y:2004,us:3.8,china:10.1,uk:2.4,india:7.9,germany:1.2,japan:2.2,skorea:5.2},{y:2008,us:-0.1,china:9.7,uk:-0.3,india:3.1,germany:0.8,japan:-1.2,skorea:3.0},{y:2012,us:2.3,china:7.9,uk:1.4,india:5.5,germany:0.4,japan:1.4,skorea:2.4},{y:2016,us:1.7,china:6.8,uk:2.3,india:8.3,germany:2.2,japan:0.5,skorea:2.9},{y:2020,us:-2.8,china:2.2,uk:-10.4,india:-5.8,germany:-3.8,japan:-4.1,skorea:-0.7},{y:2024,us:2.8,china:4.9,uk:1.1,india:6.8,germany:0.0,japan:0.3,skorea:2.2}]},
-  inf_g:{l:"Inflation",u:"%",src:"World Bank/IMF",facts:[{t:"2022 was global",x:"UK 9.1%, Germany 8.7%. Supply-chain + energy, not just U.S. stimulus."}],
-    d:[{y:2000,us:3.4,china:0.4,uk:0.8,india:4.0,germany:1.4,japan:-0.7,skorea:2.3},{y:2004,us:2.7,china:3.9,uk:1.3,india:3.8,germany:1.8,japan:0.0,skorea:3.6},{y:2008,us:3.8,china:5.9,uk:3.6,india:8.4,germany:2.8,japan:1.4,skorea:4.7},{y:2012,us:2.1,china:2.6,uk:2.8,india:9.3,germany:2.1,japan:0.0,skorea:2.2},{y:2016,us:1.3,china:2.0,uk:0.7,india:4.9,germany:0.4,japan:-0.1,skorea:1.0},{y:2020,us:1.2,china:2.5,uk:0.9,india:6.6,germany:0.4,japan:0.0,skorea:0.5},{y:2024,us:2.9,china:0.2,uk:2.5,india:4.6,germany:2.2,japan:2.7,skorea:2.4}]},
-};
 
 const INH={
   clinton:{c:"Mild recession ending, 7.5% unemployment, $4.2T debt.",g:"Moderate"},
@@ -732,8 +724,8 @@ function SpendTrendChart({ mob }: { mob?: boolean }) {
 // To restore: add ["abroad","Abroad"] back into both arrays. The tab's
 // implementation (state, render block at the "abroad" branch below) is
 // intentionally left in place so it just works when re-enabled.
-const TABS_DESKTOP=[["dashboard","Data"],["state_atlas","State Atlas"],["scenarios","Scenarios"],["live_benchmark","Live Benchmark"],["global","Global"]];
-const TABS_MOBILE=[["dashboard","Data"],["state_atlas","State Atlas"],["scenarios","Scenarios"],["live_benchmark","Live Benchmark"],["global","Global"]];
+const TABS_DESKTOP=[["dashboard","Data"],["state_atlas","State Atlas"],["live_benchmark","Live Benchmark"]];
+const TABS_MOBILE=[["dashboard","Data"],["state_atlas","State Atlas"],["live_benchmark","Live Benchmark"]];
 
 // Per-metric heatmap data, computed once at module-load. Uses the shared lib
 // so the dashboard speaks the same data language as the landing page.
@@ -902,7 +894,6 @@ function App(){
   const [detail,setDetail]=useState(null);
   const [sel,setSel]=useState(["clinton","bush","obama","trump1","biden"]);
   const [ct,setCt]=useState("bar");
-  const [gm,setGm]=useState("gdp_g");
   const [gc,setGc]=useState(["us","china","india","uk"]);
   const [cf,setCf]=useState("all");
   const [openFacts,setOpenFacts]=useState(false);
@@ -910,8 +901,6 @@ function App(){
   // card-building effect below keys off it.
   const [mobileView]=useState<"table"|"cards">("cards");
   const [selectedPres,setSelectedPres]=useState("clinton");
-  const [scenarioMetric,setScenarioMetric]=useState("gdp");
-  const [activeScenario,setActiveScenario]=useState<ScenarioId>("no_covid");
   // Per-metric display toggles for the Data tab heatmap.
   const [displayMode,setDisplayMode]=useState<DisplayMode>("per_metric");
   const [dollarMode,setDollarMode]=useState<DollarMode>("real");
@@ -924,13 +913,6 @@ function App(){
   useEffect(() => {
     const m = searchParams.get("metric");
     if (m && M[m]) { setAm(m); setDetail(m); }
-    // Scenarios are shared as a PAIR — the counterfactual and the metric
-    // it's charted on. Restoring only one opens a different chart than the
-    // sender was looking at, which is the failure mode a share link is most
-    // prone to: it appears to have worked.
-    const sc = searchParams.get("scenario");
-    if (sc && SCENARIOS[sc as ScenarioId]) setActiveScenario(sc as ScenarioId);
-    if (m && M[m]) setScenarioMetric(m);
     const t = searchParams.get("tab");
     // TABS_DESKTOP is the source of truth for valid tab keys. Previously this
     // line referenced an undefined `TABS`, which threw ReferenceError every
@@ -1005,7 +987,6 @@ function App(){
 
 
   // (Removed: sc/ss/maxP/scores() — Scorecard tab is gone.)
-  const gmd=GLOBAL_METRICS[gm];
 
   const sty={
     page:{minHeight:"100vh",background:T.bg,color:T.ink,fontFamily:"'Source Serif 4','Georgia',serif"},
@@ -2177,463 +2158,6 @@ function App(){
           </div>
         </div>;
         })()}
-
-        {/* ═══ SCENARIOS ═══ */}
-        {tab==="scenarios"&&(<div style={{animation:"fadeUp 0.4s ease"}}>
-          <div style={{marginBottom:24}}>
-            <h2 style={{fontFamily:ESERIF,fontSize:mob?26:34,fontWeight:400,letterSpacing:"-0.02em",lineHeight:1.1,margin:"0 0 6px",color:EC.ink}}>
-              The data without the shock, <em style={{fontStyle:"italic",color:EC.accent}}>modeled.</em>
-            </h2>
-            <p style={{fontFamily:ESANS,fontSize:13,color:EC.sub,lineHeight:1.55,maxWidth:"60ch",margin:0}}>
-              What would the numbers look like if a major economic shock never happened?
-              Transparent trend extrapolation &mdash; not a prediction.
-            </p>
-          </div>
-
-          {/* Scenario selector pills */}
-          <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:20}}>
-            {SCENARIO_ORDER.map(sid=>{
-              const s=SCENARIOS[sid];
-              const active=activeScenario===sid;
-              return <button key={sid} onClick={()=>setActiveScenario(sid)} style={{
-                padding:mob?"6px 12px":"8px 16px",borderRadius:20,border:`1.5px solid ${active?T.accent:T.rule}`,
-                background:active?T.accent:"transparent",color:active?"#fff":T.sub,
-                fontSize:mob?11:12,fontWeight:active?700:500,fontFamily:"'DM Sans',sans-serif",
-                cursor:"pointer",transition:"all 0.2s"
-              }}>{s.shortLabel}</button>;
-            })}
-          </div>
-
-          {/* Scenario description card removed per design — methodology
-              disclosure at the bottom of the tab still has the full text. */}
-
-          {/* Metric picker — dropdown on mobile, pills on desktop */}
-          {mob?(
-            <select value={scenarioMetric} onChange={e=>setScenarioMetric(e.target.value)} style={{
-              width:"100%",padding:"10px 14px",border:`1.5px solid ${T.rule}`,borderRadius:6,
-              background:T.card,fontFamily:"'DM Sans',sans-serif",fontSize:14,fontWeight:600,
-              color:T.accent,marginBottom:16,appearance:"auto"
-            }}>
-              {Object.entries(CATS).map(([catKey,catLabel])=>(
-                <optgroup key={catKey} label={catLabel}>
-                  {MK.filter(k=>M[k].cat===catKey).map(mk=>(
-                    <option key={mk} value={mk}>{M[mk].l}</option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
-          ):(
-            <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:16}}>
-              {MK.map(mk=>{
-                const active=scenarioMetric===mk;
-                return <button key={mk} onClick={()=>setScenarioMetric(mk)} style={{
-                  padding:"5px 12px",borderRadius:3,
-                  border:`1px solid ${active?T.accent+"55":T.rule}`,
-                  background:active?T.accent+"0A":"transparent",
-                  color:active?T.accent:T.sub,fontSize:11,fontWeight:active?700:500,
-                  fontFamily:"'DM Sans',sans-serif",cursor:"pointer"
-                }}>{M[mk]?.l||mk}</button>;
-              })}
-            </div>
-          )}
-
-          {/* President cards + Chart */}
-          {(()=>{
-            const metric=M[scenarioMetric];
-            if(!metric)return null;
-            const scenario=SCENARIOS[activeScenario];
-            const baselineData=metric.d as DataPoint[];
-            const scenarioData=applyScenario(baselineData,scenario,scenarioMetric);
-
-            // Build chart data: year, baseline value, scenario value
-            const chartData=baselineData.map((d,i)=>{
-              const sd=scenarioData[i];
-              return {
-                y:d.y,
-                baseline:d.v,
-                scenario:sd.estimated?sd.v:null,
-                admin:d.a,
-                estimated:sd.estimated,
-              };
-            });
-
-            // Per-president impact cards data
-            const presCards=AID.map(id=>{
-              const a=ADMINS[id];
-              const actualPts=baselineData.filter(d=>d.a===id);
-              const scenarioPts=scenarioData.filter(d=>d.a===id);
-              if(actualPts.length<1)return null;
-
-              const actualStart=inheritedStart(scenarioMetric,id);
-              const actualEnd=actualPts[actualPts.length-1].v;
-              const actualPct=actualStart!==0?((actualEnd-actualStart)/Math.abs(actualStart))*100:0;
-              const actualImproved=metric.inv?actualEnd<actualStart:actualEnd>actualStart;
-
-              const modeledEnd=scenarioPts[scenarioPts.length-1]?.v??actualEnd;
-              const hasModeled=scenarioPts.some(d=>d.estimated);
-              // For modeled start, use the last modeled value of the previous president
-              const ai=AID.indexOf(id);
-              let modeledStart=actualStart;
-              if(ai>0&&activeScenario!=="baseline"){
-                const prevScenario=scenarioData.filter(d=>d.a===AID[ai-1]);
-                if(prevScenario.length>0)modeledStart=prevScenario[prevScenario.length-1].v;
-              }
-              const modeledPct=modeledStart!==0?((modeledEnd-modeledStart)/Math.abs(modeledStart))*100:0;
-              const modeledImproved=metric.inv?modeledEnd<modeledStart:modeledEnd>modeledStart;
-
-              const diff=modeledEnd-actualEnd;
-
-              return {id,a,actualStart,actualEnd,actualPct,actualImproved,modeledStart,modeledEnd,modeledPct,modeledImproved,hasModeled,diff};
-            }).filter(Boolean);
-
-            // Compute impact summary
-            const lastYear=chartData[chartData.length-1];
-            const diff=activeScenario!=="baseline"&&lastYear?.scenario!=null
-              ?(lastYear.scenario-lastYear.baseline)
-              :null;
-
-            return (
-              <div style={{display:"flex",flexDirection:"column"}}>
-                {/* Chart — first on mobile, second on desktop (matches Data tab) */}
-                <div style={{...sty.card,padding:mob?"12px 8px 8px":"20px 16px 10px",marginBottom:mob?12:12,order:mob?1:2}}>
-                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:700,color:T.ink,marginBottom:4}}>
-                    {metric.l} <span style={{fontWeight:400,color:T.mute}}>({metric.s})</span>
-                  </div>
-                  <ResponsiveContainer width="100%" height={mob?300:400}>
-                    <LineChart data={chartData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke={T.rule} />
-                      <XAxis dataKey="y" stroke={T.mute} fontSize={mob?9:11} fontFamily="'DM Sans',sans-serif" tick={{fill:T.sub}} interval={mob?3:1} />
-                      <YAxis stroke={T.rule} fontSize={mob?9:10} fontFamily="'DM Sans',sans-serif" tick={{fill:T.sub}} tickFormatter={v=>fmt(v,metric.u)} width={mob?45:60} />
-                      <Tooltip content={({active,payload,label})=>{
-                        if(!active||!payload?.length)return null;
-                        const d=payload[0]?.payload;
-                        const admin=d?.admin?ADMINS[d.admin]:null;
-                        return (
-                          <div style={{background:"rgba(255,255,255,0.97)",backdropFilter:"blur(8px)",border:`1px solid ${T.rule}`,borderRadius:6,padding:"10px 14px",boxShadow:"0 4px 16px rgba(0,0,0,0.08)"}}>
-                            <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:700,color:T.ink,marginBottom:4}}>
-                              {label} {admin&&<span style={{color:admin.color,fontWeight:600}}>· {admin.name}</span>}
-                            </div>
-                            <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:T.sub}}>
-                              Actual: <strong style={{color:T.ink}}>{fmt(d.baseline,metric.u)}</strong>
-                            </div>
-                            {d.scenario!=null&&(
-                              <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:T.accent}}>
-                                Modeled: <strong>{fmt(d.scenario,metric.u)}</strong>
-                                {d.estimated&&<span style={{fontSize:10,marginLeft:4,color:T.mute}}>(estimated)</span>}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      }}/>
-
-                      {/* Admin background bands */}
-                      {AID.map(id=>{
-                        const pts=chartData.filter(d=>d.admin===id);
-                        if(pts.length<2)return null;
-                        const startIdx=chartData.indexOf(pts[0]);
-                        const endIdx=chartData.indexOf(pts[pts.length-1]);
-                        return null; // bands handled by line colors
-                      })}
-
-                      {/* Baseline line — solid, with admin colors */}
-                      <Line type="monotone" dataKey="baseline" stroke={T.ink} strokeWidth={mob?2:2.5}
-                        dot={mob?false:({cx,cy,payload})=>{
-                          if(!cx||!cy)return null;
-                          const admin=ADMINS[payload.admin];
-                          return <circle cx={cx} cy={cy} r={3.5} fill={admin?.color||T.ink} stroke="#fff" strokeWidth={1.5}/>;
-                        }}
-                        activeDot={{r:5,stroke:"#fff",strokeWidth:2}}
-                        name="Actual" connectNulls />
-
-                      {/* Scenario line — dashed */}
-                      {activeScenario!=="baseline"&&(
-                        <Line type="monotone" dataKey="scenario" stroke={T.accent} strokeWidth={mob?2:2.5}
-                          strokeDasharray="6 3"
-                          dot={mob?false:({cx,cy,payload})=>{
-                            if(!cx||!cy||payload.scenario==null)return null;
-                            return <circle cx={cx} cy={cy} r={3} fill={T.accent} stroke="#fff" strokeWidth={1.5}/>;
-                          }}
-                          activeDot={{r:5,stroke:"#fff",strokeWidth:2,fill:T.accent}}
-                          name="Modeled" connectNulls />
-                      )}
-                    </LineChart>
-                  </ResponsiveContainer>
-
-                  {/* Legend */}
-                  <div style={{display:"flex",gap:20,justifyContent:"center",marginTop:4,marginBottom:8}}>
-                    <div style={{display:"flex",alignItems:"center",gap:6,fontFamily:"'DM Sans',sans-serif",fontSize:11,color:T.sub}}>
-                      <svg width="24" height="2"><line x1="0" y1="1" x2="24" y2="1" stroke={T.ink} strokeWidth="2.5"/></svg>
-                      Actual data
-                    </div>
-                    {activeScenario!=="baseline"&&(
-                      <div style={{display:"flex",alignItems:"center",gap:6,fontFamily:"'DM Sans',sans-serif",fontSize:11,color:T.sub}}>
-                        <svg width="24" height="2"><line x1="0" y1="1" x2="24" y2="1" stroke={T.accent} strokeWidth="2.5" strokeDasharray="4 2"/></svg>
-                        Modeled (without shock)
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* (Removed: arrow legend — color does the work now, matches Data tab.) */}
-
-                {/* President impact cards — above chart on desktop, below on mobile.
-                    Uses per-metric framing on both actual and modeled values. */}
-                <div style={{display:"grid",gridTemplateColumns:mob?"repeat(2,1fr)":`repeat(${Math.min(presCards.length+1,6)},1fr)`,gap:mob?8:8,marginBottom:mob?12:20,order:mob?2:1}}>
-                  {presCards.map((pc,idx)=>{
-                    if(!pc)return null;
-                    const {id,a,actualStart,actualEnd,modeledStart,modeledEnd,hasModeled,diff:pDiff}=pc;
-                    const shockHit=scenario.shockYears.length>0&&baselineData.some(d=>d.a===id&&scenario.shockYears.includes(d.y));
-                    const showModeled=activeScenario!=="baseline"&&hasModeled&&Math.abs(pDiff)>0.01;
-
-                    // Per-metric formatted actual (via HEAT_DATA) and modeled (computed inline
-                    // using the same per-metric framing on the counterfactual data).
-                    const actualCell=HEAT_DATA[scenarioMetric]?.[id];
-                    const actualDisp=actualCell?resolveDashDisplay(actualCell,scenarioMetric,displayMode,dollarMode):null;
-                    const actualHeadline=actualDisp?formatDisplayedChange(actualDisp.value,actualDisp.unit,false,{metricUnit:metric.u}):"—";
-                    const actualColor=actualDisp&&actualDisp.value!==null?(actualDisp.improved?EC.improveStrong:EC.declineStrong):EC.mute;
-
-                    // Modeled headline — compute in the same unit family the metric uses.
-                    const cfg=METRIC_DISPLAY_DASHBOARD[scenarioMetric];
-                    const scenPts=scenarioData.filter(d=>d.a===id);
-                    const scenAvg=scenPts.length>0?scenPts.reduce((s,d)=>s+d.v,0)/scenPts.length:0;
-                    const yrsTenure=Math.max(scenPts.length,1);
-                    let modeledValue:number|null=null;
-                    if(cfg?.perMetricUnit==="pp"){modeledValue=modeledEnd-modeledStart;}
-                    else if(cfg?.perMetricUnit==="pct_avg"){modeledValue=scenAvg;}
-                    else if(cfg?.perMetricUnit==="avg_per_year"){modeledValue=scenAvg;}
-                    else if(cfg?.perMetricUnit==="pct_yr"&&modeledStart>0&&modeledEnd>0){
-                      modeledValue=(Math.pow(modeledEnd/modeledStart,1/yrsTenure)-1)*100;
-                    }
-                    const modeledImp=cfg?.perMetricUnit==="pct_avg"
-                      ? (cfg.pctAvgTarget!==undefined ? (metric.inv?(modeledValue??0)<=cfg.pctAvgTarget:(modeledValue??0)>=cfg.pctAvgTarget) : (metric.inv?(modeledValue??0)<=0:(modeledValue??0)>=0))
-                      : (metric.inv?(modeledValue??0)<0:(modeledValue??0)>0);
-                    const modeledHeadline=modeledValue!==null?formatDisplayedChange(modeledValue,cfg?.perMetricUnit??"pct",false,{metricUnit:metric.u}):"—";
-                    const modeledColor=modeledValue!==null?(modeledImp?EC.improveStrong:EC.declineStrong):EC.mute;
-
-                    const actualPts=baselineData.filter(d=>d.a===id);
-                    const actualAvg=actualPts.length>0?actualPts.reduce((s,d)=>s+d.v,0)/actualPts.length:0;
-                    return (
-                      <div key={id} className={`hover-lift stagger-${idx+1}`} style={{
-                        ...sty.card,padding:mob?"10px 12px":"14px 14px 12px",borderTop:`${mob?3:4}px solid ${a.color}`,
-                        position:"relative",overflow:"hidden"
-                      }}>
-                        {!mob&&<div style={{position:"absolute",top:0,right:0,width:80,height:80,background:`linear-gradient(135deg, ${a.color}08 0%, transparent 70%)`,borderRadius:"0 0 0 80px"}}/>}
-                        <div style={{fontFamily:ESANS,fontSize:mob?9:10,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.14em",color:a.color,marginBottom:mob?4:6}}>{a.name}</div>
-                        <div style={{display:"flex",alignItems:"baseline",gap:mob?4:6,marginBottom:mob?3:4}}>
-                          <span style={{fontFamily:ESANS,fontSize:mob?10:12,color:EC.mute,fontVariantNumeric:"tabular-nums"}}>{fmt(actualStart,metric.u)}</span>
-                          <span style={{fontSize:mob?8:10,color:EC.mute}}>→</span>
-                          <span style={{fontFamily:ESANS,fontSize:mob?10:18,fontWeight:600,color:EC.ink,fontVariantNumeric:"tabular-nums"}}>{fmt(actualEnd,metric.u)}</span>
-                        </div>
-                        {/* Actual headline value */}
-                        <div style={{display:"flex",alignItems:"center",gap:mob?4:8,marginBottom:showModeled?(mob?2:4):(mob?4:6)}}>
-                          <div style={{fontFamily:ESERIF,fontSize:mob?18:24,fontWeight:600,color:actualColor,fontVariantNumeric:"tabular-nums",letterSpacing:"-0.015em",lineHeight:1.05}}>
-                            {actualHeadline}
-                          </div>
-                          {!mob&&<Sparkline data={actualPts.map(d=>d.v)} color={a.color} width={50} height={20} />}
-                        </div>
-                        {/* Modeled headline value */}
-                        {showModeled&&(
-                          <div style={{display:"flex",alignItems:"center",gap:mob?4:8,marginBottom:mob?4:6}}>
-                            <div style={{fontFamily:ESERIF,fontSize:mob?15:18,fontWeight:600,color:modeledColor,fontVariantNumeric:"tabular-nums",letterSpacing:"-0.015em",lineHeight:1.05,opacity:0.85}}>
-                              {modeledHeadline}
-                            </div>
-                            <span style={{fontFamily:ESANS,fontSize:mob?8:9,color:EC.accent,fontWeight:600,letterSpacing:"0.04em",textTransform:"uppercase"}}>modeled</span>
-                          </div>
-                        )}
-                        {/* Bottom row: avg + years */}
-                        <div style={{fontFamily:ESANS,fontSize:mob?9:10,color:EC.mute,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                          <span>{showModeled?<>avg {fmt(actualAvg,metric.u)} · <span style={{color:EC.accent,fontWeight:600}}>{fmt(scenAvg,metric.u)}</span></>:<>avg {fmt(actualAvg,metric.u)}</>}</span>
-                          <span style={{color:a.color,fontWeight:600}}>{a.years}</span>
-                        </div>
-                        {/* Shock badge */}
-                        {shockHit&&activeScenario!=="baseline"&&(
-                          <div style={{position:"absolute",top:mob?4:6,right:mob?6:8,fontFamily:ESANS,fontSize:mob?7:8,fontWeight:600,letterSpacing:"0.1em",
-                            padding:"2px 6px",borderRadius:3,background:EC.accent+"15",color:EC.accent}}>
-                            SHOCK
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                  <a href={`/live-benchmark?metric=${scenarioMetric}`} className={`hover-lift stagger-${presCards.length+1}`} style={{
-                    background:T.accent,border:`1px solid ${T.accent}`,borderRadius:4,
-                    padding:mob?"10px 12px":"14px 14px 12px",textDecoration:"none",color:"#fff",cursor:"pointer",
-                    display:"flex",flexDirection:"column",justifyContent:"space-between",minHeight:0
-                  }}>
-                    <div style={{display:"flex",alignItems:"center",gap:5}}>
-                      <span style={{width:6,height:6,borderRadius:"50%",background:"#fff",animation:"pulse 2s ease-in-out infinite"}}/>
-                      <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?9:10,fontWeight:700,textTransform:"uppercase",letterSpacing:1.2}}>Live · Trump II</span>
-                    </div>
-                    <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?10:11,fontWeight:500,color:"rgba(255,255,255,0.88)",margin:"6px 0"}}>Current term, updated daily</div>
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                      <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?9:10,fontWeight:700}}>See live data</span>
-                      <span style={{fontSize:12}}>→</span>
-                    </div>
-                  </a>
-                </div>
-
-                {/* Shock years highlight */}
-                {activeScenario!=="baseline"&&scenario.shockYears.length>0&&(
-                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:T.mute,marginBottom:16,order:3}}>
-                    Shock years replaced: {scenario.shockYears.join(", ")} · Trend fitted from: {scenario.trendYears.join(", ")}
-                  </div>
-                )}
-
-                {/* ── Inherited vs Left Behind — per-metric framing, matching detail mode ── */}
-                <div style={{...sty.card,marginBottom:24,order:4,overflow:"hidden"}}>
-                  <div style={{padding:"10px 14px 6px",borderBottom:`1px solid ${EC.rule}`,display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:4}}>
-                    <div style={{fontFamily:ESANS,fontSize:10,fontWeight:500,textTransform:"uppercase",letterSpacing:"0.12em",color:EC.sub}}>
-                      Term Trajectory &mdash; Inherited vs Left Behind {activeScenario!=="baseline"&&<span style={{color:EC.accent,fontWeight:500,textTransform:"none",letterSpacing:0}}>&mdash; {SCENARIOS[activeScenario].shortLabel}</span>}
-                    </div>
-                  </div>
-                  <table style={{width:"100%",borderCollapse:"collapse",fontFamily:ESANS,fontSize:mob?10:12}}>
-                    <thead>
-                      <tr style={{borderBottom:`1px solid ${EC.rule}`}}>
-                        <th style={{textAlign:"left",padding:mob?"8px 6px":"8px 14px",fontSize:mob?9:10,fontWeight:500,textTransform:"uppercase",letterSpacing:"0.06em",color:EC.sub}}>President</th>
-                        <th style={{textAlign:"center",padding:mob?"8px 2px":"8px 10px",fontSize:mob?9:10,fontWeight:500,textTransform:"uppercase",letterSpacing:"0.06em",color:EC.sub}}>{mob?"From":"Inherited"}</th>
-                        <th style={{textAlign:"center",padding:"8px 1px",fontSize:10,color:EC.rule}}></th>
-                        <th style={{textAlign:"center",padding:mob?"8px 2px":"8px 10px",fontSize:mob?9:10,fontWeight:500,textTransform:"uppercase",letterSpacing:"0.06em",color:EC.sub}}>{mob?"To":"Left At"}</th>
-                        <th style={{textAlign:"center",padding:mob?"8px 3px":"8px 10px",fontSize:mob?9:10,fontWeight:500,textTransform:"uppercase",letterSpacing:"0.06em",color:EC.sub}}>Avg</th>
-                        {activeScenario!=="baseline"&&<th style={{textAlign:"center",padding:mob?"8px 3px":"8px 10px",fontSize:mob?9:10,fontWeight:500,textTransform:"uppercase",letterSpacing:"0.06em",color:EC.accent}}>{mob?"Mod.":"Modeled Avg"}</th>}
-                        <th style={{textAlign:"right",padding:mob?"8px 6px":"8px 14px",fontSize:mob?9:10,fontWeight:500,textTransform:"uppercase",letterSpacing:"0.06em",color:EC.sub}}>Change</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {AID.map((id)=>{
-                        const a=ADMINS[id];
-                        const pts=baselineData.filter(d=>d.a===id);
-                        if(pts.length<1)return null;
-
-                        // Actual side — per-metric framing via the shared cell.
-                        const actualCell=HEAT_DATA[scenarioMetric]?.[id];
-                        if(!actualCell)return null;
-                        const actualDisp=resolveDashDisplay(actualCell,scenarioMetric,displayMode,dollarMode);
-                        const actualHeadline=formatDisplayedChange(actualDisp.value,actualDisp.unit,false,{metricUnit:metric.u});
-                        const verdictColor=actualDisp.value===null?EC.mute:actualDisp.improved?EC.improveStrong:EC.declineStrong;
-
-                        // Modeled side — same per-metric framing, computed inline on
-                        // the counterfactual data.
-                        const scenPts=scenarioData.filter(d=>d.a===id);
-                        const hasModeled=activeScenario!=="baseline"&&scenPts.some(d=>d.estimated);
-                        const modeledEnd=scenPts.length>0?scenPts[scenPts.length-1].v:actualCell.end;
-                        const ai=AID.indexOf(id);
-                        let modeledStart=actualCell.start;
-                        if(ai>0&&activeScenario!=="baseline"){
-                          const prevScen=scenarioData.filter(d=>d.a===AID[ai-1]);
-                          if(prevScen.length>0)modeledStart=prevScen[prevScen.length-1].v;
-                        }
-                        const cfg=METRIC_DISPLAY_DASHBOARD[scenarioMetric];
-                        const scenAvg=scenPts.length>0?scenPts.reduce((s,d)=>s+d.v,0)/scenPts.length:0;
-                        const yrsT=Math.max(scenPts.length,1);
-                        let modeledValue:number|null=null;
-                        if(cfg?.perMetricUnit==="pp")modeledValue=modeledEnd-modeledStart;
-                        else if(cfg?.perMetricUnit==="pct_avg")modeledValue=scenAvg;
-                        else if(cfg?.perMetricUnit==="avg_per_year")modeledValue=scenAvg;
-                        else if(cfg?.perMetricUnit==="pct_yr"&&modeledStart>0&&modeledEnd>0){
-                          modeledValue=(Math.pow(modeledEnd/modeledStart,1/yrsT)-1)*100;
-                        }
-                        const modeledImp=cfg?.perMetricUnit==="pct_avg"&&cfg.pctAvgTarget!==undefined
-                          ? (metric.inv?(modeledValue??0)<=cfg.pctAvgTarget:(modeledValue??0)>=cfg.pctAvgTarget)
-                          : (metric.inv?(modeledValue??0)<0:(modeledValue??0)>0);
-                        const modeledHeadline=modeledValue!==null?formatDisplayedChange(modeledValue,cfg?.perMetricUnit??"pct",false,{metricUnit:metric.u}):"—";
-                        const modeledColor=modeledValue!==null?(modeledImp?EC.improveStrong:EC.declineStrong):EC.mute;
-
-                        const tActualAvg=pts.reduce((s,d)=>s+d.v,0)/pts.length;
-                        const showMod=hasModeled&&Math.abs(modeledEnd-actualCell.end)>0.01;
-
-                        return <tr key={id} style={{borderBottom:`1px solid ${EC.rule}55`}}>
-                          <td style={{padding:mob?"8px 6px":"8px 14px",display:"flex",alignItems:"center",gap:5,minWidth:0}}>
-                            <span style={{width:mob?6:8,height:mob?6:8,borderRadius:2,background:a.color,flexShrink:0}}/>
-                            <span style={{fontWeight:600,color:a.color,fontFamily:ESERIF,fontSize:mob?11:13,letterSpacing:"-0.01em",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{a.name}</span>
-                          </td>
-                          <td style={{textAlign:"center",padding:mob?"8px 2px":"8px 10px",fontFamily:ESANS,fontSize:mob?10:11,color:EC.sub,fontVariantNumeric:"tabular-nums",whiteSpace:"nowrap"}}>{fmt(actualCell.start,metric.u)}</td>
-                          <td style={{textAlign:"center",padding:"8px 1px",color:EC.rule,fontSize:10}}>→</td>
-                          <td style={{textAlign:"center",padding:mob?"8px 2px":"8px 10px",fontFamily:ESANS,fontSize:mob?10:11,fontWeight:600,color:EC.ink,fontVariantNumeric:"tabular-nums",whiteSpace:"nowrap"}}>{fmt(actualCell.end,metric.u)}</td>
-                          <td style={{textAlign:"center",padding:mob?"8px 3px":"8px 10px",fontFamily:ESANS,fontSize:mob?10:11,fontWeight:500,color:EC.sub,fontVariantNumeric:"tabular-nums",whiteSpace:"nowrap"}}>{fmt(tActualAvg,metric.u)}</td>
-                          {activeScenario!=="baseline"&&<td style={{textAlign:"center",padding:mob?"8px 3px":"8px 10px",fontFamily:ESANS,fontSize:mob?10:11,fontWeight:600,color:showMod?EC.accent:EC.sub,fontVariantNumeric:"tabular-nums",whiteSpace:"nowrap"}}>{showMod?fmt(scenAvg,metric.u):fmt(tActualAvg,metric.u)}</td>}
-                          <td style={{textAlign:"right",padding:mob?"8px 6px":"8px 14px",whiteSpace:"nowrap"}}>
-                            {/* On mobile, stack actual + modeled vertically so the
-                                "+1.4 pp / +0.9 pp model" pair fits in a narrow column. */}
-                            <div style={{display:"flex",flexDirection:mob?"column":"row",alignItems:mob?"flex-end":"center",gap:mob?2:0,justifyContent:"flex-end"}}>
-                              <span style={{fontFamily:ESERIF,fontSize:mob?11:13,fontWeight:600,color:verdictColor,letterSpacing:"-0.01em",fontVariantNumeric:"tabular-nums",lineHeight:1.1}}>
-                                {actualHeadline}
-                              </span>
-                              {showMod&&(
-                                <span style={{
-                                  fontFamily:ESERIF,fontSize:mob?10:12,fontWeight:600,color:modeledColor,
-                                  marginLeft:mob?0:8,
-                                  borderLeft:mob?"none":`1px dashed ${EC.rule}`,
-                                  paddingLeft:mob?0:8,
-                                  letterSpacing:"-0.01em",fontVariantNumeric:"tabular-nums",opacity:0.85,lineHeight:1.1,
-                                }}>
-                                  {modeledHeadline} <span style={{fontFamily:ESANS,fontSize:mob?7:8,fontWeight:600,color:EC.accent,letterSpacing:"0.06em",textTransform:"uppercase",marginLeft:2}}>{mob?"mod":"modeled"}</span>
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                        </tr>;
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            );
-          })()}
-
-          {/* "How Scenario Modeling Works" disclosure removed. The one line
-              that must not go with it is the method itself, which stays in
-              the source note below: these are OLS trend extrapolations, not
-              measurements. A counterfactual chart with no visible statement
-              of how it was produced would be the single most misleading
-              thing on the site. */}
-
-          <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:T.mute}}>
-            Source: All baseline data from BEA, BLS, Treasury, Census. Scenario values are mechanically derived via OLS trend extrapolation.
-          </div>
-
-          {/* The link carries BOTH the scenario and the metric — a scenario
-              is the pair, so sending only one reproduces a different chart.
-              The share text names it as a counterfactual: these are modelled
-              values, and a bare number from here could be mistaken for a
-              measurement once it leaves the page. */}
-          <ShareRow
-            url={`https://voteunbiased.org/dashboard?tab=scenarios&scenario=${activeScenario}&metric=${scenarioMetric}`}
-            text={`What if: ${SCENARIOS[activeScenario].label} — modelled ${(M[scenarioMetric]?.l || scenarioMetric)} counterfactual, Vote Unbiased`}
-            tone={{ rule: T.rule, mute: T.mute, sub: T.sub, accent: T.accent, ok: EC.improveStrong, sans: "'DM Sans',sans-serif" }}
-          />
-        </div>)}
-
-        {/* ═══ HEAD TO HEAD ═══ */}
-        {/* ═══ GLOBAL ═══ */}
-        {tab==="global"&&(<div style={{animation:"fadeUp 0.4s ease"}}>
-          <h2 style={{fontSize:28,fontWeight:900,margin:"0 0 4px"}}>Global Comparison</h2>
-          <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:T.sub,margin:"0 0 16px"}}>How does the U.S. stack up?</p>
-          <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:12}}>
-            {Object.entries(GLOBAL_METRICS).map(([k,v])=><button key={k} onClick={()=>setGm(k)} style={{padding:"5px 12px",borderRadius:3,border:`1px solid ${gm===k?T.accent+"55":T.rule}`,background:gm===k?T.accent+"0A":"transparent",color:gm===k?T.accent:T.sub,fontSize:12,fontWeight:gm===k?700:500,fontFamily:"'DM Sans',sans-serif"}}>{v.l}</button>)}
-          </div>
-          <div style={{display:"flex",flexWrap:"wrap",gap:5,marginBottom:16}}>
-            {Object.entries(COUNTRIES).map(([id,c])=>(
-              <button key={id} onClick={()=>togC(id)} style={{display:"flex",alignItems:"center",gap:4,padding:"5px 10px",borderRadius:3,background:gc.includes(id)?c.color+"10":"transparent",border:`1.5px solid ${gc.includes(id)?c.color:T.rule}`,color:gc.includes(id)?c.color:T.mute,fontSize:11,fontWeight:600,fontFamily:"'DM Sans',sans-serif"}}>{c.flag} {c.name}</button>
-            ))}
-          </div>
-          <div style={{...sty.card,padding:"20px 16px 10px",marginBottom:12}}>
-            <ResponsiveContainer width="100%" height={380}>
-              <LineChart data={gmd.d}><CartesianGrid strokeDasharray="3 3" stroke={T.rule}/>
-                <XAxis dataKey="y" stroke={T.mute} fontSize={11} fontFamily="'DM Sans',sans-serif" tick={{fill:T.sub}}/>
-                <YAxis stroke={T.rule} fontSize={10} fontFamily="'DM Sans',sans-serif" tick={{fill:T.sub}} tickFormatter={v=>`${v}${gmd.u}`}/>
-                <Tooltip content={<Tip unit={gmd.u}/>}/>
-                {gc.map(id=><Line key={id} type="monotone" dataKey={id} stroke={COUNTRIES[id].color} strokeWidth={2.5} dot={{r:4,fill:COUNTRIES[id].color,stroke:T.card,strokeWidth:2}} name={COUNTRIES[id].name} connectNulls/>)}
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-          <div style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:8}}>
-            {gc.map(id=><div key={id} style={{display:"flex",alignItems:"center",gap:4,fontFamily:"'DM Sans',sans-serif",fontSize:12}}><span style={{width:12,height:3,borderRadius:1,background:COUNTRIES[id].color}}/>{COUNTRIES[id].flag}<span style={{color:COUNTRIES[id].color,fontWeight:700}}>{COUNTRIES[id].name}</span></div>)}
-          </div>
-          <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:T.mute,marginTop:4}}>Source: {gmd.src}</div>
-          {gmd.facts?.length>0&&<div style={{borderLeft:`2px solid ${T.accent}`,marginTop:12,paddingLeft:14}}>
-            {gmd.facts.map((f,i)=><div key={i} style={{marginBottom:8}}><div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:700,color:T.ink}}>{f.t}</div><div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:T.sub,lineHeight:1.5}}>{f.x}</div></div>)}
-          </div>}
-        </div>)}
 
         {/* Footer removed: the site-wide masthead, source list, "v7.0 —
             Last updated April 2026" and two disabled "Coming soon" buttons
