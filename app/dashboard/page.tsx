@@ -901,9 +901,30 @@ function App(){
   // card-building effect below keys off it.
   const [mobileView]=useState<"table"|"cards">("cards");
   const [selectedPres,setSelectedPres]=useState("clinton");
+  // Whether a broadcast is on air right now. The nav's red is reserved for
+  // this and nothing else, so it has to be true rather than decorative.
+  const [onAir,setOnAir]=useState(false);
   // Per-metric display toggles for the Data tab heatmap.
   const [displayMode,setDisplayMode]=useState<DisplayMode>("per_metric");
   const [dollarMode,setDollarMode]=useState<DollarMode>("real");
+
+  // Poll for live state. Sixty seconds is a deliberate floor: the dot is an
+  // invitation, not a countdown, and this page already does enough work on
+  // mount without adding a chatty timer to it.
+  useEffect(()=>{
+    let alive=true;
+    const check=async()=>{
+      try{
+        const r=await fetch("/api/live-feed");
+        if(!r.ok) return;
+        const d=await r.json();
+        if(alive) setOnAir(d?.state?.status==="live");
+      }catch{ /* a failed check leaves the nav off-air, which is the safe default */ }
+    };
+    check();
+    const id=setInterval(check,60000);
+    return ()=>{ alive=false; clearInterval(id); };
+  },[]);
 
   // Read metric / tab / admin from URL query params
   // (e.g. /dashboard?tab=data&metric=unemployment&admin=obama).
@@ -1078,6 +1099,10 @@ function App(){
           0%, 100% { box-shadow: 0 0 0 0 rgba(184, 55, 45, 0.2); }
           50% { box-shadow: 0 0 0 8px rgba(184, 55, 45, 0); }
         }
+        .nav-live-dot { animation: pulse 2s infinite; }
+        @media (prefers-reduced-motion: reduce) {
+          .nav-live-dot { animation: none; }
+        }
 
         /* Tap nudge — first card pulses briefly to signal tappability on mobile */
         @keyframes tapNudge {
@@ -1234,24 +1259,23 @@ function App(){
       {/* ── NAV ── */}
       <div style={sty.nav}>
         <div className="ol-nav-wrap" style={{maxWidth:1080,margin:"0 auto",padding:"0 24px",display:"flex",gap:0,overflowX:"auto"}}>
+          {/* Live Benchmark used to carry permanent red text and a pulsing dot
+              purely so it would "pop" beside the analytical tabs. It is a
+              static data view: a pulsing red dot on a fact-checking site says
+              something is happening RIGHT NOW, and spending that on a chart
+              leaves nothing for the one place it is true. It is an ordinary
+              tab again. */}
           {(mob?TABS_MOBILE:TABS_DESKTOP).map(([k,l])=>{
-            // Live Benchmark gets special "live" treatment — always red text,
-            // pulsing dot — so it visually pops from the static analytical
-            // tabs (Data / State Atlas / etc.) the same way the Live Broadcast
-            // link does. The underline still toggles with active state.
-            const isLive = k==="live_benchmark";
             const active = tab===k;
             return (
               <button key={k} className="ol-nav-btn" onClick={()=>setTab(k)} style={{
-                padding:"13px 20px",border:"none",fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:isLive?700:600,whiteSpace:"nowrap",
+                padding:"13px 20px",border:"none",fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:600,whiteSpace:"nowrap",
                 background:"transparent",
-                color:isLive ? T.accent : (active?T.ink:T.mute),
+                color:active?T.ink:T.mute,
                 borderBottom:active?`2px solid ${T.accent}`:"2px solid transparent",
                 transition:"all 0.2s",
-                display:isLive?"flex":undefined, alignItems:isLive?"center":undefined, gap:isLive?6:undefined,
                 cursor:"pointer",
               }}>
-                {isLive && <span style={{width:6,height:6,borderRadius:"50%",background:T.accent,animation:"pulse 2s infinite",flexShrink:0}}/>}
                 {l}
               </button>
             );
@@ -1259,12 +1283,19 @@ function App(){
           {/* (Removed: the standalone /live-benchmark anchor that used to
               live here — now redundant with the live_benchmark tab above,
               which inherits the same red-dot-with-pulse styling.) */}
-          <a href="/live" className="ol-nav-btn" style={{
+          {/* The palette red, not the #dc2626 that used to sit here — two
+              near-identical reds in one bar read as a mistake rather than a
+              distinction. And it only turns red while something is ON AIR, so
+              the colour carries information instead of asking for attention.
+              Off air it is a muted hollow dot: still findable, not shouting. */}
+          <a href="/live" className="ol-nav-btn" aria-label={onAir?"Live Broadcast — on air now":"Live Broadcast"} style={{
             padding:"13px 20px",fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:600,whiteSpace:"nowrap",
-            background:"transparent",color:"#dc2626",textDecoration:"none",display:"flex",alignItems:"center",gap:6,
+            background:"transparent",color:onAir?T.accent:T.mute,textDecoration:"none",display:"flex",alignItems:"center",gap:6,
             borderBottom:"2px solid transparent",transition:"all 0.2s"
           }}>
-            <span style={{width:6,height:6,borderRadius:"50%",background:"#dc2626",animation:"pulse 2s infinite",flexShrink:0}}/>
+            <span className={onAir?"nav-live-dot":undefined} style={onAir
+              ? {width:6,height:6,borderRadius:"50%",background:T.accent,flexShrink:0}
+              : {width:6,height:6,borderRadius:"50%",border:`1.5px solid ${T.mute}`,flexShrink:0}}/>
             Live Broadcast
             {/* BETA badge — gold from the editorial palette so it reads as
                 'preview / not 100% ready' without competing with the red live
