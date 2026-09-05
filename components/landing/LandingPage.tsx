@@ -142,24 +142,26 @@ function Nav({ mob }: { mob: boolean }) {
               a video player' → routes to Live Benchmark. On desktop the full
               label "Live Broadcast" makes the intent unambiguous → routes
               to /live (the video + fact-check page). */}
-          <Link href={mob ? "/dashboard?tab=live_benchmark" : "/live"} style={{
+          {/* C.accent, not the #dc2626 that used to sit here — the same stray
+              red that was mismatched in the dashboard nav. */}
+          <Link href={mob ? "/dashboard?tab=live_benchmark" : "/live"} className="vu-cta vu-cta-o" style={{
             display: "inline-flex", alignItems: "center", gap: 6,
             padding: mob ? "8px 12px" : "10px 14px",
             borderRadius: 4, fontSize: 13, fontWeight: 600,
-            background: "transparent", color: "#dc2626", border: `1px solid #dc262640`,
-            textDecoration: "none", transition: "all 0.15s",
+            background: "transparent", color: C.accent, border: `1px solid ${C.accent}40`,
+            textDecoration: "none",
           }}>
-            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#dc2626", animation: "pulse 2s infinite" }} />
+            <span style={{ width: 6, height: 6, borderRadius: "50%", background: C.accent, animation: "pulse 2s infinite" }} />
             {mob ? "Live" : "Live Broadcast"}
           </Link>
-          <Link href="/dashboard" style={{
+          <Link href="/dashboard" className="vu-cta vu-cta-p" style={{
             display: "inline-flex", alignItems: "center", gap: 8,
             padding: mob ? "8px 14px" : "10px 16px",
             borderRadius: 4, fontSize: 13, fontWeight: 500,
             background: C.ink, color: C.bg, border: `1px solid ${C.ink}`,
-            textDecoration: "none", transition: "all 0.15s",
+            textDecoration: "none",
           }}>
-            {mob ? "Data" : "Open the ledger"} <span>→</span>
+            {mob ? "Data" : "Open the ledger"} <span className="vu-arw">→</span>
           </Link>
         </div>
       </div>
@@ -248,17 +250,17 @@ function Hero({ mob, med }: { mob: boolean; med: boolean }) {
 
           {/* CTA */}
           <div style={{ marginTop: 32, display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-            <Link href="/dashboard" style={{
-              display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 20px",
-              borderRadius: 4, fontSize: 13, fontWeight: 500, textDecoration: "none",
-              background: C.ink, color: C.bg, border: `1px solid ${C.ink}`, transition: "all 0.15s",
+            <Link href="/dashboard" className="vu-cta vu-cta-p" style={{
+              display: "inline-flex", alignItems: "center", gap: 8, padding: "14px 24px",
+              borderRadius: 4, fontSize: 15, fontWeight: 600, textDecoration: "none",
+              background: C.ink, color: C.bg, border: `1px solid ${C.ink}`,
             }}>
-              Open the ledger <span>→</span>
+              Open the ledger <span className="vu-arw">→</span>
             </Link>
-            <a href="#method" style={{
-              display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 16px",
-              borderRadius: 4, fontSize: 13, fontWeight: 500, textDecoration: "none",
-              border: `1px solid ${C.rule}`, background: C.card, color: C.ink, transition: "all 0.15s",
+            <a href="#method" className="vu-cta vu-cta-s" style={{
+              display: "inline-flex", alignItems: "center", gap: 8, padding: "14px 20px",
+              borderRadius: 4, fontSize: 15, fontWeight: 600, textDecoration: "none",
+              border: `1px solid ${C.rule}`, background: C.card, color: C.ink,
             }}>
               See methodology
             </a>
@@ -762,24 +764,22 @@ function DeepDiveSection({ mob, med }: { mob: boolean; med: boolean }) {
               width: "fit-content", marginTop: 16, marginBottom: 20,
             }}>
               {METRIC_ORDER.map(k => (
-                <button key={k} onClick={() => setMk(k)} style={{
+                <button key={k} onClick={() => setMk(k)} className="vu-pill" style={{
                   padding: "6px 12px", fontSize: 11, letterSpacing: "0.04em", fontWeight: 500,
                   color: mk === k ? C.ink : C.sub, borderRadius: 3, border: mk === k ? `1px solid ${C.rule}` : "1px solid transparent",
                   background: mk === k ? C.card : "transparent", cursor: "pointer",
                   boxShadow: mk === k ? "0 1px 2px rgba(0,0,0,0.04)" : "none",
-                  transition: "all 0.15s",
                 }}>
                   {METRICS[k].l}
                 </button>
               ))}
-              <Link href="/dashboard" style={{
+              <Link href="/dashboard" className="vu-cta vu-cta-o" style={{
                 padding: "6px 12px", fontSize: 11, letterSpacing: "0.04em", fontWeight: 600,
                 color: C.accent, borderRadius: 3, border: `1px dashed ${C.accent}`,
                 background: "transparent", cursor: "pointer", textDecoration: "none",
                 display: "inline-flex", alignItems: "center", gap: 4,
-                transition: "all 0.15s",
               }}>
-                +13 more →
+                +13 more <span className="vu-arw">→</span>
               </Link>
             </div>
 
@@ -837,16 +837,16 @@ function DeepDiveSection({ mob, med }: { mob: boolean; med: boolean }) {
               {METRIC_DISPLAY_LANDING[mk]?.perMetricUnit === "pct_avg" && <>Showing average annual inflation during each tenure.</>}
             </div>
 
-            <Link href="/dashboard" style={{
+            <Link href="/dashboard" className="vu-cta vu-cta-p" style={{
               display: "flex", alignItems: "center", justifyContent: "space-between",
               padding: "14px 16px", background: C.ink, color: C.bg, borderRadius: 4,
-              textDecoration: "none", transition: "opacity 0.15s", fontSize: 13,
+              textDecoration: "none", fontSize: 13,
             }}>
               <div>
                 <div style={{ fontFamily: SERIF, fontWeight: 600, fontSize: 15 }}>See all 19 metrics</div>
                 <div style={{ fontSize: 11, opacity: 0.6, marginTop: 2 }}>Jobs, wages, trade, debt, and more</div>
               </div>
-              <span style={{ fontSize: 20, opacity: 0.7 }}>→</span>
+              <span className="vu-arw" style={{ fontSize: 20, opacity: 0.7 }}>→</span>
             </Link>
 
             <div style={{
@@ -1184,13 +1184,13 @@ function CTASection({ mob, med }: { mob: boolean; med: boolean }) {
                     transition: "box-shadow .25s ease, border-color .25s ease",
                   }}
                 />
-                <button type="submit" disabled={status === "loading"} style={{
+                <button type="submit" disabled={status === "loading"} className="vu-cta vu-cta-p" style={{
                   display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8,
-                  padding: "14px 20px", borderRadius: 4, fontSize: 13, fontWeight: 500,
+                  padding: "14px 24px", borderRadius: 4, fontSize: 15, fontWeight: 600,
                   background: C.ink, color: C.bg, border: `1px solid ${C.ink}`,
                   cursor: status === "loading" ? "wait" : "pointer", opacity: status === "loading" ? 0.7 : 1,
                 }}>
-                  {status === "loading" ? "..." : <>Subscribe <span>→</span></>}
+                  {status === "loading" ? "..." : <>Subscribe <span className="vu-arw">→</span></>}
                 </button>
               </div>
               {status === "error" && <div style={{ fontSize: 13, color: C.declineStrong }}>{msg}</div>}
@@ -1412,6 +1412,7 @@ function MobileLanding() {
       <style>{`
         @keyframes vuMarquee { from { transform: translateX(0) } to { transform: translateX(-50%) } }
         .vu-marquee:hover, .vu-marquee:active { animation-play-state: paused !important; }
+
       `}</style>
 
       {/* ── 2+3. Ticker (full-bleed) + compact hero ── */}

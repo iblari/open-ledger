@@ -146,3 +146,40 @@
   0%   { transform: translateX(-100%); }
   100% { transform: translateX(320%); }
 }
+
+/* ── Call-to-action interaction states ──────────────────────────────
+   These live here, not beside the buttons, because the landing page
+   branches: a <style> tag inside the mobile tree never renders for
+   desktop visitors, so the rules reached the markup that referenced
+   them on exactly one of the two layouts.
+   ────────────────────────────────────────────────────────────────── */
+/* Every call to action on this page declared transition:all .15s and
+   then never changed on hover — inline styles cannot express a state,
+   and no stylesheet targeted them. The buttons were inert: no hover,
+   no press, and no visible focus ring for anyone navigating by
+   keyboard. These are the missing states. */
+.vu-cta { transition: background .15s ease, border-color .15s ease,
+                      color .15s ease, transform .1s ease, box-shadow .15s ease; }
+.vu-cta:focus-visible { outline: 2px solid #b8372d; outline-offset: 2px; }
+.vu-cta-p:hover { background: #000 !important; transform: translateY(-1px);
+                  box-shadow: 0 3px 10px rgba(26,26,26,.22); }
+.vu-cta-p:active { transform: translateY(0); box-shadow: none; }
+.vu-cta-s:hover { background: #f3ede5 !important;
+                  border-color: #b8372d !important; color: #b8372d !important; }
+.vu-cta-s:active { background: #e2ded6 !important; }
+/* Outlined accent link — fills lightly rather than changing colour,
+   since the colour is already carrying the "live" meaning. */
+.vu-cta-o:hover { background: #b8372d0F !important; border-color: #b8372d !important; }
+.vu-cta-o:active { background: #b8372d1A !important; }
+/* Segmented pills. Unselected ones gave no sign they were pressable. */
+.vu-pill { transition: background .13s ease, color .13s ease, border-color .13s ease; }
+.vu-pill:hover { background: #f3ede5; color: #1a1a1a; }
+.vu-pill:focus-visible { outline: 2px solid #b8372d; outline-offset: 2px; }
+/* The arrow leads the eye toward the destination on hover. */
+.vu-arw { transition: transform .15s ease; display: inline-block; }
+.vu-cta:hover .vu-arw { transform: translateX(3px); }
+@media (prefers-reduced-motion: reduce) {
+  .vu-cta, .vu-arw { transition: none; }
+  .vu-cta-p:hover, .vu-cta-p:active { transform: none; }
+  .vu-cta:hover .vu-arw { transform: none; }
+}
