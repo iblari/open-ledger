@@ -136,15 +136,16 @@ function Nav({ mob }: { mob: boolean }) {
 
         {/* CTA */}
         <div style={{ marginLeft: "auto", display: "flex", gap: 10, alignItems: "center" }}>
-          {/* Live nav pill — destination differs by viewport because the
-              labels differ. On mobile the label is just "Live" (short for
-              space), and most mobile users tapping it expect 'live data, not
-              a video player' → routes to Live Benchmark. On desktop the full
-              label "Live Broadcast" makes the intent unambiguous → routes
-              to /live (the video + fact-check page). */}
+          {/* Both viewports go to the broadcast. This used to send mobile to
+              Live Benchmark on the theory that a short "Live" label reads as
+              'live data, not a video player' — but the pill carries a pulsing
+              red dot, and during an actual broadcast that dot promises the
+              broadcast. Tapping it and landing on a chart is the bug. Off air
+              /live is still the right destination: it shows the archive, the
+              schedule and the record. */}
           {/* C.accent, not the #dc2626 that used to sit here — the same stray
               red that was mismatched in the dashboard nav. */}
-          <Link href={mob ? "/dashboard?tab=live_benchmark" : "/live"} className="vu-cta vu-cta-o" style={{
+          <Link href="/live" className="vu-cta vu-cta-o" style={{
             display: "inline-flex", alignItems: "center", gap: 6,
             padding: mob ? "8px 12px" : "10px 14px",
             borderRadius: 4, fontSize: 13, fontWeight: 600,

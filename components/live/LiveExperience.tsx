@@ -559,7 +559,12 @@ function SummaryBar({ claims }: { claims: Claim[] }) {
 }
 
 /* ── Main Page ────────────────────────────────────────────────── */
-export default function LiveExperience({ autoStartReplay }: { autoStartReplay?: string }) {
+export default function LiveExperience({ autoStartReplay, autoStartLive }: {
+  autoStartReplay?: string;
+  /** Set when the SERVER already resolved that a broadcast is running, so the
+   *  player can open on it instead of on the index. */
+  autoStartLive?: { videoId: string; title: string };
+}) {
   const mob = useIsMobile();
 
   /* ── State ── */
@@ -1110,6 +1115,17 @@ export default function LiveExperience({ autoStartReplay }: { autoStartReplay?: 
     contextRef.current = "";
     demoStartTime.current = Date.now();
   }, []);
+
+  // Same idea for a broadcast that is live right now. Unlike the replay case
+  // this waits on nothing — the server already sent the video id — so the
+  // index never renders and there is no second click.
+  const autoLiveStarted = useRef(false);
+  useEffect(() => {
+    if (!autoStartLive?.videoId || autoLiveStarted.current) return;
+    autoLiveStarted.current = true;
+    startLive(autoStartLive.videoId, autoStartLive.title);
+  }, [autoStartLive, startLive]);
+
 
   /* ── Initialize YT Player whenever a video is playing ── */
   // Live mode used to render a plain <iframe> (no YT API instance), which

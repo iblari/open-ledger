@@ -29,7 +29,24 @@ export default function LiveShell({
   // A live broadcast means the page IS the broadcast — go straight in.
   const [enter, setEnter] = useState<string | null>(initial.live ? "live" : null);
 
-  if (enter) return <LiveExperience autoStartReplay={enter === "live" ? undefined : enter} />;
+  if (enter) {
+    // "Go straight in" previously stopped one step short. LiveExperience
+    // opens with isPlaying false, so a live visitor still landed on its index
+    // — hero, LIVE NOW card, "Watch with AI Fact-Check" — and had to press
+    // play on a broadcast the server had already confirmed was running.
+    // Handing it the video outright removes that click, and the title comes
+    // from the same server payload, so there is no wait on a client fetch and
+    // no flash of the index first.
+    const live = enter === "live" && initial.live
+      ? { videoId: initial.live.videoId, title: initial.live.title }
+      : undefined;
+    return (
+      <LiveExperience
+        autoStartReplay={enter === "live" ? undefined : enter}
+        autoStartLive={live}
+      />
+    );
+  }
 
   return (
     <OffAir
