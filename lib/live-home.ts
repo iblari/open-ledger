@@ -9,6 +9,7 @@
 import { knownEvents } from "./known-events";
 import { getLedgerHealed } from "./live-kv";
 import { tallyWithTail, type TopicTally } from "./claim-topics";
+import { computeMomentum, type MomentumResult } from "./topic-breadth";
 
 export interface HomeCheck {
   time: string; verdict: "ok" | "mis" | "con";
@@ -81,6 +82,7 @@ export async function loadLiveHome(origin: string): Promise<{
   schedule: HomeScheduleItem[];
   topics: TopicTally[];
   topicTail: TopicTally | null;
+  topicMomentum: MomentumResult[];
   topicTotals: { claims: number; broadcasts: number; since: string | null };
 }> {
   // Topics come from the PERMANENT ledger, not the 72-hour replay cache the
@@ -137,12 +139,21 @@ export async function loadLiveHome(origin: string): Promise<{
   // to the claim count shown in the header.
   const { topics, tail } = tallyWithTail(ledgerClaims, 12);
 
+  const topicMomentum = computeMomentum(
+    ledger.map(e => ({
+      videoId: e.videoId, title: e.title, startedAt: e.startedAt,
+      claims: e.claims.map(c => ({ quote: c.quote })),
+    })),
+    5
+  );
+
   return {
     live,
     archive,
     schedule: [...announced, ...known].slice(0, 6),
     topics,
     topicTail: tail,
+    topicMomentum,
     topicTotals: {
       claims: ledgerClaims.length,
       broadcasts: ledger.length,

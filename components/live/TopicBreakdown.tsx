@@ -29,6 +29,7 @@
 
 import { useCallback, useState } from "react";
 import type { TopicTally } from "@/lib/claim-topics";
+import type { Momentum, MomentumResult } from "@/lib/topic-breadth";
 
 const C = {
   card: "#FFFEFC", ink: "#14110E", secondary: "#5F5850",
@@ -83,6 +84,10 @@ const CSS = `
   .vu-row:hover .vu-seg:hover{opacity:1;filter:brightness(1.14)}
 }
 .vu-tip{animation:vu-tip-in .13s ease-out}
+/* Fades in once on load. A looping pulse beside a small-sample claim reads as
+   urgency the data has not earned. */
+.vu-badge-m{animation:vu-badge-in .32s ease-out both}
+@keyframes vu-badge-in{from{opacity:0;transform:translateY(-2px)}}
 @keyframes vu-tip-in{from{opacity:0;transform:translate(-50%,2px)}}
 .vu-panel{margin:2px 0 10px 138px;padding-left:12px;border-left:2px solid ${C.rule}}
 .vu-claim{display:flex;gap:10px;align-items:flex-start;padding:8px 0;
@@ -109,7 +114,7 @@ const CSS = `
 }
 @media (prefers-reduced-motion:reduce){
   .vu-seg,.vu-caret{transition:none}
-  .vu-tip{animation:none}
+  .vu-tip,.vu-badge-m{animation:none}
 }`;
 
 function ClaimRow({ c, showTopic }: { c: TopicClaimRow; showTopic: boolean }) {
@@ -130,9 +135,10 @@ function ClaimRow({ c, showTopic }: { c: TopicClaimRow; showTopic: boolean }) {
 }
 
 function Bar({
-  t, widthPct, open, busy, error, claims, breadth, onToggle, onHover,
+  t, widthPct, open, busy, error, claims, breadth, mom, onToggle, onHover,
 }: {
   t: TopicTally; widthPct: number; open: boolean; busy: boolean;
+  mom: MomentumResult | null;
   error: string | null; claims: TopicClaimRow[] | null;
   breadth: BreadthRow[] | null;
   onToggle: () => void; onHover: (h: HoverInfo | null) => void;
@@ -160,6 +166,15 @@ function Bar({
       >
         <span aria-hidden className="vu-caret" style={{ color: C.faint }}>▶</span>
         <span className="vu-label" style={{ color: C.secondary }}>{t.topic}</span>
+        {mom?.momentum && (
+          <span className="vu-badge-m" style={{
+            fontFamily: SANS, fontSize: 8.5, fontWeight: 700, letterSpacing: ".06em",
+            textTransform: "uppercase", flexShrink: 0,
+            color: mom.momentum === "new" ? C.ok : C.mis,
+            border: `1px solid ${mom.momentum === "new" ? C.ok : C.mis}`,
+            borderRadius: 3, padding: "1px 4px",
+          }}>{mom.momentum === "new" ? "New" : "Rising"}</span>
+        )}
         <span className="vu-barwrap">
           <span className="vu-bar" style={{ width: `${widthPct}%` }}>
             {segs.map(([n, color, label]) =>
@@ -217,6 +232,13 @@ function Bar({
                 fontFamily: SANS, fontSize: 11, color: C.secondary, lineHeight: 1.55,
                 margin: "0 0 8px", paddingBottom: 8, borderBottom: `1px solid ${C.rule}`,
               }}>
+                {mom?.momentum && (
+                  <span style={{ display: "block", color: mom.momentum === "new" ? C.ok : C.mis, marginBottom: 3 }}>
+                    {mom.momentum === "new"
+                      ? `Not raised in any of the first ${mom.priorWindow} broadcasts. Now in ${mom.recentPresent} of the last ${mom.recentWindow}.`
+                      : `Raised in ${mom.priorPresent} of the first ${mom.priorWindow} broadcasts, and in all ${mom.recentWindow} of the last ${mom.recentWindow}.`}
+                  </span>
+                )}
                 Raised in <strong style={{ fontWeight: 600 }}>{b.present} of the last {b.broadcasts}</strong> broadcasts
                 {b.offTheme > 0 && b.offTheme < b.present && <>, {b.offTheme} of them not about this subject</>}
                 {b.offTheme > 0 && b.offTheme === b.present && <>, none of which was about this subject</>}
@@ -247,10 +269,11 @@ function Bar({
 }
 
 export default function TopicBreakdown({
-  topics, tail, totals,
+  topics, tail, momentum, totals,
 }: {
   topics: TopicTally[];
   tail: TopicTally | null;
+  momentum: MomentumResult[];
   totals: { claims: number; broadcasts: number; since: string | null };
 }) {
   const [hover, setHover] = useState<HoverInfo | null>(null);
@@ -296,6 +319,7 @@ export default function TopicBreakdown({
       error={open === t.topic ? error : null}
       claims={cache[t.topic] ?? null}
       breadth={breadth[t.topic] ?? null}
+      mom={momentum.find(x => x.topic === t.topic) ?? null}
       onToggle={() => { void toggle(t); }}
       onHover={setHover}
     />

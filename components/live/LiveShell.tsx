@@ -11,6 +11,7 @@
 
 import { useState } from "react";
 import type { HomeArchiveItem, HomeLive, HomeScheduleItem, TopicTally } from "@/lib/live-home";
+import type { MomentumResult } from "@/lib/topic-breadth";
 import OffAir from "./OffAir";
 import LiveExperience from "./LiveExperience";
 
@@ -21,6 +22,7 @@ export default function LiveShell({
     live: HomeLive | null; archive: HomeArchiveItem[]; schedule: HomeScheduleItem[];
     topics: TopicTally[];
     topicTail: TopicTally | null;
+    topicMomentum: MomentumResult[];
     topicTotals: { claims: number; broadcasts: number; since: string | null };
   };
 }) {
@@ -35,6 +37,7 @@ export default function LiveShell({
       schedule={initial.schedule}
       topics={initial.topics}
       topicTail={initial.topicTail}
+      topicMomentum={initial.topicMomentum}
       topicTotals={initial.topicTotals}
       onWatch={id => setEnter(id)}
     />

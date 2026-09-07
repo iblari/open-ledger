@@ -17,6 +17,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { HomeArchiveItem, HomeScheduleItem, TopicTally } from "@/lib/live-home";
 import TopicBreakdown from "./TopicBreakdown";
+import type { MomentumResult } from "@/lib/topic-breadth";
 
 const C = {
   paper: "#E7E2D9", card: "#FFFEFC", ink: "#14110E", secondary: "#5F5850",
@@ -261,11 +262,12 @@ function AlertButton() {
 }
 
 export default function OffAir({
-  archive, schedule, topics, topicTail, topicTotals, onWatch,
+  archive, schedule, topics, topicTail, topicMomentum, topicTotals, onWatch,
 }: {
   archive: HomeArchiveItem[]; schedule: HomeScheduleItem[];
   topics: TopicTally[];
   topicTail: TopicTally | null;
+  topicMomentum: MomentumResult[];
   topicTotals: { claims: number; broadcasts: number; since: string | null };
   onWatch: (id: string) => void;
 }) {
@@ -419,7 +421,7 @@ export default function OffAir({
         {/* Full width, below both columns: the bars need horizontal room, and
             the 128px topic labels would wrap in the 340px right rail. */}
         <div style={{ marginTop: 22 }}>
-          <TopicBreakdown topics={topics} tail={topicTail} totals={topicTotals} />
+          <TopicBreakdown topics={topics} tail={topicTail} momentum={topicMomentum} totals={topicTotals} />
         </div>
 
         <footer style={{ marginTop: 34, paddingTop: 16, borderTop: `1px solid ${C.rule2}`, display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center" }}>
