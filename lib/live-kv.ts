@@ -428,9 +428,16 @@ export async function getRecentBroadcasts(): Promise<RecentBroadcast[]> {
 export async function archiveBroadcast(b: RecentBroadcast): Promise<void> {
   // Record it permanently FIRST. The block below is a 72-hour cache that
   // prunes on every write; if this call came after it, a broadcast could be
-  // pruned before it was ever recorded. Failure here must not block the
-  // replay write, so it is caught rather than awaited into the happy path.
-  recordInLedger(b).catch(e =>
+  // pruned before it was ever recorded.
+  //
+  // AWAITED, despite the failure here being non-fatal. This ran detached so a
+  // ledger error could not fail the replay write, but a detached promise on a
+  // serverless function is simply lost: the runtime freezes once the response
+  // is sent, so the permanent record of a broadcast could vanish because the
+  // request that would have written it finished first. The catch preserves the
+  // original intent — a ledger failure still must not block the replay write —
+  // while guaranteeing the attempt actually completes.
+  await recordInLedger(b).catch(e =>
     console.error("[ledger] failed to record", b.videoId, (e as Error).message)
   );
 
