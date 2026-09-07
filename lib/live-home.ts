@@ -7,6 +7,8 @@
  */
 
 import { knownEvents } from "./known-events";
+import { getLedger } from "./live-kv";
+import { tallyTopics, type TopicTally } from "./claim-topics";
 
 export interface HomeCheck {
   time: string; verdict: "ok" | "mis" | "con";
@@ -23,6 +25,7 @@ export interface HomeArchiveItem {
   counts: { match: number; misleading: number; contradicted: number };
   total: number;
 }
+export type { TopicTally };
 export interface HomeScheduleItem {
   type: "data" | "fed" | "speech";
   title: string; startsAt: string; description: string;
@@ -76,11 +79,19 @@ export async function loadLiveHome(origin: string): Promise<{
   live: HomeLive | null;
   archive: HomeArchiveItem[];
   schedule: HomeScheduleItem[];
+  topics: TopicTally[];
+  topicTotals: { claims: number; broadcasts: number; since: string | null };
 }> {
-  const [feed, recent, discover] = await Promise.all([
+  // Topics come from the PERMANENT ledger, not the 72-hour replay cache the
+  // archive rail uses. That is what makes the breakdown self-updating: when a
+  // broadcast ends, archiveBroadcast calls recordInLedger, so the next render
+  // of this page already includes it. No cron, no manual step, and nothing is
+  // lost when the replay cache prunes.
+  const [feed, recent, discover, ledger] = await Promise.all([
     j<{ state: { status: string; title?: string; videoId?: string; startedAt?: string; source?: string }; claims: RawClaim[] }>(`${origin}/api/live-feed`),
     j<{ recent: { videoId: string; title: string; source: string; startedAt: string; endedAt: string; claims: RawClaim[] }[] }>(`${origin}/api/live-recent`),
     j<{ upcoming: { title: string; scheduledStart: string; channelLabel: string }[] }>(`${origin}/api/live-discover`, 8000),
+    getLedger().catch(() => []),
   ]);
 
   const st = feed?.state;
@@ -119,5 +130,21 @@ export async function loadLiveHome(origin: string): Promise<{
     title: k.title, startsAt: k.startsAt, description: k.detail,
   }));
 
-  return { live, archive, schedule: [...announced, ...known].slice(0, 6) };
+  const ledgerClaims = ledger.flatMap(e => e.claims.map(c => ({ quote: c.quote, rating: c.rating })));
+  // Ten bars is what fits without the labels colliding on a phone; the tail is
+  // long and thin, and truncating it beats shrinking every bar to fit claims
+  // that appeared once.
+  const topics = tallyTopics(ledgerClaims, 10);
+
+  return {
+    live,
+    archive,
+    schedule: [...announced, ...known].slice(0, 6),
+    topics,
+    topicTotals: {
+      claims: ledgerClaims.length,
+      broadcasts: ledger.length,
+      since: ledger.length ? ledger[ledger.length - 1].startedAt : null,
+    },
+  };
 }

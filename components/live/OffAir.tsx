@@ -15,7 +15,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import type { HomeArchiveItem, HomeScheduleItem } from "@/lib/live-home";
+import type { HomeArchiveItem, HomeScheduleItem, TopicTally } from "@/lib/live-home";
+import TopicBreakdown from "./TopicBreakdown";
 
 const C = {
   paper: "#E7E2D9", card: "#FFFEFC", ink: "#14110E", secondary: "#5F5850",
@@ -260,8 +261,13 @@ function AlertButton() {
 }
 
 export default function OffAir({
-  archive, schedule, onWatch,
-}: { archive: HomeArchiveItem[]; schedule: HomeScheduleItem[]; onWatch: (id: string) => void }) {
+  archive, schedule, topics, topicTotals, onWatch,
+}: {
+  archive: HomeArchiveItem[]; schedule: HomeScheduleItem[];
+  topics: TopicTally[];
+  topicTotals: { claims: number; broadcasts: number; since: string | null };
+  onWatch: (id: string) => void;
+}) {
   // The pitch is for people who haven't seen it. Returning visitors get
   // straight to the product.
   const [showMasthead, setShowMasthead] = useState(false);
@@ -407,6 +413,12 @@ export default function OffAir({
               ))}
             </section>
           </aside>
+        </div>
+
+        {/* Full width, below both columns: the bars need horizontal room, and
+            the 128px topic labels would wrap in the 340px right rail. */}
+        <div style={{ marginTop: 22 }}>
+          <TopicBreakdown topics={topics} totals={topicTotals} />
         </div>
 
         <footer style={{ marginTop: 34, paddingTop: 16, borderTop: `1px solid ${C.rule2}`, display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center" }}>
