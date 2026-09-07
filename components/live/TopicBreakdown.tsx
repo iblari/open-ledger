@@ -70,8 +70,13 @@ const CSS = `
 .vu-rate{font-family:${SANS};font-size:11px;font-weight:600;width:38px;
   flex-shrink:0;text-align:right}
 .vu-seg{transition:opacity .14s ease,filter .14s ease}
-.vu-row:hover .vu-seg{opacity:.42}
-.vu-row:hover .vu-seg:hover{opacity:1;filter:brightness(1.14)}
+/* Gated on a real pointer. A touch device latches :hover on whatever was last
+   tapped and never clears it, so on a phone this left the tapped bar sitting
+   permanently dimmed as though its data had failed to load. */
+@media (hover:hover) and (pointer:fine){
+  .vu-row:hover .vu-seg{opacity:.42}
+  .vu-row:hover .vu-seg:hover{opacity:1;filter:brightness(1.14)}
+}
 .vu-tip{animation:vu-tip-in .13s ease-out}
 @keyframes vu-tip-in{from{opacity:0;transform:translate(-50%,2px)}}
 .vu-panel{margin:2px 0 10px 138px;padding-left:12px;border-left:2px solid ${C.rule}}
