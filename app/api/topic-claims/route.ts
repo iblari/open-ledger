@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getLedger } from "@/lib/live-kv";
 import { topicOf } from "@/lib/claim-topics";
+import { computeBreadth } from "@/lib/topic-breadth";
 
 /**
  * GET /api/topic-claims?topics=Immigration,Housing — the claims behind a bar.
@@ -52,5 +53,16 @@ export async function GET(req: Request) {
   // Newest first: the reason to open a bar is usually "what did they just say
   // about this", not "what did they say three weeks ago".
   claims.sort((a, b) => b.day.localeCompare(a.day));
-  return NextResponse.json({ ok: true, count: claims.length, claims });
+
+  // Breadth travels with the claims so the panel can say how WIDELY a subject
+  // is raised, not just how much was said about it — the two diverge sharply
+  // and the claim count alone implies the wrong one.
+  const breadth = computeBreadth(
+    ledger.map(e => ({
+      videoId: e.videoId, title: e.title, startedAt: e.startedAt,
+      claims: e.claims.map(c => ({ quote: c.quote })),
+    }))
+  ).filter(b => wanted.has(b.topic));
+
+  return NextResponse.json({ ok: true, count: claims.length, claims, breadth });
 }

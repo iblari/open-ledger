@@ -47,6 +47,11 @@ interface HoverInfo {
   x: number; y: number;
 }
 
+interface BreadthRow {
+  topic: string; present: number; broadcasts: number;
+  breadth: number; offTheme: number; offThemeRate: number;
+}
+
 interface TopicClaimRow {
   quote: string; rating: string; topic: string;
   speaker: string | null; day: string; broadcast: string;
@@ -125,10 +130,11 @@ function ClaimRow({ c, showTopic }: { c: TopicClaimRow; showTopic: boolean }) {
 }
 
 function Bar({
-  t, widthPct, open, busy, error, claims, onToggle, onHover,
+  t, widthPct, open, busy, error, claims, breadth, onToggle, onHover,
 }: {
   t: TopicTally; widthPct: number; open: boolean; busy: boolean;
   error: string | null; claims: TopicClaimRow[] | null;
+  breadth: BreadthRow[] | null;
   onToggle: () => void; onHover: (h: HoverInfo | null) => void;
 }) {
   const [all, setAll] = useState(false);
@@ -194,6 +200,30 @@ function Bar({
               }}>Try again</button>
             </p>
           )}
+          {/* Breadth lives here rather than in the row: it is a second, easily
+              confused measure, and the collapsed chart was just tightened for
+              phones. Claim count says how MUCH was said; this says how widely
+              it is raised, and the two rank subjects very differently. */}
+          {!busy && !error && breadth && breadth.length > 0 && (() => {
+            const b = breadth.length === 1
+              ? breadth[0]
+              : breadth.reduce((acc, x) => ({
+                  ...acc,
+                  present: Math.max(acc.present, x.present),
+                  offTheme: Math.max(acc.offTheme, x.offTheme),
+                }));
+            return (
+              <p style={{
+                fontFamily: SANS, fontSize: 11, color: C.secondary, lineHeight: 1.55,
+                margin: "0 0 8px", paddingBottom: 8, borderBottom: `1px solid ${C.rule}`,
+              }}>
+                Raised in <strong style={{ fontWeight: 600 }}>{b.present} of the last {b.broadcasts}</strong> broadcasts
+                {b.offTheme > 0 && b.offTheme < b.present && <>, {b.offTheme} of them not about this subject</>}
+                {b.offTheme > 0 && b.offTheme === b.present && <>, none of which was about this subject</>}
+                {b.offTheme === 0 && <> — all of them events on this subject</>}.
+              </p>
+            );
+          })()}
           {!busy && !error && shown && (
             shown.length === 0
               ? <p style={{ fontFamily: SANS, fontSize: 11.5, color: C.faint, margin: "6px 0" }}>No claims recorded.</p>
@@ -226,6 +256,7 @@ export default function TopicBreakdown({
   const [hover, setHover] = useState<HoverInfo | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   const [cache, setCache] = useState<Record<string, TopicClaimRow[]>>({});
+  const [breadth, setBreadth] = useState<Record<string, BreadthRow[]>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -243,6 +274,7 @@ export default function TopicBreakdown({
       if (!r.ok) throw new Error(String(r.status));
       const d = await r.json();
       setCache(prev => ({ ...prev, [t.topic]: d.claims ?? [] }));
+      setBreadth(prev => ({ ...prev, [t.topic]: d.breadth ?? [] }));
     } catch {
       setError("Couldn't load these claims.");
     } finally {
@@ -263,6 +295,7 @@ export default function TopicBreakdown({
       busy={open === t.topic && busy}
       error={open === t.topic ? error : null}
       claims={cache[t.topic] ?? null}
+      breadth={breadth[t.topic] ?? null}
       onToggle={() => { void toggle(t); }}
       onHover={setHover}
     />
