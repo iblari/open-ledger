@@ -62,9 +62,10 @@ function Bar({ t, widthPct }: { t: TopicTally; widthPct: number }) {
 }
 
 export default function TopicBreakdown({
-  topics, totals,
+  topics, tail, totals,
 }: {
   topics: TopicTally[];
+  tail: TopicTally | null;
   totals: { claims: number; broadcasts: number; since: string | null };
 }) {
   if (!topics.length || totals.claims === 0) return null;
@@ -95,6 +96,13 @@ export default function TopicBreakdown({
 
       <div>
         {topics.map(t => <Bar key={t.topic} t={t} widthPct={(t.total / max) * 100} />)}
+        {/* The tail keeps the bars summing to the total in the header. Without
+            it a top-N slice silently drops claims the header still counts. */}
+        {tail && tail.total > 0 && (
+          <div style={{ marginTop: 9, paddingTop: 8, borderTop: `1px dashed ${C.rule}` }}>
+            <Bar t={tail} widthPct={(Math.min(tail.total, max) / max) * 100} />
+          </div>
+        )}
       </div>
 
       <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginTop: 12, paddingTop: 11, borderTop: `1px solid ${C.rule}` }}>

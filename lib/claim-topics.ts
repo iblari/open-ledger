@@ -99,3 +99,37 @@ export function tallyTopics(claims: TopicClaim[], limit?: number): TopicTally[] 
   });
   return limit ? out.slice(0, limit) : out;
 }
+
+/**
+ * Tally into `limit` bars plus one row absorbing everything else.
+ *
+ * A plain top-N slice quietly drops claims: at ten bars the chart accounted
+ * for 119 of 166 claims while its header said 166, and Immigration — every one
+ * of its claims rated false — fell off the bottom because only six people-hours
+ * of speech touched it. Truncation is fine; truncation that breaks the
+ * arithmetic under a total is not.
+ *
+ * The tail folds small subjects together with unclassified claims. They are
+ * different things, but neither belongs in a named bar, and the alternative is
+ * a second remainder row explaining a distinction the chart cannot show.
+ */
+export function tallyWithTail(
+  claims: TopicClaim[], limit: number
+): { topics: TopicTally[]; tail: TopicTally | null } {
+  const all = tallyTopics(claims);
+  if (all.length <= limit) return { topics: all, tail: null };
+
+  const topics = all.slice(0, limit);
+  const rest = all.slice(limit);
+  const tail: TopicTally = {
+    topic: `${rest.length} smaller subjects`,
+    total: 0, accurate: 0, misleading: 0, false: 0, unscored: 0, rate: null,
+  };
+  for (const t of rest) {
+    tail.total += t.total; tail.accurate += t.accurate;
+    tail.misleading += t.misleading; tail.false += t.false; tail.unscored += t.unscored;
+  }
+  const scored = tail.accurate + tail.misleading + tail.false;
+  tail.rate = scored > 0 ? (tail.misleading + tail.false) / scored : null;
+  return { topics, tail };
+}

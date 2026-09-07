@@ -8,7 +8,7 @@
 
 import { knownEvents } from "./known-events";
 import { getLedger } from "./live-kv";
-import { tallyTopics, type TopicTally } from "./claim-topics";
+import { tallyWithTail, type TopicTally } from "./claim-topics";
 
 export interface HomeCheck {
   time: string; verdict: "ok" | "mis" | "con";
@@ -80,6 +80,7 @@ export async function loadLiveHome(origin: string): Promise<{
   archive: HomeArchiveItem[];
   schedule: HomeScheduleItem[];
   topics: TopicTally[];
+  topicTail: TopicTally | null;
   topicTotals: { claims: number; broadcasts: number; since: string | null };
 }> {
   // Topics come from the PERMANENT ledger, not the 72-hour replay cache the
@@ -131,16 +132,17 @@ export async function loadLiveHome(origin: string): Promise<{
   }));
 
   const ledgerClaims = ledger.flatMap(e => e.claims.map(c => ({ quote: c.quote, rating: c.rating })));
-  // Ten bars is what fits without the labels colliding on a phone; the tail is
-  // long and thin, and truncating it beats shrinking every bar to fit claims
-  // that appeared once.
-  const topics = tallyTopics(ledgerClaims, 10);
+  // Twelve named bars is what fits before labels collide on a phone. Anything
+  // past that is folded into one tail row rather than dropped, so the bars sum
+  // to the claim count shown in the header.
+  const { topics, tail } = tallyWithTail(ledgerClaims, 12);
 
   return {
     live,
     archive,
     schedule: [...announced, ...known].slice(0, 6),
     topics,
+    topicTail: tail,
     topicTotals: {
       claims: ledgerClaims.length,
       broadcasts: ledger.length,

@@ -20,6 +20,7 @@ export default function LiveShell({
   initial: {
     live: HomeLive | null; archive: HomeArchiveItem[]; schedule: HomeScheduleItem[];
     topics: TopicTally[];
+    topicTail: TopicTally | null;
     topicTotals: { claims: number; broadcasts: number; since: string | null };
   };
 }) {
@@ -33,6 +34,7 @@ export default function LiveShell({
       archive={initial.archive}
       schedule={initial.schedule}
       topics={initial.topics}
+      topicTail={initial.topicTail}
       topicTotals={initial.topicTotals}
       onWatch={id => setEnter(id)}
     />
