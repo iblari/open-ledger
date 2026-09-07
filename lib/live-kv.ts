@@ -423,6 +423,30 @@ export async function getRecentBroadcasts(): Promise<RecentBroadcast[]> {
   }
 }
 
+/**
+ * The ledger, with anything the 72-hour cache has that it doesn't folded in.
+ *
+ * recordInLedger is awaited inside archiveBroadcast but its failure is caught,
+ * so a KV blip loses a broadcast from the permanent record while leaving it in
+ * the replay cache — and after 72 hours the cache prunes and it is gone for
+ * good. This reconciles on read, so every surface that shows the ledger repairs
+ * it rather than only the one route that happened to implement the repair.
+ *
+ * Callers that READ the ledger should use this. recordInLedger itself must keep
+ * using getLedger(), or writing an entry would recurse into reconciling.
+ */
+export async function getLedgerHealed(): Promise<LedgerEntry[]> {
+  const [ledger, recent] = await Promise.all([
+    getLedger(),
+    getRecentBroadcasts().catch(() => [] as RecentBroadcast[]),
+  ]);
+  const known = new Set(ledger.map(e => e.videoId));
+  const missing = recent.filter(b => !known.has(b.videoId));
+  if (!missing.length) return ledger;
+  await Promise.all(missing.map(b => recordInLedger(b).catch(() => null)));
+  return getLedger();
+}
+
 /** Archive an ended broadcast (deduped by videoId — a re-covered stream
  *  replaces its earlier entry, merging claims). Prunes >72h entries. */
 export async function archiveBroadcast(b: RecentBroadcast): Promise<void> {

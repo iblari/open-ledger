@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getLedger } from "@/lib/live-kv";
+import { getLedgerHealed } from "@/lib/live-kv";
 import { computeBreadth, rollingBreadth, eligible, broadcastsNeeded } from "@/lib/topic-breadth";
 
 /**
@@ -20,7 +20,7 @@ export async function GET(req: Request) {
   const topic = url.searchParams.get("topic");
   const window = Math.min(20, Math.max(2, Number(url.searchParams.get("window")) || 5));
 
-  const ledger = await getLedger();
+  const ledger = await getLedgerHealed();
   const broadcasts = ledger.map(e => ({
     videoId: e.videoId, title: e.title, startedAt: e.startedAt,
     claims: e.claims.map(c => ({ quote: c.quote })),

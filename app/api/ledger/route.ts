@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getLedger, getRecentBroadcasts, recordInLedger } from "@/lib/live-kv";
+import { getLedgerHealed } from "@/lib/live-kv";
 
 /**
  * GET /api/ledger — the permanent record of every broadcast covered.
@@ -24,17 +24,9 @@ export async function GET(req: Request) {
   // Claim text is opt-in: it is far larger than the rollup and only the
   // repeat-claim work needs it, so the default response stays small.
   const wantClaims = new URL(req.url).searchParams.get("claims") === "1";
-  // Self-healing backfill: anything sitting in the 72-hour cache that never
-  // made it into the ledger gets recorded now. This is what rescues the
-  // broadcasts already in flight when the ledger shipped — after their 72
-  // hours they would be unrecoverable.
-  const [ledger, recent] = await Promise.all([getLedger(), getRecentBroadcasts()]);
-  const known = new Set(ledger.map(e => e.videoId));
-  const missing = recent.filter(b => !known.has(b.videoId));
-  if (missing.length) {
-    await Promise.all(missing.map(b => recordInLedger(b).catch(() => null)));
-  }
-  const entries = missing.length ? await getLedger() : ledger;
+  // Reconciliation lives in getLedgerHealed so every read path repairs the
+  // ledger, not just this route.
+  const entries = await getLedgerHealed();
 
   const weeks = new Map<string, {
     week: string; broadcasts: number; claims: number;

@@ -7,7 +7,7 @@
  */
 
 import { knownEvents } from "./known-events";
-import { getLedger } from "./live-kv";
+import { getLedgerHealed } from "./live-kv";
 import { tallyWithTail, type TopicTally } from "./claim-topics";
 
 export interface HomeCheck {
@@ -92,7 +92,7 @@ export async function loadLiveHome(origin: string): Promise<{
     j<{ state: { status: string; title?: string; videoId?: string; startedAt?: string; source?: string }; claims: RawClaim[] }>(`${origin}/api/live-feed`),
     j<{ recent: { videoId: string; title: string; source: string; startedAt: string; endedAt: string; claims: RawClaim[] }[] }>(`${origin}/api/live-recent`),
     j<{ upcoming: { title: string; scheduledStart: string; channelLabel: string }[] }>(`${origin}/api/live-discover`, 8000),
-    getLedger().catch(() => []),
+    getLedgerHealed().catch(() => []),
   ]);
 
   const st = feed?.state;

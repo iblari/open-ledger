@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getLedger } from "@/lib/live-kv";
+import { getLedgerHealed } from "@/lib/live-kv";
 import { topicOf } from "@/lib/claim-topics";
 import { computeBreadth } from "@/lib/topic-breadth";
 
@@ -28,7 +28,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ ok: false, error: "no topics requested" }, { status: 400 });
   }
 
-  const ledger = await getLedger();
+  const ledger = await getLedgerHealed();
   const claims: {
     quote: string; rating: string; topic: string;
     speaker: string | null; day: string; broadcast: string;

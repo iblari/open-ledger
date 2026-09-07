@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getLedger } from "@/lib/live-kv";
+import { getLedgerHealed } from "@/lib/live-kv";
 import { findRepeats, type RepeatOccurrence } from "@/lib/repeat-claims";
 
 /**
@@ -12,7 +12,7 @@ import { findRepeats, type RepeatOccurrence } from "@/lib/repeat-claims";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const ledger = await getLedger();
+  const ledger = await getLedgerHealed();
   const all: RepeatOccurrence[] = [];
   for (const e of ledger) {
     for (const c of e.claims) {
