@@ -29,6 +29,13 @@ const C = {
 const SERIF = "'Newsreader',Georgia,serif";
 const SANS = "'DM Sans',-apple-system,sans-serif";
 
+interface HoverInfo {
+  label: string; count: number; topic: string; color: string;
+  /** Viewport coords — the tooltip is fixed-positioned, so it does not have to
+   *  care which scroll container the bar happens to sit in. */
+  x: number; y: number;
+}
+
 interface TopicClaimRow {
   quote: string; rating: string; topic: string;
   speaker: string | null; day: string; broadcast: string;
@@ -61,11 +68,12 @@ function ClaimRow({ c, showTopic }: { c: TopicClaimRow; showTopic: boolean }) {
 }
 
 function Bar({
-  t, widthPct, open, busy, error, claims, onToggle,
+  t, widthPct, open, busy, error, claims, onToggle, onHover,
 }: {
   t: TopicTally; widthPct: number; open: boolean; busy: boolean;
   error: string | null; claims: TopicClaimRow[] | null;
   onToggle: () => void;
+  onHover: (h: HoverInfo | null) => void;
 }) {
   const segs: [number, string, string][] = [
     [t.false, C.con, "False"],
@@ -82,9 +90,11 @@ function Bar({
         onClick={onToggle}
         aria-expanded={open}
         aria-controls={panelId}
+        className="vu-row"
         style={{
           display: "flex", alignItems: "center", gap: 10, width: "100%",
           background: open ? C.paper : "transparent", border: "none",
+          position: "relative",
           borderRadius: 4, padding: "5px 6px", margin: "0 -6px 2px",
           cursor: "pointer", textAlign: "left", font: "inherit",
         }}
@@ -103,10 +113,34 @@ function Bar({
         <span style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ width: `${widthPct}%`, minWidth: 6, display: "flex", height: 13, borderRadius: 2, overflow: "hidden" }}>
             {segs.map(([n, color, label]) =>
-              n > 0 ? <span key={label} style={{ flex: n, background: color }} title={`${label}: ${n}`} /> : null
+              n > 0 ? (
+                <span
+                  key={label}
+                  className="vu-seg"
+                  style={{ flex: n, background: color }}
+                  onMouseEnter={e => onHover({
+                    label, count: n, topic: t.topic, color,
+                    x: e.clientX, y: e.currentTarget.getBoundingClientRect().top,
+                  })}
+                  onMouseMove={e => onHover({
+                    label, count: n, topic: t.topic, color,
+                    x: e.clientX, y: e.currentTarget.getBoundingClientRect().top,
+                  })}
+                  onMouseLeave={() => onHover(null)}
+                />
+              ) : null
             )}
           </span>
           <span style={{ fontFamily: SANS, fontSize: 10.5, color: C.faint, flexShrink: 0 }}>{t.total}</span>
+          {/* The hover tooltip is a mouse-only affordance. Without this the
+              segment counts would be unreachable by keyboard or screen reader,
+              which is how the native title attribute this replaced failed. */}
+          <span style={{
+            position: "absolute", width: 1, height: 1, padding: 0, margin: -1,
+            overflow: "hidden", clip: "rect(0,0,0,0)", whiteSpace: "nowrap", border: 0,
+          }}>
+            {segs.filter(([n]) => n > 0).map(([n, , label]) => `${n} ${label.toLowerCase()}`).join(", ")}.
+          </span>
         </span>
 
         <span style={{
@@ -157,6 +191,7 @@ export default function TopicBreakdown({
   tail: TopicTally | null;
   totals: { claims: number; broadcasts: number; since: string | null };
 }) {
+  const [hover, setHover] = useState<HoverInfo | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   const [cache, setCache] = useState<Record<string, TopicClaimRow[]>>({});
   const [busy, setBusy] = useState(false);
@@ -199,14 +234,51 @@ export default function TopicBreakdown({
       error={open === t.topic ? error : null}
       claims={cache[t.topic] ?? null}
       onToggle={() => { void toggle(t); }}
+      onHover={setHover}
     />
   );
 
   return (
-    <section style={{
-      background: C.card, border: `1px solid ${C.rule}`, borderRadius: 8,
-      padding: "18px 20px 16px",
-    }}>
+    <section
+      style={{
+        background: C.card, border: `1px solid ${C.rule}`, borderRadius: 8,
+        padding: "18px 20px 16px",
+      }}
+      // A bar can be left mid-hover if the pointer exits fast enough that the
+      // segment never sees a mouseleave, stranding the tooltip on screen.
+      onMouseLeave={() => setHover(null)}
+    >
+      <style>{`
+        .vu-seg { transition: opacity .14s ease, filter .14s ease; }
+        .vu-row:hover .vu-seg { opacity: .42; }
+        .vu-row:hover .vu-seg:hover { opacity: 1; filter: brightness(1.14); }
+        .vu-tip { animation: vu-tip-in .13s ease-out; }
+        @keyframes vu-tip-in { from { opacity: 0; transform: translate(-50%, 2px); } }
+        @media (prefers-reduced-motion: reduce) {
+          .vu-seg { transition: none; }
+          .vu-tip { animation: none; }
+        }
+      `}</style>
+
+      {hover && (
+        <div
+          role="presentation"
+          className="vu-tip"
+          style={{
+            position: "fixed", left: hover.x, top: hover.y - 34,
+            transform: "translateX(-50%)", zIndex: 40, pointerEvents: "none",
+            background: C.ink, color: "#FFFEFC", borderRadius: 5,
+            padding: "5px 9px", fontFamily: SANS, fontSize: 11.5, whiteSpace: "nowrap",
+            display: "flex", alignItems: "center", gap: 6,
+            boxShadow: "0 2px 10px rgba(20,17,14,.22)",
+          }}
+        >
+          <span style={{ width: 8, height: 8, borderRadius: 2, background: hover.color, flexShrink: 0 }} />
+          <span style={{ fontWeight: 600 }}>{hover.count}</span>
+          <span style={{ opacity: .8 }}>{hover.label.toLowerCase()}</span>
+          <span style={{ opacity: .5 }}>· {hover.topic}</span>
+        </div>
+      )}
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 3 }}>
         <h2 style={{ fontFamily: SERIF, fontSize: 19, fontWeight: 600, color: C.ink, margin: 0 }}>
           What gets claimed, and what holds up
