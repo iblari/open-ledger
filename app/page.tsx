@@ -152,6 +152,16 @@ function Nav({ mob }: { mob: boolean }) {
             <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#dc2626", animation: "pulse 2s infinite" }} />
             {mob ? "Live" : "Live Broadcast"}
           </Link>
+          {!mob && (
+            <Link href="/repeats" style={{
+              display: "inline-flex", alignItems: "center",
+              padding: "10px 14px", borderRadius: 4, fontSize: 13, fontWeight: 500,
+              background: "transparent", color: C.sub, border: `1px solid ${C.rule}`,
+              textDecoration: "none", transition: "all 0.15s",
+            }}>
+              Repeat claims
+            </Link>
+          )}
           <Link href="/dashboard" style={{
             display: "inline-flex", alignItems: "center", gap: 8,
             padding: mob ? "8px 14px" : "10px 16px",
