@@ -58,6 +58,10 @@ export interface TopicTally {
   /** Share of SCORED claims that were false or misleading, 0..1.
    *  Null when nothing in this topic was scored. */
   rate: number | null;
+  /** Only set on a folded tail row: the topics it absorbed. The tail's own
+   *  label is a synthetic count, so this is what lets a caller ask for its
+   *  claims without having to re-derive which subjects fell below the cut. */
+  members?: string[];
 }
 
 export interface TopicClaim { quote: string; rating: string }
@@ -124,6 +128,7 @@ export function tallyWithTail(
   const tail: TopicTally = {
     topic: `${rest.length} smaller subjects`,
     total: 0, accurate: 0, misleading: 0, false: 0, unscored: 0, rate: null,
+    members: rest.map(t => t.topic),
   };
   for (const t of rest) {
     tail.total += t.total; tail.accurate += t.accurate;
