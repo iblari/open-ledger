@@ -8,14 +8,23 @@
  * ship a client-side renderer to redraw twenty divs — while breaking the
  * typography the rest of the page sets by hand.
  *
- * Bars are widths in a flex row, so every topic's segments are proportional to
- * ITS OWN total, and the row length encodes the topic's share of all claims.
- * A subject with three claims and a subject with twenty-five never read as
- * equally weighted, which is the failure mode of showing rates alone.
+ * Bar length encodes the topic's share of all claims, and the segments within
+ * it are proportional to that topic's own total. A subject with three claims
+ * and one with twenty-five never read as equally weighted, which is the
+ * failure mode of showing rates alone.
  *
- * Each bar opens to the claims behind it. A chart asserting that 100% of
- * immigration claims were false should be one click from the sentences that
- * back the number, or the reader has to take it on faith.
+ * Each bar opens to the claims behind it: a chart asserting that every
+ * immigration claim was false should be one click from the sentences backing
+ * it, or the reader takes the number on faith.
+ *
+ * LAYOUT — the row is two different shapes.
+ *   Wide: one line, label | bar | count | rate.
+ *   Narrow: label and rate on the first line, bar spanning the full width
+ *   beneath. Fitting all four into 375px left the bar around 140px and the
+ *   opened panel, indented to clear a 120px desktop label, gave quotes a
+ *   ~220px column that broke them across three words a line.
+ * Handled in CSS rather than a JS breakpoint so the server and client render
+ * the same markup and there is no resize listener to keep in sync.
  */
 
 import { useCallback, useState } from "react";
@@ -29,10 +38,12 @@ const C = {
 const SERIF = "'Newsreader',Georgia,serif";
 const SANS = "'DM Sans',-apple-system,sans-serif";
 
+/** Claims shown before the list asks to be expanded. Crime & policing carries
+ *  25; dropping all of them into a phone makes the chart unreachable below. */
+const PREVIEW = 5;
+
 interface HoverInfo {
   label: string; count: number; topic: string; color: string;
-  /** Viewport coords — the tooltip is fixed-positioned, so it does not have to
-   *  care which scroll container the bar happens to sit in. */
   x: number; y: number;
 }
 
@@ -45,22 +56,63 @@ const VERDICT: Record<string, string> = {
   "FALSE": C.con, "MISLEADING": C.mis, "TRUE": C.ok, "MOSTLY TRUE": C.ok,
 };
 
+const CSS = `
+.vu-row{display:flex;align-items:center;gap:10px;width:100%;border:none;
+  border-radius:4px;padding:5px 6px;margin:0 -6px 2px;cursor:pointer;
+  text-align:left;font:inherit;position:relative;flex-wrap:wrap}
+.vu-caret{font-size:9px;width:8px;flex-shrink:0;transition:transform .12s}
+.vu-open .vu-caret{transform:rotate(90deg)}
+.vu-label{font-family:${SANS};font-size:11.5px;width:120px;flex-shrink:0;
+  text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vu-barwrap{flex:1;min-width:0;display:flex;align-items:center;gap:8px}
+.vu-bar{min-width:6px;display:flex;height:13px;border-radius:2px;overflow:hidden}
+.vu-count{font-family:${SANS};font-size:10.5px;flex-shrink:0}
+.vu-rate{font-family:${SANS};font-size:11px;font-weight:600;width:38px;
+  flex-shrink:0;text-align:right}
+.vu-seg{transition:opacity .14s ease,filter .14s ease}
+.vu-row:hover .vu-seg{opacity:.42}
+.vu-row:hover .vu-seg:hover{opacity:1;filter:brightness(1.14)}
+.vu-tip{animation:vu-tip-in .13s ease-out}
+@keyframes vu-tip-in{from{opacity:0;transform:translate(-50%,2px)}}
+.vu-panel{margin:2px 0 10px 138px;padding-left:12px;border-left:2px solid ${C.rule}}
+.vu-claim{display:flex;gap:10px;align-items:flex-start;padding:8px 0;
+  border-bottom:1px solid ${C.rule}}
+.vu-badge{font-family:${SANS};font-size:9px;font-weight:700;letter-spacing:.04em;
+  border-radius:3px;padding:2px 5px;flex-shrink:0;margin-top:2px;white-space:nowrap}
+.vu-quote{font-family:${SERIF};font-size:13.5px;line-height:1.5;display:block}
+.vu-meta{font-family:${SANS};font-size:10.5px;display:block;margin-top:3px}
+@media (max-width:640px){
+  .vu-row{gap:8px;row-gap:5px}
+  /* Label and rate share line one; the bar takes the whole of line two, so it
+     is legible instead of being crushed into what is left over. */
+  .vu-label{width:auto;flex:1;text-align:left;font-size:12px;order:1}
+  .vu-rate{order:2;width:auto}
+  .vu-barwrap{order:3;flex-basis:100%;padding-left:18px}
+  .vu-bar{height:11px}
+  /* The desktop indent cleared a fixed-width label that no longer exists here. */
+  .vu-panel{margin-left:0;padding-left:10px}
+  /* Badge above the quote: as a left column it took a third of the width and
+     left the text in a ribbon. */
+  .vu-claim{flex-direction:column;gap:5px;padding:10px 0}
+  .vu-badge{margin-top:0;align-self:flex-start}
+  .vu-quote{font-size:14.5px}
+}
+@media (prefers-reduced-motion:reduce){
+  .vu-seg,.vu-caret{transition:none}
+  .vu-tip{animation:none}
+}`;
+
 function ClaimRow({ c, showTopic }: { c: TopicClaimRow; showTopic: boolean }) {
   const color = VERDICT[c.rating] ?? C.faint;
   return (
-    <li style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "8px 0", borderBottom: `1px solid ${C.rule}` }}>
-      <span style={{
-        fontFamily: SANS, fontSize: 9, fontWeight: 700, letterSpacing: "0.04em",
-        color, border: `1px solid ${color}`, borderRadius: 3, padding: "2px 5px",
-        flexShrink: 0, marginTop: 2, whiteSpace: "nowrap",
-      }}>{c.rating || "—"}</span>
+    <li className="vu-claim">
+      <span className="vu-badge" style={{ color, border: `1px solid ${color}` }}>
+        {c.rating || "—"}
+      </span>
       <span style={{ minWidth: 0, flex: 1 }}>
-        <span style={{ display: "block", fontFamily: SERIF, fontSize: 13.5, color: C.ink, lineHeight: 1.5 }}>
-          &ldquo;{c.quote}&rdquo;
-        </span>
-        <span style={{ display: "block", fontFamily: SANS, fontSize: 10.5, color: C.faint, marginTop: 3 }}>
-          {c.speaker ?? "speaker not attributed"} · {c.day}
-          {showTopic ? ` · ${c.topic}` : ""}
+        <span className="vu-quote" style={{ color: C.ink }}>&ldquo;{c.quote}&rdquo;</span>
+        <span className="vu-meta" style={{ color: C.faint }}>
+          {c.speaker ?? "speaker not attributed"} · {c.day}{showTopic ? ` · ${c.topic}` : ""}
         </span>
       </span>
     </li>
@@ -72,9 +124,9 @@ function Bar({
 }: {
   t: TopicTally; widthPct: number; open: boolean; busy: boolean;
   error: string | null; claims: TopicClaimRow[] | null;
-  onToggle: () => void;
-  onHover: (h: HoverInfo | null) => void;
+  onToggle: () => void; onHover: (h: HoverInfo | null) => void;
 }) {
+  const [all, setAll] = useState(false);
   const segs: [number, string, string][] = [
     [t.false, C.con, "False"],
     [t.misleading, C.mis, "Misleading"],
@@ -82,101 +134,76 @@ function Bar({
     [t.unscored, C.unscored, "Not scored"],
   ];
   const panelId = `topic-${t.topic.replace(/\W+/g, "-")}`;
+  const shown = claims ? (all ? claims : claims.slice(0, PREVIEW)) : null;
+  const hidden = claims ? claims.length - (shown?.length ?? 0) : 0;
+
+  const enter = (label: string, n: number, color: string) => (e: React.MouseEvent<HTMLSpanElement>) =>
+    onHover({ label, count: n, topic: t.topic, color, x: e.clientX, y: e.currentTarget.getBoundingClientRect().top });
 
   return (
     <div>
       <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={open}
-        aria-controls={panelId}
-        className="vu-row"
-        style={{
-          display: "flex", alignItems: "center", gap: 10, width: "100%",
-          background: open ? C.paper : "transparent", border: "none",
-          position: "relative",
-          borderRadius: 4, padding: "5px 6px", margin: "0 -6px 2px",
-          cursor: "pointer", textAlign: "left", font: "inherit",
-        }}
+        type="button" onClick={onToggle} aria-expanded={open} aria-controls={panelId}
+        className={`vu-row${open ? " vu-open" : ""}`}
+        style={{ background: open ? C.paper : "transparent" }}
       >
-        <span aria-hidden style={{
-          fontSize: 9, color: C.faint, width: 8, flexShrink: 0,
-          transform: open ? "rotate(90deg)" : "none", transition: "transform .12s",
-        }}>▶</span>
-
-        <span style={{
-          fontFamily: SANS, fontSize: 11.5, color: C.secondary,
-          width: 120, flexShrink: 0, textAlign: "right",
-          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-        }}>{t.topic}</span>
-
-        <span style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ width: `${widthPct}%`, minWidth: 6, display: "flex", height: 13, borderRadius: 2, overflow: "hidden" }}>
+        <span aria-hidden className="vu-caret" style={{ color: C.faint }}>▶</span>
+        <span className="vu-label" style={{ color: C.secondary }}>{t.topic}</span>
+        <span className="vu-barwrap">
+          <span className="vu-bar" style={{ width: `${widthPct}%` }}>
             {segs.map(([n, color, label]) =>
               n > 0 ? (
-                <span
-                  key={label}
-                  className="vu-seg"
-                  style={{ flex: n, background: color }}
-                  onMouseEnter={e => onHover({
-                    label, count: n, topic: t.topic, color,
-                    x: e.clientX, y: e.currentTarget.getBoundingClientRect().top,
-                  })}
-                  onMouseMove={e => onHover({
-                    label, count: n, topic: t.topic, color,
-                    x: e.clientX, y: e.currentTarget.getBoundingClientRect().top,
-                  })}
-                  onMouseLeave={() => onHover(null)}
-                />
+                <span key={label} className="vu-seg" style={{ flex: n, background: color }}
+                  onMouseEnter={enter(label, n, color)} onMouseMove={enter(label, n, color)}
+                  onMouseLeave={() => onHover(null)} />
               ) : null
             )}
           </span>
-          <span style={{ fontFamily: SANS, fontSize: 10.5, color: C.faint, flexShrink: 0 }}>{t.total}</span>
-          {/* The hover tooltip is a mouse-only affordance. Without this the
-              segment counts would be unreachable by keyboard or screen reader,
-              which is how the native title attribute this replaced failed. */}
+          <span className="vu-count" style={{ color: C.faint }}>{t.total}</span>
+          {/* The hover tooltip is mouse-only. Without this the segment counts
+              would be unreachable by keyboard or screen reader, which is how
+              the native title attribute this replaced failed. */}
           <span style={{
             position: "absolute", width: 1, height: 1, padding: 0, margin: -1,
             overflow: "hidden", clip: "rect(0,0,0,0)", whiteSpace: "nowrap", border: 0,
           }}>
-            {segs.filter(([n]) => n > 0).map(([n, , label]) => `${n} ${label.toLowerCase()}`).join(", ")}.
+            {segs.filter(([n]) => n > 0).map(([n, , l]) => `${n} ${l.toLowerCase()}`).join(", ")}.
           </span>
         </span>
-
-        <span style={{
-          fontFamily: SANS, fontSize: 11, fontWeight: 600, width: 38, flexShrink: 0,
-          textAlign: "right",
-          // Coloured only where decisive. A middling number in red would read
-          // as a verdict the sample cannot support.
+        <span className="vu-rate" style={{
           color: t.rate === null ? C.faint : t.rate >= 0.8 ? C.con : t.rate <= 0.4 ? C.ok : C.secondary,
-        }}>
-          {t.rate === null ? "—" : `${Math.round(t.rate * 100)}%`}
-        </span>
+        }}>{t.rate === null ? "—" : `${Math.round(t.rate * 100)}%`}</span>
       </button>
 
       {open && (
-        <div id={panelId} style={{ margin: "2px 0 10px 138px", paddingLeft: 12, borderLeft: `2px solid ${C.rule}` }}>
-          {busy && (
-            <p style={{ fontFamily: SANS, fontSize: 11.5, color: C.faint, margin: "6px 0" }}>Loading claims…</p>
-          )}
+        <div id={panelId} className="vu-panel">
+          {busy && <p style={{ fontFamily: SANS, fontSize: 11.5, color: C.faint, margin: "6px 0" }}>Loading claims…</p>}
           {/* An error must not render as an empty list — "we couldn't load this"
               and "nothing was said about this" are different claims to make. */}
           {!busy && error && (
             <p style={{ fontFamily: SANS, fontSize: 11.5, color: C.con, margin: "6px 0" }}>
-              {error} <button type="button" onClick={onToggle} style={{
-                font: "inherit", color: C.secondary, background: "none",
-                border: "none", textDecoration: "underline", cursor: "pointer", padding: 0,
+              {error}{" "}
+              <button type="button" onClick={onToggle} style={{
+                font: "inherit", color: C.secondary, background: "none", border: "none",
+                textDecoration: "underline", cursor: "pointer", padding: 0,
               }}>Try again</button>
             </p>
           )}
-          {!busy && !error && claims && (
-            claims.length === 0
+          {!busy && !error && shown && (
+            shown.length === 0
               ? <p style={{ fontFamily: SANS, fontSize: 11.5, color: C.faint, margin: "6px 0" }}>No claims recorded.</p>
-              : <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
-                  {claims.map((c, i) => (
-                    <ClaimRow key={`${c.day}-${i}`} c={c} showTopic={Boolean(t.members?.length)} />
-                  ))}
-                </ul>
+              : <>
+                  <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
+                    {shown.map((c, i) => <ClaimRow key={`${c.day}-${i}`} c={c} showTopic={Boolean(t.members?.length)} />)}
+                  </ul>
+                  {hidden > 0 && (
+                    <button type="button" onClick={() => setAll(true)} style={{
+                      fontFamily: SANS, fontSize: 11.5, fontWeight: 600, color: C.secondary,
+                      background: "none", border: "none", padding: "9px 0 2px",
+                      cursor: "pointer", textDecoration: "underline",
+                    }}>Show {hidden} more</button>
+                  )}
+                </>
           )}
         </div>
       )}
@@ -202,7 +229,6 @@ export default function TopicBreakdown({
     setOpen(t.topic);
     setError(null);
     if (cache[t.topic]) return;
-
     setBusy(true);
     try {
       // The tail's label is a synthetic count, so it asks for the subjects it
@@ -221,7 +247,6 @@ export default function TopicBreakdown({
 
   if (!topics.length || totals.claims === 0) return null;
   const max = Math.max(...topics.map(t => t.total));
-
   const since = totals.since
     ? new Date(totals.since).toLocaleDateString("en-US", { month: "short", day: "numeric" })
     : null;
@@ -248,37 +273,24 @@ export default function TopicBreakdown({
       // segment never sees a mouseleave, stranding the tooltip on screen.
       onMouseLeave={() => setHover(null)}
     >
-      <style>{`
-        .vu-seg { transition: opacity .14s ease, filter .14s ease; }
-        .vu-row:hover .vu-seg { opacity: .42; }
-        .vu-row:hover .vu-seg:hover { opacity: 1; filter: brightness(1.14); }
-        .vu-tip { animation: vu-tip-in .13s ease-out; }
-        @keyframes vu-tip-in { from { opacity: 0; transform: translate(-50%, 2px); } }
-        @media (prefers-reduced-motion: reduce) {
-          .vu-seg { transition: none; }
-          .vu-tip { animation: none; }
-        }
-      `}</style>
+      <style>{CSS}</style>
 
       {hover && (
-        <div
-          role="presentation"
-          className="vu-tip"
-          style={{
-            position: "fixed", left: hover.x, top: hover.y - 34,
-            transform: "translateX(-50%)", zIndex: 40, pointerEvents: "none",
-            background: C.ink, color: "#FFFEFC", borderRadius: 5,
-            padding: "5px 9px", fontFamily: SANS, fontSize: 11.5, whiteSpace: "nowrap",
-            display: "flex", alignItems: "center", gap: 6,
-            boxShadow: "0 2px 10px rgba(20,17,14,.22)",
-          }}
-        >
+        <div role="presentation" className="vu-tip" style={{
+          position: "fixed", left: hover.x, top: hover.y - 34,
+          transform: "translateX(-50%)", zIndex: 40, pointerEvents: "none",
+          background: C.ink, color: "#FFFEFC", borderRadius: 5,
+          padding: "5px 9px", fontFamily: SANS, fontSize: 11.5, whiteSpace: "nowrap",
+          display: "flex", alignItems: "center", gap: 6,
+          boxShadow: "0 2px 10px rgba(20,17,14,.22)",
+        }}>
           <span style={{ width: 8, height: 8, borderRadius: 2, background: hover.color, flexShrink: 0 }} />
           <span style={{ fontWeight: 600 }}>{hover.count}</span>
           <span style={{ opacity: .8 }}>{hover.label.toLowerCase()}</span>
           <span style={{ opacity: .5 }}>· {hover.topic}</span>
         </div>
       )}
+
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 3 }}>
         <h2 style={{ fontFamily: SERIF, fontSize: 19, fontWeight: 600, color: C.ink, margin: 0 }}>
           What gets claimed, and what holds up
