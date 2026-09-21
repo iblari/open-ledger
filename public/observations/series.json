@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-14T18:18:38.026Z",
+  "generatedAt": "2026-09-21T18:26:02.732Z",
   "series": [
     {
       "id": "ai_business_adoption",
@@ -3015,7 +3015,7 @@
         "t": "2000-01-01",
         "v": 227235
       },
-      "score": 33.1,
+      "score": 29.8,
       "yoy": 0,
       "changeUnit": "percent",
       "changeWindowDays": 365,
@@ -3023,7 +3023,9 @@
         "t": "2025-07-01",
         "v": 277986
       },
-      "confidenceNotes": []
+      "confidenceNotes": [
+        "no update in 3 months"
+      ]
     }
   ],
   "failures": []
