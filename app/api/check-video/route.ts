@@ -61,7 +61,9 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  const job = await enqueueCheck(videoId, `https://www.youtube.com/watch?v=${videoId}`, { rerun: Boolean(stale) });
+  // !archived: the job may say "done" while its record has since expired or
+  // been lost; with nothing to show, doing it again is the only right answer.
+  const job = await enqueueCheck(videoId, `https://www.youtube.com/watch?v=${videoId}`, { rerun: Boolean(stale) || !archived });
   const queue = await getCheckQueue();
   return NextResponse.json({
     videoId,

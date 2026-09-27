@@ -55,6 +55,7 @@ export async function POST(req: NextRequest) {
       const lastT = Math.max(0, ...segments.map((sg: { time?: number; t?: number }) => Number(sg.time ?? sg.t ?? 0)));
       existing.startedAt = new Date(given).toISOString();
       existing.endedAt = new Date(given + lastT * 1000).toISOString();
+      existing.availableAt = existing.availableAt || new Date().toISOString();
       await setRecentBroadcasts(all);
       await recordInLedger(existing).catch(() => null);
     }
@@ -85,6 +86,7 @@ export async function POST(req: NextRequest) {
       source: "on-demand",
       startedAt: new Date(startedMs).toISOString(),
       endedAt: new Date(startedMs + lastT * 1000).toISOString(),
+      availableAt: new Date().toISOString(),
       // Claims arrive from the backfill pass; archiving the transcript first
       // is what makes this video visible to that machinery at all.
       claims: [],

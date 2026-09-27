@@ -417,6 +417,10 @@ export interface RecentBroadcast {
   claims: LiveClaim[];
   /** Full session transcript (tail-capped) — powers replay + detection audits. */
   transcript?: string;
+  /** When this became watchable here, if later than it aired. A broadcast
+   *  recovered from its recording days afterwards gets its 72 hours from this,
+   *  not from endedAt — otherwise dating it correctly expires it on arrival. */
+  availableAt?: string;
 }
 
 const RECENT_BROADCASTS_KEY = "live:recent";
@@ -584,7 +588,11 @@ export async function getRecentBroadcasts(): Promise<RecentBroadcast[]> {
   try {
     const all: RecentBroadcast[] = JSON.parse(raw);
     const cutoff = Date.now() - RECENT_TTL_MS;
-    return all.filter(b => Date.parse(b.endedAt) > cutoff);
+    // Kept for 72 hours from whichever is later: the broadcast ending, or it
+    // becoming available here. The 22 Sep Vance press conference was
+    // recovered on the 27th, correctly dated, and pruned on the very next
+    // write — before its claims had even been checked.
+    return all.filter(b => Math.max(Date.parse(b.endedAt), Date.parse(b.availableAt || "") || 0) > cutoff);
   } catch {
     return [];
   }
