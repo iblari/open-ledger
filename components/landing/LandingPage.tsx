@@ -18,7 +18,7 @@ import { PillToggle } from "@/components/PillToggle";
 import { InsightsStrip } from "@/components/InsightsStrip";
 
 // Below-the-fold, client-only teaser animation — keep out of the main bundle.
-import LivePromo, { LivePromoCompact, type LatestBroadcast } from "./LivePromo";
+import LivePromo from "./LivePromo";
 // WhatsChanging renders only on /trends now (homepage strip removed).
 
 /* ─────────────────────────────────────────────
@@ -1332,12 +1332,10 @@ function MobileTicker() {
       {/* pinned LIVE badge, left */}
       <div style={{
         position: "absolute", left: 0, top: 0, bottom: 0, display: "flex", alignItems: "center", gap: 4,
-        padding: "0 20px 0 12px", background: "linear-gradient(90deg,#fff 0,#fff calc(100% - 14px),rgba(255,255,255,0))",
+        padding: "0 14px 0 13px", background: "linear-gradient(90deg,#fff 72%,transparent)",
       }}>
-        {/* "LATEST", not "LIVE": on this site Live means the broadcast. The
-            badge now has a solid background up to its edge, so the scrolling
-            figures can't show through it. */}
-        <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: "0.1em", color: C.sub, border: `1px solid ${C.rule}`, borderRadius: 3, padding: "2px 5px", lineHeight: 1 }}>LATEST</span>
+        <span className="live-pulse" style={{ width: 5, height: 5, borderRadius: "50%", background: "#c1272d" }} />
+        <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: "0.1em", color: "#c1272d" }}>LIVE</span>
       </div>
       {/* right fade */}
       <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: 24, background: "linear-gradient(270deg,#fff,transparent)" }} />
@@ -1345,20 +1343,7 @@ function MobileTicker() {
   );
 }
 
-function MobileLanding({ latest }: { latest: LatestBroadcast | null }) {
-  // The "Open the ledger" bar used to sit over a fifth of the screen from the
-  // first paint, repeating two buttons already in view. It now appears once
-  // the reader has scrolled past the table — the point where the ledger is
-  // the natural next step.
-  const tableEndRef = useRef<HTMLDivElement>(null);
-  const [showSticky, setShowSticky] = useState(false);
-  useEffect(() => {
-    // Shown once the end of the table is on screen. ("Scrolled past" would be
-    // unreachable on a short phone page: the table's end can't reach the top.)
-    const on = () => { const el = tableEndRef.current; if (el) setShowSticky(el.getBoundingClientRect().top < window.innerHeight - 40); };
-    on(); window.addEventListener("scroll", on, { passive: true });
-    return () => window.removeEventListener("scroll", on);
-  }, []);
+function MobileLanding() {
   const heat = useMemo(() => computeHeatmap(METRICS, AID), []);
   const [selectedMetric, setSelectedMetric] = useState<string>("gdp");
 
@@ -1459,11 +1444,6 @@ function MobileLanding({ latest }: { latest: LatestBroadcast | null }) {
         </div>
       </div>
 
-      </Tile>
-      {/* ── 4b. Live Broadcast — moved up from below the table, where most
-          phone visitors never scrolled to it. ── */}
-      <Tile mob dark><LivePromoCompact latest={latest} /></Tile>
-      <Tile mob style={{ paddingBottom: 18 }}>
       {/* ── 5. The ledger table ── */}
       <div style={{ background: "#fff", border: `1px solid ${C.rule}`, borderRadius: 6, margin: "16px 14px 0", overflow: "hidden" }}>
         {/* 5.1 header */}
@@ -1472,14 +1452,14 @@ function MobileLanding({ latest }: { latest: LatestBroadcast | null }) {
           display: "flex", justifyContent: "space-between", alignItems: "baseline",
         }}>
           <span style={{ fontSize: 12, fontWeight: 600 }}>Tap any metric below</span>
-          <span style={{ fontSize: 9, textTransform: "uppercase", color: C.mute, letterSpacing: "0.06em" }}>’93–’24</span>
+          <span style={{ fontSize: 9, textTransform: "uppercase", color: C.mute, letterSpacing: "0.06em" }}>’93–’24 + live</span>
         </div>
 
         {/* 5.2 column header */}
-        <div style={{ display: "grid", gridTemplateColumns: "90px repeat(5, 1fr)", padding: "7px 4px 6px", borderBottom: `1px solid ${C.rule}` }}>
+        <div style={{ display: "grid", gridTemplateColumns: "90px repeat(6, 1fr)", padding: "7px 4px 6px", borderBottom: `1px solid ${C.rule}` }}>
           <div />
-          {AID.map(id => {
-            const a = ADMINS[id];
+          {[...AID, "trump2"].map(id => {
+            const a = id === "trump2" ? { name: "Trump II", color: "#c1272d" } : ADMINS[id];
             return (
               <div key={id} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
                 <span style={{ width: 18, height: 3, borderRadius: 2, background: a.color }} />
@@ -1499,7 +1479,7 @@ function MobileLanding({ latest }: { latest: LatestBroadcast | null }) {
             <div key={mk}
               onClick={() => setSelectedMetric(mk)}
               style={{
-                display: "grid", gridTemplateColumns: "90px repeat(5, 1fr)",
+                display: "grid", gridTemplateColumns: "90px repeat(6, 1fr)",
                 borderBottom: "1px solid #efece6", cursor: "pointer",
                 background: sel ? C.paper : "#fff",
                 borderLeft: sel ? `3px solid ${C.accent}` : "3px solid transparent",
@@ -1531,19 +1511,19 @@ function MobileLanding({ latest }: { latest: LatestBroadcast | null }) {
                   </div>
                 );
               })}
+              <Link href="/live-benchmark" onClick={e => e.stopPropagation()} style={{
+                margin: 2, height: 42, borderRadius: 3, textDecoration: "none",
+                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2,
+                border: "1px dashed rgba(193,39,45,.3)",
+                background: "repeating-linear-gradient(-45deg, transparent, transparent 4px, rgba(193,39,45,.05) 4px, rgba(193,39,45,.05) 8px)",
+              }}>
+                <span className="live-pulse" style={{ width: 5, height: 5, borderRadius: "50%", background: "#c1272d" }} />
+                <span style={{ fontSize: 7, fontWeight: 700, letterSpacing: "0.08em", color: "#c1272d" }}>LIVE</span>
+              </Link>
             </div>
           );
         })}
 
-        {/* Trump II's term is in progress, so it has no finished figure to put
-            in a cell. Six columns of "LIVE" placeholders read as missing data
-            on a phone; one line pointing to the running numbers doesn't. */}
-        <Link href="/live-benchmark" style={{ display: "block", padding: "9px 12px", fontSize: 10.5, color: C.sub, textDecoration: "none", borderBottom: "1px solid #efece6" }}>
-          <span style={{ display: "inline-block", width: 14, height: 3, borderRadius: 2, background: "#c1272d", verticalAlign: "middle", marginRight: 6 }} />
-          Trump II is in progress · <span style={{ color: C.accent, fontWeight: 600 }}>see the term so far →</span>
-        </Link>
-
-        <div ref={tableEndRef} />
         {/* 5.4 "See all" row */}
         <div style={{ textAlign: "center", padding: "10px 12px", background: "#fff", borderBottom: `1px solid ${C.rule}` }}>
           <Link href="/dashboard" style={{
@@ -1573,6 +1553,8 @@ function MobileLanding({ latest }: { latest: LatestBroadcast | null }) {
 
       </Tile>
       {/* ── 5b. Live Broadcast showcase (full-bleed) ── */}
+      <Tile mob dark><LivePromo /></Tile>
+
       <Tile mob style={{ padding: "4px 0 18px", background: LAYOUT === "cards" ? "#ffffff" : undefined }}>
       {/* ── 6. Sources tile grid ── */}
       <div style={{ margin: "14px 14px 0" }}>
@@ -1635,14 +1617,12 @@ function MobileLanding({ latest }: { latest: LatestBroadcast | null }) {
       </Tile>
       </div>
 
-      {/* ── 9. Sticky bottom CTA (after the table) ── */}
-      <div aria-hidden={!showSticky} style={{
+      {/* ── 9. Sticky bottom CTA ── */}
+      <div style={{
         position: "sticky", bottom: 0, zIndex: 20, padding: "12px 16px 16px",
-        opacity: showSticky ? 1 : 0, transform: showSticky ? "none" : "translateY(16px)",
-        pointerEvents: showSticky ? "auto" : "none", transition: "opacity .2s ease, transform .2s ease",
         background: "linear-gradient(180deg, rgba(248,245,240,0) 0%, #f8f5f0 42%)",
       }}>
-        <Link href="/dashboard" tabIndex={showSticky ? 0 : -1} style={{
+        <Link href="/dashboard" style={{
           display: "flex", justifyContent: "space-between", alignItems: "center",
           background: C.ink, borderRadius: 6, padding: "13px 16px", textDecoration: "none",
           boxShadow: "0 10px 26px -10px rgba(0,0,0,.4)",
@@ -1660,7 +1640,7 @@ function MobileLanding({ latest }: { latest: LatestBroadcast | null }) {
   );
 }
 
-export default function LandingPage({ latest = null }: { latest?: LatestBroadcast | null }) {
+export default function LandingPage() {
   const mob = useIsMobile();
   const med = useMedium();
 
@@ -1670,7 +1650,7 @@ export default function LandingPage({ latest = null }: { latest?: LatestBroadcas
     return (
       <div style={{ background: PAGE_BG, color: C.ink, fontFamily: SANS, fontSize: 15, lineHeight: 1.5, minHeight: "100vh" }}>
         <Nav mob={mob} />
-        <MobileLanding latest={latest} />
+        <MobileLanding />
       </div>
     );
   }

@@ -111,57 +111,6 @@ function Live({ size }: { size: string }) {
   );
 }
 
-export interface LatestBroadcast {
-  videoId: string; title: string; startedAt: string; speaker: string | null;
-  counts: { t: number; m: number; f: number }; total: number;
-}
-
-/**
- * Phone version: headline, one real broadcast, one button. The laptop-and-
- * phone showcase is a desktop picture — at phone width its screens are too
- * small to read — so on mobile the proof is the latest actual broadcast.
- */
-export function LivePromoCompact({ latest }: { latest: LatestBroadcast | null }) {
-  const day = latest ? new Date(latest.startedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "America/New_York" }) : "";
-  const title = latest ? latest.title.replace(/^(?:WATCH\s+)?LIVE:\s*/i, "") : "";
-  return (
-    <section aria-labelledby="lpc-h" style={{ background: "#0C0A08", color: "#FFFEFC", fontFamily: SANS, padding: "30px 18px 30px" }}>
-      <style>{`@keyframes lpBreathe{0%,100%{opacity:.95}50%{opacity:.3}}.lp-dot{animation:lpBreathe 1.4s ease-in-out infinite}@media (prefers-reduced-motion:reduce){.lp-dot{animation:none}}`}</style>
-      <div style={{ fontSize: 12.5, fontWeight: 500, color: "#A69E92" }}>Live Broadcast · Now in beta</div>
-      <h2 id="lpc-h" style={{ margin: "8px 0 0", fontFamily: SERIF, fontWeight: 600, fontSize: 34, lineHeight: 1.02, letterSpacing: "-0.025em" }}>
-        Watch politicians. Check the <span style={{ fontStyle: "italic", fontWeight: 500, color: "#E0493A" }}>numbers.</span>
-      </h2>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, fontFamily: SERIF, fontSize: 20 }}>
-        <span className="lp-dot" aria-hidden style={{ width: 8, height: 8, borderRadius: "50%", background: "#EF4444" }} />
-        <span><span style={{ fontFamily: SANS, fontWeight: 700, fontSize: 16, letterSpacing: "0.06em", color: "#EF4444" }}>LIVE</span>, in real time.</span>
-      </div>
-      {latest && (
-        <Link href={`/live?v=${latest.videoId}`} style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 18, padding: 8, background: "#1A1613", border: "1px solid #2C2622", borderRadius: 10, textDecoration: "none", color: "inherit" }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={`https://i.ytimg.com/vi/${latest.videoId}/mqdefault.jpg`} alt="" width={112} height={63} loading="lazy"
-            style={{ width: 112, height: 63, objectFit: "cover", borderRadius: 6, flex: "none", background: "#000" }} />
-          <span style={{ minWidth: 0, flex: 1 }}>
-            <span style={{ display: "block", fontSize: 11, color: "#A69E92" }}>Latest · {day}</span>
-            <span style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", fontFamily: SERIF, fontSize: 14.5, lineHeight: 1.25, marginTop: 2 } as React.CSSProperties}>{title}</span>
-            <span style={{ display: "flex", height: 4, borderRadius: 4, overflow: "hidden", marginTop: 7, background: "#2C2622" }}>
-              <span style={{ flex: latest.counts.t, background: "#0E7477" }} />
-              <span style={{ flex: latest.counts.m, background: "#C2560C" }} />
-              <span style={{ flex: latest.counts.f, background: "#B42318" }} />
-            </span>
-            <span style={{ display: "block", fontSize: 11, color: "#BDB5A8", marginTop: 5 }}>
-              {latest.counts.t} true · {latest.counts.m} misleading · {latest.counts.f} false
-            </span>
-          </span>
-        </Link>
-      )}
-      <Link href={latest ? `/live?v=${latest.videoId}` : "/live"} className="lp-cta" style={{ display: "inline-block", marginTop: 18, fontSize: 15, fontWeight: 600, color: "#FFFEFC", padding: "12px 20px", borderRadius: 100, background: "#B42318", textDecoration: "none" }}>
-        Watch with fact-check →
-      </Link>
-      <style>{`.lp-cta{transition:background .15s}.lp-cta:hover{background:#C9302A}`}</style>
-    </section>
-  );
-}
-
 export default function LivePromo() {
   const reduced = useReducedMotion();
   // Reduced motion shows the finished state and holds it.
