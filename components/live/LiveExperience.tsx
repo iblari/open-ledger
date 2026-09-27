@@ -562,8 +562,12 @@ function SummaryBar({ claims }: { claims: Claim[] }) {
 }
 
 /* ── Main Page ────────────────────────────────────────────────── */
-export default function LiveExperience({ autoStartReplay, autoStartLive }: {
+export default function LiveExperience({ autoStartReplay, autoStartLive, onExit }: {
   autoStartReplay?: string;
+  /** Leave the player for the recent-broadcasts list. Supplied by LiveShell;
+   *  offered only on replays — during a live broadcast the page IS the
+   *  broadcast, and there is nothing to go back to. */
+  onExit?: () => void;
   /** Set when the SERVER already resolved that a broadcast is running, so the
    *  player can open on it instead of on the index. */
   autoStartLive?: { videoId: string; title: string };
@@ -2413,6 +2417,7 @@ export default function LiveExperience({ autoStartReplay, autoStartLive }: {
               else seekVideo(secs); // timeline scrub — already in player time
             }}
             onStop={stopSession}
+            onBack={isReplay && onExit ? onExit : undefined}
             onFactCheck={manualFactCheck}
             isChecking={isManualChecking}
             onOpenRecord={() => setRecordOpen(true)}

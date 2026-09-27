@@ -55,6 +55,14 @@ export default function LiveShell({
       <LiveExperience
         autoStartReplay={enter === "live" ? undefined : enter}
         autoStartLive={live}
+        onExit={() => {
+          // Drop ?v= too, or a reload would reopen the replay just left.
+          if (typeof window !== "undefined" && window.location.search) {
+            window.history.replaceState(null, "", "/live");
+          }
+          setEnter(null);
+          if (typeof window !== "undefined") window.scrollTo({ top: 0 });
+        }}
       />
     );
   }

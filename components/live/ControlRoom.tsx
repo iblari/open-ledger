@@ -33,8 +33,10 @@ const stamp = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60))
 
 export default function ControlRoom({
   title, mode, elapsed, videoDuration, silentFor, videoSlot, caption, claims, newClaimIds,
-  onSeek, onStop, onFactCheck, isChecking, manualResult, onOpenRecord, mob,
+  onSeek, onStop, onFactCheck, isChecking, manualResult, onOpenRecord, mob, onBack,
 }: {
+  /** Replays only: return to the list of recent broadcasts. */
+  onBack?: () => void;
   title: string;
   mode: "live" | "replay" | "demo";
   elapsed: number;
@@ -141,6 +143,21 @@ export default function ControlRoom({
       height: 44, flexShrink: 0, display: "flex", alignItems: "center", gap: 10,
       padding: "0 14px", background: L.stage, borderBottom: `1px solid ${L.cardBorder}`,
     }}>
+      {/* Icon-only so the title keeps its room on a phone; the label rides on
+          aria-label and title, so it is still announced and still explained
+          on hover. */}
+      {onBack && (
+        <button
+          type="button" onClick={onBack} className="vu-back"
+          aria-label="Back to recent broadcasts" title="Back to recent broadcasts"
+          style={{
+            width: 30, height: 30, borderRadius: "50%", flexShrink: 0,
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+            background: "transparent", border: `1px solid ${L.cardBorder}`,
+            color: "#D8D2C8", fontSize: 15, lineHeight: 1, cursor: "pointer", padding: 0,
+          }}
+        >←</button>
+      )}
       <span style={{
         display: "inline-flex", alignItems: "center", gap: 5, flexShrink: 0,
         background: modeColor, color: "#fff", borderRadius: 3, padding: "3px 8px",

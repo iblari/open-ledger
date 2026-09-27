@@ -183,3 +183,10 @@
   .vu-cta-p:hover, .vu-cta-p:active { transform: none; }
   .vu-cta:hover .vu-arw { transform: none; }
 }
+
+/* Replay back button (ControlRoom). Inline styles cannot express hover or
+   focus, so the states live here. */
+.vu-back { transition: background .15s ease, color .15s ease, border-color .15s ease; }
+.vu-back:hover { background: #2c2824 !important; color: #fff !important; border-color: #8C8479 !important; }
+.vu-back:focus-visible { outline: 2px solid #b8372d; outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .vu-back { transition: none; } }
