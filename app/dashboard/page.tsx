@@ -1017,6 +1017,54 @@ function App(){
     card:{background:T.card,border:`1px solid ${T.rule}`,borderRadius:4,boxShadow:"0 1px 3px rgba(0,0,0,0.04)"},
   };
 
+  // The presidents key. It is a colour legend for the Data tab's charts;
+  // on phones it used to fill the header on every tab (including the State
+  // Atlas, whose map doesn't use those colours) where the brand belongs.
+  // Desktop keeps it in the header; phones show it under the tabs on Data only.
+  // Timeline strip — fills the remaining width. On mobile the year ranges
+  // are dropped and names use short forms so the segments don't truncate.
+  const presLegend = (
+          <div style={{flex:1,display:"flex",alignItems:"stretch",gap:3,minWidth:0}}>
+            {AID.map(id=>{
+              const a=ADMINS[id];
+              const parts=a.full.split("–");
+              const ys=parseInt(parts[0])||0;
+              const ye=parseInt(parts[1])||2025;
+              const yrs=Math.max(ye-ys,1);
+              return (
+                <div key={id} style={{flex:mob?1:yrs,display:"flex",flexDirection:"column",gap:mob?4:6,minWidth:0}}>
+                  <div style={{width:"100%",height:4,background:a.color,borderRadius:1}}/>
+                  <div style={{display:"flex",flexDirection:"column",gap:1,paddingLeft:2,overflow:"hidden"}}>
+                    <span style={{fontFamily:ESERIF,fontSize:mob?10:13,fontWeight:500,color:a.color,letterSpacing:"-0.015em",lineHeight:1.1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{a.name}</span>
+                    {!mob && (
+                      <span style={{fontFamily:ESANS,fontSize:9,color:EC.mute,letterSpacing:"0.04em",lineHeight:1.1,whiteSpace:"nowrap"}}>{a.full}</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+            {/* Trump II — current term, no historical data yet. Striped bar
+                + inline pulse dot signal "in progress / live". */}
+            <div style={{flex:mob?1:4,display:"flex",flexDirection:"column",gap:mob?4:6,minWidth:0}}>
+              <div style={{
+                width:"100%",height:4,borderRadius:1,
+                background:`repeating-linear-gradient(-45deg, #c1272d, #c1272d 3px, rgba(193,39,45,0.35) 3px, rgba(193,39,45,0.35) 6px)`,
+              }}/>
+              <div style={{display:"flex",flexDirection:"column",gap:1,paddingLeft:2,overflow:"hidden"}}>
+                <span style={{fontFamily:ESERIF,fontSize:mob?10:13,fontWeight:500,color:"#c1272d",letterSpacing:"-0.015em",lineHeight:1.1,whiteSpace:"nowrap",display:"inline-flex",alignItems:"center",gap:mob?3:5,overflow:"hidden",textOverflow:"ellipsis"}}>
+                  {/* Drop the pulse dot on mobile — the striped bar above
+                      already signals "in progress", and the dot eats label space. */}
+                  {!mob && <span style={{width:6,height:6,borderRadius:"50%",background:"#c1272d",animation:"pulse 2s infinite",flexShrink:0}}/>}
+                  Trump II
+                </span>
+                {!mob && (
+                  <span style={{fontFamily:ESANS,fontSize:9,color:EC.mute,letterSpacing:"0.04em",lineHeight:1.1,whiteSpace:"nowrap"}}>2025&ndash;</span>
+                )}
+              </div>
+            </div>
+          </div>
+  );
+
   return (
     <div style={sty.page}>
       <style>{`
@@ -1206,59 +1254,16 @@ function App(){
                 display:"grid",placeItems:"center",fontFamily:"'DM Sans',sans-serif",fontSize:16,fontWeight:500,
                 flexShrink:0,
               }}>←</div>
-            ) : (
-            <CheetahMark height={26} ink={EC.ink} accent={EC.accent} />
-            )}
-            {!mob && (
+            ) : null}
+            <CheetahMark height={mob ? 20 : 26} ink={EC.ink} accent={EC.accent} />
+            {(
               <span style={{whiteSpace:"nowrap"}}>
                 Vote <em style={{fontStyle:"italic",color:EC.accent,fontWeight:500}}>Unbiased</em>
               </span>
             )}
           </Link>
 
-          {/* Timeline strip — fills the remaining width.
-              On mobile: year-range labels are dropped (saves height) and
-              names use short forms (Bush W. -> Bush, Trump II -> Trump 2)
-              so the 4-flex segments don't truncate. */}
-          <div style={{flex:1,display:"flex",alignItems:"stretch",gap:3,minWidth:0}}>
-            {AID.map(id=>{
-              const a=ADMINS[id];
-              const parts=a.full.split("–");
-              const ys=parseInt(parts[0])||0;
-              const ye=parseInt(parts[1])||2025;
-              const yrs=Math.max(ye-ys,1);
-              return (
-                <div key={id} style={{flex:mob?1:yrs,display:"flex",flexDirection:"column",gap:mob?4:6,minWidth:0}}>
-                  <div style={{width:"100%",height:4,background:a.color,borderRadius:1}}/>
-                  <div style={{display:"flex",flexDirection:"column",gap:1,paddingLeft:2,overflow:"hidden"}}>
-                    <span style={{fontFamily:ESERIF,fontSize:mob?10:13,fontWeight:500,color:a.color,letterSpacing:"-0.015em",lineHeight:1.1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{a.name}</span>
-                    {!mob && (
-                      <span style={{fontFamily:ESANS,fontSize:9,color:EC.mute,letterSpacing:"0.04em",lineHeight:1.1,whiteSpace:"nowrap"}}>{a.full}</span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-            {/* Trump II — current term, no historical data yet. Striped bar
-                + inline pulse dot signal "in progress / live". */}
-            <div style={{flex:mob?1:4,display:"flex",flexDirection:"column",gap:mob?4:6,minWidth:0}}>
-              <div style={{
-                width:"100%",height:4,borderRadius:1,
-                background:`repeating-linear-gradient(-45deg, #c1272d, #c1272d 3px, rgba(193,39,45,0.35) 3px, rgba(193,39,45,0.35) 6px)`,
-              }}/>
-              <div style={{display:"flex",flexDirection:"column",gap:1,paddingLeft:2,overflow:"hidden"}}>
-                <span style={{fontFamily:ESERIF,fontSize:mob?10:13,fontWeight:500,color:"#c1272d",letterSpacing:"-0.015em",lineHeight:1.1,whiteSpace:"nowrap",display:"inline-flex",alignItems:"center",gap:mob?3:5,overflow:"hidden",textOverflow:"ellipsis"}}>
-                  {/* Drop the pulse dot on mobile — the striped bar above
-                      already signals "in progress", and the dot eats label space. */}
-                  {!mob && <span style={{width:6,height:6,borderRadius:"50%",background:"#c1272d",animation:"pulse 2s infinite",flexShrink:0}}/>}
-                  Trump II
-                </span>
-                {!mob && (
-                  <span style={{fontFamily:ESANS,fontSize:9,color:EC.mute,letterSpacing:"0.04em",lineHeight:1.1,whiteSpace:"nowrap"}}>2025&ndash;</span>
-                )}
-              </div>
-            </div>
-          </div>
+          {!mob && presLegend}
         </div>
       </div>
 
@@ -1317,6 +1322,12 @@ function App(){
           </a>
         </div>
       </div>
+
+      {mob && tab==="dashboard" && (
+        <div style={{...sty.header,padding:"10px 16px 8px",borderTop:"none"}}>
+          <div style={{display:"flex"}}>{presLegend}</div>
+        </div>
+      )}
 
       <div className="ol-wrap" style={{maxWidth:1080,margin:"0 auto",padding:"28px 24px 64px"}}>
 
