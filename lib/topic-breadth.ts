@@ -268,3 +268,63 @@ export function computeMomentum(
     };
   });
 }
+
+export type ShiftConfidence = "confirmed" | "early" | "too-early";
+export interface ShiftRow {
+  topic: string;
+  recent: number;
+  prior: number;
+  /** Rolling count of broadcasts raising the topic, one point per broadcast
+   *  once a full window exists — the small trend line. */
+  series: number[];
+  confidence: ShiftConfidence;
+}
+export interface TopicShift {
+  window: number;
+  /** Date span of the recent window (ISO), for the panel's subtitle. */
+  from: string | null;
+  to: string | null;
+  rising: ShiftRow[];
+  fading: ShiftRow[];
+  /** Raised in most broadcasts in BOTH windows — the standing agenda. */
+  steady: string[];
+}
+
+/**
+ * The "talking about it more, and less" panel.
+ *
+ * Counts broadcasts, not claims, so one three-hour convention is one vote.
+ * Confidence is deliberately blunt: with `window` broadcasts a side, a swing
+ * of 4 of 5 is the smallest that a two-sided Fisher test separates from
+ * chance at 5% (4→0 gives p≈0.048); 3 of 5 is worth watching (p≈0.17);
+ * anything smaller is shown only as "too early", never as a finding.
+ */
+export function computeShift(broadcasts: BreadthBroadcast[], window = 5): TopicShift | null {
+  const list = eligible(broadcasts);
+  if (list.length < window * 2) return null;
+  const recent = list.slice(-window), prior = list.slice(-2 * window, -window);
+  const topicsIn = list.map(b => new Set(b.claims.filter(c => c.quote).map(c => topicOf(c.quote))));
+  const all = new Set<string>(); topicsIn.forEach(s => s.forEach(t => all.add(t)));
+  all.delete("Other");
+
+  const rows: ShiftRow[] = [...all].map(topic => {
+    const has = (i: number) => (topicsIn[i].has(topic) ? 1 : 0);
+    const n = list.length;
+    let r = 0, p = 0;
+    for (let i = n - window; i < n; i++) r += has(i);
+    for (let i = n - 2 * window; i < n - window; i++) p += has(i);
+    const series: number[] = [];
+    for (let i = window - 1; i < n; i++) { let s = 0; for (let j = i - window + 1; j <= i; j++) s += has(j); series.push(s); }
+    const d = Math.abs(r - p);
+    return { topic, recent: r, prior: p, series, confidence: d >= 4 ? "confirmed" : d === 3 ? "early" : "too-early" };
+  });
+  const byDiff = (a: ShiftRow, b: ShiftRow) => Math.abs(b.recent - b.prior) - Math.abs(a.recent - a.prior) || a.topic.localeCompare(b.topic);
+  return {
+    window,
+    from: recent[0]?.startedAt ?? null,
+    to: recent[recent.length - 1]?.startedAt ?? null,
+    rising: rows.filter(r => r.recent > r.prior).sort(byDiff).slice(0, 4),
+    fading: rows.filter(r => r.recent < r.prior).sort(byDiff).slice(0, 5),
+    steady: rows.filter(r => r.recent >= 3 && r.prior >= 3).sort((a, b) => b.recent + b.prior - a.recent - a.prior).map(r => r.topic),
+  };
+}

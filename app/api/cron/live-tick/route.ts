@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { checkCoverage, checkDeaf } from "@/lib/coverage-watch";
+import { tagPending } from "@/lib/topic-tags";
 
 /**
  * GET /api/cron/live-tick — the reliable metronome for live coverage.
@@ -37,6 +38,13 @@ export async function GET(req: Request) {
   });
   if (gaps.length) console.warn(`[live-tick] coverage gaps flagged: ${gaps.join(", ")}`);
   const deaf = await checkDeaf().catch(() => false);
+  // Tag any newly checked claims with a subject, a batch per tick. Idle ticks
+  // cost one KV read. Failures fall back to the keyword table, never block.
+  const tags = await tagPending(40).catch(e => {
+    console.error("[live-tick] topic tagging failed:", (e as Error).message);
+    return null;
+  });
+  if (tags?.tagged) console.log(`[live-tick] tagged ${tags.tagged} claims (${tags.pending} still pending)`);
   if (deaf) console.warn("[live-tick] live broadcast is not transcribing");
 
   const token = process.env.GH_DISPATCH_TOKEN;

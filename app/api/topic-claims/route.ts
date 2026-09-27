@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getLedgerHealed } from "@/lib/live-kv";
 import { topicOf } from "@/lib/claim-topics";
 import { computeBreadth } from "@/lib/topic-breadth";
+import { loadTopicTags } from "@/lib/topic-tags";
 
 /**
  * GET /api/topic-claims?topics=Immigration,Housing — the claims behind a bar.
@@ -28,7 +29,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ ok: false, error: "no topics requested" }, { status: 400 });
   }
 
-  const ledger = await getLedgerHealed();
+  const [ledger] = await Promise.all([getLedgerHealed(), loadTopicTags()]);
   const claims: {
     quote: string; rating: string; topic: string;
     speaker: string | null; day: string; broadcast: string;

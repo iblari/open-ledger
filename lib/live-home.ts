@@ -9,7 +9,8 @@
 import { knownEvents } from "./known-events";
 import { getLedgerHealed, getLiveState, getLiveClaims, getReplayable } from "./live-kv";
 import { tallyWithTail, type TopicTally } from "./claim-topics";
-import { computeMomentum, type MomentumResult } from "./topic-breadth";
+import { loadTopicTags } from "./topic-tags";
+import { computeMomentum, computeShift, type MomentumResult, type TopicShift } from "./topic-breadth";
 
 export interface HomeCheck {
   time: string; verdict: "ok" | "mis" | "con";
@@ -83,6 +84,7 @@ export async function loadLiveHome(origin: string): Promise<{
   topics: TopicTally[];
   topicTail: TopicTally | null;
   topicMomentum: MomentumResult[];
+  topicShift: TopicShift | null;
   topicTotals: { claims: number; broadcasts: number; since: string | null };
 }> {
   // Topics come from the PERMANENT ledger, not the 72-hour replay cache the
@@ -101,6 +103,7 @@ export async function loadLiveHome(origin: string): Promise<{
   // that got through would have been logged): the page rendered off air
   // while the broadcast ran. A failed or slow self-fetch also silently
   // meant "off air". The homepage read KV directly and never had this bug.
+  await loadTopicTags();
   const [liveState, liveClaims, recentRaw, discover, ledger] = await Promise.all([
     getLiveState().catch(() => null),
     getLiveClaims().catch(() => []),
@@ -151,7 +154,7 @@ export async function loadLiveHome(origin: string): Promise<{
   // Twelve named bars is what fits before labels collide on a phone. Anything
   // past that is folded into one tail row rather than dropped, so the bars sum
   // to the claim count shown in the header.
-  const { topics, tail } = tallyWithTail(ledgerClaims, 12);
+  const { topics, tail } = tallyWithTail(ledgerClaims, 16);
 
   const topicMomentum = computeMomentum(
     ledger.map(e => ({
@@ -168,6 +171,13 @@ export async function loadLiveHome(origin: string): Promise<{
     topics,
     topicTail: tail,
     topicMomentum,
+    topicShift: computeShift(
+      ledger.map(e => ({
+        videoId: e.videoId, title: e.title, startedAt: e.startedAt,
+        claims: e.claims.map(c => ({ quote: c.quote })),
+      })),
+      5
+    ),
     topicTotals: {
       claims: ledgerClaims.length,
       broadcasts: ledger.length,

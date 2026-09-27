@@ -1109,3 +1109,35 @@ export async function recordInLedger(b: RecentBroadcast): Promise<LedgerEntry> {
   await setLedger(all);
   return entry;
 }
+
+// ── Claim topic tags ─────────────────────────────────────────────
+// normalised quote → topic. A hash so one claim can be tagged without
+// rewriting the rest. See lib/claim-topics.ts for why tags are stored.
+const TOPIC_TAGS_KEY = "claim-topics:v1";
+
+export async function getTopicTagMap(): Promise<Record<string, string>> {
+  if (!hasUpstash()) {
+    const raw = mem.get(TOPIC_TAGS_KEY);
+    return raw ? JSON.parse(raw) : {};
+  }
+  const flat = (await upstashCmd("HGETALL", TOPIC_TAGS_KEY)) as string[] | null;
+  const out: Record<string, string> = {};
+  if (Array.isArray(flat)) for (let i = 0; i + 1 < flat.length; i += 2) out[flat[i]] = flat[i + 1];
+  return out;
+}
+
+export async function setTopicTags(tags: Record<string, string>): Promise<number> {
+  const entries = Object.entries(tags);
+  if (!entries.length) return 0;
+  if (!hasUpstash()) {
+    const cur = await getTopicTagMap();
+    mem.set(TOPIC_TAGS_KEY, JSON.stringify({ ...cur, ...tags }));
+    return entries.length;
+  }
+  // HSET in chunks: one oversized request is the likeliest way for a
+  // backfill to half-apply.
+  for (let i = 0; i < entries.length; i += 100) {
+    await upstashCmd("HSET", TOPIC_TAGS_KEY, ...entries.slice(i, i + 100).flat());
+  }
+  return entries.length;
+}

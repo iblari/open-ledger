@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getLedgerHealed } from "@/lib/live-kv";
+import { loadTopicTags } from "@/lib/topic-tags";
 import { computeBreadth, rollingBreadth, eligible, broadcastsNeeded } from "@/lib/topic-breadth";
 
 /**
@@ -16,6 +17,7 @@ import { computeBreadth, rollingBreadth, eligible, broadcastsNeeded } from "@/li
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
+  await loadTopicTags();
   const url = new URL(req.url);
   const topic = url.searchParams.get("topic");
   const window = Math.min(20, Math.max(2, Number(url.searchParams.get("window")) || 5));

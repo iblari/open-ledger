@@ -1,39 +1,77 @@
 // What a claim is about.
 //
-// Deliberately a keyword table rather than a model call. Topic assignment
-// drives a public chart, so it has to be reproducible and inspectable: anyone
-// can read these patterns and see why a claim landed where it did, and the
-// same claim always lands in the same place. A model would classify better at
-// the margins and be impossible to defend when someone disputes a bucket.
+// Two layers:
 //
-// Order matters — the first match wins, so every claim is counted exactly
-// once and the topic totals sum to the claim total. Specific topics come
-// before general ones: "school funding" is education, not spending, and a
-// homicide statistic is crime, not "other".
+//  1. A STORED TAG per claim (KV hash claim-topics:v1, keyed by the
+//     normalised quote). New claims are tagged once by a model against the
+//     fixed TOPICS list below; the 486-claim backfill was reviewed by hand.
+//     Once written a tag never changes on its own, so the chart stays
+//     reproducible — the same claim always lands in the same place — and the
+//     tag travels with every claim in /api/topic-claims, so any bucket can be
+//     inspected and disputed claim by claim.
+//
+//  2. The KEYWORD TABLE, as the fallback for a claim not tagged yet (the
+//     minutes between a claim being checked and the tagger's next pass, or
+//     the tagger being down).
+//
+// Why not keywords alone: they were written against the first 166 claims and
+// went stale as new subjects appeared. By late September over half of each
+// week's claims matched nothing ("25,000,000 come in under Biden" is
+// immigration; "we should be at 1%, not 4%" is the Fed), and the newest
+// broadcasts — exactly where an emerging trend would show first — were the
+// ones the chart understood least.
+//
+// Keyword order matters — the first match wins, so every claim is counted
+// exactly once and topic totals sum to the claim total.
+
+import { normalizeQuote } from "./align";
+
+/** The closed list a tag must come from. Order is display order for any
+ *  list that isn't sorted by size. */
+export const TOPICS = [
+  "Jobs & employment", "Wages & income", "Inflation & prices", "Interest rates & the Fed",
+  "Economy (general)", "Stock market", "Taxes", "Debt & spending", "Fraud & waste",
+  "Trade & tariffs", "Manufacturing", "Investment", "Energy", "Housing",
+  "Health & benefits", "Drug prices", "Immigration", "Crime & policing", "Education",
+  "Defense & military", "War & foreign affairs", "Elections", "Other",
+] as const;
+export type Topic = typeof TOPICS[number];
+
+const overrides = new Map<string, string>();
+/** Install stored tags (normalised quote → topic). Called by loadTopicTags. */
+export function setTopicOverrides(tags: Record<string, string>): void {
+  overrides.clear();
+  for (const [k, v] of Object.entries(tags)) overrides.set(k, v);
+}
+export function storedTopic(quote: string): string | null {
+  return overrides.get(normalizeQuote(quote)) ?? null;
+}
 
 export interface TopicRule { topic: string; pattern: RegExp }
 
 export const TOPIC_RULES: TopicRule[] = [
   { topic: "Education", pattern: /education|school|student|teacher|charter|edflex|read or do math|\bk 12\b|classroom|educational freedom/i },
-  { topic: "Crime & policing", pattern: /crime|homicid|murder|shooting|violent|gang|carjack|robbery|police|law enforcement|fugitive|criminal|prosecut|safest|overdose|drug (?:dealing|traffick)/i },
-  { topic: "Immigration", pattern: /immigra|border|migrant|illegal alien|deport|asylum|people (?:to )?come in|pour(?:ed)? into|unvetted|unchecked|25,?0{3,}(?:,0{3})* people|25 million people/i },
+  { topic: "Fraud & waste", pattern: /fraud|stole|stealing|phantom|scheme|waste,? (?:and )?abuse|kickback/i },
+  { topic: "Crime & policing", pattern: /crime|homicid|murder|shooting|violent|gang|carjack|robbery|police|law enforcement|fugitive|criminal|prosecut|safest|overdose|fentanyl|drug (?:dealing|traffick)|drugs coming/i },
+  { topic: "Immigration", pattern: /immigra|border|migrant|illegal alien|deport|asylum|people (?:to )?come in|come in under|pour(?:ed|ing)? into|unvetted|unchecked|25,?0{3,}(?:,0{3})* people|25 million people|foreign.born/i },
+  { topic: "Interest rates & the Fed", pattern: /interest rate|\bthe fed\b|federal reserve|powell|rate cut|should be at 1%|point in interest/i },
   { topic: "Trade & tariffs", pattern: /tariff|trade|export|import|we (?:lose|lost) (?:with|the|anywhere)|trading with|car industry|frontage|dumping|business with us/i },
-  { topic: "Defense & allies", pattern: /south korea|for protection|\bnato\b|pay(?:ing)? (?:close to )?\$?[\d,]+ (?:a|per) year for/i },
-  { topic: "War & foreign", pattern: /soldier|ukrain|russia|\bwar\b|troop|missile|\biran\b|hamas|israel|strait of hormuz|stopped eight/i },
-  { topic: "Military recruiting", pattern: /recruit/i },
-  { topic: "Stock market", pattern: /stock market|\bdow\b|s&p|nasdaq|record highs?|all time (?:record )?high/i },
-  { topic: "Drug prices", pattern: /ozempic|trump rx|medication|for a pill|prescription|drug price/i },
-  { topic: "Health & benefits", pattern: /health|medicaid|medicare|insurance|autism|vaccine|whole milk|newborn|withdrawal cap/i },
+  { topic: "Defense & military", pattern: /south korea|for protection|\bnato\b|pay(?:ing)? (?:close to )?\$?[\d,]+ (?:a|per) year for|recruit|military|navy|barracks|service ?members|soldiers? (?:over there|guarding)/i },
+  { topic: "War & foreign affairs", pattern: /soldier|ukrain|russia|\bwar\b|troop|missile|\biran\b|hamas|israel|gaza|hostage|strait of hormuz|stopped eight|\bun\b budget|regime/i },
+  { topic: "Stock market", pattern: /stock market|\bdow\b|s&p|nasdaq|record highs?|all time (?:record )?high|401 ?\(?k|four zero one k/i },
+  { topic: "Drug prices", pattern: /ozempic|trump rx|medication|for a pill|prescription|drug price|drug cost|big pharma/i },
+  { topic: "Health & benefits", pattern: /health|medicaid|medicare|obamacare|\baca\b|insurance|autism|vaccine|whole milk|newborn|withdrawal cap|rural hospital/i },
   { topic: "Jobs & employment", pattern: /\bjobs?\b|employment|unemploy|hiring|payroll|workforce|laid off|layoff|(?:more )?(?:americans|people) working/i },
-  { topic: "Wages & income", pattern: /wage|salary|salaries|paycheck|income|earnings|take.home/i },
-  { topic: "Inflation & prices", pattern: /inflation|price|grocer|cost of living|\bcpi\b|\bgas\b|\begg|afford|rents? (?:are )?fall/i },
+  { topic: "Wages & income", pattern: /wage|salary|salaries|paycheck|income|earnings|take.home|poverty/i },
+  { topic: "Housing", pattern: /housing|home price|mortgage|\brent\b|rents|median price home|cost of a home|homebuyer/i },
+  { topic: "Inflation & prices", pattern: /inflation|price|grocer|cost of living|\bcpi\b|\bgas\b|\begg|afford/i },
   { topic: "Manufacturing", pattern: /manufactur|factory|factories|\bplant\b|machine tool|metal cutting|industrial|steel/i },
-  { topic: "Investment", pattern: /invest|capital|super pac|put up a tremendous/i },
+  { topic: "Taxes", pattern: /\btax|no tax on|irs\b|trump account/i },
+  { topic: "Investment", pattern: /invest|capital|put up a tremendous/i },
   { topic: "Energy", pattern: /energy|\boil\b|drill|gasoline|electric|pipeline|coal|liquid gold|barrel|producing.*power/i },
-  { topic: "Housing", pattern: /housing|home price|mortgage|\brent\b|median price home/i },
-  { topic: "Debt & spending", pattern: /\btax|spending|budget|deficit|\bdebt\b|appropriat|waste|fraud|interest in this country|we spend|funding|\bdei\b|monuments/i },
-  { topic: "Elections", pattern: /election|\bvote\b|ballot|\bpoll\b|approval rating|landslide/i },
-  { topic: "Economy (general)", pattern: /econom|\bgdp\b|recession|growth|inherited the worst/i },
+  { topic: "Debt & spending", pattern: /spending|budget|deficit|\bdebt\b|appropriat|we spend|funding|\bdei\b|monuments/i },
+  { topic: "Elections", pattern: /election|\bvote[ds]?\b|ballot|\bpoll\b|approval rating|landslide|endorse|super pac/i },
+  { topic: "Economy (general)", pattern: /econom|\bgdp\b|recession|growth|inherited the worst|small business/i },
 ];
 
 /** The bucket for claims no rule matches. Named so it can never be confused
@@ -41,6 +79,8 @@ export const TOPIC_RULES: TopicRule[] = [
 export const UNCLASSIFIED = "Other";
 
 export function topicOf(quote: string): string {
+  const tagged = storedTopic(quote);
+  if (tagged) return tagged;
   for (const r of TOPIC_RULES) if (r.pattern.test(quote)) return r.topic;
   return UNCLASSIFIED;
 }

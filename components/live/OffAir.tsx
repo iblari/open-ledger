@@ -17,7 +17,8 @@ import { useState } from "react";
 import Link from "next/link";
 import type { HomeArchiveItem, HomeScheduleItem, TopicTally } from "@/lib/live-home";
 import TopicBreakdown from "./TopicBreakdown";
-import type { MomentumResult } from "@/lib/topic-breadth";
+import TopicShiftPanel from "./TopicShiftPanel";
+import type { MomentumResult, TopicShift } from "@/lib/topic-breadth";
 
 const C = {
   // Same cream as the homepage. The old greyer #E7E2D9 made this page read
@@ -209,12 +210,13 @@ function Tally({ counts, total, size = 11.5 }: { counts: HomeArchiveItem["counts
 }
 
 export default function OffAir({
-  archive, schedule, topics, topicTail, topicMomentum, topicTotals, onWatch,
+  archive, schedule, topics, topicTail, topicMomentum, topicShift, topicTotals, onWatch,
 }: {
   archive: HomeArchiveItem[]; schedule: HomeScheduleItem[];
   topics: TopicTally[];
   topicTail: TopicTally | null;
   topicMomentum: MomentumResult[];
+  topicShift?: TopicShift | null;
   topicTotals: { claims: number; broadcasts: number; since: string | null };
   onWatch: (id: string) => void;
 }) {
@@ -380,6 +382,9 @@ export default function OffAir({
         )}
 
         <div style={{ marginTop: 44 }}>
+          <TopicShiftPanel shift={topicShift ?? null} />
+        </div>
+        <div style={{ marginTop: 22 }}>
           <TopicBreakdown topics={topics} tail={topicTail} momentum={topicMomentum} totals={topicTotals} />
         </div>
 
