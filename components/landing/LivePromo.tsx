@@ -154,7 +154,10 @@ export default function LivePromo() {
       raf = 0;
       const r = el.getBoundingClientRect(), vh = window.innerHeight;
       const p = Math.min(1, Math.max(0, (vh - r.top) / (vh * 0.8)));
-      el.style.transform = p >= 1 ? "none" : `scale(${0.78 + 0.22 * p})`;
+      // Phones start nearly full size: at 78% the shrunken devices left a
+      // third of the screen empty under the headline.
+      const min = window.innerWidth <= 720 ? 0.94 : 0.78;
+      el.style.transform = p >= 1 ? "none" : `scale(${min + (1 - min) * p})`;
       const q = Math.min(1, Math.max(0, (p - 0.35) / 0.65));
       ph.style.transform = q >= 1 ? "none" : `translateY(${(1 - q) * 70}px)`;
       ph.style.opacity = String(0.2 + 0.8 * q);
@@ -215,7 +218,9 @@ export default function LivePromo() {
           .lp{padding:56px 16px 72px}
           .lp-laptop{width:100%}
           .lp-phone{position:relative;right:auto;bottom:auto;width:60%;margin:28px auto 0}
-          .lp-group{padding-bottom:0}
+          .lp-group{padding-bottom:0;transform-origin:50% 0}
+          .lp-dev{margin-top:32px!important}
+          .lp-copy{margin-top:40px!important}
         }
         @media (prefers-reduced-motion:reduce){.lp-dot,.lp-in{animation:none}.lp-cta{transition:none}}
       `}</style>
@@ -237,7 +242,7 @@ export default function LivePromo() {
       </div>
 
       {/* Purely a picture of the product — the copy and button below carry the meaning. */}
-      <div aria-hidden style={{ maxWidth: 1240, margin: "80px auto 0", padding: "8px 0" }}>
+      <div aria-hidden className="lp-dev" style={{ maxWidth: 1240, margin: "80px auto 0", padding: "8px 0" }}>
         <div ref={groupRef} className="lp-group">
 
           {/* ── Laptop ── */}
@@ -365,7 +370,7 @@ export default function LivePromo() {
         </div>
       </div>
 
-      <p style={{ maxWidth: 760, margin: "72px auto 0", textAlign: "center", fontSize: "clamp(18px, 2vw, 22px)", lineHeight: 1.45, fontWeight: 500, color: "#8C8479", textWrap: "pretty" } as React.CSSProperties}>
+      <p className="lp-copy" style={{ maxWidth: 760, margin: "72px auto 0", textAlign: "center", fontSize: "clamp(18px, 2vw, 22px)", lineHeight: 1.45, fontWeight: 500, color: "#8C8479", textWrap: "pretty" } as React.CSSProperties}>
         Every economic claim is <span style={{ color: "#FFFEFC" }}>verified against official data</span> — BLS, BEA, Census, the Fed — in real time.
       </p>
       <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 24, flexWrap: "wrap", marginTop: 32 }}>
