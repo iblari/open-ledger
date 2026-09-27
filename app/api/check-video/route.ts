@@ -46,7 +46,11 @@ export async function POST(req: NextRequest) {
   }
 
   const archived = await findArchived(videoId);
-  if (archived) {
+  // A recovered video archived with no claims went through the old pipeline,
+  // which dated it on the day it was queued and never fact-checked it. Let it
+  // through once more rather than serving that empty record forever.
+  const stale = archived && archived.source === "on-demand" && !(archived.claims?.length);
+  if (archived && !stale) {
     return NextResponse.json({
       videoId, status: "done", fromArchive: true,
       title: archived.title, claimCount: archived.claims?.length ?? 0,

@@ -188,7 +188,7 @@ async function fetchAudioTranscript(videoId) {
       ...egress,
       "-f", "bestaudio/best", "--no-playlist", "--no-simulate",
       "--max-filesize", "600M",
-      "--print", "title", "--print", "after_move:filepath",
+      "--print", "title", "--print", "%(release_timestamp,timestamp)s", "--print", "after_move:filepath",
       "-o", out, ...userExtra, ...client,
       `https://www.youtube.com/watch?v=${videoId}`,
     ];
@@ -201,7 +201,15 @@ async function fetchAudioTranscript(videoId) {
     proc.on("close", code => {
       clearTimeout(kill);
       const lines = stdout.split("\n").map(l => l.trim()).filter(Boolean);
-      if (code === 0 && lines.length >= 2) return resolve({ title: lines[0], file: lines[lines.length - 1] });
+      if (code === 0 && lines.length >= 2) {
+        const ts = Number(lines[1]);
+        return resolve({
+          title: lines[0], file: lines[lines.length - 1],
+          // When the stream started or the video was published — so a recovered
+          // speech is dated when it happened, not when it was checked.
+          startedAt: Number.isFinite(ts) && ts > 1e9 ? new Date(ts * 1000).toISOString() : null,
+        });
+      }
       const firstErr = (stderr.split("\n").find(l => l.includes("ERROR")) || stderr.trim().split("\n").pop() || `exit ${code}`).trim();
       resolve({ err: firstErr.slice(0, 180) });
     });
@@ -250,7 +258,7 @@ async function fetchAudioTranscript(videoId) {
     const words = (data?.results?.channels?.[0]?.alternatives?.[0]?.words || [])
       .map(w => [w.punctuated_word || w.word, Math.round(w.start * 100) / 100]);
     const utterances = utts.map(u => [Math.round(u.start * 10) / 10, String(u.transcript || "").trim()]);
-    return segments.length ? { title: dl.title || "YouTube video", segments, words, utterances } : null;
+    return segments.length ? { title: dl.title || "YouTube video", startedAt: dl.startedAt, segments, words, utterances } : null;
   } catch (e) {
     fetchAudioTranscript.lastError = `transcription: ${e.message}`;
     log(`  audio transcription failed: ${e.message}`);
@@ -272,6 +280,7 @@ async function fetchAudioTranscript(videoId) {
  * transcribe, and none of that may delay noticing a broadcast going live.
  */
 let realignBusy = false;
+let claimsBusy = false;
 async function realignOne() {
   if (!ADMIN_KEY || realignBusy) return;
   realignBusy = true;
@@ -300,6 +309,21 @@ async function realignOne() {
   }
 }
 
+async function checkAllClaims(videoId) {
+  const auth = { Authorization: `Bearer ${ADMIN_KEY}`, "Content-Type": "application/json" };
+  for (let pass = 0; pass < 60; pass++) {
+    const r = await fetch(`${API}/api/admin/check-claims`, {
+      method: "POST", headers: auth, signal: AbortSignal.timeout(300_000),
+      body: JSON.stringify(videoId ? { videoId } : {}),
+    }).then(x => x.json()).catch(e => ({ error: e.message }));
+    if (r.error) { log(`  fact-check error: ${r.error}`); return; }
+    if (!r.target) return;
+    if (r.busy) { await sleep(30_000); continue; }
+    log(`  fact-check ${r.target}: +${r.added} (total ${r.total})${r.done ? " — done" : ""}`);
+    if (r.done) { if (videoId) return; videoId = null; }
+  }
+}
+
 async function drainCheckQueue() {
   if (!ADMIN_KEY) return;
   const auth = { Authorization: `Bearer ${ADMIN_KEY}`, "Content-Type": "application/json" };
@@ -324,18 +348,15 @@ async function drainCheckQueue() {
 
     await fetch(`${API}/api/admin/check-queue`, {
       method: "POST", headers: auth,
-      body: JSON.stringify({ videoId: job.videoId, title: got.title, segments: got.segments }),
+      body: JSON.stringify({ videoId: job.videoId, title: got.title, startedAt: got.startedAt || null, segments: got.segments }),
       signal: AbortSignal.timeout(60_000),
     });
     log(`  ✓ ${job.videoId}: ${got.segments.length} segments archived — fact-checking`);
 
-    // Backfill turns the archived transcript into verified claims. Reusing it
-    // means there is exactly one implementation of that step.
-    await fetch(`${API}/api/admin/backfill`, {
-      method: "POST", headers: auth,
-      body: JSON.stringify({ videoId: job.videoId, checkClaims: true, limit: 1 }),
-      signal: AbortSignal.timeout(280_000),
-    }).catch(e => log(`  fact-check failed: ${e.message}`));
+    // Fact-check the whole transcript in resumable batches. (This used to call
+    // /api/admin/backfill, which only checks the part before a late join — for
+    // a transcript starting at 0:00 it checked nothing.)
+    await checkAllClaims(job.videoId);
   } catch (e) {
     log("check queue error:", e.message);
   }
@@ -403,6 +424,9 @@ while (Date.now() < deadline - RESERVE_MIN * 60_000) {
     await drainCheckQueue();
     // Deliberately not awaited — see realignOne.
     realignOne();
+    // Any recovered broadcast with unchecked transcript (including ones
+    // archived before this existed) gets its fact-check pass here.
+    if (!claimsBusy) { claimsBusy = true; checkAllClaims(null).finally(() => { claimsBusy = false; }); }
 
     // Periodic self-repair while idle — catches broadcasts covered by a
     // previous watcher run that retired before captions were ready.

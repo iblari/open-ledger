@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { claimNextCheck, finishCheck, archiveBroadcast, getRecentBroadcasts } from "@/lib/live-kv";
+import { claimNextCheck, finishCheck, archiveBroadcast, getRecentBroadcasts, setRecentBroadcasts, recordInLedger } from "@/lib/live-kv";
 
 /**
  * Worker side of the "check any video" queue (auth: ADMIN_KEY).
@@ -45,7 +45,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, status: "failed" });
   }
 
-  const existing = (await getRecentBroadcasts()).find(b => b.videoId === videoId);
+  const all = await getRecentBroadcasts();
+  const existing = all.find(b => b.videoId === videoId);
+  // A re-run of a video archived by the old pipeline: correct the date it was
+  // given (the day it was queued) to when it actually happened.
+  if (existing && existing.source === "on-demand" && !existing.claims.length) {
+    const given = Date.parse(String(body.startedAt || ""));
+    if (Number.isFinite(given)) {
+      const lastT = Math.max(0, ...segments.map((sg: { time?: number; t?: number }) => Number(sg.time ?? sg.t ?? 0)));
+      existing.startedAt = new Date(given).toISOString();
+      existing.endedAt = new Date(given + lastT * 1000).toISOString();
+      await setRecentBroadcasts(all);
+      await recordInLedger(existing).catch(() => null);
+    }
+  }
   if (!existing) {
     // The archive stores the transcript as ONE STRING with [m:ss] markers,
     // which is the shape replay and backfill both parse. Handing them an
@@ -60,12 +73,18 @@ export async function POST(req: NextRequest) {
       })
       .join(" ");
 
+    // When the video actually happened, not when we checked it. Recovered
+    // speeches were being dated the day they were queued, so the 22 Sep UN
+    // address would have appeared as a 27 Sep broadcast.
+    const lastT = Math.max(0, ...segments.map((sg: { time?: number; t?: number }) => Number(sg.time ?? sg.t ?? 0)));
+    const given = Date.parse(String(body.startedAt || ""));
+    const startedMs = Number.isFinite(given) ? given : Date.now() - lastT * 1000;
     await archiveBroadcast({
       videoId,
       title: String(body.title || "YouTube video"),
       source: "on-demand",
-      startedAt: new Date().toISOString(),
-      endedAt: new Date().toISOString(),
+      startedAt: new Date(startedMs).toISOString(),
+      endedAt: new Date(startedMs + lastT * 1000).toISOString(),
       // Claims arrive from the backfill pass; archiving the transcript first
       // is what makes this video visible to that machinery at all.
       claims: [],
