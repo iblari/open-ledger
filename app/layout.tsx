@@ -14,36 +14,36 @@ export const metadata: Metadata = {
   verification: {
     google: 'o9EM5aUToekdkqIelamubG94gJfUyFp9si6LfrhZd2M',
   },
-  // ?v=3: browsers (Safari especially) key their favicon cache by URL, so
+  // ?v=4: browsers (Safari especially) key their favicon cache by URL, so
   // a new query string is what actually makes returning visitors refetch.
   icons: {
     icon: [
       {
-        url: '/favicon.ico?v=3',
+        url: '/favicon.ico?v=4',
         sizes: '16x16 32x32',
       },
       {
-        url: '/icon-light-32x32.png?v=3',
+        url: '/icon-light-32x32.png?v=4',
         media: '(prefers-color-scheme: light)',
       },
       {
-        url: '/icon-dark-32x32.png?v=3',
+        url: '/icon-dark-32x32.png?v=4',
         media: '(prefers-color-scheme: dark)',
       },
       // 192px PNG for Google Search: it wants a square icon that's a
       // multiple of 48px, and shows it in a circle, so this version is drawn
       // smaller to keep the head and paws inside the crop.
       {
-        url: '/icon-192.png?v=3',
+        url: '/icon-192.png?v=4',
         sizes: '192x192',
         type: 'image/png',
       },
       {
-        url: '/icon.svg?v=3',
+        url: '/icon.svg?v=4',
         type: 'image/svg+xml',
       },
     ],
-    apple: '/apple-icon.png?v=3',
+    apple: '/apple-icon.png?v=4',
   },
   // Short on purpose: iMessage and Slack print this under the image, and a
   // title-cased sentence there read like a spam headline. The image carries
