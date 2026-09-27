@@ -125,33 +125,42 @@ function useMedium() {
 ═══════════════════════════════════════════════ */
 
 /* ── Nav ── */
-function Nav({ mob }: { mob: boolean }) {
+const NAV_H = 69;
+function Nav({ mob, dark = false, overlay = false }: { mob: boolean; dark?: boolean; overlay?: boolean }) {
+  // `dark`: floating over the full-screen hero — a translucent smoked bar with
+  // light type. It turns back into the cream bar once the hero scrolls away.
+  const ink = dark ? "#F4F0EA" : C.ink;
+  const sub = dark ? "rgba(244,240,234,.72)" : C.sub;
   return (
     <nav style={{
       position: "sticky", top: 0, zIndex: 50,
-      background: "color-mix(in oklab, #f8f5f0 92%, transparent)",
-      backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)",
-      borderBottom: `1px solid ${C.rule}`,
+      background: dark ? "rgba(12,10,8,.42)" : "color-mix(in oklab, #f8f5f0 92%, transparent)",
+      backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
+      borderBottom: `1px solid ${dark ? "rgba(255,255,255,.07)" : C.rule}`,
+      transition: "background .25s ease, border-color .25s ease",
+      // Overlay: the bar takes no space, so the hero runs full-screen beneath
+      // it. Constant (not tied to \`dark\`) so nothing shifts when it recolours.
+      ...(overlay ? { marginBottom: -NAV_H } : {}),
     }}>
       <div style={{ maxWidth: 1280, margin: "0 auto", padding: mob ? "12px 20px" : "14px 32px", display: "flex", alignItems: "center", gap: mob ? 16 : 40 }}>
         {/* Brand */}
         <div style={{ display: "flex", alignItems: "center", gap: 12, fontFamily: SERIF, flexShrink: 0, whiteSpace: "nowrap", fontSize: 20, fontWeight: 600, letterSpacing: "-0.015em" }}>
           <div style={{
-            width: 30, height: 30, borderRadius: "50%", background: C.ink, color: C.bg,
+            width: 30, height: 30, borderRadius: "50%", background: ink, color: dark ? "#0C0A08" : C.bg,
             display: "grid", placeItems: "center", fontFamily: SERIF, fontWeight: 700, fontSize: 15,
-            position: "relative",
+            position: "relative", transition: "background .25s ease",
           }}>
             V
           </div>
-          <span>Vote <em style={{ fontStyle: "italic", color: C.accent, fontWeight: 500 }}>Unbiased</em></span>
+          <span style={{ color: ink, transition: "color .25s ease" }}>Vote <em style={{ fontStyle: "italic", color: dark ? "#E0493A" : C.accent, fontWeight: 500 }}>Unbiased</em></span>
         </div>
 
         {/* Links — desktop only */}
         {!mob && (
-          <div style={{ display: "flex", gap: 24, fontSize: 13, color: C.sub, fontWeight: 500 }}>
-            <a href="/dashboard?tab=data" style={{ padding: "4px 0", color: C.sub, transition: "color 0.15s" }}>Scorecard</a>
-            <a href="#method" style={{ padding: "4px 0", color: C.sub }}>Methodology</a>
-            <a href="#sources" style={{ padding: "4px 0", color: C.sub }}>Sources</a>
+          <div style={{ display: "flex", gap: 24, fontSize: 13, color: sub, fontWeight: 500 }}>
+            <a href="/dashboard?tab=data" style={{ padding: "4px 0", color: sub, transition: "color 0.15s" }}>Scorecard</a>
+            <a href="#method" style={{ padding: "4px 0", color: sub }}>Methodology</a>
+            <a href="#sources" style={{ padding: "4px 0", color: sub }}>Sources</a>
           </div>
         )}
 
@@ -170,17 +179,17 @@ function Nav({ mob }: { mob: boolean }) {
             display: "inline-flex", alignItems: "center", gap: 6,
             padding: mob ? "8px 12px" : "10px 14px",
             borderRadius: 4, fontSize: 13, fontWeight: 600,
-            background: "transparent", color: C.accent, border: `1px solid ${C.accent}40`,
+            background: "transparent", color: dark ? "#F4F0EA" : C.accent, border: `1px solid ${dark ? "rgba(244,240,234,.3)" : C.accent + "40"}`,
             textDecoration: "none",
           }}>
-            <span style={{ width: 6, height: 6, borderRadius: "50%", background: C.accent, animation: "pulse 2s infinite" }} />
+            <span style={{ width: 6, height: 6, borderRadius: "50%", background: dark ? "#EF4444" : C.accent, animation: "pulse 2s infinite" }} />
             {mob ? "Live" : "Live Broadcast"}
           </Link>
           <Link href="/dashboard" className="vu-cta vu-cta-p" style={{
             display: "inline-flex", alignItems: "center", gap: 8,
             padding: mob ? "8px 14px" : "10px 16px",
             borderRadius: 4, fontSize: 13, fontWeight: 500,
-            background: C.ink, color: C.bg, border: `1px solid ${C.ink}`,
+            background: ink, color: dark ? "#0C0A08" : C.bg, border: `1px solid ${ink}`,
             textDecoration: "none",
           }}>
             {mob ? "Data" : "Open the ledger"} <span className="vu-arw">→</span>
@@ -235,6 +244,82 @@ function HeroViz({ mob }: { mob: boolean }) {
         <span>Source: BEA</span>
       </div>
     </div>
+  );
+}
+
+/* ── Full-screen hero (desktop) ──
+ * One picture, one line, two buttons. The picture is the site's own record:
+ * 31 years of GDP growth, coloured by administration, drifting slowly behind
+ * the headline. Stock footage would say "serious"; this says "data" before a
+ * word is read, and nobody else has it. */
+function DarkHero({ med }: { med: boolean }) {
+  const data = METRICS.gdp.d as { y: number; v: number; a: string }[];
+  const max = Math.max(...data.map(d => Math.abs(d.v)));
+  return (
+    <header id="top" style={{ position: "relative", minHeight: "100vh", background: "#0C0A08", color: "#FFFEFC", overflow: "hidden", display: "flex", alignItems: "center" }}>
+      <style>{`
+        @keyframes dhBreathe{0%,100%{transform:scaleY(.82)}50%{transform:scaleY(1)}}
+        .dh-bar{animation:dhBreathe 7s ease-in-out infinite}
+        @media (prefers-reduced-motion:reduce){.dh-bar{animation:none}}
+        .dh-ghost{transition:background .15s,border-color .15s}
+        .dh-ghost:hover{background:rgba(255,255,255,.08)!important;border-color:rgba(255,255,255,.6)!important}
+      `}</style>
+      {/* Background chart — decorative; the same data is charted properly below. */}
+      <div aria-hidden style={{ position: "absolute", inset: "12% 3% 0", display: "flex", alignItems: "stretch", gap: "0.6%" }}>
+        {data.map((d, i) => {
+          const h = (Math.abs(d.v) / max) * 58;
+          return (
+            <div key={d.y} style={{ flex: 1, position: "relative" }}>
+              <span className="dh-bar" style={{
+                position: "absolute", left: 0, right: 0,
+                ...(d.v >= 0 ? { bottom: "30%", height: `${h}%`, transformOrigin: "bottom" } : { top: "70%", height: `${h * 0.9}%`, transformOrigin: "top" }),
+                background: ADMINS[d.a]?.color || "#555", opacity: 0.55, borderRadius: 2,
+                animationDelay: `${(i % 9) * 0.6}s`,
+              }} />
+            </div>
+          );
+        })}
+      </div>
+      {/* Legibility: darken the band the words sit on, keep the bars alive at the edges. */}
+      <div aria-hidden style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 70% 55% at 50% 50%, rgba(12,10,8,.88) 0%, rgba(12,10,8,.55) 60%, rgba(12,10,8,.35) 100%), linear-gradient(180deg, rgba(12,10,8,.55) 0%, rgba(12,10,8,0) 30%, rgba(12,10,8,0) 70%, rgba(12,10,8,.8) 100%)" }} />
+
+      <div style={{ position: "relative", zIndex: 1, width: "100%", maxWidth: 1180, margin: "0 auto", padding: "120px 32px 64px", textAlign: "center" }}>
+        <div style={{
+          display: "inline-flex", alignItems: "center", gap: 10, padding: "6px 14px",
+          border: "1px solid rgba(255,255,255,.18)", borderRadius: 999, background: "rgba(255,255,255,.04)",
+          fontSize: 11, color: "#D8CFC4", letterSpacing: "0.12em", textTransform: "uppercase", fontWeight: 500, marginBottom: 28,
+        }}>
+          <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#E0493A", boxShadow: "0 0 0 3px rgba(224,73,58,.25)" }} />
+          Political &amp; economic intelligence · No spin
+        </div>
+        <h1 style={{ fontFamily: SERIF, fontWeight: 400, fontSize: med ? 64 : "clamp(64px, 7.4vw, 116px)", lineHeight: 0.98, letterSpacing: "-0.03em", margin: "0 auto", maxWidth: "12ch", textWrap: "balance" } as React.CSSProperties}>
+          The economy under every president, <em style={{ fontStyle: "italic", color: "#E0493A" }}>in data.</em>
+        </h1>
+        <div style={{ marginTop: 40, display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+          <Link href="/dashboard" className="vu-cta" style={{
+            display: "inline-flex", alignItems: "center", gap: 8, padding: "15px 26px", borderRadius: 4,
+            fontSize: 15, fontWeight: 600, textDecoration: "none", background: "#FFFEFC", color: "#0C0A08",
+          }}>Open the ledger <span className="vu-arw">→</span></Link>
+          <a href="#method" className="dh-ghost" style={{
+            display: "inline-flex", alignItems: "center", padding: "15px 22px", borderRadius: 4,
+            fontSize: 15, fontWeight: 600, textDecoration: "none", color: "#FFFEFC",
+            border: "1px solid rgba(255,255,255,.35)", background: "transparent",
+          }}>See methodology</a>
+        </div>
+        <div style={{ display: "flex", justifyContent: "center", gap: 64, marginTop: 72 }}>
+          {[{ n: 19, l: "Economic metrics" }, { n: 5, l: "Administrations" }, { n: 32, l: "Years of data", suffix: "yrs" }].map(st => (
+            <div key={st.l}>
+              <div style={{ fontFamily: SERIF, fontSize: 40, lineHeight: 1, letterSpacing: "-0.025em", fontVariantNumeric: "tabular-nums" }}>
+                <CountUp to={st.n} />
+                {st.suffix && <span style={{ color: "#A69E92" }}>{st.suffix}</span>}
+                <span style={{ color: "#A69E92" }}>+</span>
+              </div>
+              <div style={{ marginTop: 8, fontSize: 11, color: "#A69E92", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 500 }}>{st.l}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </header>
   );
 }
 
@@ -1680,6 +1765,13 @@ function MobileLanding() {
 export default function LandingPage() {
   const mob = useIsMobile();
   const med = useMedium();
+  // Nav is smoked-glass while it floats over the dark hero, cream after.
+  const [overHero, setOverHero] = useState(true);
+  useEffect(() => {
+    const on = () => setOverHero(window.scrollY < window.innerHeight - NAV_H - 10);
+    on(); window.addEventListener("scroll", on, { passive: true }); window.addEventListener("resize", on);
+    return () => { window.removeEventListener("scroll", on); window.removeEventListener("resize", on); };
+  }, []);
 
   // Design 3a "One-Screen Ledger": on mobile, the entire page is the
   // compressed MobileLanding above. Desktop keeps the existing sections.
@@ -1694,9 +1786,14 @@ export default function LandingPage() {
 
   return (
     <div style={{ background: PAGE_BG, color: C.ink, fontFamily: SANS, fontSize: 15, lineHeight: 1.5, minHeight: "100vh" }}>
-      <Nav mob={mob} />
+      <Nav mob={mob} dark={overHero} overlay />
       <div style={{ display: "flex", flexDirection: "column", gap: TILE_GAP, background: PAGE_BG, paddingTop: LAYOUT === "cards" ? 8 : 0 }}>
-      <Tile mob={mob}><Hero mob={mob} med={med} /></Tile>
+      <DarkHero med={med} />
+      {/* The chart that used to share the first screen now opens the second,
+          at full width, where it can be read rather than glanced at. */}
+      <div style={{ maxWidth: 1280, margin: "0 auto", padding: "72px 32px 8px", width: "100%", boxSizing: "border-box" }}>
+        <HeroViz mob={false} />
+      </div>
       {/* Room before the dark band: a hard colour cut only reads as
           deliberate when the section before it has space to finish. */}
       <Tile mob={mob} style={{ paddingBottom: mob ? 56 : 112 }}>
