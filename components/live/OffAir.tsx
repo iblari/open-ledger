@@ -363,7 +363,12 @@ export default function OffAir({
                   </div>
                 </button>
 
-                {rest.slice(0, 4).map(a => (
+                {/* Was capped at four. A busy stretch — or broadcasts restored
+                    after an outage — holds more than that, and a hidden one
+                    reads as missing coverage. The 72-hour window already
+                    bounds the list; twelve is just a guard against a
+                    runaway. */}
+                {rest.slice(0, 11).map(a => (
                   <button key={a.id} onClick={() => onWatch(a.id)} style={{
                     display: "flex", width: "100%", textAlign: "left", cursor: "pointer",
                     alignItems: "center", gap: 14, flexWrap: "wrap",
