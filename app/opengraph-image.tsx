@@ -1,83 +1,78 @@
 import { ImageResponse } from "next/og";
 
 /**
- * The link preview, generated rather than exported.
+ * The link preview — what people see when the site is texted or posted.
  *
- * public/og-image.png was a screenshot of a homepage that no longer exists:
- * it showed the scorecard heatmap (since removed) and a stat row reading
- * "19 · 4 · 5 · 32", including the active-conflicts figure that was cut. A
- * hand-made image is a copy of the site frozen at the moment someone
- * remembered to re-export it, and this is the single asset seen most by
- * people who have never visited — so it going stale is expensive.
+ * Same picture as the homepage hero: near-black, 31 years of GDP growth in
+ * each administration's colour, the headline over it. The old card was a
+ * cream page of small print; in an iMessage bubble it read as a document,
+ * next to Palantir's single mark on black it looked amateur. One image, one
+ * line, the brand.
  *
- * Built from the same tokens the site uses, so it changes when they do.
- * No external font fetch: a missing font at build time would fail the whole
- * route, and a serif stack renders close enough at this size to be worth
- * more than the fragility.
+ * Fonts ship with the route (app/og-fonts) rather than being fetched from a
+ * CDN at render time, so the preview can't silently fall back to a default.
  */
 export const runtime = "edge";
-export const alt = "Vote Unbiased — every economic claim, checked against the data";
+export const alt = "Vote Unbiased — the economy under every president, in data";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-export default async function OpengraphImage() {
-  const PAPER = "#FAF8F4";
-  const INK = "#1a1a1a";
-  const SUB = "#5c5856";
-  const MUTE = "#9a9490";
-  const ACCENT = "#b8372d";
-  const RULE = "#e2ded6";
+// GDP growth 1993–2024 by administration (BEA) — same series as the hero.
+const BARS: [number, string][] = [[2.7,"#1e6b9e"],[4.0,"#1e6b9e"],[2.7,"#1e6b9e"],[3.8,"#1e6b9e"],[4.5,"#1e6b9e"],[4.5,"#1e6b9e"],[4.7,"#1e6b9e"],[4.1,"#1e6b9e"],[1.0,"#8b4c70"],[1.7,"#8b4c70"],[2.8,"#8b4c70"],[3.8,"#8b4c70"],[3.5,"#8b4c70"],[2.8,"#8b4c70"],[2.0,"#8b4c70"],[-0.1,"#8b4c70"],[-2.6,"#2d6a4f"],[2.7,"#2d6a4f"],[1.5,"#2d6a4f"],[2.3,"#2d6a4f"],[1.8,"#2d6a4f"],[2.3,"#2d6a4f"],[2.7,"#2d6a4f"],[1.7,"#2d6a4f"],[2.2,"#c1272d"],[2.9,"#c1272d"],[2.3,"#c1272d"],[-2.8,"#c1272d"],[5.9,"#4361a6"],[1.9,"#4361a6"],[2.5,"#4361a6"],[2.8,"#4361a6"]];
 
+export default async function OpengraphImage() {
+  const [serif, serifItalic, sans] = await Promise.all([
+    fetch(new URL("./og-fonts/Newsreader-Regular.ttf", import.meta.url)).then(r => r.arrayBuffer()),
+    fetch(new URL("./og-fonts/Newsreader-Italic.ttf", import.meta.url)).then(r => r.arrayBuffer()),
+    fetch(new URL("./og-fonts/DMSans-Medium.ttf", import.meta.url)).then(r => r.arrayBuffer()),
+  ]);
+  const max = Math.max(...BARS.map(b => Math.abs(b[0])));
+  const BASE = 430; // baseline y
   return new ImageResponse(
     (
-      <div style={{
-        width: "100%", height: "100%", display: "flex", flexDirection: "column",
-        background: PAPER, padding: "68px 72px", justifyContent: "space-between",
-        fontFamily: "Georgia, 'Times New Roman', serif",
-      }}>
-        <div style={{ display: "flex", flexDirection: "column" }}>
-          {/* The lockup, rebuilt rather than imported — an <img> here would
-              need a public URL and reintroduce the staleness problem. */}
-          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 44 }}>
-            <div style={{
-              width: 46, height: 46, borderRadius: 23, background: INK, color: PAPER,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 24, fontWeight: 700,
-            }}>V</div>
-            <div style={{ display: "flex", fontSize: 30, color: INK }}>
-              Vote&nbsp;<span style={{ color: ACCENT, fontStyle: "italic" }}>Unbiased</span>
-            </div>
-          </div>
-
-          <div style={{
-            display: "flex", flexDirection: "column",
-            fontSize: 74, lineHeight: 1.06, color: INK, letterSpacing: "-0.025em",
-          }}>
-            <div style={{ display: "flex" }}>Every economic claim,</div>
-            <div style={{ display: "flex" }}>
-              checked against&nbsp;<span style={{ color: ACCENT, fontStyle: "italic" }}>the data.</span>
-            </div>
-          </div>
-
-          <div style={{
-            display: "flex", fontSize: 26, color: SUB, marginTop: 28, maxWidth: 900,
-            fontFamily: "system-ui, sans-serif", lineHeight: 1.45,
-          }}>
-            Official broadcasts fact-checked live against BLS, BEA, Census and Fed series.
-            You get the quote, the real figure and the source.
-          </div>
+      <div style={{ width: "100%", height: "100%", display: "flex", position: "relative", background: "#0C0A08" }}>
+        {/* background chart */}
+        <div style={{ position: "absolute", left: 36, right: 36, top: 0, bottom: 0, display: "flex", gap: 6 }}>
+          {BARS.map(([v, c], i) => {
+            const h = (Math.abs(v) / max) * 300;
+            return (
+              <div key={i} style={{ flex: 1, position: "relative", display: "flex" }}>
+                <div style={{
+                  position: "absolute", left: 0, right: 0,
+                  top: v >= 0 ? BASE - h : BASE, height: v >= 0 ? h : h * 0.9,
+                  background: c, opacity: 0.42, borderRadius: 3,
+                }} />
+              </div>
+            );
+          })}
         </div>
-
-        <div style={{
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          borderTop: `1px solid ${RULE}`, paddingTop: 26,
-          fontFamily: "system-ui, sans-serif", fontSize: 20, color: MUTE,
-        }}>
-          <div style={{ display: "flex" }}>voteunbiased.org</div>
-          <div style={{ display: "flex" }}>BLS · BEA · Census · Treasury · FHFA · FHWA</div>
+        {/* legibility wash */}
+        <div style={{ position: "absolute", inset: 0, display: "flex",
+          backgroundImage: "radial-gradient(ellipse 62% 58% at 50% 48%, rgba(12,10,8,.93) 0%, rgba(12,10,8,.6) 62%, rgba(12,10,8,.35) 100%)" }} />
+        <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", width: "100%", height: "100%" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 34 }}>
+            <div style={{ width: 40, height: 40, borderRadius: 20, background: "#F4F0EA", color: "#0C0A08", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Newsreader", fontSize: 22 }}>V</div>
+            <div style={{ display: "flex", fontFamily: "Newsreader", fontSize: 30, color: "#F4F0EA" }}>
+              Vote&nbsp;<span style={{ fontFamily: "NewsreaderItalic", color: "#E0493A" }}>Unbiased</span>
+            </div>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", fontFamily: "Newsreader", fontSize: 84, lineHeight: 1.0, letterSpacing: "-0.03em", color: "#FFFEFC" }}>
+            <div style={{ display: "flex" }}>The economy under every</div>
+            <div style={{ display: "flex" }}>president,&nbsp;<span style={{ fontFamily: "NewsreaderItalic", color: "#E0493A" }}>in data.</span></div>
+          </div>
+          <div style={{ display: "flex", marginTop: 34, fontFamily: "DM Sans", fontSize: 19, letterSpacing: "0.16em", color: "#A69E92" }}>
+            POLITICAL &amp; ECONOMIC INTELLIGENCE · NO SPIN
+          </div>
         </div>
       </div>
     ),
-    size
+    {
+      ...size,
+      fonts: [
+        { name: "Newsreader", data: serif, weight: 400, style: "normal" },
+        { name: "NewsreaderItalic", data: serifItalic, weight: 500, style: "normal" },
+        { name: "DM Sans", data: sans, weight: 500, style: "normal" },
+      ],
+    }
   );
 }

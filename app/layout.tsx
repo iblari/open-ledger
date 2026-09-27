@@ -8,8 +8,8 @@ const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'Vote Unbiased — The Economy Under Every President, In Data',
-  description: 'Official broadcasts fact-checked live against BLS, BEA, Census and Fed data. Every claim shows the quote, the real figure and the source. No spin. You interpret.',
+  title: 'Vote Unbiased — Political & Economic Intelligence',
+  description: 'The economy under every president, in data — and live fact-checks of what politicians say, against BLS, BEA, Census and Fed figures. No spin.',
   metadataBase: new URL('https://voteunbiased.org'),
   verification: {
     google: 'o9EM5aUToekdkqIelamubG94gJfUyFp9si6LfrhZd2M',
@@ -35,9 +35,12 @@ export const metadata: Metadata = {
     ],
     apple: '/apple-icon.png',
   },
+  // Short on purpose: iMessage and Slack print this under the image, and a
+  // title-cased sentence there read like a spam headline. The image carries
+  // the message.
   openGraph: {
-    title: 'Vote Unbiased — The Economy Under Every President, In Data',
-    description: 'Official broadcasts fact-checked live against BLS, BEA, Census and Fed data. Every claim shows the quote, the real figure and the source. No spin. You interpret.',
+    title: 'Vote Unbiased',
+    description: 'Political & economic intelligence. The economy under every president, in data — and live fact-checks of what politicians say.',
     url: 'https://voteunbiased.org',
     siteName: 'Vote Unbiased',
     locale: 'en_US',
@@ -45,8 +48,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Vote Unbiased — The Economy Under Every President, In Data',
-    description: 'Official broadcasts fact-checked live against BLS, BEA, Census and Fed data. Every claim shows the quote, the real figure and the source. No spin. You interpret.',
+    title: 'Vote Unbiased — Political & economic intelligence',
+    description: 'The economy under every president, in data — and live fact-checks of what politicians say. No spin.',
   },
 }
 
