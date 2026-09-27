@@ -150,7 +150,6 @@ function Nav({ mob }: { mob: boolean }) {
         {!mob && (
           <div style={{ display: "flex", gap: 24, fontSize: 13, color: C.sub, fontWeight: 500 }}>
             <a href="/dashboard?tab=data" style={{ padding: "4px 0", color: C.sub, transition: "color 0.15s" }}>Scorecard</a>
-            <a href="#data" style={{ padding: "4px 0", color: C.sub }}>Deep Dive</a>
             <a href="#method" style={{ padding: "4px 0", color: C.sub }}>Methodology</a>
             <a href="#sources" style={{ padding: "4px 0", color: C.sub }}>Sources</a>
           </div>
@@ -898,7 +897,7 @@ function PrinciplesSection({ mob, med }: { mob: boolean; med: boolean }) {
       <div style={{ maxWidth: 1280, margin: "0 auto", padding: mob ? "0 20px" : "0 32px" }}>
         <div style={{ display: "grid", gridTemplateColumns: med ? "1fr" : "1fr 1.4fr", gap: med ? 16 : 64, marginBottom: 40, alignItems: "end" }}>
           <div>
-            <div style={{ fontFamily: SANS, fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: C.sub, fontWeight: 500, marginBottom: 12 }}>Section 03 · Principles</div>
+            <div style={{ fontFamily: SANS, fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: C.sub, fontWeight: 500, marginBottom: 12 }}>Section 01 · Principles</div>
             <h2 style={{ fontFamily: SERIF, fontSize: mob ? 32 : 44, lineHeight: 1.05, letterSpacing: "-0.022em", fontWeight: 400 }}>
               How we stay <em style={{ fontStyle: "italic", color: C.accent }}>out of the way.</em>
             </h2>
@@ -980,7 +979,7 @@ function SourcesSection({ mob, med }: { mob: boolean; med: boolean }) {
       <div style={{ maxWidth: 1280, margin: "0 auto", padding: mob ? "0 20px" : "0 32px" }}>
         <div style={{ display: "grid", gridTemplateColumns: med ? "1fr" : "1fr 1.4fr", gap: med ? 16 : 64, marginBottom: 40, alignItems: "end" }}>
           <div>
-            <div style={{ fontFamily: SANS, fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: C.sub, fontWeight: 500, marginBottom: 12 }}>Section 04 · Sources</div>
+            <div style={{ fontFamily: SANS, fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: C.sub, fontWeight: 500, marginBottom: 12 }}>Section 02 · Sources</div>
             <h2 style={{ fontFamily: SERIF, fontSize: mob ? 32 : 44, lineHeight: 1.05, letterSpacing: "-0.022em", fontWeight: 400 }}>
               Where the <em style={{ fontStyle: "italic", color: C.accent }}>numbers come from.</em>
             </h2>
@@ -1666,7 +1665,6 @@ export default function LandingPage() {
           <InsightsStrip mob={mob} limit={3} eyebrow="What's notable right now" />
         </div>
       </Tile>
-      <Tile mob={mob}><DeepDiveSection mob={mob} med={med} /></Tile>
       <Tile mob={mob} dark><ComingSoonSection /></Tile>
       <Tile mob={mob}><PrinciplesSection mob={mob} med={med} /></Tile>
       <Tile mob={mob}><SourcesSection mob={mob} med={med} /></Tile>
