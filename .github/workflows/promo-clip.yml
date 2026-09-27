@@ -1,0 +1,38 @@
+# One-off: cut a section of a (public-domain, government) broadcast for the
+# landing-page promo video. Runs on demand only. Same YouTube access chain as
+# the live worker (PO-token sidecar + proxy), which a laptop or sandbox lacks.
+name: Promo clip
+on:
+  workflow_dispatch:
+    inputs:
+      videoId: { description: "YouTube id", required: true }
+      section: { description: "yt-dlp section, e.g. *110-230", required: true }
+jobs:
+  clip:
+    runs-on: ubuntu-latest
+    permissions: { contents: read }
+    timeout-minutes: 30
+    steps:
+      - uses: denoland/setup-deno@v2
+        with: { deno-version: v2.x }
+      - name: Tools
+        run: |
+          docker run -d --name pot-provider -p 4416:4416 brainicism/bgutil-ytdlp-pot-provider
+          pip install -U yt-dlp bgutil-ytdlp-pot-provider
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      - name: Download section
+        env:
+          YT_PROXY_URL: ${{ secrets.YT_PROXY_URL }}
+        run: |
+          sleep 5
+          for c in "" "--extractor-args youtube:player_client=tv" "--extractor-args youtube:player_client=ios"; do
+            for p in "--proxy $YT_PROXY_URL" ""; do
+              [ -z "$YT_PROXY_URL" ] && [ -n "$p" ] && continue
+              yt-dlp $p $c -f "bv*[height<=1080][vcodec^=avc1]/bv*[height<=1080]" \
+                --download-sections "${{ inputs.section }}" --force-keyframes-at-cuts \
+                -o "raw.%(ext)s" "https://www.youtube.com/watch?v=${{ inputs.videoId }}" && break 2
+            done
+          done
+          ls -la
+      - uses: actions/upload-artifact@v4
+        with: { name: promo-raw, path: "raw.*", retention-days: 3 }
