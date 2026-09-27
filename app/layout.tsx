@@ -30,6 +30,14 @@ export const metadata: Metadata = {
         url: '/icon-dark-32x32.png?v=3',
         media: '(prefers-color-scheme: dark)',
       },
+      // 192px PNG for Google Search: it wants a square icon that's a
+      // multiple of 48px, and shows it in a circle, so this version is drawn
+      // smaller to keep the head and paws inside the crop.
+      {
+        url: '/icon-192.png?v=3',
+        sizes: '192x192',
+        type: 'image/png',
+      },
       {
         url: '/icon.svg?v=3',
         type: 'image/svg+xml',
