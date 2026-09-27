@@ -1343,7 +1343,7 @@ function App(){
 
             <div style={{marginBottom:20}}>
               <h2 style={{fontFamily:ESERIF,fontSize:mob?26:34,fontWeight:400,letterSpacing:"-0.02em",lineHeight:1.1,margin:"0 0 6px"}}>
-                All metrics, <em style={{fontStyle:"italic",color:EC.accent}}>at a glance.</em>
+                Compare presidents, <em style={{fontStyle:"italic",color:EC.accent}}>side by side.</em>
               </h2>
               {/* Data tab intro paragraph removed per design — headline only. */}
             </div>
