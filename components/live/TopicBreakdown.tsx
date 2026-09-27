@@ -416,7 +416,7 @@ export default function TopicBreakdown({
 
       <div className="tb-d" style={{ marginTop: 12, paddingTop: 11, borderTop: `1px solid ${C.rule}` }}>{legend(false)}</div>
 
-      <p style={{ fontFamily: SANS, fontSize: 10, color: C.faint, lineHeight: 1.55, margin: "9px 0 0" }}>
+      <p className="tb-d" style={{ fontFamily: SANS, fontSize: 10, color: C.faint, lineHeight: 1.55, margin: "9px 0 0" }}>
         Each claim&rsquo;s subject is assigned once from a fixed list and then never changes, so the
         same claim always lands in the same place. Claims we could not settle are shown but excluded from the percentage —
         being unable to check something is not evidence it was false. Topics with only a
