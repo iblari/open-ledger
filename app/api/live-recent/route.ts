@@ -11,6 +11,9 @@ export async function GET() {
   const recent = await getRecentBroadcasts();
   return NextResponse.json(
     { ok: true, recent },
-    { headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120" } }
+    // Short and without stale-while-revalidate: this is what a replay link
+    // resolves against the moment a broadcast ends, and a stale copy from
+    // before the archive write makes the broadcast look like it never happened.
+    { headers: { "Cache-Control": "public, s-maxage=15" } }
   );
 }

@@ -37,7 +37,14 @@ export async function GET(req: Request) {
       { state: state || { status: "off" }, claims: [], transcript: "" },
       {
         headers: {
-          "Cache-Control": "public, s-maxage=15, stale-while-revalidate=30",
+          // No stale-while-revalidate. SWR lets the CDN hand out an old
+          // cached copy while it refreshes in the background — and the
+          // refresh that follows a broadcast starting is a no-store response,
+          // which the CDN may not store, so nothing replaces the cached "off".
+          // Every visitor keeps being told nothing is live. A short plain
+          // s-maxage still absorbs the polling fan-out but expires outright,
+          // so the first request after it is a real read of the database.
+          "Cache-Control": "public, s-maxage=5",
         },
       }
     );

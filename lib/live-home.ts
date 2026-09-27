@@ -7,7 +7,7 @@
  */
 
 import { knownEvents } from "./known-events";
-import { getLedgerHealed } from "./live-kv";
+import { getLedgerHealed, getLiveState, getLiveClaims, getRecentBroadcasts } from "./live-kv";
 import { tallyWithTail, type TopicTally } from "./claim-topics";
 import { computeMomentum, type MomentumResult } from "./topic-breadth";
 
@@ -90,12 +90,26 @@ export async function loadLiveHome(origin: string): Promise<{
   // broadcast ends, archiveBroadcast calls recordInLedger, so the next render
   // of this page already includes it. No cron, no manual step, and nothing is
   // lost when the replay cache prunes.
-  const [feed, recent, discover, ledger] = await Promise.all([
-    j<{ state: { status: string; title?: string; videoId?: string; startedAt?: string; source?: string }; claims: RawClaim[] }>(`${origin}/api/live-feed`),
-    j<{ recent: { videoId: string; title: string; source: string; startedAt: string; endedAt: string; claims: RawClaim[] }[] }>(`${origin}/api/live-recent`),
+  //
+  // Live state and the replay archive are read STRAIGHT FROM KV. They used to
+  // be fetched over HTTP from this site's own /api/live-feed and
+  // /api/live-recent — out to the public internet and back in through the
+  // CDN. Off air those routes are CDN-cacheable, so the "is anything live?"
+  // question could be answered by a cached "off" instead of the database.
+  // On 21 Sep a visitor opened /live mid-broadcast and no request reached
+  // /api/live-feed at all (it returns no-store while live, so any request
+  // that got through would have been logged): the page rendered off air
+  // while the broadcast ran. A failed or slow self-fetch also silently
+  // meant "off air". The homepage read KV directly and never had this bug.
+  const [liveState, liveClaims, recentRaw, discover, ledger] = await Promise.all([
+    getLiveState().catch(() => null),
+    getLiveClaims().catch(() => []),
+    getRecentBroadcasts().catch(() => []),
     j<{ upcoming: { title: string; scheduledStart: string; channelLabel: string }[] }>(`${origin}/api/live-discover`, 8000),
     getLedgerHealed().catch(() => []),
   ]);
+  const feed = { state: liveState, claims: liveClaims as unknown as RawClaim[] };
+  const recent = { recent: recentRaw as unknown as { videoId: string; title: string; source: string; startedAt: string; endedAt: string; claims: RawClaim[] }[] };
 
   const st = feed?.state;
   const live: HomeLive | null = st?.status === "live" && st.videoId
