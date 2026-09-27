@@ -1002,7 +1002,7 @@ function DeepDiveSection({ mob, med }: { mob: boolean; med: boolean }) {
 /* ── Principles ── */
 const METHOD_POINTS = [
   { n: "01", t: "Raw numbers only", p: "Straight from BEA, BLS, Census, the Fed." },
-  { n: "02", t: "No verdicts, no rankings.", p: "We show what moved. You decide what it means." },
+  { n: "02", t: "No verdicts, no rankings.", p: "We show what moved. The verdict is yours." },
   { n: "03", t: "Context, not commentary.", p: "Definitions and benchmarks. No op-eds." },
 ];
 
