@@ -62,6 +62,11 @@ const METRIC_ORDER = ["gdp", "unemployment", "inflation", "sp500", "debt_gdp", "
 
 // Bind the per-metric value resolver to this page's METRICS + METRIC_DISPLAY
 // once, so call sites can stay short.
+/** Section tiles. Two creams alternate; near-black is kept for the two
+ *  moments that should stop the scroll (Live Broadcast, the newsletter) —
+ *  contrast only works while it's rare. */
+const TILE = { paper: "#f3ede5", white: "#ffffff", dark: "#14110E", gutter: "#ffffff", gap: 8 } as const;
+
 function resolveDisplay(c: Cell, mk: string, mode: DisplayMode, dollarMode: DollarMode) {
   return getDisplayedChange(c, mk, mode, dollarMode, METRIC_DISPLAY_LANDING, METRICS[mk].inv);
 }
@@ -221,8 +226,6 @@ function Hero({ mob, med }: { mob: boolean; med: boolean }) {
   return (
     <header style={{
       padding: mob ? "40px 0" : "56px 0 48px",
-      borderBottom: `1px solid ${C.rule}`,
-      background: "linear-gradient(180deg, #fbfaf6 0%, #f8f5f0 100%)",
     }}>
       <div style={{ maxWidth: 1280, margin: "0 auto", padding: mob ? "0 20px" : "0 32px", display: "grid", gridTemplateColumns: med ? "1fr" : "1.15fr 1fr", gap: med ? 40 : 72, alignItems: "end" }}>
         <div>
@@ -736,7 +739,7 @@ function DeepDiveSection({ mob, med }: { mob: boolean; med: boolean }) {
   const heat = useMemo(() => computeHeatmap(METRICS, AID), []);
 
   return (
-    <section id="data" style={{ padding: mob ? "48px 0" : "72px 0", borderBottom: `1px solid ${C.rule}` }}>
+    <section id="data" style={{ padding: mob ? "48px 0" : "88px 0" }}>
       <div style={{ maxWidth: 1280, margin: "0 auto", padding: mob ? "0 20px" : "0 32px" }}>
         <div style={{ display: "grid", gridTemplateColumns: med ? "1fr" : "1fr 1.4fr", gap: med ? 16 : 64, marginBottom: 40, alignItems: "end" }}>
           <div>
@@ -873,7 +876,7 @@ function PrinciplesSection({ mob, med }: { mob: boolean; med: boolean }) {
   ];
 
   return (
-    <section id="method" style={{ padding: mob ? "48px 0" : "72px 0", borderBottom: `1px solid ${C.rule}` }}>
+    <section id="method" style={{ padding: mob ? "48px 0" : "88px 0" }}>
       <div style={{ maxWidth: 1280, margin: "0 auto", padding: mob ? "0 20px" : "0 32px" }}>
         <div style={{ display: "grid", gridTemplateColumns: med ? "1fr" : "1fr 1.4fr", gap: med ? 16 : 64, marginBottom: 40, alignItems: "end" }}>
           <div>
@@ -955,7 +958,7 @@ function SourcesSection({ mob, med }: { mob: boolean; med: boolean }) {
   const sources = SOURCES;
 
   return (
-    <section id="sources" style={{ padding: mob ? "48px 0" : "72px 0", borderBottom: `1px solid ${C.rule}` }}>
+    <section id="sources" style={{ padding: mob ? "48px 0" : "88px 0" }}>
       <div style={{ maxWidth: 1280, margin: "0 auto", padding: mob ? "0 20px" : "0 32px" }}>
         <div style={{ display: "grid", gridTemplateColumns: med ? "1fr" : "1fr 1.4fr", gap: med ? 16 : 64, marginBottom: 40, alignItems: "end" }}>
           <div>
@@ -1085,19 +1088,19 @@ function CTASection({ mob, med }: { mob: boolean; med: boolean }) {
       // scrollMarginTop keeps the headline clear of the sticky header on
       // arrival — without it the anchor lands with the form under the nav.
       scrollMarginTop: 72,
-      padding: mob ? "48px 0" : "72px 0",
-      background: `linear-gradient(180deg, ${C.bg} 0%, ${C.paper} 100%)`,
+      padding: mob ? "48px 0" : "96px 0",
+      background: TILE.dark, color: "#FFFEFC",
     }}>
       <div style={{
         maxWidth: 1280, margin: "0 auto", padding: mob ? "0 20px" : "0 32px",
         display: "grid", gridTemplateColumns: med ? "1fr" : "1fr 1fr", gap: med ? 28 : 72, alignItems: "center",
       }}>
         <div>
-          <div style={{ fontFamily: SANS, fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: C.sub, fontWeight: 500, marginBottom: 16 }}>Monthly dispatch</div>
+          <div style={{ fontFamily: SANS, fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "#A69E92", fontWeight: 500, marginBottom: 16 }}>Monthly dispatch</div>
           <h2 style={{ fontFamily: SERIF, fontSize: mob ? 32 : 44, lineHeight: 1.05, letterSpacing: "-0.022em", fontWeight: 400, margin: 0 }}>
-            One email a month.<br />The ledger, <em style={{ fontStyle: "italic", color: C.accent }}>updated.</em>
+            One email a month.<br />The ledger, <em style={{ fontStyle: "italic", color: "#E0493A" }}>updated.</em>
           </h2>
-          <p style={{ marginTop: 16, color: C.sub, fontSize: 16, maxWidth: "44ch", lineHeight: 1.5 }}>
+          <p style={{ marginTop: 16, color: "#A69E92", fontSize: 16, maxWidth: "44ch", lineHeight: 1.5 }}>
             New data lands, old data gets revised, and we flag the ones that changed most.
             No campaign coverage. No horse race. Just the numbers.
           </p>
@@ -1128,17 +1131,17 @@ function CTASection({ mob, med }: { mob: boolean; med: boolean }) {
                     transition: "box-shadow .25s ease, border-color .25s ease",
                   }}
                 />
-                <button type="submit" disabled={status === "loading"} className="vu-cta vu-cta-p" style={{
+                <button type="submit" disabled={status === "loading"} className="vu-cta lp-cta" style={{
                   display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8,
                   padding: "14px 24px", borderRadius: 4, fontSize: 15, fontWeight: 600,
-                  background: C.ink, color: C.bg, border: `1px solid ${C.ink}`,
+                  background: "#B42318", color: "#FFFEFC", border: "1px solid #B42318",
                   cursor: status === "loading" ? "wait" : "pointer", opacity: status === "loading" ? 0.7 : 1,
                 }}>
                   {status === "loading" ? "..." : <>Subscribe <span className="vu-arw">→</span></>}
                 </button>
               </div>
               {status === "error" && <div style={{ fontSize: 13, color: C.declineStrong }}>{msg}</div>}
-              <div style={{ fontSize: 11, color: C.mute, letterSpacing: "0.04em" }}>
+              <div style={{ fontSize: 11, color: "#8C8479", letterSpacing: "0.04em" }}>
                 Join the community
               </div>
             </>
@@ -1359,6 +1362,9 @@ function MobileLanding() {
 
       `}</style>
 
+      {/* Tiles, as on desktop: colour blocks divide the page, not rules. */}
+      <div style={{ display: "flex", flexDirection: "column", gap: TILE.gap, background: TILE.gutter }}>
+      <div style={{ background: TILE.paper, paddingBottom: 18 }}>
       {/* ── 2+3. Ticker (full-bleed) + compact hero ── */}
       <div style={{ padding: "20px 20px 6px" }}>
         <MobileTicker />
@@ -1529,9 +1535,11 @@ function MobileLanding() {
         </div>
       </div>
 
+      </div>
       {/* ── 5b. Live Broadcast showcase (full-bleed) ── */}
-      <div style={{ marginTop: 16 }}><LivePromo /></div>
+      <LivePromo />
 
+      <div style={{ background: TILE.white, padding: "4px 0 18px" }}>
       {/* ── 6. Sources tile grid ── */}
       <div style={{ margin: "14px 14px 0" }}>
         <div style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: "0.12em", color: C.sub, marginBottom: 8, fontWeight: 500 }}>
@@ -1552,6 +1560,8 @@ function MobileLanding() {
         </div>
       </div>
 
+      </div>
+      <div style={{ background: TILE.paper, padding: "2px 0 18px" }}>
       {/* ── 7. Newsletter (compact) ── */}
       <div style={{ background: "#fff", border: `1px solid ${C.rule}`, borderRadius: 6, margin: "16px 14px 0", padding: 14 }}>
         <div style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: "0.08em", color: C.sub, marginBottom: 8, fontWeight: 500 }}>
@@ -1588,10 +1598,13 @@ function MobileLanding() {
         © 2026 Vote Unbiased · No spin · You interpret
       </div>
 
+      </div>
+      </div>
+
       {/* ── 9. Sticky bottom CTA ── */}
       <div style={{
         position: "sticky", bottom: 0, zIndex: 20, padding: "12px 16px 16px",
-        background: "linear-gradient(180deg, rgba(248,245,240,0) 0%, #f8f5f0 42%)",
+        background: "linear-gradient(180deg, rgba(243,237,229,0) 0%, #f3ede5 42%)",
       }}>
         <Link href="/dashboard" style={{
           display: "flex", justifyContent: "space-between", alignItems: "center",
@@ -1629,21 +1642,28 @@ export default function LandingPage() {
   return (
     <div style={{ background: C.bg, color: C.ink, fontFamily: SANS, fontSize: 15, lineHeight: 1.5, minHeight: "100vh" }}>
       <Nav mob={mob} />
-      <Hero mob={mob} med={med} />
+      {/* Apple-style rhythm: every section is its own full-bleed tile and
+          the colour change is the divider — no hairline rules. The white
+          gutter between tiles shows wherever two tiles differ from it. */}
+      <div style={{ display: "flex", flexDirection: "column", gap: TILE.gap, background: TILE.gutter }}>
+      <div style={{ background: TILE.paper }}><Hero mob={mob} med={med} /></div>
       {/* Trends feed lives at /trends — homepage strip removed per design. */}
       {/* Auto-generated insights strip — surfaces what's notable in the
           current data so readers who don't want to scan the whole heatmap
           still get a quick "what's happening." Pure-function logic in
           lib/insights, no LLM, no API call, computed at render time. */}
-      <div style={{ maxWidth: 1280, margin: "0 auto", padding: mob ? "0 20px" : "0 32px", borderBottom: `1px solid ${C.rule}` }}>
-        <InsightsStrip mob={mob} limit={3} eyebrow="What's notable right now" />
+      <div style={{ background: TILE.white }}>
+        <div style={{ maxWidth: 1280, margin: "0 auto", padding: mob ? "0 20px" : "0 32px" }}>
+          <InsightsStrip mob={mob} limit={3} eyebrow="What's notable right now" />
+        </div>
       </div>
-      <DeepDiveSection mob={mob} med={med} />
+      <div style={{ background: TILE.paper }}><DeepDiveSection mob={mob} med={med} /></div>
       <ComingSoonSection />
-      <PrinciplesSection mob={mob} med={med} />
-      <SourcesSection mob={mob} med={med} />
+      <div style={{ background: TILE.white }}><PrinciplesSection mob={mob} med={med} /></div>
+      <div style={{ background: TILE.paper }}><SourcesSection mob={mob} med={med} /></div>
       <CTASection mob={mob} med={med} />
-      <Footer mob={mob} med={med} />
+      <div style={{ background: TILE.white }}><Footer mob={mob} med={med} /></div>
+      </div>
     </div>
   );
 }
