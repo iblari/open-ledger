@@ -1239,22 +1239,22 @@ function App(){
           display:"flex",alignItems:"center",gap:mob?14:28,
         }}>
           {/* Brand — matches the landing page nav. Whole logo links home. */}
-          <Link href="/" aria-label={mob ? "Back to Vote Unbiased home" : "Vote Unbiased home"} style={{
+          <Link href="/" aria-label="Back to Vote Unbiased home" style={{
             display:"flex",alignItems:"center",gap:10,
             textDecoration:"none",cursor:"pointer",flexShrink:0,
             fontFamily:ESERIF,fontSize:mob?16:20,fontWeight:600,letterSpacing:"-0.015em",
             color:EC.ink,
           }}>
-            {/* Phones: a plain back arrow. The logo linked home all along,
-                but nobody reads a logo as "back". */}
-            {mob ? (
+            {/* A plain back arrow on every screen. The logo linked home all
+                along, but nobody reads a logo as "back". */}
+            {(
               <div style={{
-                width:32,height:32,borderRadius:"50%",
+                width:mob?32:34,height:mob?32:34,borderRadius:"50%",marginRight:mob?0:4,
                 border:`1px solid ${EC.rule}`,background:"#fff",color:EC.ink,
                 display:"grid",placeItems:"center",fontFamily:"'DM Sans',sans-serif",fontSize:16,fontWeight:500,
                 flexShrink:0,
               }}>←</div>
-            ) : null}
+            )}
             <CheetahMark height={mob ? 20 : 26} ink={EC.ink} accent={EC.accent} />
             {(
               <span style={{whiteSpace:"nowrap"}}>
