@@ -143,7 +143,17 @@ async function fetchCaptions(videoId) {
         if (text) segments.push({ time: Math.round(Number(m[1])), text });
       }
       if (segments.length) {
-        return { title: data?.videoDetails?.title || "YouTube video", segments };
+        // When it happened. The audio path reads this from yt-dlp; without it
+        // here, a video recovered through captions was dated the day it was
+        // queued (the UN address showed as 27 Sep).
+        const mf = data?.microformat?.playerMicroformatRenderer || {};
+        const when = mf.liveBroadcastDetails?.startTimestamp || mf.publishDate || mf.uploadDate || null;
+        const ms = when ? Date.parse(when) : NaN;
+        return {
+          title: data?.videoDetails?.title || "YouTube video",
+          startedAt: Number.isFinite(ms) ? new Date(ms).toISOString() : null,
+          segments,
+        };
       }
     } catch (e) {
       log(`  caption fetch (${c.name}) failed: ${e.message}`);
