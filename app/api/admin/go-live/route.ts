@@ -92,36 +92,12 @@ export async function POST(req: Request) {
     // this now" cannot be dispatched before the thing it points at exists.
     await setLiveState(state);
 
-    // Ping push subscribers the moment coverage actually begins — this is
-    // the alert the calendar could never reliably deliver.
-    // AWAITED, not fire-and-forget.
-    //
-    // These were dispatched with .then() and the handler returned straight
-    // afterwards. A serverless function is frozen the moment it responds, so
-    // a promise still in flight is killed — and this one is ALWAYS in
-    // flight, because sendLiveAlert walks the subscriber list in batches of
-    // ten with a round trip to Resend for each.
-    //
-    // The symptom was "the alert doesn't reach people": whether a given
-    // address got mailed depended on how far the loop happened to get before
-    // the response went out. Nothing about the subscriber record was wrong.
-    //
-    // Neither can fail the request — a failed notification must not stop the
-    // broadcast being marked live.
-    const [pushRes, mailRes] = await Promise.allSettled([
-      sendPushToAll({
-        title: "🔴 Live fact-check in progress",
-        body: body.title || "An official broadcast is being fact-checked right now.",
-        url: "/live",
-      }),
-      // Email is the universal channel, and the only one reaching iPhone
-      // users who haven't installed the site. No-ops until RESEND_API_KEY.
-      // The videoId travels with the alert so the link survives the
-      // broadcast: see lib/email-alerts.ts.
-      sendLiveAlert(body.title || "An official broadcast", body.source, state.videoId),
-    ]);
-    console.log(`[GO-LIVE] push: ${pushRes.status === "fulfilled" ? `${pushRes.value.sent} sent, ${pushRes.value.pruned} pruned` : `FAILED ${pushRes.reason}`}`);
-    console.log(`[GO-LIVE] email: ${mailRes.status === "fulfilled" ? JSON.stringify(mailRes.value) : `FAILED ${mailRes.reason}`}`);
+    // Subscribers are NOT alerted here any more. Starting coverage is not the
+    // same as coverage working: on 22 Sep an alert went out for a broadcast
+    // whose worker died 34 seconds later having transcribed nothing. The alert
+    // now fires from /api/admin/ingest on the first transcript chunk — see
+    // lib/live-announce.ts.
+    console.log("[GO-LIVE] alert deferred until the first transcript arrives");
 
     console.log(`[GO-LIVE] Started: "${state.title}" (${state.videoId || "monitor mode"})`);
     return NextResponse.json({ ok: true, state });

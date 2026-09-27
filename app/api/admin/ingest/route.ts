@@ -7,6 +7,7 @@ import {
 import { extractAndVerifyClaims } from "@/lib/fact-check";
 import { extractPromises } from "@/lib/promise-extract";
 import { getPromises, setPromises, getLiveState } from "@/lib/live-kv";
+import { announceOnce } from "@/lib/live-announce";
 import { likelyHasEconomicClaim, dedupeClaims } from "@/lib/claim-utils";
 import { upgradeUnverifiable } from "@/lib/web-verify";
 import { sendPushToAll } from "@/lib/push";
@@ -69,6 +70,15 @@ export async function POST(req: Request) {
     const tmm = Math.floor(videoTime / 60);
     const tss = String(Math.floor(videoTime % 60)).padStart(2, "0");
     await appendLiveTranscript(`[${tmm}:${tss}] ${text}\n`);
+  }
+
+  // First real transcript of the session is the proof that coverage works,
+  // so this is where subscribers are told it is live — once, then a no-op.
+  // Awaited because a serverless function is frozen when it responds; caught
+  // because a mail failure must not drop the transcript chunk.
+  {
+    const st = await getLiveState().catch(() => null);
+    if (st?.status === "live") await announceOnce(st).catch(e => console.error("[announce]", (e as Error).message));
   }
 
   // ── Promise capture (Promise Tracker) ──
