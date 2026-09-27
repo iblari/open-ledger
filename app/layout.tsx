@@ -14,26 +14,28 @@ export const metadata: Metadata = {
   verification: {
     google: 'o9EM5aUToekdkqIelamubG94gJfUyFp9si6LfrhZd2M',
   },
+  // ?v=2: browsers (Safari especially) key their favicon cache by URL, so
+  // a new query string is what actually makes returning visitors refetch.
   icons: {
     icon: [
       {
-        url: '/favicon.ico',
+        url: '/favicon.ico?v=2',
         sizes: '16x16 32x32',
       },
       {
-        url: '/icon-light-32x32.png',
+        url: '/icon-light-32x32.png?v=2',
         media: '(prefers-color-scheme: light)',
       },
       {
-        url: '/icon-dark-32x32.png',
+        url: '/icon-dark-32x32.png?v=2',
         media: '(prefers-color-scheme: dark)',
       },
       {
-        url: '/icon.svg',
+        url: '/icon.svg?v=2',
         type: 'image/svg+xml',
       },
     ],
-    apple: '/apple-icon.png',
+    apple: '/apple-icon.png?v=2',
   },
   // Short on purpose: iMessage and Slack print this under the image, and a
   // title-cased sentence there read like a spam headline. The image carries
