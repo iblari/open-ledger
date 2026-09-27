@@ -319,6 +319,22 @@ function DarkHero({ med }: { med: boolean }) {
           ))}
         </div>
       </div>
+      {/* Key for the background: without it the bars are decoration; with it
+          they are the record — and the full-size chart below became a repeat. */}
+      <div style={{
+        position: "absolute", left: 0, right: 0, bottom: 22, zIndex: 1,
+        display: "flex", justifyContent: "center", alignItems: "center", gap: 18, flexWrap: "wrap",
+        fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: "#8C8479",
+      }}>
+        <span>GDP growth, {data[0].y}–{data[data.length - 1].y}</span>
+        {AID.map(id => (
+          <span key={id} style={{ display: "inline-flex", alignItems: "center", gap: 6, color: "#BDB5A8" }}>
+            <i style={{ width: 9, height: 9, borderRadius: 2, background: ADMINS[id].color, display: "inline-block" }} />
+            {ADMINS[id].name}
+          </span>
+        ))}
+        <span>Source: BEA</span>
+      </div>
     </header>
   );
 }
@@ -1789,11 +1805,6 @@ export default function LandingPage() {
       <Nav mob={mob} dark={overHero} overlay />
       <div style={{ display: "flex", flexDirection: "column", gap: TILE_GAP, background: PAGE_BG, paddingTop: LAYOUT === "cards" ? 8 : 0 }}>
       <DarkHero med={med} />
-      {/* The chart that used to share the first screen now opens the second,
-          at full width, where it can be read rather than glanced at. */}
-      <div style={{ maxWidth: 1280, margin: "0 auto", padding: "72px 32px 8px", width: "100%", boxSizing: "border-box" }}>
-        <HeroViz mob={false} />
-      </div>
       {/* Room before the dark band: a hard colour cut only reads as
           deliberate when the section before it has space to finish. */}
       <Tile mob={mob} style={{ paddingBottom: mob ? 56 : 112 }}>
