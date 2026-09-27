@@ -1000,6 +1000,12 @@ function DeepDiveSection({ mob, med }: { mob: boolean; med: boolean }) {
 }
 
 /* ── Principles ── */
+const METHOD_POINTS = [
+  { n: "01", t: "Raw numbers only", p: "Every value comes straight from the source agency — BEA, BLS, Treasury, Census, Fed. No modeling, no seasonal adjustments of our own, no averaging across administrations." },
+  { n: "02", t: "No verdicts, no rankings.", p: "A chart shows what happened; the scorecard shows which direction the needle moved. Whether that was good, or the president's doing, is for you to decide." },
+  { n: "03", t: "Context, not commentary.", p: "Each metric comes with a definition, a historical benchmark, and notes on what presidents actually influence. No op-eds, no hot takes." },
+];
+
 function PrinciplesSection({ mob, med }: { mob: boolean; med: boolean }) {
   const items = [
     { n: "01", t: "Raw numbers only", p: "Every value on this site comes straight from the source agency — BEA, BLS, Treasury, Census, Fed. No modeling, no seasonal adjustments of our own, no averaging across administrations.", r: "Methodology" },
@@ -1530,12 +1536,14 @@ function MobileLanding() {
           }}>
             See all 19 metrics →
           </Link>
-          <Link href="/dashboard" style={{
+          {/* Was a link to /dashboard — "Methodology" landed people on the
+              data. It now jumps to the methodology section on this page. */}
+          <a href="#method" style={{
             background: "#fff", border: `1px solid ${C.rule}`, color: C.ink,
             fontSize: 12.5, fontWeight: 500, padding: "10px 13px", borderRadius: 4, textDecoration: "none",
           }}>
             Methodology
-          </Link>
+          </a>
         </div>
       </div>
 
@@ -1692,6 +1700,24 @@ function MobileLanding() {
 
       </Tile>
       <Tile mob style={{ padding: "4px 0 18px", background: LAYOUT === "cards" ? "#ffffff" : undefined }}>
+      {/* ── 5c. Methodology (target of the hero's Methodology button) ── */}
+      <div id="method" style={{ margin: "14px 14px 0", scrollMarginTop: 80 }}>
+        <div style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: "0.12em", color: C.sub, marginBottom: 8, fontWeight: 500 }}>
+          Methodology · how we stay out of the way
+        </div>
+        <div style={{ background: "#fff", border: `1px solid ${C.rule}`, borderRadius: 6 }}>
+          {METHOD_POINTS.map((m, i) => (
+            <div key={m.n} style={{ display: "flex", gap: 12, padding: "12px 13px", borderTop: i ? `1px solid ${C.rule}` : "none" }}>
+              <span style={{ fontFamily: SERIF, fontStyle: "italic", fontSize: 18, color: C.accent, lineHeight: 1.1, flexShrink: 0 }}>{m.n}</span>
+              <span>
+                <span style={{ display: "block", fontFamily: SERIF, fontSize: 14.5, fontWeight: 600, color: C.ink }}>{m.t}</span>
+                <span style={{ display: "block", fontSize: 12, color: C.sub, lineHeight: 1.5, marginTop: 3 }}>{m.p}</span>
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* ── 6. Sources tile grid ── */}
       <div style={{ margin: "14px 14px 0" }}>
         <div style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: "0.12em", color: C.sub, marginBottom: 8, fontWeight: 500 }}>
