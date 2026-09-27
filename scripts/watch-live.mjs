@@ -152,6 +152,79 @@ async function fetchCaptions(videoId) {
   return null;
 }
 
+/**
+ * Audio fallback for on-demand checks: download the soundtrack and transcribe
+ * it with Deepgram's prerecorded API.
+ *
+ * The caption path above asks YouTube for its subtitle track, and from a
+ * datacenter IP YouTube now answers "Sign in to confirm you're not a bot" —
+ * so every "Check any video" request was failing within a second (the UN
+ * General Assembly address on 27 Sep among them). Live coverage never had the
+ * problem because it takes the audio instead, through yt-dlp with the proxy
+ * and PO-token sidecar. This reuses exactly that route for recordings.
+ */
+async function fetchAudioTranscript(videoId) {
+  const key = process.env.DEEPGRAM_API_KEY;
+  if (!key) { log("  audio fallback skipped: DEEPGRAM_API_KEY not set"); return null; }
+  const { readFile, unlink } = await import("fs/promises");
+  const out = `/tmp/check-${videoId}.%(ext)s`;
+  const args = [
+    "-f", "bestaudio/best", "--no-playlist", "--no-simulate",
+    "--max-filesize", "600M",
+    "--print", "title", "--print", "after_move:filepath",
+    "-o", out,
+    ...(process.env.YT_DLP_EXTRA_ARGS ? process.env.YT_DLP_EXTRA_ARGS.split(" ").filter(Boolean) : []),
+    `https://www.youtube.com/watch?v=${videoId}`,
+  ];
+  if (process.env.YT_PROXY_URL) args.unshift("--proxy", process.env.YT_PROXY_URL);
+
+  const dl = await new Promise((resolve) => {
+    const proc = spawn("yt-dlp", args);
+    let stdout = "", stderr = "";
+    const kill = setTimeout(() => proc.kill("SIGKILL"), 8 * 60_000);
+    proc.stdout.on("data", d => { stdout += d; });
+    proc.stderr.on("data", d => { stderr += d; });
+    proc.on("error", () => { clearTimeout(kill); resolve(null); });
+    proc.on("close", code => {
+      clearTimeout(kill);
+      const lines = stdout.split("\n").map(l => l.trim()).filter(Boolean);
+      if (code !== 0 || lines.length < 2) {
+        log(`  audio download failed (${code}): ${stderr.split("\n").filter(Boolean).slice(-2).join(" | ")}`);
+        return resolve(null);
+      }
+      resolve({ title: lines[0], file: lines[lines.length - 1] });
+    });
+  });
+  if (!dl) return null;
+
+  try {
+    const audio = await readFile(dl.file);
+    log(`  audio downloaded (${(audio.length / 1e6).toFixed(1)} MB) — transcribing`);
+    const r = await fetch(
+      "https://api.deepgram.com/v1/listen?model=nova-2&smart_format=true&punctuate=true&utterances=true&language=en",
+      {
+        method: "POST",
+        headers: { Authorization: `Token ${key}`, "Content-Type": "application/octet-stream" },
+        body: audio,
+        signal: AbortSignal.timeout(10 * 60_000),
+      },
+    );
+    if (!r.ok) { log(`  deepgram ${r.status}: ${(await r.text()).slice(0, 200)}`); return null; }
+    const data = await r.json();
+    // Utterances carry their own start times, which is what anchors each claim
+    // to the right moment in the replay.
+    const segments = (data?.results?.utterances || [])
+      .map(u => ({ time: Math.round(u.start), text: String(u.transcript || "").trim() }))
+      .filter(x => x.text);
+    return segments.length ? { title: dl.title || "YouTube video", segments } : null;
+  } catch (e) {
+    log(`  audio transcription failed: ${e.message}`);
+    return null;
+  } finally {
+    await unlink(dl.file).catch(() => {});
+  }
+}
+
 async function drainCheckQueue() {
   if (!ADMIN_KEY) return;
   const auth = { Authorization: `Bearer ${ADMIN_KEY}`, "Content-Type": "application/json" };
@@ -163,14 +236,14 @@ async function drainCheckQueue() {
     if (!job) return;
 
     log(`▷ on-demand check: ${job.videoId}`);
-    const got = await fetchCaptions(job.videoId);
+    const got = (await fetchCaptions(job.videoId)) || (await fetchAudioTranscript(job.videoId));
 
     if (!got) {
       await fetch(`${API}/api/admin/check-queue`, {
         method: "POST", headers: auth,
-        body: JSON.stringify({ videoId: job.videoId, error: "No captions available for this video, or YouTube blocked the request." }),
+        body: JSON.stringify({ videoId: job.videoId, error: "Could not get a transcript: no captions, and the audio could not be downloaded or transcribed." }),
       });
-      log(`  ✗ ${job.videoId}: no captions`);
+      log(`  ✗ ${job.videoId}: no captions and no audio`);
       return;
     }
 
