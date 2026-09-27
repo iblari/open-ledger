@@ -16,10 +16,9 @@ import {
 } from "@/lib/display-modes";
 import { PillToggle } from "@/components/PillToggle";
 import { InsightsStrip } from "@/components/InsightsStrip";
-import nextDynamic from "next/dynamic";
 
 // Below-the-fold, client-only teaser animation — keep out of the main bundle.
-const LiveTeaser = nextDynamic(() => import("@/components/LiveTeaser"), { ssr: false });
+import LivePromo from "./LivePromo";
 // WhatsChanging renders only on /trends now (homepage strip removed).
 
 /* ─────────────────────────────────────────────
@@ -1014,66 +1013,10 @@ function SourcesSection({ mob, med }: { mob: boolean; med: boolean }) {
 
 /* ── Animated Waveform ── */
 /* ── Coming Soon — single card (State Atlas shipped Q2 2026) ── */
-function ComingSoonSection({ mob, med }: { mob: boolean; med: boolean }) {
-  const dotStyle = (color: string): React.CSSProperties => ({
-    width: 8, height: 8, borderRadius: "50%", background: color, display: "inline-block", marginRight: 8,
-  });
-  const labelStyle: React.CSSProperties = {
-    fontFamily: SANS, fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase",
-    color: C.sub, fontWeight: 500, display: "flex", alignItems: "center",
-  };
-  const cardStyle: React.CSSProperties = {
-    background: C.card, border: `1px solid ${C.rule}`, borderRadius: 6,
-    padding: mob ? "28px 24px" : "36px 32px", display: "flex", flexDirection: "column",
-  };
-
-  return (
-    <section style={{ padding: mob ? "48px 0" : "72px 0", borderBottom: `1px solid ${C.rule}` }}>
-      <div style={{ maxWidth: 1280, margin: "0 auto", padding: mob ? "0 20px" : "0 32px", textAlign: "center" }}>
-        <div style={{ fontFamily: SANS, fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: C.sub, fontWeight: 500, marginBottom: 16 }}>Now in Beta</div>
-        <h2 style={{ fontFamily: SERIF, fontSize: mob ? 32 : 48, lineHeight: 1.05, letterSpacing: "-0.022em", fontWeight: 400, margin: "0 auto 16px", maxWidth: 700 }}>
-          A new way to <em style={{ fontStyle: "italic", color: C.accent }}>watch the news.</em>
-        </h2>
-        {/* Coming Soon intro paragraph removed per design — headline only. */}
-
-        <div style={{
-          // Centered single card now that State Atlas has shipped. Capped width
-          // keeps the card from stretching uncomfortably wide on desktop.
-          display: "flex", justifyContent: "center", textAlign: "left",
-        }}>
-          {/* ── Live Broadcast card ── */}
-          <div style={{ ...cardStyle, maxWidth: 960, width: "100%" }}>
-            <div style={{ ...labelStyle, marginBottom: 16 }}>
-              <span style={dotStyle(C.accent)} />LIVE BROADCAST
-            </div>
-            <h3 style={{ fontFamily: SERIF, fontSize: mob ? 26 : 32, lineHeight: 1.1, fontWeight: 700, margin: "0 0 12px" }}>
-              Watch politicians.<br />Check the <em style={{ fontStyle: "italic", color: C.accent, fontWeight: 400 }}>numbers.</em>
-            </h3>
-            <p style={{ fontSize: 15, color: C.sub, lineHeight: 1.55, margin: "0 0 24px", maxWidth: "48ch" }}>
-              Live Stream press briefings, hearings and addresses with AI fact-checking
-              running alongside the video. Every economic claim verified against official
-              data — BLS, BEA, Census, Fed, etc — in real time.
-            </p>
-            {/* Teaser animation: 25s self-playing recreation of the /live view */}
-            <div style={{ marginTop: "auto" }}>
-              <LiveTeaser />
-            </div>
-            <div style={{
-              display: "flex", justifyContent: "space-between", alignItems: "baseline",
-              marginTop: 16, fontFamily: SANS, fontSize: 13, gap: 12, flexWrap: "wrap",
-            }}>
-              <span style={{ color: "#9a9490" }}>
-                <strong style={{ color: C.accent, fontWeight: 700 }}>In beta now</strong> &middot; Full launch Q3 2026
-              </span>
-              <Link href="/live" style={{ color: "#1d4ed8", fontWeight: 600, textDecoration: "none", flexShrink: 0 }}>
-                Try the beta &rarr;
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
+// The old white "Now in beta" card is replaced by a full-bleed device
+// showcase. See components/landing/LivePromo.tsx.
+function ComingSoonSection() {
+  return <LivePromo />;
 }
 
 /* ── Newsletter CTA ── */
@@ -1586,31 +1529,8 @@ function MobileLanding() {
         </div>
       </div>
 
-      {/* ── 5b. Live Broadcast teaser (beta) ── */}
-      <div style={{ background: "#fff", border: `1px solid ${C.rule}`, borderRadius: 6, margin: "16px 14px 0", padding: 14 }}>
-        <div style={{
-          display: "flex", alignItems: "center", gap: 7, marginBottom: 8,
-          fontSize: 9.5, textTransform: "uppercase", letterSpacing: "0.12em", color: C.sub, fontWeight: 500,
-        }}>
-          <span className="live-pulse" style={{ width: 6, height: 6, borderRadius: "50%", background: "#c1272d" }} />
-          Live broadcast · Now in beta
-        </div>
-        <div style={{ fontFamily: SERIF, fontSize: 19, fontWeight: 700, lineHeight: 1.15, marginBottom: 10 }}>
-          Watch politicians. Check the <em style={{ fontStyle: "italic", color: C.accent, fontWeight: 400 }}>numbers.</em>
-        </div>
-        <LiveTeaser />
-        <div style={{
-          display: "flex", justifyContent: "space-between", alignItems: "baseline",
-          marginTop: 10, fontSize: 11, gap: 8, flexWrap: "wrap",
-        }}>
-          <span style={{ color: C.mute }}>
-            <strong style={{ color: C.accent, fontWeight: 700 }}>In beta now</strong> &middot; Full launch Q3 2026
-          </span>
-          <Link href="/live" style={{ color: "#1d4ed8", fontWeight: 600, textDecoration: "none", flexShrink: 0 }}>
-            Try the beta &rarr;
-          </Link>
-        </div>
-      </div>
+      {/* ── 5b. Live Broadcast showcase (full-bleed) ── */}
+      <div style={{ marginTop: 16 }}><LivePromo /></div>
 
       {/* ── 6. Sources tile grid ── */}
       <div style={{ margin: "14px 14px 0" }}>
@@ -1719,7 +1639,7 @@ export default function LandingPage() {
         <InsightsStrip mob={mob} limit={3} eyebrow="What's notable right now" />
       </div>
       <DeepDiveSection mob={mob} med={med} />
-      <ComingSoonSection mob={mob} med={med} />
+      <ComingSoonSection />
       <PrinciplesSection mob={mob} med={med} />
       <SourcesSection mob={mob} med={med} />
       <CTASection mob={mob} med={med} />
