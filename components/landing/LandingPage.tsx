@@ -1444,6 +1444,12 @@ function MobileLanding() {
         </div>
       </div>
 
+      </Tile>
+      {/* ── 4b. Live Broadcast showcase (full-bleed). Moved up from below the
+          table: at phone length the table is several screens, and most
+          visitors never scrolled past it to the product's newest feature. ── */}
+      <Tile mob dark><LivePromo /></Tile>
+      <Tile mob style={{ paddingBottom: 18 }}>
       {/* ── 5. The ledger table ── */}
       <div style={{ background: "#fff", border: `1px solid ${C.rule}`, borderRadius: 6, margin: "16px 14px 0", overflow: "hidden" }}>
         {/* 5.1 header */}
@@ -1552,9 +1558,6 @@ function MobileLanding() {
       </div>
 
       </Tile>
-      {/* ── 5b. Live Broadcast showcase (full-bleed) ── */}
-      <Tile mob dark><LivePromo /></Tile>
-
       <Tile mob style={{ padding: "4px 0 18px", background: LAYOUT === "cards" ? "#ffffff" : undefined }}>
       {/* ── 6. Sources tile grid ── */}
       <div style={{ margin: "14px 14px 0" }}>
