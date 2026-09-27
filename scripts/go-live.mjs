@@ -203,7 +203,7 @@ function tryYtDlp(extraArgs) {
     // when the worker joins late or the chain restarts mid-session.
     const args = [
       "-f", "bestaudio[protocol*=m3u8]/best[protocol*=m3u8]/bestaudio/best",
-      "--print", "release_timestamp", "--print", "urls",
+      "--print", "live_status", "--print", "release_timestamp", "--print", "urls",
       ...extraArgs, YOUTUBE_URL,
     ];
     // YT_PROXY_URL (static-residential proxy) routes extraction around
@@ -222,17 +222,26 @@ function tryYtDlp(extraArgs) {
     proc.on("error", () => resolve({ url: null, errText: "yt-dlp not installed (brew install yt-dlp)" }));
     proc.on("close", (code) => {
       const lines = out.split("\n").map(l => l.trim()).filter(Boolean);
-      // Line order matches --print order: [release_timestamp, url]
-      const ts = Number(lines[0]);
+      // Line order matches --print order: [live_status, release_timestamp, url]
+      const ls = /^(is_live|was_live|not_live|post_live|is_upcoming)$/.test(lines[0] || "") ? lines[0] : null;
+      const ts = Number(lines[1]);
       const url = lines.find(l => /^https?:\/\//.test(l)) || null;
       resolve({
         url: code === 0 ? url : null,
+        liveStatus: ls,
         streamStartEpoch: Number.isFinite(ts) && ts > 1e9 ? ts : null,
         errText,
       });
     });
   });
 }
+
+// live_status as reported by the SAME yt-dlp call that resolved the audio —
+// the one using the PO-token client ladder. The bare pre-flight check often
+// comes back "unknown" on a datacenter IP, and "unknown" used to be treated
+// as live: on Sep 27 that sent a four-day-old State Department recording
+// out as "Live now" to every subscriber.
+let lastLiveStatus = null;
 
 // Stream's true start epoch (seconds) — set on first successful extraction.
 // null = unknown (direct streams): fall back to worker-relative time.
@@ -252,7 +261,8 @@ async function extractAudioUrl() {
   ].map(a => [...userExtra, ...a]);
   for (const attempt of CLIENT_ATTEMPTS) {
     const label = attempt.length ? attempt.join(" ") : "(default client)";
-    const { url, streamStartEpoch: ts, errText } = await tryYtDlp(attempt);
+    const { url, liveStatus, streamStartEpoch: ts, errText } = await tryYtDlp(attempt);
+    if (liveStatus) lastLiveStatus = liveStatus;
     if (url) {
       console.log(`  ✓ Got audio stream URL via ${label}${url.includes(".m3u8") || url.includes("/hls_") ? " (HLS manifest)" : " (progressive)"}`);
       if (ts && !streamStartEpoch) {
@@ -308,6 +318,15 @@ if (!sourceIsYouTube) {
     console.error("  HLS .m3u8), pass THAT as the source URL — no extraction needed.");
     // Exit 4 = transient: the watcher retries in a minute instead of giving
     // up on the broadcast for the rest of its run (how the UN speech was lost).
+    process.exit(4);
+  }
+  // Second, authoritative liveness gate (see lastLiveStatus).
+  if (lastLiveStatus && lastLiveStatus !== "is_live") {
+    console.log(`  live_status (extraction): ${lastLiveStatus} — not live, refusing to cover a recording.`);
+    process.exit(3);
+  }
+  if (!lastLiveStatus && status !== "is_live") {
+    console.log("  Could not confirm the stream is live — will retry rather than risk announcing a recording.");
     process.exit(4);
   }
 }
@@ -672,6 +691,12 @@ for (;;) {
   console.log(`  ↻ Restarting audio chain (restart #${restarts}) in 5s — re-extracting stream URL...`);
   await sleep(5000);
   const fresh = await extractAudioUrl();
+  // The re-extraction also re-reads live_status: once YouTube says the
+  // stream has ended, stop instead of transcribing the recording on loop.
+  if (lastLiveStatus && lastLiveStatus !== "is_live") {
+    console.log(`  Stream is now ${lastLiveStatus} — ending coverage.`);
+    break;
+  }
   if (fresh) {
     chainUrl = fresh;
   } else {

@@ -6,7 +6,7 @@ import {
 } from "@/lib/live-kv";
 import { extractAndVerifyClaims } from "@/lib/fact-check";
 import { extractPromises } from "@/lib/promise-extract";
-import { getPromises, setPromises, getLiveState } from "@/lib/live-kv";
+import { getPromises, setPromises, getLiveState, getLiveTranscript } from "@/lib/live-kv";
 import { announceOnce } from "@/lib/live-announce";
 import { likelyHasEconomicClaim, dedupeClaims } from "@/lib/claim-utils";
 import { upgradeUnverifiable } from "@/lib/web-verify";
@@ -76,9 +76,20 @@ export async function POST(req: Request) {
   // so this is where subscribers are told it is live — once, then a no-op.
   // Awaited because a serverless function is frozen when it responds; caught
   // because a mail failure must not drop the transcript chunk.
+  //
+  // Not on the very first words, though. A recording mistaken for a live
+  // stream produces a few seconds of transcript before the worker notices,
+  // and on Sep 27 that was enough to email "Live now" for a broadcast that
+  // was never on the site. Wait for ~90s of session and a few sentences.
   {
     const st = await getLiveState().catch(() => null);
-    if (st?.status === "live") await announceOnce(st).catch(e => console.error("[announce]", (e as Error).message));
+    if (st?.status === "live") {
+      const age = Date.now() - Date.parse(st.startedAt || "");
+      const heard = (await getLiveTranscript().catch(() => "")).length;
+      if (age >= 90_000 && heard >= 300) {
+        await announceOnce(st).catch(e => console.error("[announce]", (e as Error).message));
+      }
+    }
   }
 
   // ── Promise capture (Promise Tracker) ──
