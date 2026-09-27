@@ -257,6 +257,13 @@ export default function OffAir({
       <section style={{ background: "#0C0A08", color: "#FFFEFC" }}>
         <div style={{ maxWidth: 1180, margin: "0 auto", padding: "40px 20px 34px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 9, fontFamily: SANS, fontSize: 11, fontWeight: 700, letterSpacing: "0.16em", color: C.faint }}>
+            {/* Same icon-only round back control as the replay player, so
+                "back" looks the same everywhere in Live Broadcast. */}
+            <Link href="/" className="vu-back" aria-label="Back to Vote Unbiased home" title="Back to Vote Unbiased home" style={{
+              width: 30, height: 30, borderRadius: "50%", border: "1px solid #332C27", color: "#E7E2D9",
+              display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 15,
+              textDecoration: "none", marginRight: 6, flex: "none", letterSpacing: 0,
+            }}>←</Link>
             <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#6B645C" }} />
             OFF AIR{next ? <> · NEXT UP {fmtWhen(next.startsAt).toUpperCase()}</> : null}
           </div>
