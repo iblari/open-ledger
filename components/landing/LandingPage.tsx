@@ -1001,7 +1001,7 @@ function DeepDiveSection({ mob, med }: { mob: boolean; med: boolean }) {
 
 /* ── Principles ── */
 const METHOD_POINTS = [
-  { n: "01", t: "Raw numbers only", p: "Straight from BEA, BLS, Census and the Fed." },
+  { n: "01", t: "Raw numbers only", p: "Straight from BEA, BLS, Census, the Fed." },
   { n: "02", t: "No verdicts, no rankings.", p: "We show what moved. You decide what it means." },
   { n: "03", t: "Context, not commentary.", p: "Definitions and benchmarks. No op-eds." },
 ];
@@ -1711,7 +1711,7 @@ function MobileLanding() {
               <span style={{ fontFamily: SERIF, fontStyle: "italic", fontSize: 18, color: C.accent, lineHeight: 1.1, flexShrink: 0 }}>{m.n}</span>
               <span style={{ minWidth: 0 }}>
                 <span style={{ display: "block", fontFamily: SERIF, fontSize: 14.5, fontWeight: 600, color: C.ink }}>{m.t}</span>
-                <span style={{ display: "block", fontSize: 12, color: C.sub, lineHeight: 1.4, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{m.p}</span>
+                <span style={{ display: "block", fontSize: "clamp(10.5px, 3.2vw, 12px)", color: C.sub, lineHeight: 1.4, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{m.p}</span>
               </span>
             </div>
           ))}
