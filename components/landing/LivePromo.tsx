@@ -18,6 +18,7 @@
  */
 
 import Link from "next/link";
+import CheetahMark from "@/components/CheetahMark";
 import { useEffect, useRef, useState } from "react";
 
 const SERIF = "'Newsreader',Georgia,serif";
@@ -251,7 +252,7 @@ export default function LivePromo() {
               <div style={{ position: "relative", width: "100%", height: "100%", borderRadius: "1.4cqw 1.4cqw .3cqw .3cqw", overflow: "hidden", background: "#F4F0EA", containerType: "inline-size", display: "flex", flexDirection: "column" } as React.CSSProperties}>
                 <div style={{ position: "absolute", top: 0, left: "50%", transform: "translateX(-50%)", width: "13%", height: "2.4cqw", background: "#000", borderRadius: "0 0 1.2cqw 1.2cqw", zIndex: 2 }} />
                 <div style={{ flex: "none", height: "4.6cqw", padding: "0 2.2cqw", background: "#FFFEFC", borderBottom: "1px solid #DFD9CF", display: "flex", alignItems: "center", gap: "1cqw" }}>
-                  <div style={{ width: "2.3cqw", height: "2.3cqw", borderRadius: "50%", background: "#14110E", display: "flex", alignItems: "center", justifyContent: "center" }}><span style={{ fontFamily: SERIF, fontSize: "1.3cqw", fontWeight: 600, color: "#FFFEFC", lineHeight: 1 }}>V</span></div>
+                  <CheetahMark height={40} ink="#14110E" accent="#B42318" style={{ width: "5.4cqw", height: "1.8cqw" }} />
                   <div style={{ fontFamily: SERIF, fontSize: "1.7cqw", lineHeight: 1, whiteSpace: "nowrap" }}><span style={{ color: "#14110E" }}>Vote</span> <span style={{ fontStyle: "italic", color: "#B42318" }}>Unbiased</span></div>
                   <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "1.6cqw" }}>
                     <span style={{ fontSize: "1cqw", color: "#5F5850" }}>Data</span>

@@ -1,7 +1,8 @@
 import Link from "next/link";
+import CheetahMark from "@/components/CheetahMark";
 
 /**
- * The Vote Unbiased lockup: circled V, then "Vote" with "Unbiased" set in
+ * The Vote Unbiased lockup: the data-bar cheetah (lib/cheetah-mark.ts), then "Vote" with "Unbiased" set in
  * red italic.
  *
  * It existed only inside app/dashboard/page.tsx, so /live, /promises,
@@ -21,7 +22,6 @@ export default function Brand({
   const SERIF = "'Newsreader',Georgia,serif";
   const ink = tone === "dark" ? "#F2EEE9" : "#1a1a1a";
   const disc = tone === "dark" ? "#F2EEE9" : "#1a1a1a";
-  const discText = tone === "dark" ? "#14110E" : "#FAF8F4";
   // Slightly lighter red on dark so it clears contrast against near-black.
   const accent = tone === "dark" ? "#E06B5E" : "#b8372d";
 
@@ -32,13 +32,7 @@ export default function Brand({
       fontFamily: SERIF, fontSize: mob ? 16 : 20, fontWeight: 600,
       letterSpacing: "-0.015em", color: ink,
     }}>
-      <span aria-hidden="true" style={{
-        width: mob ? 26 : 30, height: mob ? 26 : 30, borderRadius: "50%",
-        background: disc, color: discText,
-        display: "grid", placeItems: "center",
-        fontFamily: SERIF, fontWeight: 700, fontSize: mob ? 13 : 15,
-        flexShrink: 0, lineHeight: 1,
-      }}>V</span>
+      <CheetahMark height={mob ? 22 : 26} ink={disc} accent={tone === "dark" ? "#E0493A" : "#b8372d"} />
       <span style={{ whiteSpace: "nowrap" }}>
         Vote <em style={{ fontStyle: "italic", color: accent, fontWeight: 500 }}>Unbiased</em>
       </span>

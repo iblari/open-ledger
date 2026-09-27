@@ -1,5 +1,6 @@
 "use client";
 import { useState, useMemo, useEffect, useRef, Suspense } from "react";
+import CheetahMark from "@/components/CheetahMark";
 import ShareRow from "@/components/ShareRow";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -1206,13 +1207,7 @@ function App(){
                 flexShrink:0,
               }}>←</div>
             ) : (
-            <div style={{
-              width:30,height:30,borderRadius:"50%",
-              background:EC.ink,color:EC.bg,
-              display:"grid",placeItems:"center",
-              fontFamily:ESERIF,fontWeight:700,fontSize:15,
-              flexShrink:0,
-            }}>V</div>
+            <CheetahMark height={26} ink={EC.ink} accent={EC.accent} />
             )}
             {!mob && (
               <span style={{whiteSpace:"nowrap"}}>

@@ -1,5 +1,6 @@
 "use client";
 import { useState, useMemo, useEffect, useRef } from "react";
+import CheetahMark from "@/components/CheetahMark";
 import {
   BarChart, Bar, Cell as RechartsCell, LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
@@ -160,13 +161,7 @@ function Nav({ mob, dark = false, overlay = false }: { mob: boolean; dark?: bool
       }}>
         {/* Brand */}
         <div style={{ display: "flex", alignItems: "center", gap: 12, fontFamily: SERIF, flexShrink: 0, whiteSpace: "nowrap", fontSize: 20, fontWeight: 600, letterSpacing: "-0.015em" }}>
-          <div style={{
-            width: 30, height: 30, borderRadius: "50%", background: ink, color: dark ? "#0C0A08" : C.bg,
-            display: "grid", placeItems: "center", fontFamily: SERIF, fontWeight: 700, fontSize: 15,
-            position: "relative", transition: "background .25s ease",
-          }}>
-            V
-          </div>
+          <CheetahMark height={mob ? 22 : 26} ink={ink} accent={dark ? "#E0493A" : C.accent} />
           <span style={{ color: ink, transition: "color .25s ease" }}>Vote <em style={{ fontStyle: "italic", color: dark ? "#E0493A" : C.accent, fontWeight: 500 }}>Unbiased</em></span>
         </div>
 
@@ -1305,7 +1300,7 @@ function Footer({ mob, med }: { mob: boolean; med: boolean }) {
           {/* Brand col */}
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 12, fontFamily: SERIF, fontSize: 18, fontWeight: 600, letterSpacing: "-0.015em" }}>
-              <div style={{ width: 26, height: 26, borderRadius: "50%", background: "#F4F0EA", color: "#0C0A08", display: "grid", placeItems: "center", fontFamily: SERIF, fontWeight: 700, fontSize: 13 }}>V</div>
+              <CheetahMark height={22} ink="#F4F0EA" accent="#E0493A" />
               <span style={{ color: "#F4F0EA" }}>Vote <em style={{ fontStyle: "italic", color: "#E0493A", fontWeight: 500 }}>Unbiased</em></span>
             </div>
             <p style={{ color: "#A69E92", marginTop: 12, maxWidth: "38ch", fontSize: 13, lineHeight: 1.55 }}>
