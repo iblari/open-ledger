@@ -45,10 +45,14 @@ function VerdictBar({ counts, total }: { counts: HomeArchiveItem["counts"]; tota
   );
 }
 
+// Pinned to Eastern: these are Washington events, and formatting in the
+// viewer's zone made the server HTML (UTC) and the browser disagree on the
+// text — React hydration error #418 — and could even shift the date.
+const TZ = "America/New_York";
 const fmtDate = (iso: string) =>
-  new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: TZ });
 const fmtWhen = (iso: string) =>
-  new Date(iso).toLocaleString("en-US", { weekday: "short", hour: "numeric", minute: "2-digit" });
+  new Date(iso).toLocaleString("en-US", { weekday: "short", hour: "numeric", minute: "2-digit", timeZone: TZ, timeZoneName: "short" });
 
 
 /** One control, one promise. */
