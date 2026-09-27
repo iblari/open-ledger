@@ -59,6 +59,11 @@ concurrency:
 jobs:
   broadcast:
     runs-on: ubuntu-latest
+    # actions: write is only for the handover step at the end — a run
+    # dispatching its own successor. contents: read is what checkout needs.
+    permissions:
+      contents: read
+      actions: write
     # 6hr is the GitHub Actions hard ceiling; the script's --duration will
     # cut us off earlier based on scheduledEnd.
     timeout-minutes: 350
@@ -328,3 +333,27 @@ jobs:
             -H "Content-Type: application/json" \
             -d '{"action":"stop"}' | head -c 200
           echo " — live state cleared"
+
+      # ── Handover ─────────────────────────────────────────────────────
+      # Each watcher lives ~4.8 hours. Its successor was meant to come from a
+      # Vercel cron dispatching every 2 minutes, but that needs a
+      # GH_DISPATCH_TOKEN which was never configured: in two days of runs not
+      # one was a dispatch. Coverage rode GitHub's own schedule, which fires
+      # the "*/30" cron roughly every five hours — leaving gaps of up to 50
+      # minutes with nothing watching at all.
+      #
+      # So each run starts the next one as it exits. GitHub lets a workflow
+      # dispatch itself with its built-in token (the one exception to "the
+      # GITHUB_TOKEN does not trigger runs"), so this needs no extra secret.
+      # The concurrency group queues the new run behind this one, so it
+      # starts the moment this finishes — and it checks out the latest main,
+      # so code changes reach the watcher within one cycle instead of whenever
+      # GitHub next feels like firing the schedule.
+      - name: Hand over to the next watcher
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run live-broadcast.yml --ref main --repo "${{ github.repository }}" \
+            && echo "successor queued" \
+            || echo "::warning::could not queue a successor — the schedule remains the fallback"
