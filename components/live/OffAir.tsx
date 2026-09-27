@@ -13,7 +13,7 @@
  * opening one.
  */
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import type { HomeArchiveItem, HomeScheduleItem, TopicTally } from "@/lib/live-home";
 import TopicBreakdown from "./TopicBreakdown";
@@ -209,6 +209,74 @@ function Tally({ counts, total, size = 11.5 }: { counts: HomeArchiveItem["counts
   );
 }
 
+function BroadcastCarousel({ items, onWatch }: { items: HomeArchiveItem[]; onWatch: (id: string) => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [active, setActive] = useState(0);
+  const onScroll = () => {
+    const el = ref.current; if (!el) return;
+    const card = el.firstElementChild as HTMLElement | null; if (!card) return;
+    const step = card.offsetWidth + 12;
+    setActive(Math.max(0, Math.min(items.length - 1, Math.round(el.scrollLeft / step))));
+  };
+  const go = (i: number) => {
+    const el = ref.current; const card = el?.children[i] as HTMLElement | undefined;
+    if (el && card) el.scrollTo({ left: card.offsetLeft - (el.clientWidth - card.offsetWidth) / 2, behavior: "smooth" });
+  };
+  return (
+    <div>
+      <style>{`
+        .oa-car{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;
+          padding:4px 20px 8px;margin:0 -20px;scrollbar-width:none}
+        .oa-car::-webkit-scrollbar{display:none}
+        .oa-car>button{flex:0 0 84%;scroll-snap-align:center}
+      `}</style>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 12 }}>
+        <h2 style={{ ...H2, margin: 0 }}>Broadcasts</h2>
+        <span style={{ display: "flex", gap: 10, fontFamily: SANS, fontSize: 11, color: C.muted }}>
+          {([["True", C.ok], ["Misleading", C.mis], ["False", C.con]] as const).map(([l, c]) => (
+            <span key={l} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: c }} />{l}</span>
+          ))}
+        </span>
+      </div>
+      <div ref={ref} className="oa-car" onScroll={onScroll} role="list" aria-label="Recent broadcasts">
+        {items.map((a, i) => {
+          const t = cleanTitle(a.title);
+          return (
+            <button key={a.id} role="listitem" onClick={() => onWatch(a.id)} title={a.title} aria-label={`${t.title}, ${fmtDate(a.date)}`} style={{
+              display: "flex", flexDirection: "column", textAlign: "left", cursor: "pointer", padding: 0, font: "inherit",
+              background: C.card, border: `1px solid ${C.rule}`, borderRadius: 18, overflow: "hidden", minWidth: 0,
+            }}>
+              <Thumb id={a.id} size={i === 0 ? "hq" : "mq"} duration={a.duration} />
+              <span style={{ display: "flex", flexDirection: "column", flex: 1, padding: "14px 16px 16px" }}>
+                <span style={{ fontFamily: SANS, fontSize: 12, color: C.muted }}>
+                  {i === 0 ? "Latest · " : ""}{fmtDate(a.date)}{t.speaker ? ` · ${t.speaker}` : ""}
+                </span>
+                <span style={{ fontFamily: SERIF, fontSize: 19, fontWeight: 600, lineHeight: 1.2, color: C.ink, margin: "5px 0 14px", flex: 1 }}>
+                  {t.title}
+                </span>
+                <VerdictBar counts={a.counts} total={a.total} />
+                <span style={{ marginTop: 7 }}><Tally counts={a.counts} total={a.total} size={11.5} /></span>
+                <span style={{ fontFamily: SANS, fontSize: 13.5, color: C.ok, fontWeight: 700, marginTop: 14 }}>Watch with fact-check →</span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      {/* Position pill, as on Apple's carousels; each dot jumps to its card. */}
+      <div style={{ display: "flex", justifyContent: "center", marginTop: 12 }}>
+        <div style={{ display: "flex", gap: 7, alignItems: "center", background: "#ECE7DF", borderRadius: 99, padding: "9px 14px" }}>
+          {items.map((a, i) => (
+            <button key={a.id} onClick={() => go(i)} aria-label={`Go to broadcast ${i + 1} of ${items.length}`} aria-current={i === active ? "true" : undefined} style={{
+              width: i === active ? 22 : 7, height: 7, borderRadius: 99, border: "none", padding: 0, cursor: "pointer",
+              background: i === active ? C.ink : "#B8B0A4", transition: "width .2s ease, background .2s ease",
+            }} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function OffAir({
   archive, schedule, topics, topicTail, topicMomentum, topicShift, topicTotals, onWatch,
 }: {
@@ -248,14 +316,26 @@ export default function OffAir({
           .oa-row>.oa-th>span{aspect-ratio:auto!important;height:100%;min-height:84px}
           .oa-row .oa-body{padding:10px 12px!important}
           .oa-row .oa-t{font-size:14.5px!important;margin:3px 0 8px!important}
-          .oa-chip{white-space:normal!important}
         }
+        .oa-mob{display:none}
+        .oa-chips::-webkit-scrollbar{display:none}
+        /* Phones: the band is a status line, not a hero — it was taking a
+           whole screen before any broadcast appeared. */
+        @media (max-width:560px){
+          .oa-band{padding:18px 16px 16px!important}
+          .oa-h1{font-size:24px!important}
+          .oa-sub{display:none}
+          .oa-row1{margin-top:8px!important;gap:12px!important;align-items:center!important}
+          .oa-chips{flex-wrap:nowrap!important;overflow-x:auto;margin:14px -16px 0!important;padding:0 16px;scrollbar-width:none}
+          .oa-chips>span{font-size:11px!important;padding:4px 10px!important}
+        }
+        @media (max-width:560px){.oa-mob{display:block}.oa-desk{display:none}}
         @media (prefers-reduced-motion:reduce){.oa-card{transition:none}.oa-card:hover{transform:none}}
       `}</style>
 
       {/* ── Dark band: what's next, and the one action off air ── */}
       <section style={{ background: "#0C0A08", color: "#FFFEFC" }}>
-        <div style={{ maxWidth: 1180, margin: "0 auto", padding: "40px 20px 34px" }}>
+        <div className="oa-band" style={{ maxWidth: 1180, margin: "0 auto", padding: "40px 20px 34px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 9, fontFamily: SANS, fontSize: 11, fontWeight: 700, letterSpacing: "0.16em", color: C.faint }}>
             {/* Same icon-only round back control as the replay player, so
                 "back" looks the same everywhere in Live Broadcast. */}
@@ -267,12 +347,12 @@ export default function OffAir({
             <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#6B645C" }} />
             OFF AIR{next ? <> · NEXT UP {fmtWhen(next.startsAt).toUpperCase()}</> : null}
           </div>
-          <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 20, flexWrap: "wrap", marginTop: 12 }}>
+          <div className="oa-row1" style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 20, flexWrap: "wrap", marginTop: 12 }}>
             <div style={{ minWidth: 0, flex: "1 1 420px" }}>
-              <h1 style={{ fontFamily: SERIF, fontWeight: 600, fontSize: "clamp(30px, 4.6vw, 52px)", lineHeight: 1.04, letterSpacing: "-0.02em", margin: 0 }}>
+              <h1 className="oa-h1" style={{ fontFamily: SERIF, fontWeight: 600, fontSize: "clamp(30px, 4.6vw, 52px)", lineHeight: 1.04, letterSpacing: "-0.02em", margin: 0 }}>
                 {next ? next.title : "Nothing scheduled right now"}
               </h1>
-              <p style={{ fontFamily: SANS, fontSize: 15, color: C.faint, margin: "10px 0 0", lineHeight: 1.5 }}>
+              <p className="oa-sub" style={{ fontFamily: SANS, fontSize: 15, color: C.faint, margin: "10px 0 0", lineHeight: 1.5 }}>
                 {next
                   ? <>We&rsquo;ll fact-check it live, claim by claim, against official data.</>
                   : "Official events are usually announced a few hours ahead. Coverage starts automatically."}
@@ -281,7 +361,7 @@ export default function OffAir({
             <AlertButton />
           </div>
           {later.length > 0 && (
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 22 }}>
+            <div className="oa-chips" style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 22 }}>
               {later.slice(0, 4).map(s => (
                 <span key={s.title + s.startsAt} className="oa-chip" style={{ fontFamily: SANS, fontSize: 12, color: "#BDB5A8", border: "1px solid #332C27", borderRadius: 99, padding: "5px 12px", whiteSpace: "nowrap" }}>
                   <span style={{ fontFamily: MONO, color: C.faint }}>{fmtDate(s.startsAt)}</span> · {s.title}
@@ -302,6 +382,14 @@ export default function OffAir({
           </div>
         ) : (
           <>
+            {/* Phones: one swipeable row, the latest broadcast first and the
+                rest waiting to its right — like Apple's product carousels —
+                instead of eight screens of stacked cards. */}
+            <div className="oa-mob">
+              <BroadcastCarousel items={[featured, ...rest.slice(0, 12)]} onWatch={onWatch} />
+            </div>
+
+            <div className="oa-desk">
             <h2 style={H2}>Latest</h2>
             <button onClick={() => onWatch(featured.id)} className="oa-card oa-feat" title={featured.title} style={{
               width: "100%", textAlign: "left", cursor: "pointer", padding: 0, font: "inherit",
@@ -360,6 +448,7 @@ export default function OffAir({
                 </div>
               </>
             )}
+            </div>
 
             {quiet.length > 0 && (
               <div style={{ marginTop: 16 }}>

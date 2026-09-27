@@ -1,6 +1,7 @@
-import { getLiveState } from "@/lib/live-kv";
+import { getLiveState, getLedger } from "@/lib/live-kv";
 import LiveTakeover, { type LiveNow } from "@/components/LiveTakeover";
 import LandingPage from "@/components/landing/LandingPage";
+import type { LatestBroadcast } from "@/components/landing/LivePromo";
 
 /**
  * / — the landing page, with a live broadcast band above it when one is running.
@@ -32,12 +33,31 @@ async function liveNow(): Promise<LiveNow | null> {
   }
 }
 
+/** Newest broadcast that produced claims — the card in the mobile Live
+ *  Broadcast teaser. Server-side so the card is in the first paint. */
+async function latestBroadcast(): Promise<LatestBroadcast | null> {
+  try {
+    // Ledger order is when a broadcast was RECORDED; a recovered replay can be
+    // recorded after a newer one. The card should show the newest event.
+    const e = (await getLedger())
+      .filter(x => x.counts.total > 0)
+      .sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt))[0];
+    if (!e) return null;
+    return {
+      videoId: e.videoId, title: e.title, startedAt: e.startedAt, speaker: e.speaker,
+      counts: { t: e.counts.true, m: e.counts.misleading, f: e.counts.false }, total: e.counts.total,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export default async function Page() {
-  const live = await liveNow();
+  const [live, latest] = await Promise.all([liveNow(), latestBroadcast()]);
   return (
     <>
       <LiveTakeover live={live} />
-      <LandingPage />
+      <LandingPage latest={latest} />
     </>
   );
 }
