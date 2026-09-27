@@ -1020,7 +1020,8 @@ function App(){
   // The presidents key. It is a colour legend for the Data tab's charts;
   // on phones it used to fill the header on every tab (including the State
   // Atlas, whose map doesn't use those colours) where the brand belongs.
-  // It now sits under the tabs, on the Data tab only, on every screen size.
+  // Phones only, under the tabs, on the Data tab. Desktop doesn't need it:
+  // the comparison table's column headers already carry each colour + name.
   // Timeline strip — fills the remaining width. On mobile the year ranges
   // are dropped and names use short forms so the segments don't truncate.
   const presLegend = (
@@ -1322,7 +1323,7 @@ function App(){
         </div>
       </div>
 
-      {tab==="dashboard" && (
+      {mob && tab==="dashboard" && (
         <div style={{...sty.header,padding:mob?"10px 16px 8px":"12px 24px 10px",borderTop:"none"}}>
           <div style={{display:"flex",maxWidth:1080,margin:"0 auto"}}>{presLegend}</div>
         </div>
