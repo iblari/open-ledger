@@ -33,8 +33,10 @@ const stamp = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60))
 
 export default function ControlRoom({
   title, mode, elapsed, videoDuration, silentFor, videoSlot, caption, claims, newClaimIds,
-  onSeek, onStop, onFactCheck, isChecking, manualResult, onOpenRecord, mob, onBack,
+  onSeek, onStop, onFactCheck, isChecking, manualResult, onOpenRecord, mob, onBack, immersive = false,
 }: {
+  /** Phone held sideways: video and feed side by side, filling the window. */
+  immersive?: boolean;
   /** Replays only: return to the list of recent broadcasts. */
   onBack?: () => void;
   title: string;
@@ -68,6 +70,33 @@ export default function ControlRoom({
   mob: boolean;
 }) {
   const [filter, setFilter] = useState<Verdict | "all">("all");
+
+  // Full screen that keeps the fact-check. YouTube's own button (now hidden)
+  // made the VIDEO full screen and dropped the feed; this makes the whole
+  // player full screen instead. Not offered where the browser can't do it
+  // for a page element (iPhone Safari) — there, turning the phone sideways
+  // gives the immersive layout.
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [fs, setFs] = useState(false);
+  const [canFs, setCanFs] = useState(false);
+  useEffect(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const d = document as any;
+    setCanFs(Boolean(d.fullscreenEnabled || d.webkitFullscreenEnabled));
+    const on = () => setFs(Boolean((d.fullscreenElement || d.webkitFullscreenElement) === rootRef.current && rootRef.current));
+    document.addEventListener("fullscreenchange", on);
+    document.addEventListener("webkitfullscreenchange", on);
+    return () => { document.removeEventListener("fullscreenchange", on); document.removeEventListener("webkitfullscreenchange", on); };
+  }, []);
+  const toggleFs = () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const d = document as any; const el = rootRef.current as any;
+    if (d.fullscreenElement || d.webkitFullscreenElement) (d.exitFullscreen || d.webkitExitFullscreen)?.call(d);
+    else if (el) (el.requestFullscreen || el.webkitRequestFullscreen)?.call(el);
+  };
+  // Layout knobs for the two big modes.
+  const big = fs || immersive;
+  const compact = mob || immersive;
   const [showPill, setShowPill] = useState(false);
   const prevCount = useRef(claims.length);
 
@@ -171,6 +200,23 @@ export default function ControlRoom({
         color: "#F2EEE9", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
       }}>{title}</span>
       <span style={{ fontFamily: F.mono, fontSize: 12, color: L.mutedDark2, flexShrink: 0 }}>{stamp(elapsed)}</span>
+      {!mob && !immersive && canFs && (
+        <button type="button" onClick={toggleFs} className="vu-back"
+          aria-label={fs ? "Exit full screen" : "Full screen with fact-checks"}
+          title={fs ? "Exit full screen (Esc)" : "Full screen with fact-checks"}
+          style={{
+            width: 30, height: 30, borderRadius: "50%", flexShrink: 0, marginLeft: 4,
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+            background: "transparent", border: `1px solid ${L.cardBorder}`, color: "#D8D2C8",
+            cursor: "pointer", padding: 0,
+          }}>
+          <svg width="13" height="13" viewBox="0 0 14 14" aria-hidden fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            {fs
+              ? <path d="M5 1v4H1M9 1v4h4M5 13V9H1M9 13V9h4" />
+              : <path d="M1 5V1h4M13 5V1H9M1 9v4h4M13 9v4H9" />}
+          </svg>
+        </button>
+      )}
       {/* Stop lives here now. As its own full-width bar it cost ~46px of a
           phone screen to expose an action people use once, at the end. */}
       {mob && (
@@ -188,8 +234,8 @@ export default function ControlRoom({
     // Seven verdict chips wrapped into a second line and cost ~55px of feed.
     <div style={{
       display: "flex", gap: 5,
-      flexWrap: mob ? "nowrap" : "wrap",
-      overflowX: mob ? "auto" : undefined,
+      flexWrap: compact ? "nowrap" : "wrap",
+      overflowX: compact ? "auto" : undefined,
       scrollbarWidth: "none",
     }}>
       {(([
@@ -221,7 +267,7 @@ export default function ControlRoom({
   );
 
   const Feed = (
-    <div className={mob ? "vu-feed-mob" : undefined}
+    <div className={compact ? "vu-feed-mob" : undefined}
       style={{ position: "relative", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
       {showPill && (
         <div style={{
@@ -273,7 +319,7 @@ export default function ControlRoom({
             })()}
           </div>
         ) : shown.map(v => (
-          <ClaimCard key={v.id} claim={v} compact={mob} isNew={newClaimIds.has(v.id)}
+          <ClaimCard key={v.id} claim={v} compact={compact} isNew={newClaimIds.has(v.id)}
             // Seconds are 0 on purpose: the parent resolves the claim by id
             // and applies its own origin logic. LiveClaimView carries a
             // formatted `time` string, not a number, so reading videoTime
@@ -332,8 +378,10 @@ export default function ControlRoom({
         // (h × 16/9) so the box stays true 16:9 instead of letterboxing.
         // 30vh -> 25vh. Every point given back here goes straight to the
         // feed, which was down to roughly one and a half visible cards.
-        maxHeight: mob ? "min(25vh, 210px)" : "min(52vh, 620px)",
-        width: mob ? "100%" : "min(100%, calc(min(52vh, 620px) * 16 / 9))",
+        // Full screen / sideways: the video takes everything except the bar
+        // above it and the timeline + score below it.
+        maxHeight: mob ? "min(25vh, 210px)" : fs ? "calc(100vh - 44px - 120px)" : immersive ? "calc(100dvh - 44px - 92px)" : "min(52vh, 620px)",
+        width: mob ? "100%" : fs ? "min(100%, calc((100vh - 164px) * 16 / 9))" : immersive ? "min(100%, calc((100dvh - 136px) * 16 / 9))" : "min(100%, calc(min(52vh, 620px) * 16 / 9))",
         margin: mob ? undefined : "0 auto",
       }}>
         {videoSlot}
@@ -371,7 +419,7 @@ export default function ControlRoom({
           : Math.max(elapsed, ...ticks.map(t => t.at), 60)}
         onSeek={onSeek} />
       <RunningScore trueCount={counts.true} misleadingCount={counts.misleading}
-        falseCount={counts.false} unverifiableCount={unscored} mob={mob} />
+        falseCount={counts.false} unverifiableCount={unscored} mob={compact} />
     </>
   );
 
@@ -430,15 +478,21 @@ export default function ControlRoom({
   }
 
   return (
-    <div style={{
-      display: "grid", gridTemplateColumns: "minmax(0,1fr) 404px", gap: 0,
-      background: L.ink, borderRadius: 12, overflow: "hidden",
-      border: `1px solid ${L.cardBorder}`, height: "calc(100vh - 140px)", minHeight: 560,
+    <div ref={rootRef} style={{
+      display: "grid", gap: 0, background: L.ink, overflow: "hidden",
+      gridTemplateColumns: immersive ? "minmax(0,2fr) minmax(0,1fr)" : fs ? "minmax(0,1fr) 420px" : "minmax(0,1fr) 404px",
+      ...(immersive
+        // Sideways phone: cover the window. 100dvh follows the browser bar
+        // as it shows and hides.
+        ? { position: "fixed", top: 0, left: 0, right: 0, height: "100dvh", zIndex: 70, borderRadius: 0, border: "none" }
+        : fs
+          ? { height: "100vh", borderRadius: 0, border: "none" }
+          : { height: "calc(100vh - 140px)", minHeight: 560, borderRadius: 12, border: `1px solid ${L.cardBorder}` }),
     }}>
       <div style={{ display: "flex", flexDirection: "column", minWidth: 0, minHeight: 0, borderRight: `1px solid ${L.cardBorder}` }}>
         {ContextBar}
         {Stage}
-        {Controls}
+        {!immersive && Controls}
         {/* The leftover height carries the running transcript rather than a
             void. Previously a flex spacer pushed the controls to the bottom
             of the column, leaving a large empty panel and burying the
@@ -446,7 +500,7 @@ export default function ControlRoom({
         {/* This area belongs to "check this moment" — the result of a manual
             check lands here, beside the video, instead of nowhere (it wasn't
             rendered at all after the redesign). */}
-        <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "16px 18px 18px" }}>
+        <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "16px 18px 18px", display: immersive ? "none" : undefined }}>
           {isChecking ? (
             <div style={{ fontFamily: F.ui, fontSize: 12.5, color: L.mutedDark2 }}>
               Checking what was just said against the data…

@@ -129,6 +129,20 @@ function useIsMobile() {
   return mob;
 }
 
+/** A phone held sideways. Gets the immersive side-by-side player instead of
+ *  either the portrait stack or the desktop grid (which assumes 560px+ of
+ *  height and is unusable at ~390). */
+function useLandscapePhone() {
+  const [land, setLand] = useState(false);
+  useEffect(() => {
+    const q = window.matchMedia("(orientation: landscape) and (max-height: 500px) and (hover: none)");
+    const on = () => setLand(q.matches);
+    on(); q.addEventListener("change", on);
+    return () => q.removeEventListener("change", on);
+  }, []);
+  return land;
+}
+
 /* ── Format seconds as mm:ss ──────────────────────────────────── */
 function fmtTime(sec: number): string {
   const m = Math.floor(sec / 60);
@@ -626,7 +640,15 @@ export default function LiveExperience({ autoStartReplay, autoStartLive, onExit,
    *  player can open on it instead of on the index. */
   autoStartLive?: { videoId: string; title: string };
 }) {
-  const mob = useIsMobile();
+  const land = useLandscapePhone();
+  const narrow = useIsMobile();
+  const mob = narrow && !land;
+  // Which layout the player lives in. Each one mounts the video slot at a
+  // different place in the tree, which destroys the YouTube iframe — so the
+  // player is rebuilt (and a replay resumed where it was) whenever this
+  // changes. Before, rotating a phone across the breakpoint left a black box.
+  const layoutKey = mob ? "m" : land ? "l" : "d";
+  const resumeAtRef = useRef(0);
 
   /* ── State ── */
   const [config, setConfig] = useState<LiveConfig | null>(null);
@@ -1226,6 +1248,7 @@ export default function LiveExperience({ autoStartReplay, autoStartLive, onExit,
       if (ytPlayerRef.current?.destroy) {
         try { ytPlayerRef.current.destroy(); } catch {}
       }
+      if (!document.getElementById("yt-player-div")) { setTimeout(initPlayer, 200); return; }
       ytPlayerRef.current = new YT.Player("yt-player-div", {
         videoId,
         // CRITICAL for mobile: YT.Player REPLACES the target div with an
@@ -1238,9 +1261,16 @@ export default function LiveExperience({ autoStartReplay, autoStartLive, onExit,
         // second layer of the same fix (the iframe inherits the div's id).
         width: "100%",
         height: "100%",
-        playerVars: { autoplay: 1, rel: 0, playsinline: 1 },
+        // fs:0 hides YouTube's own full-screen button: it shows the video
+        // alone, which drops the fact-check feed. Ours keeps both.
+        playerVars: { autoplay: 1, rel: 0, playsinline: 1, fs: 0 },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         events: { onReady: (e: any) => {
+          // A replay rebuilt after a layout change picks up where it was.
+          // Live streams go back to the live edge, which is where they were.
+          if (isReplay && resumeAtRef.current > 1) {
+            try { e.target.seekTo(resumeAtRef.current, true); } catch {}
+          }
           e.target.playVideo();
           // Permit picture-in-picture on the iframe the API just built.
           //
@@ -1270,12 +1300,16 @@ export default function LiveExperience({ autoStartReplay, autoStartLive, onExit,
 
     setTimeout(initPlayer, 300);
     return () => {
+      if (ytPlayerRef.current?.getCurrentTime) {
+        try { resumeAtRef.current = ytPlayerRef.current.getCurrentTime() || 0; } catch {}
+      }
       if (ytPlayerRef.current?.destroy) {
         try { ytPlayerRef.current.destroy(); } catch {}
         ytPlayerRef.current = null;
       }
     };
-  }, [isPlaying, videoId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPlaying, videoId, layoutKey]);
 
   /* ── Poll video time → drive transcript + claims ── */
   useEffect(() => {
@@ -2469,6 +2503,7 @@ export default function LiveExperience({ autoStartReplay, autoStartLive, onExit,
             videoDuration={videoDuration}
             silentFor={silentFor}
             mob={mob}
+            immersive={land}
             claims={timeShift ? claims.map(c => ({
               ...c,
               videoTime: Math.max(0, (c.videoTime ?? 0) - timeShift),
