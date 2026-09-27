@@ -225,13 +225,13 @@ export default function LivePromo() {
           Live Broadcast · Now in beta
         </div>
         <h2 id="lp-h" style={{ margin: 0, fontFamily: SERIF, fontWeight: 600, fontSize: "clamp(48px, 8.4vw, 112px)", lineHeight: 0.98, letterSpacing: "-0.03em", textWrap: "balance" } as React.CSSProperties}>
-          Watch politicians.<br />Check the <span style={{ fontStyle: "italic", fontWeight: 500, color: "#E0493A" }}>numbers.</span>
-          {/* Third beat: what makes this different from every fact-check that
-              lands the next morning. Smaller, so the two-line headline still
-              reads first. */}
+          They say it.<br />We <span style={{ fontStyle: "italic", fontWeight: 500, color: "#E0493A" }}>check it.</span>
+          {/* Third beat: when. The headline says who does the work (we do,
+              not the viewer); this says it happens while they're talking.
+              Smaller, so the two-line headline still reads first. */}
           <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.3em", marginTop: "0.28em", fontSize: "0.42em", fontWeight: 500, letterSpacing: "-0.015em", color: "#FFFEFC" }}>
             <span className="lp-dot" aria-hidden style={{ width: "0.32em", height: "0.32em", borderRadius: "50%", background: "#EF4444", flex: "none" }} />
-            <span><span style={{ fontFamily: SANS, fontWeight: 700, letterSpacing: "0.06em", color: "#EF4444" }}>LIVE</span>, in real time.</span>
+            <span><span style={{ fontFamily: SANS, fontWeight: 700, letterSpacing: "0.06em", color: "#EF4444" }}>LIVE.</span></span>
           </span>
         </h2>
       </div>
