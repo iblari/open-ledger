@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getRecentBroadcasts } from "@/lib/live-kv";
+import { getReplayable } from "@/lib/live-kv";
 
 /**
  * GET /api/live-recent — broadcasts from the last 72 hours, each with the
@@ -8,7 +8,7 @@ import { getRecentBroadcasts } from "@/lib/live-kv";
  * additional Deepgram/Claude — the analysis was done once, live.
  */
 export async function GET() {
-  const recent = await getRecentBroadcasts();
+  const recent = await getReplayable();
   return NextResponse.json(
     { ok: true, recent },
     // Short and without stale-while-revalidate: this is what a replay link

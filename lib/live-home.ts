@@ -7,7 +7,7 @@
  */
 
 import { knownEvents } from "./known-events";
-import { getLedgerHealed, getLiveState, getLiveClaims, getRecentBroadcasts } from "./live-kv";
+import { getLedgerHealed, getLiveState, getLiveClaims, getReplayable } from "./live-kv";
 import { tallyWithTail, type TopicTally } from "./claim-topics";
 import { computeMomentum, type MomentumResult } from "./topic-breadth";
 
@@ -104,7 +104,7 @@ export async function loadLiveHome(origin: string): Promise<{
   const [liveState, liveClaims, recentRaw, discover, ledger] = await Promise.all([
     getLiveState().catch(() => null),
     getLiveClaims().catch(() => []),
-    getRecentBroadcasts().catch(() => []),
+    getReplayable().catch(() => []),
     j<{ upcoming: { title: string; scheduledStart: string; channelLabel: string }[] }>(`${origin}/api/live-discover`, 8000),
     getLedgerHealed().catch(() => []),
   ]);

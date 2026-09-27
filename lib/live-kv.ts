@@ -406,6 +406,61 @@ export interface RecentBroadcast {
 const RECENT_BROADCASTS_KEY = "live:recent";
 const RECENT_TTL_MS = 72 * 3600 * 1000;
 
+/**
+ * Broadcasts put back in the replay rail after the fact.
+ *
+ * Between 9 and 21 September alerts went out for these, but /live decided
+ * whether anything was on air through a CDN-cached self-request, so people who
+ * followed the alert saw an empty page. By the time that was fixed they had
+ * aged out of the 72-hour replay store. The permanent ledger kept every one of
+ * them with its claims, so they are served from there for one more 72-hour
+ * window, from the moment the fix shipped.
+ *
+ * Dated, and inert once RESTORED_UNTIL passes — nothing to remember to remove.
+ * Their original dates are kept: showing them as new would misstate when the
+ * speeches happened.
+ */
+const RESTORED_UNTIL = "2026-09-30T02:00:00Z";
+const RESTORED_IDS = new Set([
+  "KLAuKX0ZF3M", "Ul-nsvzu9Wo", "2H80wK30YzY", "a6uoGIPazqQ", "wmRa6CGygzc",
+  "V2hkaSaobSc", "bg6bYnIIWN8", "07jaU5PMn1s", "-POgY_NsQ10", "5jZqLQQT21w",
+]);
+
+/**
+ * What the replay rail and ?v= links can open: the 72-hour store, plus any
+ * restored broadcasts still inside their window. Ledger entries carry claims
+ * but no transcript and a slimmer claim record, so the missing fields are
+ * filled in — the replay shows the video and its checks, without the scrolling
+ * caption.
+ */
+export async function getReplayable(): Promise<RecentBroadcast[]> {
+  const recent = await getRecentBroadcasts();
+  if (Date.now() > Date.parse(RESTORED_UNTIL)) return recent;
+  const have = new Set(recent.map(b => b.videoId));
+  const ledger = await getLedger().catch(() => [] as LedgerEntry[]);
+  const restored: RecentBroadcast[] = ledger
+    .filter(e => RESTORED_IDS.has(e.videoId) && !have.has(e.videoId))
+    .map(e => ({
+      videoId: e.videoId,
+      title: e.title,
+      source: e.channel || "youtube",
+      startedAt: e.startedAt,
+      endedAt: e.endedAt,
+      transcript: "",
+      claims: e.claims.map((c, i) => ({
+        id: `${e.videoId}-r${i}`,
+        quote: c.quote,
+        rating: c.rating,
+        actual: c.actual || "",
+        explanation: "",
+        videoTime: c.videoTime ?? 0,
+        timestamp: new Date(Date.parse(e.startedAt) + (c.videoTime ?? 0) * 1000).toISOString(),
+        ...(c.sources ? { sources: c.sources } : {}),
+      })) as LiveClaim[],
+    }));
+  return [...recent, ...restored].sort((a, b) => b.endedAt.localeCompare(a.endedAt));
+}
+
 export async function getRecentBroadcasts(): Promise<RecentBroadcast[]> {
   let raw: string | null | undefined;
   if (hasUpstash()) {
