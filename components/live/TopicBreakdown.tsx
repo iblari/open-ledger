@@ -112,6 +112,13 @@ const CSS = `
   .vu-badge{margin-top:0;align-self:flex-start}
   .vu-quote{font-size:14.5px}
 }
+.tb-m{display:none}
+@media (max-width:640px){
+  .tb-m{display:block}
+  .tb-d{display:none}
+  .tb-less .tb-x{display:none}
+  .vu-row{padding:4px 6px;margin-bottom:0}
+}
 @media (prefers-reduced-motion:reduce){
   .vu-seg,.vu-caret{transition:none}
   .vu-tip,.vu-badge-m{animation:none}
@@ -164,7 +171,10 @@ function Bar({
         className={`vu-row${open ? " vu-open" : ""}`}
         style={{ background: open ? C.paper : "transparent" }}
       >
-        <span aria-hidden className="vu-caret" style={{ color: C.faint }}>▶</span>
+        {/* An SVG, not "▶": iOS renders that character as a blue emoji. */}
+        <svg aria-hidden className="vu-caret" viewBox="0 0 8 10" width="8" height="10" style={{ color: C.faint }}>
+          <path d="M1.5 1l5 4-5 4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
         <span className="vu-label" style={{ color: C.secondary }}>{t.topic}</span>
         {mom?.momentum && (
           <span className="vu-badge-m" style={{
@@ -278,6 +288,7 @@ export default function TopicBreakdown({
 }) {
   const [hover, setHover] = useState<HoverInfo | null>(null);
   const [open, setOpen] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
   const [cache, setCache] = useState<Record<string, TopicClaimRow[]>>({});
   const [breadth, setBreadth] = useState<Record<string, BreadthRow[]>>({});
   const [busy, setBusy] = useState(false);
@@ -306,10 +317,22 @@ export default function TopicBreakdown({
   }, [open, cache]);
 
   if (!topics.length || totals.claims === 0) return null;
+  const PHONE_ROWS = 6;
+  const hiddenOnPhone = Math.max(0, topics.length - PHONE_ROWS) + (tail && tail.total > 0 ? 1 : 0);
   const max = Math.max(...topics.map(t => t.total));
   const since = totals.since
     ? new Date(totals.since).toLocaleDateString("en-US", { month: "short", day: "numeric" })
     : null;
+
+  const legend = (compact: boolean) => (
+    <div style={{ display: "flex", gap: compact ? 10 : 14, flexWrap: "wrap" }}>
+      {([["False", C.con], ["Misleading", C.mis], ["True", C.ok], ["Not scored", C.unscored]] as const).map(([label, color]) => (
+        <span key={label} style={{ display: "inline-flex", alignItems: "center", gap: 5, fontFamily: SANS, fontSize: compact ? 11 : 10.5, color: C.muted }}>
+          <span style={{ width: 9, height: 9, borderRadius: 2, background: color }} />{label}
+        </span>
+      ))}
+    </div>
+  );
 
   const row = (t: TopicTally, widthPct: number) => (
     <Bar
@@ -361,34 +384,41 @@ export default function TopicBreakdown({
           {totals.claims} claims · {totals.broadcasts} broadcasts{since ? ` · since ${since}` : ""}
         </span>
       </div>
-      <p style={{ fontFamily: SANS, fontSize: 11.5, color: C.muted, lineHeight: 1.55, margin: "0 0 14px", maxWidth: "62ch" }}>
+      {/* Phones: the key goes first, so the colours are known before the bars
+          are read; the long explanation is replaced by one line. */}
+      <div className="tb-m" style={{ margin: "10px 0 8px" }}>{legend(true)}</div>
+      <p className="tb-d" style={{ fontFamily: SANS, fontSize: 11.5, color: C.muted, lineHeight: 1.55, margin: "0 0 14px", maxWidth: "62ch" }}>
         Every claim we have checked, grouped by subject. Bar length is how much gets said
         about it; the figure on the right is the share of checkable claims that were false
         or misleading. Select any subject to read the claims behind it.
       </p>
 
-      <div>
-        {topics.map(t => row(t, (t.total / max) * 100))}
+      <div className={showAll ? "" : "tb-less"}>
+        {topics.map((t, i) => i < PHONE_ROWS ? row(t, (t.total / max) * 100) : <div key={t.topic} className="tb-x">{row(t, (t.total / max) * 100)}</div>)}
         {/* The tail keeps the bars summing to the total in the header. Without
             it a top-N slice silently drops claims the header still counts. */}
         {tail && tail.total > 0 && (
-          <div style={{ marginTop: 9, paddingTop: 8, borderTop: `1px dashed ${C.rule}` }}>
+          <div className="tb-x" style={{ marginTop: 9, paddingTop: 8, borderTop: `1px dashed ${C.rule}` }}>
             {row(tail, (Math.min(tail.total, max) / max) * 100)}
           </div>
         )}
       </div>
 
-      <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginTop: 12, paddingTop: 11, borderTop: `1px solid ${C.rule}` }}>
-        {([["False", C.con], ["Misleading", C.mis], ["True", C.ok], ["Not scored", C.unscored]] as const).map(([label, color]) => (
-          <span key={label} style={{ display: "inline-flex", alignItems: "center", gap: 5, fontFamily: SANS, fontSize: 10.5, color: C.muted }}>
-            <span style={{ width: 9, height: 9, borderRadius: 2, background: color }} />{label}
-          </span>
-        ))}
-      </div>
+      {hiddenOnPhone > 0 && (
+        <div className="tb-m" style={{ textAlign: "center", marginTop: 10 }}>
+          <button type="button" onClick={() => setShowAll(v => !v)} aria-expanded={showAll} style={{
+            fontFamily: SANS, fontSize: 13, color: C.ink, background: "none", cursor: "pointer",
+            border: `1px solid ${C.rule}`, borderRadius: 99, padding: "8px 16px",
+          }}>{showAll ? "Show fewer" : `Show all ${topics.length + (tail && tail.total > 0 ? tail.members?.length ?? 1 : 0)} subjects`}</button>
+          <p style={{ fontFamily: SANS, fontSize: 12, color: C.ok, margin: "10px 0 0" }}>Tap a subject to read its claims</p>
+        </div>
+      )}
+
+      <div className="tb-d" style={{ marginTop: 12, paddingTop: 11, borderTop: `1px solid ${C.rule}` }}>{legend(false)}</div>
 
       <p style={{ fontFamily: SANS, fontSize: 10, color: C.faint, lineHeight: 1.55, margin: "9px 0 0" }}>
-        Subjects are assigned by a fixed keyword list, so the same claim always lands in the
-        same place. Claims we could not settle are shown but excluded from the percentage —
+        Each claim&rsquo;s subject is assigned once from a fixed list and then never changes, so the
+        same claim always lands in the same place. Claims we could not settle are shown but excluded from the percentage —
         being unable to check something is not evidence it was false. Topics with only a
         handful of claims will swing a lot as more broadcasts are covered.
       </p>
