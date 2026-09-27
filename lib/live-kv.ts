@@ -878,7 +878,12 @@ export async function enqueueCheck(videoId: string, url: string, opts: { rerun?:
   const existing = await readJob(videoId);
   // A finished job normally answers repeat requests, but a rerun (a recovered
   // video still at zero claims) must actually go back in the queue.
-  if (existing && existing.status !== "failed" && !(opts.rerun && existing.status === "done")) return existing;
+  // A job left "running" by a worker that was cancelled or crashed mid-check
+  // would otherwise answer every request forever. Twenty minutes is well past
+  // the longest real check (8 min download + 10 min transcription caps).
+  const stuck = existing?.status === "running" &&
+    Date.now() - Date.parse((existing as { startedAt?: string }).startedAt || existing.requestedAt) > 20 * 60_000;
+  if (existing && existing.status !== "failed" && !stuck && !(opts.rerun && existing.status === "done")) return existing;
 
   const queue = await getCheckQueue();
   const job: CheckJob = {
