@@ -73,7 +73,7 @@ export async function checkCoverage(now = Date.now(), deps: CoverageDeps = LIVE_
       [
         `${e.title} started at ${new Date(start).toUTCString()} and no broadcast is running or recorded for it.`,
         ``,
-        `Discovery did not find it on a watched channel. To cover it now, paste the stream or recording into "Check any video" on https://voteunbiased.org/live, or start it manually through /api/admin/go-live.`,
+        `Discovery did not find it on a watched channel. To cover it now, start it manually through /api/admin/go-live, or queue the recording afterwards with POST /api/check-video {"url": "<youtube url>"}.`,
         ``,
         `Source: ${e.sourceUrl}`,
       ].join("\n"),

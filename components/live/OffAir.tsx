@@ -47,119 +47,6 @@ const fmtDate = (iso: string) =>
 const fmtWhen = (iso: string) =>
   new Date(iso).toLocaleString("en-US", { weekday: "short", hour: "numeric", minute: "2-digit" });
 
-/** Real input, not a sentence: empty → disabled, typing enables it. */
-function CheckAnyVideo() {
-  const [url, setUrl] = useState("");
-  const [phase, setPhase] = useState<"idle" | "pulling" | "done" | "error">("idle");
-  const [msg, setMsg] = useState("");
-
-  /**
-   * Queued, not immediate. YouTube blocks caption access from the web
-   * server's every egress path, so the check runs on a GitHub Actions
-   * runner that still gets through. We enqueue, then poll.
-   *
-   * The honest tradeoff — a wait of a couple of minutes instead of a couple
-   * of seconds — is stated up front rather than discovered by staring at a
-   * spinner.
-   */
-  const submit = async () => {
-    if (!url.trim() || phase === "pulling") return;
-    setPhase("pulling"); setMsg("Queuing this video…");
-    try {
-      const r = await fetch("/api/check-video", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: url.trim() }),
-      });
-      const d = await r.json();
-      if (d.error) { setPhase("error"); setMsg(d.error); return; }
-
-      if (d.status === "done") {
-        setPhase("done");
-        setMsg("Already on the record — opening it.");
-        setTimeout(() => { window.location.href = `/live?replay=${d.videoId}`; }, 600);
-        return;
-      }
-
-      setMsg(d.queuedBehind > 0
-        ? `Queued behind ${d.queuedBehind} other video${d.queuedBehind === 1 ? "" : "s"} — usually a few minutes.`
-        : "Queued — the checker picks this up within about two minutes.");
-
-      // Poll until the worker archives it. Capped at ~10 minutes: past that
-      // something is wrong and a spinner is a lie.
-      const started = Date.now();
-      const tick = async () => {
-        if (Date.now() - started > 10 * 60_000) {
-          setPhase("error");
-          setMsg("Still queued after 10 minutes. The checker may be busy covering a live broadcast — try again shortly.");
-          return;
-        }
-        try {
-          const s = await fetch(`/api/check-video?videoId=${d.videoId}`).then(x => x.json());
-          if (s.status === "done") {
-            setPhase("done");
-            setMsg("Done — opening the record.");
-            setTimeout(() => { window.location.href = `/live?replay=${d.videoId}`; }, 600);
-            return;
-          }
-          if (s.status === "failed") {
-            setPhase("error");
-            setMsg(s.error || "That video has no captions we can read.");
-            return;
-          }
-          if (s.status === "running") setMsg("Pulling the transcript and checking claims…");
-        } catch { /* transient — keep polling */ }
-        setTimeout(tick, 8000);
-      };
-      setTimeout(tick, 8000);
-    } catch {
-      setPhase("error"); setMsg("Couldn't reach the checker.");
-    }
-  };
-
-  const disabled = !url.trim() || phase === "pulling";
-  return (
-    <section style={{ background: C.card, border: `1px solid ${C.rule}`, borderRadius: 8, padding: "16px 18px" }}>
-      <h3 style={{ fontFamily: SANS, fontSize: 10, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: C.muted, margin: "0 0 4px" }}>
-        Check any video
-      </h3>
-      <p style={{ fontFamily: SANS, fontSize: 12, color: C.secondary, lineHeight: 1.55, margin: "0 0 11px" }}>
-        Paste a YouTube link to a speech or hearing — we&rsquo;ll pull the transcript and check every economic claim in it.
-        Checks run on our transcription worker, so allow a couple of minutes.
-      </p>
-      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-        <input
-          value={url} onChange={e => { setUrl(e.target.value); if (phase !== "idle") setPhase("idle"); }}
-          onKeyDown={e => { if (e.key === "Enter") submit(); }}
-          placeholder="youtube.com/watch?v=…"
-          style={{
-            flex: 1, minWidth: 160, padding: "10px 12px", borderRadius: 5,
-            border: `1px solid ${C.rule2}`, background: "#fff",
-            fontFamily: SANS, fontSize: 16, color: C.ink, outline: "none",
-          }}
-        />
-        <button onClick={submit} disabled={disabled} style={{
-          padding: "10px 16px", borderRadius: 5, border: "none",
-          background: disabled ? C.rule : C.ink, color: disabled ? C.muted : "#fff",
-          fontFamily: SANS, fontSize: 12.5, fontWeight: 700,
-          cursor: disabled ? "default" : "pointer", flexShrink: 0,
-        }}>{phase === "pulling" ? "Working…" : "Check it"}</button>
-      </div>
-      {phase !== "idle" && (
-        <>
-          {phase === "pulling" && (
-            <div style={{ height: 3, borderRadius: 2, background: C.rule, marginTop: 10, overflow: "hidden" }}>
-              <div style={{ height: "100%", width: "40%", background: C.ok, animation: "vuProgress 1.1s ease-in-out infinite" }} />
-            </div>
-          )}
-          <div style={{
-            fontFamily: SANS, fontSize: 11, marginTop: 8, lineHeight: 1.5,
-            color: phase === "error" ? C.con : phase === "done" ? C.ok : C.muted,
-          }}>{msg}</div>
-        </>
-      )}
-    </section>
-  );
-}
 
 /** One control, one promise. */
 function AlertButton() {
@@ -342,7 +229,7 @@ export default function OffAir({
               <div style={{ background: C.card, border: `1px dashed ${C.rule2}`, borderRadius: 8, padding: "34px 22px", textAlign: "center" }}>
                 <div style={{ fontFamily: SERIF, fontSize: 18, fontWeight: 600, color: C.ink, marginBottom: 6 }}>No broadcasts in the last 72 hours</div>
                 <p style={{ fontFamily: SANS, fontSize: 12.5, color: C.secondary, lineHeight: 1.6, maxWidth: "44ch", margin: "0 auto" }}>
-                  Coverage runs automatically whenever an official channel goes live. Paste a video on the right to check one yourself in the meantime.
+                  Coverage runs automatically whenever an official channel goes live.
                 </p>
               </div>
             ) : (
@@ -392,7 +279,6 @@ export default function OffAir({
 
           {/* Right rail */}
           <aside style={{ flex: "1 1 340px", minWidth: 280, position: "sticky", top: 82, display: "flex", flexDirection: "column", gap: 14 }}>
-            <CheckAnyVideo />
 
             <section style={{ background: C.card, border: `1px solid ${C.rule}`, borderRadius: 8, padding: "16px 18px" }}>
               <h3 style={{ fontFamily: SANS, fontSize: 10, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: C.muted, margin: "0 0 10px" }}>
