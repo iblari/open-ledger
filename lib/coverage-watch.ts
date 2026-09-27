@@ -15,7 +15,7 @@
  */
 
 import { knownEvents } from "./known-events";
-import { claimOnce, getLedger, getLiveState } from "./live-kv";
+import { claimOnce, getLedger, getLiveState, getLiveTranscript } from "./live-kv";
 import { sendAdminAlert } from "./email-alerts";
 
 const GRACE_MS = 15 * 60_000;       // give discovery a fair chance first
@@ -25,6 +25,7 @@ export interface CoverageDeps {
   state: () => Promise<{ status: string; startedAt?: string } | null>;
   ledger: () => Promise<{ startedAt: string }[]>;
   once: (key: string, ttlSec: number) => Promise<boolean>;
+  transcript: () => Promise<string>;
   alert: (subject: string, body: string) => Promise<unknown>;
 }
 
@@ -32,8 +33,40 @@ const LIVE_DEPS: CoverageDeps = {
   state: () => getLiveState().catch(() => null),
   ledger: () => getLedger().catch(() => []),
   once: claimOnce,
+  transcript: () => getLiveTranscript().catch(() => ""),
   alert: sendAdminAlert,
 };
+
+/**
+ * A broadcast that is live but hearing nothing.
+ *
+ * The other half of silent failure: on 27 Sep the speech-to-text account ran
+ * out of credit, which turns every broadcast into one that goes live, emails
+ * subscribers, and then transcribes nothing — indistinguishable on the page
+ * from "nobody has made a checkable claim yet". Ten minutes live with an
+ * empty transcript is not a quiet speaker; it is a dead audio chain.
+ */
+const DEAF_AFTER_MS = 10 * 60_000;
+
+export async function checkDeaf(now = Date.now(), deps: CoverageDeps = LIVE_DEPS): Promise<boolean> {
+  const state = await deps.state();
+  if (state?.status !== "live" || !state.startedAt) return false;
+  const started = Date.parse(state.startedAt);
+  if (!Number.isFinite(started) || now - started < DEAF_AFTER_MS) return false;
+  const t = (await deps.transcript()).trim();
+  if (t.split(/\s+/).filter(Boolean).length >= 20) return false;
+  if (!(await deps.once(`coverage:deaf:${state.startedAt}`, 24 * 3600))) return false;
+  const title = (state as { title?: string }).title || "the current broadcast";
+  await deps.alert(
+    `⚠️ Live but not transcribing: ${title}`,
+    [
+      `${title} has been live for ${Math.round((now - started) / 60000)} minutes and the transcript is still empty.`,
+      ``,
+      `Viewers see the player but no fact-checks. The usual causes: the speech-to-text account (Deepgram) is out of credit, or YouTube blocked the audio download. The worker's GitHub Actions log will say which.`,
+    ].join("\n"),
+  );
+  return true;
+}
 
 export async function checkCoverage(now = Date.now(), deps: CoverageDeps = LIVE_DEPS): Promise<string[]> {
   // knownEvents() drops anything that started more than an hour before the

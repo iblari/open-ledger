@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { checkCoverage } from "@/lib/coverage-watch";
+import { checkCoverage, checkDeaf } from "@/lib/coverage-watch";
 
 /**
  * GET /api/cron/live-tick — the reliable metronome for live coverage.
@@ -36,6 +36,8 @@ export async function GET(req: Request) {
     return [] as string[];
   });
   if (gaps.length) console.warn(`[live-tick] coverage gaps flagged: ${gaps.join(", ")}`);
+  const deaf = await checkDeaf().catch(() => false);
+  if (deaf) console.warn("[live-tick] live broadcast is not transcribing");
 
   const token = process.env.GH_DISPATCH_TOKEN;
   if (!token) {
