@@ -2624,16 +2624,6 @@ export default function LiveExperience({ autoStartReplay, autoStartLive, onExit,
           </div>
         )}
 
-        {/* ── Disclaimer ── */}
-        <div style={{
-          marginTop: 24, padding: "12px 16px", borderRadius: 6,
-          background: T.highlight, border: "1px solid #f5deb3",
-          fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: "#78716c",
-          lineHeight: 1.6, textAlign: "center",
-        }}>
-          <strong>BETA</strong> — AI-generated fact-checks may contain errors. Sources are cited — verify independently.
-          <br />Vote Unbiased provides data, not opinions. You interpret.
-        </div>
       </div>
     </div>
   );
