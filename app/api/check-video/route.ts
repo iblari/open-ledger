@@ -49,7 +49,11 @@ export async function POST(req: NextRequest) {
   // A recovered video archived with no claims went through the old pipeline,
   // which dated it on the day it was queued and never fact-checked it. Let it
   // through once more rather than serving that empty record forever.
-  const stale = archived && archived.source === "on-demand" && !(archived.claims?.length);
+  // The old pipeline also stamped start and end with the same instant — no
+  // real broadcast has zero length — so that marks a misdated record even
+  // after claims have been added to it.
+  const stale = archived && archived.source === "on-demand" &&
+    (!(archived.claims?.length) || archived.startedAt === archived.endedAt);
   if (archived && !stale) {
     return NextResponse.json({
       videoId, status: "done", fromArchive: true,

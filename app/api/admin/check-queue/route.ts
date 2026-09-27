@@ -47,9 +47,9 @@ export async function POST(req: NextRequest) {
 
   const all = await getRecentBroadcasts();
   const existing = all.find(b => b.videoId === videoId);
-  // A re-run of a video archived by the old pipeline: correct the date it was
-  // given (the day it was queued) to when it actually happened.
-  if (existing && existing.source === "on-demand" && !existing.claims.length) {
+  // A re-run of a recovered video: correct its date to when it actually
+  // happened (the old pipeline used the day it was queued). Claims are kept.
+  if (existing && existing.source === "on-demand") {
     const given = Date.parse(String(body.startedAt || ""));
     if (Number.isFinite(given)) {
       const lastT = Math.max(0, ...segments.map((sg: { time?: number; t?: number }) => Number(sg.time ?? sg.t ?? 0)));
