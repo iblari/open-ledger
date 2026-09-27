@@ -562,12 +562,66 @@ function SummaryBar({ claims }: { claims: Claim[] }) {
 }
 
 /* ── Main Page ────────────────────────────────────────────────── */
-export default function LiveExperience({ autoStartReplay, autoStartLive, onExit }: {
+/**
+ * The player's frame, empty, shown while a chosen broadcast loads.
+ *
+ * Choosing a replay mounted the player before it had the broadcast's data —
+ * a replay has to be fetched first — and until it arrived the component fell
+ * through to its default screen: the old /live landing page. Every click, and
+ * every emailed link, flashed it. Even a live broadcast showed it for a frame,
+ * since playback only starts in an effect after the first paint. This keeps
+ * the same outline as the player, so the page goes straight from the list to
+ * the frame to the video, and the old page never appears.
+ */
+function PlayerSkeleton({ title }: { title?: string }) {
+  // Layout switches by media query, not the useIsMobile hook: the hook reads
+  // false on the first paint, which would draw the desktop frame on a phone
+  // for a frame — the very kind of flash this exists to remove.
+  return (
+    <div role="status" aria-label={title ? `Loading ${title}` : "Loading broadcast"} className="vu-skel">
+      <style>{`
+        .vu-skel{background:#14110E;border-radius:12px;overflow:hidden;border:1px solid #322B25;
+          display:grid;grid-template-columns:minmax(0,1fr) 404px;height:calc(100vh - 140px);min-height:560px}
+        .vu-skel-main{min-width:0;border-right:1px solid #322B25}
+        .vu-skel-feed{padding:16px}
+        .vu-skel-spin{animation:vu-spin .9s linear infinite}
+        @keyframes vu-spin{to{transform:rotate(360deg)}}
+        @media (max-width:767px){
+          .vu-skel{grid-template-columns:1fr;height:auto;min-height:0}
+          .vu-skel-main{border-right:none}
+          .vu-skel-feed{height:220px}
+          .vu-skel-feed>*{display:none}
+        }
+        @media (prefers-reduced-motion:reduce){.vu-skel-spin{animation:none}}
+      `}</style>
+      <div className="vu-skel-main">
+        <div style={{ height: 44, display: "flex", alignItems: "center", gap: 10, padding: "0 14px",
+          background: "#191512", borderBottom: "1px solid #322B25" }}>
+          <span style={{ width: 30, height: 30, borderRadius: "50%", border: "1px solid #322B25", flexShrink: 0 }} />
+          <span style={{ width: 54, height: 16, borderRadius: 3, background: "#2a2420", flexShrink: 0 }} />
+          <span style={{ flex: 1, minWidth: 0, fontFamily: "'Source Serif 4',serif", fontSize: 14, color: "#F2EEE9",
+            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", opacity: title ? 0.85 : 0 }}>{title || "."}</span>
+        </div>
+        <div style={{ aspectRatio: "16 / 9", background: "#0f0c0a", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <span className="vu-skel-spin" style={{ width: 46, height: 46, borderRadius: "50%",
+            border: "2px solid #322B25", borderTopColor: "#A79E93" }} />
+        </div>
+      </div>
+      <div className="vu-skel-feed">
+        {[0, 1, 2].map(i => <div key={i} style={{ height: 150, borderRadius: 10, border: "1px solid #322B25", marginBottom: 12 }} />)}
+      </div>
+    </div>
+  );
+}
+
+export default function LiveExperience({ autoStartReplay, autoStartLive, onExit, pendingTitle }: {
   autoStartReplay?: string;
   /** Leave the player for the recent-broadcasts list. Supplied by LiveShell;
    *  offered only on replays — during a live broadcast the page IS the
    *  broadcast, and there is nothing to go back to. */
   onExit?: () => void;
+  /** Title of the broadcast being opened, known before its data arrives. */
+  pendingTitle?: string;
   /** Set when the SERVER already resolved that a broadcast is running, so the
    *  player can open on it instead of on the index. */
   autoStartLive?: { videoId: string; title: string };
@@ -994,6 +1048,7 @@ export default function LiveExperience({ autoStartReplay, autoStartLive, onExit 
         if (!resp.ok) return;
         const data = await resp.json();
         if (!cancelled && Array.isArray(data.recent)) setRecent(data.recent);
+        if (!cancelled) setRecentLoaded(true);
       } catch { /* section is additive — silent failure OK */ }
     }
     loadRecent();
@@ -1043,11 +1098,22 @@ export default function LiveExperience({ autoStartReplay, autoStartLive, onExit 
      start that replay, so choosing a row goes straight into the record
      instead of dropping the visitor on another index. */
   const autoStarted = useRef(false);
+  // While a chosen broadcast is on its way, the frame shows instead of the
+  // old landing screen. See PlayerSkeleton.
+  const [pendingStart, setPendingStart] = useState(Boolean(autoStartReplay || autoStartLive));
+  useEffect(() => { if (isPlaying) setPendingStart(false); }, [isPlaying]);
+  const [recentLoaded, setRecentLoaded] = useState(false);
   useEffect(() => {
     if (!autoStartReplay || autoStarted.current || recent.length === 0) return;
     const target = recent.find(b => b.videoId === autoStartReplay);
     if (target) { autoStarted.current = true; startReplay(target); }
   }, [autoStartReplay, recent, startReplay]);
+  // The list arrived and the broadcast is not in it (expired, or a bad
+  // link): go back to the list rather than dropping onto the old screen.
+  useEffect(() => {
+    if (!pendingStart || !autoStartReplay || !recentLoaded || autoStarted.current) return;
+    if (!recent.some(b => b.videoId === autoStartReplay)) { setPendingStart(false); onExit?.(); }
+  }, [pendingStart, autoStartReplay, recentLoaded, recent, onExit]);
 
   useEffect(() => {
     if (!isReplay || !isPlaying || replayAligned) { setTimeShift(0); return; }
@@ -1923,7 +1989,9 @@ export default function LiveExperience({ autoStartReplay, autoStartLive, onExit 
         )}
 
         {/* ── Idle State: broadcast-centric ── */}
-        {!isPlaying && !showSummary && (
+        {!isPlaying && pendingStart && <PlayerSkeleton title={pendingTitle || autoStartLive?.title} />}
+
+        {!isPlaying && !showSummary && !pendingStart && (
           <div>
             {/* Hero */}
             <div style={{ textAlign: "center", marginBottom: mob ? 20 : 36, padding: mob ? "20px 0 8px" : "36px 0 12px" }}>
@@ -2416,7 +2484,7 @@ export default function LiveExperience({ autoStartReplay, autoStartLive, onExit 
               if (src) seekToClaim(src);
               else seekVideo(secs); // timeline scrub — already in player time
             }}
-            onStop={stopSession}
+            onStop={isReplay && onExit ? () => { stopSession(); onExit(); } : stopSession}
             onBack={isReplay && onExit ? onExit : undefined}
             onFactCheck={manualFactCheck}
             isChecking={isManualChecking}
