@@ -87,6 +87,29 @@ function html(title: string, sourceLabel: string, email: string, videoId?: strin
 
 export interface AlertResult { sent: number; failed: number; skipped?: string }
 
+/**
+ * A message to the site operator, not to subscribers. Goes to
+ * ADMIN_ALERT_EMAIL; with that unset it logs instead, so nothing breaks —
+ * but a gap then only surfaces in the Vercel logs.
+ */
+export async function sendAdminAlert(subject: string, body: string): Promise<boolean> {
+  const key = process.env.RESEND_API_KEY;
+  const to = process.env.ADMIN_ALERT_EMAIL;
+  console.warn(`[admin-alert] ${subject} — ${body}`);
+  if (!key || !to) return false;
+  const send = (from: string) => fetch(RESEND_URL, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    signal: AbortSignal.timeout(15_000),
+    body: JSON.stringify({ from, to: [to], subject, text: body }),
+  });
+  try {
+    let r = await send(FROM);
+    if (r.status === 403 && FROM !== FALLBACK_FROM) r = await send(FALLBACK_FROM);
+    return r.ok;
+  } catch { return false; }
+}
+
 /** Email every subscriber that coverage has begun. */
 export async function sendLiveAlert(title: string, source?: string, videoId?: string): Promise<AlertResult> {
   const key = process.env.RESEND_API_KEY;

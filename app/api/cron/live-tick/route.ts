@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { checkCoverage } from "@/lib/coverage-watch";
 
 /**
  * GET /api/cron/live-tick — the reliable metronome for live coverage.
@@ -26,6 +27,15 @@ export async function GET(req: Request) {
   if (cronSecret && req.headers.get("authorization") !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  // Coverage watch rides the same 2-minute tick. Awaited so the serverless
+  // freeze cannot drop the email, but caught so a mail or KV failure never
+  // stops the worker being dispatched — the dispatch is the more important job.
+  const gaps = await checkCoverage().catch(e => {
+    console.error("[live-tick] coverage watch failed:", (e as Error).message);
+    return [] as string[];
+  });
+  if (gaps.length) console.warn(`[live-tick] coverage gaps flagged: ${gaps.join(", ")}`);
 
   const token = process.env.GH_DISPATCH_TOKEN;
   if (!token) {

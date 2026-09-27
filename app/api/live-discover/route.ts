@@ -49,6 +49,15 @@ const OFFICIAL_SPEAKER_RE = new RegExp(
     "\\bcabinet\\b", "secretary", "attorney general",
     "state of the union", "address to", "oval office", "joint session",
     "inaugurat",
+    // International addresses. On 22 Sep the President spoke at the UN
+    // General Assembly; the White House did not stream it, State and C-SPAN
+    // did, and a title like "United Nations General Assembly" names no
+    // speaker — so the officialOnly filter dropped it and nothing was covered.
+    "united nations", "\\bu\\.?n\\.? general", "general assembly", "general debate",
+    "\\bunga\\b", "\\bg7\\b", "\\bg20\\b", "\\bnato summit\\b",
+    // The Fed decision press conference is on the calendar as a live event,
+    // and on 16 Sep it went uncovered: its channel was not watched.
+    "\\bfomc\\b", "federal reserve", "chair powell",
   ].join("|"),
   "i"
 );

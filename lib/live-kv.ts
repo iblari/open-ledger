@@ -77,6 +77,21 @@ const LIVE_CLAIMS_KEY = "live:claims";
 const LIVE_TRANSCRIPT_KEY = "live:transcript";
 
 /** Get current live broadcast state */
+/**
+ * Claim a one-time flag. True only for the first caller; later callers — and
+ * the next cron tick two minutes on — get false. Used so a coverage gap is
+ * reported once, not every two minutes for the rest of the day.
+ */
+export async function claimOnce(key: string, ttlSec: number): Promise<boolean> {
+  if (hasUpstash()) {
+    const r = await upstashCmd("SET", key, "1", "NX", "EX", ttlSec);
+    return r === "OK";
+  }
+  if (mem.get(key)) return false;
+  mem.set(key, "1");
+  return true;
+}
+
 export async function getLiveState(): Promise<LiveState | null> {
   let raw: string | null | undefined;
   if (hasUpstash()) {

@@ -34,6 +34,18 @@
       "autoCover": true,
       "maxCoverMinutes": 240,
       "officialOnly": true
+    },
+    {
+      "id": "statedept",
+      "label": "U.S. Department of State",
+      "url": "https://www.youtube.com/@StateDept/live",
+      "officialOnly": true
+    },
+    {
+      "id": "federalreserve",
+      "label": "Federal Reserve",
+      "url": "https://www.youtube.com/@federalreserve/live",
+      "officialOnly": true
     }
   ]
 }
