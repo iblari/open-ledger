@@ -293,7 +293,10 @@ if (!sourceIsYouTube) {
   console.log(`  live_status: ${status}`);
   if (status === "was_live" || status === "not_live" || status === "post_live") {
     console.log("  Stream is not live — refusing to cover a recording. Exiting cleanly.");
-    process.exit(0);
+    // Exit 3 = "not live". The watcher treats it as an instant skip — before,
+    // every stale candidate cost a 5-minute wait, and four of them in a row
+    // meant a real broadcast was joined 20+ minutes late.
+    process.exit(3);
   }
 
   console.log("→ Extracting audio stream URL...");
@@ -303,7 +306,9 @@ if (!sourceIsYouTube) {
     console.error("  YouTube may require cookies: set YT_DLP_EXTRA_ARGS='--cookies <file>'.");
     console.error("  TIP: if the event is simulcast on a direct stream (C-SPAN Radio, an");
     console.error("  HLS .m3u8), pass THAT as the source URL — no extraction needed.");
-    process.exit(1);
+    // Exit 4 = transient: the watcher retries in a minute instead of giving
+    // up on the broadcast for the rest of its run (how the UN speech was lost).
+    process.exit(4);
   }
 }
 
@@ -412,11 +417,11 @@ setInterval(() => {
   if (quietMs > 45 * 60 * 1000) {
     console.error("🚨 45 minutes without any transcript — failing loudly.");
     shutdown("silence watchdog: 45min without transcript", 7);
-  } else if (quietMs > 10 * 60 * 1000) {
+  } else if (quietMs > 3 * 60 * 1000) {
     console.error(`⚠️  ${Math.round(quietMs / 60000)} min without transcript — forcing chain rebuild.`);
     try { currentFfmpeg?.kill("SIGKILL"); } catch { /* fine */ }
     try { currentWs?.close(); } catch { /* fine */ }
-    lastTranscriptAt = Date.now() - 5 * 60 * 1000; // half-reset: escalate if still dead
+    lastTranscriptAt = Date.now() - 90 * 1000; // partial reset: retry every ~90s while dead
   }
 }, 60 * 1000).unref?.();
 
@@ -619,6 +624,7 @@ if (durationSec != null) {
 console.log("🎙️  LIVE — transcribing and fact-checking in real-time...\n");
 
 let restarts = 0;
+let dgRejections = 0;
 const deaths = []; // wall-clock ms of recent chain deaths (circuit breaker)
 let bytesThisChain = 0;
 
@@ -627,8 +633,19 @@ for (;;) {
   const chainStart = Date.now();
   try {
     await runChain(chainUrl);
+    dgRejections = 0;
   } catch (e) {
     console.error("  Chain build failed:", e.message);
+    // Every model refused (e.g. HTTP 402, account out of credit). Retrying
+    // cannot fix that, and the old circuit breaker then read the rapid
+    // deaths as "stream ended" and exited 0 — so the watcher assumed a
+    // normal finish. Exit 5 instead: the site goes back to off (no LIVE
+    // badge promising fact-checks that aren't coming) and the watcher
+    // retries on its next poll, in case the account was topped up.
+    if (/Deepgram models rejected/.test(e.message) && ++dgRejections >= 3) {
+      console.error("🚨 Transcription service is refusing every request — stopping this attempt.");
+      await shutdown("transcription unavailable", 5);
+    }
   }
   if (sessionEnded || shuttingDown) break;
 

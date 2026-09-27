@@ -23,7 +23,7 @@
 import { spawn } from "child_process";
 
 const API = process.env.API_URL || "https://voteunbiased.org";
-const POLL_MS = 120_000;                       // 2 minutes
+const POLL_MS = 60_000;                        // 1 minute — a late join is the costliest failure
 const argMin = process.argv.indexOf("--minutes");
 const WATCH_MIN = argMin > -1 ? Number(process.argv[argMin + 1]) : 300;
 // Leave headroom so a late-starting event doesn't get cut off mid-sentence
@@ -32,6 +32,26 @@ const RESERVE_MIN = 10;
 const deadline = Date.now() + WATCH_MIN * 60_000;
 
 const covered = new Set();   // videoIds already handled this session
+// Candidates the pipeline refused as not live, with when. Discovery keeps
+// surfacing old uploads and not-yet-started streams; they're skipped for a
+// while instead of forever, because an upcoming stream does go live.
+const notLiveAt = new Map();
+const NOT_LIVE_TTL_MS = 10 * 60_000;
+const retries = new Map();   // videoId → transient failures this run
+const MAX_RETRIES = 20;
+/** Outcome of a coverage attempt. go-live exit codes: 3 not live,
+ *  4 no audio URL, 5 transcription refused; anything else = covered. */
+function afterCover(id, code) {
+  if (code === 3) { covered.delete(id); notLiveAt.set(id, Date.now()); return "skip"; }
+  if (code === 4 || code === 5) {
+    const n = (retries.get(id) || 0) + 1; retries.set(id, n);
+    if (n < MAX_RETRIES) { covered.delete(id); log(`  ↻ ${id}: transient failure (exit ${code}), retry ${n}/${MAX_RETRIES} next poll`); }
+    else log(`  ✗ ${id}: giving up after ${n} attempts`);
+    return "retry";
+  }
+  return "done";
+}
+const recentlyNotLive = (id) => { const t = notLiveAt.get(id); return t != null && Date.now() - t < NOT_LIVE_TTL_MS; };
 const ADMIN_KEY = process.env.ADMIN_KEY || "";
 const BACKFILL_EVERY_POLLS = 10;   // ~20 minutes at a 2-minute poll
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -291,6 +311,7 @@ async function fetchAudioTranscript(videoId) {
  */
 let realignBusy = false;
 let claimsBusy = false;
+let queueBusy = false;
 async function realignOne() {
   if (!ADMIN_KEY || realignBusy) return;
   realignBusy = true;
@@ -422,38 +443,45 @@ while (Date.now() < deadline - RESERVE_MIN * 60_000) {
     if (active && !active.youtubeUrl?.includes("REPLACE_WITH")) {
       const url = active.streamUrl || active.youtubeUrl;
       const id = active.id || url;
-      if (!covered.has(id)) {
+      if (!covered.has(id) && !recentlyNotLive(id)) {
         covered.add(id);
         const remain = (deadline - Date.now()) / 60_000 - RESERVE_MIN;
         const cap = Math.min(remain, (sched.activeSecondsRemaining || 7200) / 60 + 5);
-        if (cap > 3) await cover(url, active.title || "Scheduled broadcast", cap);
+        if (cap > 3) afterCover(id, await cover(url, active.title || "Scheduled broadcast", cap));
         continue;
       }
     }
 
     // 2. Otherwise, discovery: any watched channel actually on air.
     const disc = await getJson(`${API}/api/live-discover`).catch(() => null);
-    const hits = (disc?.live || []).filter(h => channels.has(h.channelId) && !covered.has(h.videoId));
-    if (hits.length) {
-      const hit = hits[0];
+    const hits = (disc?.live || []).filter(h => channels.has(h.channelId) && !covered.has(h.videoId) && !recentlyNotLive(h.videoId));
+    let coveredOne = false;
+    // Try every candidate this poll: the first is often a stale upload, and
+    // the real broadcast should not wait for the next poll behind it.
+    for (const hit of hits) {
       covered.add(hit.videoId);
       const ch = channels.get(hit.channelId);
       const remain = (deadline - Date.now()) / 60_000 - RESERVE_MIN;
       const cap = Math.min(remain, ch.maxCoverMinutes || 180);
-      if (cap > 3) {
-        await cover(hit.url, hit.title || `${ch.label} live`, cap);
-        // YouTube needs a few minutes after a stream ends to publish captions.
-        log("waiting 5min for YouTube captions, then repairing any late-join gap…");
-        await sleep(5 * 60_000);
-        await sweepBackfill("post-coverage");
-      } else {
-        log(`skipping ${hit.videoId}: only ${Math.round(remain)}min left in this watch window`);
-      }
-      continue;
+      if (cap <= 3) { log(`skipping ${hit.videoId}: only ${Math.round(remain)}min left in this watch window`); break; }
+      const outcome = afterCover(hit.videoId, await cover(hit.url, hit.title || `${ch.label} live`, cap));
+      if (outcome === "skip") continue;       // not live — next candidate, no wait
+      if (outcome === "retry") break;         // transient — next poll
+      coveredOne = true;
+      // Repair any late-join gap once YouTube has published captions — in the
+      // background, so a broadcast starting right after this one is picked
+      // up on the next poll instead of after a blocking 5-minute sleep.
+      log("scheduling late-join repair in 5min (YouTube captions lag the stream)");
+      setTimeout(() => { sweepBackfill("post-coverage").catch(e => log("post-coverage repair failed:", e.message)); }, 5 * 60_000);
+      break;
     }
+    if (hits.length) { if (coveredOne) continue; }
 
     // Nothing live — spend the idle poll on any queued on-demand checks.
-    await drainCheckQueue();
+    // Not awaited: an on-demand check downloads and transcribes a whole
+    // recording (minutes), and the loop must keep polling for live streams
+    // meanwhile. A busy flag stops two drains overlapping.
+    if (!queueBusy) { queueBusy = true; drainCheckQueue().finally(() => { queueBusy = false; }); }
     // Deliberately not awaited — see realignOne.
     realignOne();
     // Any recovered broadcast with unchecked transcript (including ones
