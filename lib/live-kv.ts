@@ -866,9 +866,11 @@ export async function getCheckJob(videoId: string): Promise<CheckJob | null> {
 
 /** Enqueue a check. Idempotent: asking twice for the same video returns the
  *  job already in flight rather than queueing duplicate work. */
-export async function enqueueCheck(videoId: string, url: string): Promise<CheckJob> {
+export async function enqueueCheck(videoId: string, url: string, opts: { rerun?: boolean } = {}): Promise<CheckJob> {
   const existing = await readJob(videoId);
-  if (existing && existing.status !== "failed") return existing;
+  // A finished job normally answers repeat requests, but a rerun (a recovered
+  // video still at zero claims) must actually go back in the queue.
+  if (existing && existing.status !== "failed" && !(opts.rerun && existing.status === "done")) return existing;
 
   const queue = await getCheckQueue();
   const job: CheckJob = {

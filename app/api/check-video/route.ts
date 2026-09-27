@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  const job = await enqueueCheck(videoId, `https://www.youtube.com/watch?v=${videoId}`);
+  const job = await enqueueCheck(videoId, `https://www.youtube.com/watch?v=${videoId}`, { rerun: Boolean(stale) });
   const queue = await getCheckQueue();
   return NextResponse.json({
     videoId,
