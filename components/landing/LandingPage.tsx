@@ -125,7 +125,7 @@ function useMedium() {
 ═══════════════════════════════════════════════ */
 
 /* ── Nav ── */
-const NAV_H = 69;
+const NAV_H = 80;
 function Nav({ mob, dark = false, overlay = false }: { mob: boolean; dark?: boolean; overlay?: boolean }) {
   // `dark`: floating over the full-screen hero — a translucent smoked bar with
   // light type. It turns back into the cream bar once the hero scrolls away.
@@ -134,15 +134,30 @@ function Nav({ mob, dark = false, overlay = false }: { mob: boolean; dark?: bool
   return (
     <nav style={{
       position: "sticky", top: 0, zIndex: 50,
-      background: dark ? "rgba(12,10,8,.42)" : "color-mix(in oklab, #f8f5f0 92%, transparent)",
-      backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
-      borderBottom: `1px solid ${dark ? "rgba(255,255,255,.07)" : C.rule}`,
-      transition: "background .25s ease, border-color .25s ease",
+      // Desktop: a floating, rounded panel inset from the window edges —
+      // the bar itself is transparent and the panel inside carries the
+      // glass. Phones keep the full-width bar.
+      ...(mob ? {
+        background: "color-mix(in oklab, #f8f5f0 92%, transparent)",
+        backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
+        borderBottom: `1px solid ${C.rule}`,
+      } : { padding: "12px 16px 0", background: "transparent" }),
       // Overlay: the bar takes no space, so the hero runs full-screen beneath
       // it. Constant (not tied to \`dark\`) so nothing shifts when it recolours.
       ...(overlay ? { marginBottom: -NAV_H } : {}),
     }}>
-      <div style={{ maxWidth: 1280, margin: "0 auto", padding: mob ? "12px 20px" : "14px 32px", display: "flex", alignItems: "center", gap: mob ? 16 : 40 }}>
+      <div style={{
+        maxWidth: mob ? 1280 : "none", margin: "0 auto", padding: mob ? "12px 20px" : "12px 20px 12px 24px",
+        display: "flex", alignItems: "center", gap: mob ? 16 : 40,
+        ...(mob ? {} : {
+          borderRadius: 12,
+          background: dark ? "rgba(28,24,20,.62)" : "rgba(248,245,240,.86)",
+          backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)",
+          border: `1px solid ${dark ? "rgba(255,255,255,.08)" : C.rule}`,
+          boxShadow: dark ? "none" : "0 6px 24px -12px rgba(20,17,14,.18)",
+          transition: "background .25s ease, border-color .25s ease, box-shadow .25s ease",
+        }),
+      }}>
         {/* Brand */}
         <div style={{ display: "flex", alignItems: "center", gap: 12, fontFamily: SERIF, flexShrink: 0, whiteSpace: "nowrap", fontSize: 20, fontWeight: 600, letterSpacing: "-0.015em" }}>
           <div style={{
