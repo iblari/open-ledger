@@ -16,8 +16,11 @@ import OffAir from "./OffAir";
 import LiveExperience from "./LiveExperience";
 
 export default function LiveShell({
-  initial,
+  initial, requested = null,
 }: {
+  /** A specific broadcast asked for by ?v=, already checked against the live
+   *  state and the archive by the server. */
+  requested?: string | null;
   initial: {
     live: HomeLive | null; archive: HomeArchiveItem[]; schedule: HomeScheduleItem[];
     topics: TopicTally[];
@@ -27,7 +30,15 @@ export default function LiveShell({
   };
 }) {
   // A live broadcast means the page IS the broadcast — go straight in.
-  const [enter, setEnter] = useState<string | null>(initial.live ? "live" : null);
+  //
+  // A ?v= that names the CURRENTLY live broadcast is the same thing. One that
+  // names an ended broadcast opens its replay, so an alert read late still
+  // lands on what it was about rather than on an index.
+  const [enter, setEnter] = useState<string | null>(() => {
+    if (initial.live) return "live";
+    if (requested) return requested;
+    return null;
+  });
 
   if (enter) {
     // "Go straight in" previously stopped one step short. LiveExperience

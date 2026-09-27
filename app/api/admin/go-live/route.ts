@@ -85,6 +85,13 @@ export async function POST(req: Request) {
     await clearLiveClaims();
     await setLiveTranscript(""); // fresh session transcript
 
+    // Marked live FIRST. This used to run after the notifications, and
+    // sendLiveAlert walks the subscriber list in batches with a Resend round
+    // trip each — so for the whole of that the site still answered "off air"
+    // to anyone opening the alert. An alert whose entire purpose is "watch
+    // this now" cannot be dispatched before the thing it points at exists.
+    await setLiveState(state);
+
     // Ping push subscribers the moment coverage actually begins — this is
     // the alert the calendar could never reliably deliver.
     // AWAITED, not fire-and-forget.
@@ -109,12 +116,12 @@ export async function POST(req: Request) {
       }),
       // Email is the universal channel, and the only one reaching iPhone
       // users who haven't installed the site. No-ops until RESEND_API_KEY.
-      sendLiveAlert(body.title || "An official broadcast", body.source),
+      // The videoId travels with the alert so the link survives the
+      // broadcast: see lib/email-alerts.ts.
+      sendLiveAlert(body.title || "An official broadcast", body.source, state.videoId),
     ]);
     console.log(`[GO-LIVE] push: ${pushRes.status === "fulfilled" ? `${pushRes.value.sent} sent, ${pushRes.value.pruned} pruned` : `FAILED ${pushRes.reason}`}`);
     console.log(`[GO-LIVE] email: ${mailRes.status === "fulfilled" ? JSON.stringify(mailRes.value) : `FAILED ${mailRes.reason}`}`);
-
-    await setLiveState(state);
 
     console.log(`[GO-LIVE] Started: "${state.title}" (${state.videoId || "monitor mode"})`);
     return NextResponse.json({ ok: true, state });

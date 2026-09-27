@@ -43,8 +43,19 @@ function unsubUrl(email: string): string {
   return `${SITE}/api/unsubscribe?e=${encodeURIComponent(email)}&t=${unsubToken(email)}`;
 }
 
-function html(title: string, sourceLabel: string, email: string): string {
+/**
+ * `videoId` is what stops this mail going stale.
+ *
+ * The button used to point at /live, which means "whatever is live right
+ * now" — nothing, once the broadcast ends. Three broadcasts on 12 Sep ran 18,
+ * 26 and 41 minutes; anyone reading the mail later landed on a generic archive
+ * index with no trace of the thing they were alerted to, which reads exactly
+ * like "the site is broken". Naming the broadcast lets the link degrade to its
+ * replay instead.
+ */
+function html(title: string, sourceLabel: string, email: string, videoId?: string): string {
   const u = unsubUrl(email);
+  const watch = videoId ? `${SITE}/live?v=${encodeURIComponent(videoId)}` : `${SITE}/live`;
   return `<!doctype html><html><body style="margin:0;background:#f8f5f0;font-family:-apple-system,'Segoe UI',sans-serif">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8f5f0;padding:24px 12px">
     <tr><td align="center">
@@ -60,7 +71,7 @@ function html(title: string, sourceLabel: string, email: string): string {
             We're transcribing this broadcast and checking every economic claim against official data —
             BLS, BEA, Treasury and the Fed — as it's spoken. ${sourceLabel}
           </p>
-          <a href="${SITE}/live" style="display:inline-block;background:#b8372d;color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;padding:13px 26px;border-radius:6px">Watch the live fact-check →</a>
+          <a href="${watch}" style="display:inline-block;background:#b8372d;color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;padding:13px 26px;border-radius:6px">Watch the live fact-check →</a>
           <p style="margin:18px 0 0;font-size:12px;line-height:1.6;color:#9a9490">
             Claims appear with their rating, the real number, and a link to the source. No spin — you interpret.
           </p>
@@ -77,7 +88,7 @@ function html(title: string, sourceLabel: string, email: string): string {
 export interface AlertResult { sent: number; failed: number; skipped?: string }
 
 /** Email every subscriber that coverage has begun. */
-export async function sendLiveAlert(title: string, source?: string): Promise<AlertResult> {
+export async function sendLiveAlert(title: string, source?: string, videoId?: string): Promise<AlertResult> {
   const key = process.env.RESEND_API_KEY;
   if (!key) return { sent: 0, failed: 0, skipped: "RESEND_API_KEY not configured" };
 
@@ -103,7 +114,7 @@ export async function sendLiveAlert(title: string, source?: string): Promise<Ale
           from,
           to: [email],
           subject: `🔴 Live now: ${title}`,
-          html: html(title, sourceLabel, email),
+          html: html(title, sourceLabel, email, videoId),
           headers: {
             // Gmail/Apple render a native unsubscribe control from these.
             "List-Unsubscribe": `<${unsubUrl(email)}>`,
