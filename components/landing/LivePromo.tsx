@@ -366,7 +366,7 @@ export default function LivePromo() {
       </div>
 
       <p style={{ maxWidth: 760, margin: "72px auto 0", textAlign: "center", fontSize: "clamp(18px, 2vw, 22px)", lineHeight: 1.45, fontWeight: 500, color: "#8C8479", textWrap: "pretty" } as React.CSSProperties}>
-        Stream press briefings, hearings and addresses with <span style={{ color: "#FFFEFC" }}>AI fact-checking running alongside the video</span>. Every economic claim is verified against official data — BLS, BEA, Census, the Fed — in real time.
+        Every economic claim is <span style={{ color: "#FFFEFC" }}>verified against official data</span> — BLS, BEA, Census, the Fed — in real time.
       </p>
       <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 24, flexWrap: "wrap", marginTop: 32 }}>
         <Link href="/live" className="lp-cta" style={{ fontSize: 15, fontWeight: 600, color: "#FFFEFC", padding: "12px 22px", borderRadius: 100, background: "#B42318", textDecoration: "none" }}>
