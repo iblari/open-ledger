@@ -1332,10 +1332,12 @@ function MobileTicker() {
       {/* pinned LIVE badge, left */}
       <div style={{
         position: "absolute", left: 0, top: 0, bottom: 0, display: "flex", alignItems: "center", gap: 4,
-        padding: "0 14px 0 13px", background: "linear-gradient(90deg,#fff 72%,transparent)",
+        padding: "0 20px 0 12px", background: "linear-gradient(90deg,#fff 0,#fff calc(100% - 14px),rgba(255,255,255,0))",
       }}>
-        <span className="live-pulse" style={{ width: 5, height: 5, borderRadius: "50%", background: "#c1272d" }} />
-        <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: "0.1em", color: "#c1272d" }}>LIVE</span>
+        {/* "LATEST", not "LIVE": on this page LIVE means the broadcast band
+            just below. Solid background up to the badge's edge so the
+            scrolling figures can't show through it. */}
+        <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: "0.1em", color: C.sub, border: `1px solid ${C.rule}`, borderRadius: 3, padding: "2px 5px", lineHeight: 1 }}>LATEST</span>
       </div>
       {/* right fade */}
       <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: 24, background: "linear-gradient(270deg,#fff,transparent)" }} />
@@ -1344,6 +1346,18 @@ function MobileTicker() {
 }
 
 function MobileLanding() {
+  // The sticky "Open the ledger" bar steps aside while the dark Live band is
+  // on screen — sitting at the bottom of the viewport, it landed right on the
+  // band's headline.
+  const liveBandRef = useRef<HTMLDivElement>(null);
+  const [bandInView, setBandInView] = useState(false);
+  useEffect(() => {
+    const el = liveBandRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(([e]) => setBandInView(e.isIntersecting), { threshold: 0.05 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
   const heat = useMemo(() => computeHeatmap(METRICS, AID), []);
   const [selectedMetric, setSelectedMetric] = useState<string>("gdp");
 
@@ -1448,7 +1462,7 @@ function MobileLanding() {
       {/* ── 4b. Live Broadcast showcase (full-bleed). Moved up from below the
           table: at phone length the table is several screens, and most
           visitors never scrolled past it to the product's newest feature. ── */}
-      <Tile mob dark><LivePromo /></Tile>
+      <div ref={liveBandRef}><Tile mob dark><LivePromo /></Tile></div>
       <Tile mob style={{ paddingBottom: 18 }}>
       {/* ── 5. The ledger table ── */}
       <div style={{ background: "#fff", border: `1px solid ${C.rule}`, borderRadius: 6, margin: "16px 14px 0", overflow: "hidden" }}>
@@ -1620,12 +1634,14 @@ function MobileLanding() {
       </Tile>
       </div>
 
-      {/* ── 9. Sticky bottom CTA ── */}
-      <div style={{
+      {/* ── 9. Sticky bottom CTA (hidden while the Live band is in view) ── */}
+      <div aria-hidden={bandInView} style={{
         position: "sticky", bottom: 0, zIndex: 20, padding: "12px 16px 16px",
+        opacity: bandInView ? 0 : 1, transform: bandInView ? "translateY(16px)" : "none",
+        pointerEvents: bandInView ? "none" : "auto", transition: "opacity .2s ease, transform .2s ease",
         background: "linear-gradient(180deg, rgba(248,245,240,0) 0%, #f8f5f0 42%)",
       }}>
-        <Link href="/dashboard" style={{
+        <Link href="/dashboard" tabIndex={bandInView ? -1 : 0} style={{
           display: "flex", justifyContent: "space-between", alignItems: "center",
           background: C.ink, borderRadius: 6, padding: "13px 16px", textDecoration: "none",
           boxShadow: "0 10px 26px -10px rgba(0,0,0,.4)",
