@@ -271,7 +271,7 @@ function DarkHero({ med }: { med: boolean }) {
   const data = METRICS.gdp.d as { y: number; v: number; a: string }[];
   const max = Math.max(...data.map(d => Math.abs(d.v)));
   return (
-    <header id="top" style={{ position: "relative", minHeight: "100vh", background: "#0C0A08", color: "#FFFEFC", overflow: "hidden", display: "flex", alignItems: "center" }}>
+    <header id="top" data-dark style={{ position: "relative", minHeight: "100vh", background: "#0C0A08", color: "#FFFEFC", overflow: "hidden", display: "flex", alignItems: "center" }}>
       <style>{`
         @keyframes dhBreathe{0%,100%{transform:scaleY(.82)}50%{transform:scaleY(1)}}
         .dh-bar{animation:dhBreathe 7s ease-in-out infinite}
@@ -1009,7 +1009,7 @@ function PrinciplesSection({ mob, med }: { mob: boolean; med: boolean }) {
   ];
 
   return (
-    <section id="method" style={{ padding: mob ? "48px 0" : "88px 0" }}>
+    <section id="method" style={{ padding: mob ? "48px 0" : "72px 0 56px" }}>
       <div style={{ maxWidth: 1280, margin: "0 auto", padding: mob ? "0 20px" : "0 32px" }}>
         <div style={{ display: "grid", gridTemplateColumns: med ? "1fr" : "1fr 1.4fr", gap: med ? 16 : 64, marginBottom: 40, alignItems: "end" }}>
           <div>
@@ -1091,7 +1091,7 @@ function SourcesSection({ mob, med }: { mob: boolean; med: boolean }) {
   const sources = SOURCES;
 
   return (
-    <section id="sources" style={{ padding: mob ? "48px 0" : "88px 0" }}>
+    <section id="sources" style={{ padding: mob ? "48px 0" : "56px 0 96px" }}>
       <div style={{ maxWidth: 1280, margin: "0 auto", padding: mob ? "0 20px" : "0 32px" }}>
         <div style={{ display: "grid", gridTemplateColumns: med ? "1fr" : "1fr 1.4fr", gap: med ? 16 : 64, marginBottom: 40, alignItems: "end" }}>
           <div>
@@ -1109,19 +1109,22 @@ function SourcesSection({ mob, med }: { mob: boolean; med: boolean }) {
             full layout with descriptions since there's room. The hidden
             descriptions live in `title` attributes so they're still
             discoverable via long-press on touch / hover on desktop. */}
+        {/* Desktop: a clean list on hairlines rather than twelve boxed cards —
+            the busiest block on the page, calmed down. */}
         <div style={{
           display: "grid",
           gridTemplateColumns: mob ? "repeat(4, 1fr)" : (med ? "repeat(2, 1fr)" : "repeat(3, 1fr)"),
-          gap: mob ? 6 : 12,
+          gap: mob ? 6 : "0 48px",
         }}>
           {sources.map(s => (
             <div key={s.src}
               title={mob ? s.d : undefined}
               style={{
-                padding: mob ? "10px 8px" : "14px 16px",
-                background: C.card, border: `1px solid ${C.rule}`,
-                borderRadius: 4, display: "flex", flexDirection: "column", gap: 4,
-                transition: "border-color 0.15s", cursor: "pointer",
+                padding: mob ? "10px 8px" : "18px 0 20px",
+                ...(mob
+                  ? { background: C.card, border: `1px solid ${C.rule}`, borderRadius: 4 }
+                  : { borderTop: `1px solid ${C.rule}` }),
+                display: "flex", flexDirection: "column", gap: 6,
                 minWidth: 0, // allow text to ellipsis inside a tight column
                 textAlign: mob ? "center" : "left",
                 justifyContent: mob ? "center" : "flex-start",
@@ -1137,7 +1140,7 @@ function SourcesSection({ mob, med }: { mob: boolean; med: boolean }) {
                 overflow: "hidden", textOverflow: "ellipsis",
               }}>{s.src}</span>
               {!mob && (
-                <span style={{ fontSize: 11, color: C.mute, lineHeight: 1.4 }}>{s.d}</span>
+                <span style={{ fontSize: 12.5, color: C.sub, lineHeight: 1.5 }}>{s.d}</span>
               )}
             </div>
           ))}
@@ -1221,18 +1224,18 @@ function CTASection({ mob, med }: { mob: boolean; med: boolean }) {
       // scrollMarginTop keeps the headline clear of the sticky header on
       // arrival — without it the anchor lands with the form under the nav.
       scrollMarginTop: 72,
-      padding: mob ? "48px 0" : "96px 0",
+      padding: mob ? "48px 0" : "112px 0 88px",
     }}>
       <div style={{
         maxWidth: 1280, margin: "0 auto", padding: mob ? "0 20px" : "0 32px",
         display: "grid", gridTemplateColumns: med ? "1fr" : "1fr 1fr", gap: med ? 28 : 72, alignItems: "center",
       }}>
         <div>
-          <div style={{ fontFamily: SANS, fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: C.sub, fontWeight: 500, marginBottom: 16 }}>Monthly dispatch</div>
-          <h2 style={{ fontFamily: SERIF, fontSize: mob ? 32 : 44, lineHeight: 1.05, letterSpacing: "-0.022em", fontWeight: 400, margin: 0 }}>
-            One email a month.<br />The ledger, <em style={{ fontStyle: "italic", color: C.accent }}>updated.</em>
+          <div style={{ fontFamily: SANS, fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "#A69E92", fontWeight: 500, marginBottom: 16 }}>Monthly dispatch</div>
+          <h2 style={{ fontFamily: SERIF, fontSize: mob ? 32 : 52, lineHeight: 1.02, letterSpacing: "-0.024em", fontWeight: 400, margin: 0, color: "#FFFEFC" }}>
+            One email a month.<br />The ledger, <em style={{ fontStyle: "italic", color: "#E0493A" }}>updated.</em>
           </h2>
-          <p style={{ marginTop: 16, color: C.sub, fontSize: 16, maxWidth: "44ch", lineHeight: 1.5 }}>
+          <p style={{ marginTop: 16, color: "#A69E92", fontSize: 16, maxWidth: "44ch", lineHeight: 1.5 }}>
             New data lands, old data gets revised, and we flag the ones that changed most.
             No campaign coverage. No horse race. Just the numbers.
           </p>
@@ -1241,8 +1244,8 @@ function CTASection({ mob, med }: { mob: boolean; med: boolean }) {
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 10, maxWidth: 480 }}>
           {status === "success" ? (
             <div style={{
-              padding: "20px 24px", background: C.card, border: `1px solid ${C.improveStrong}`,
-              borderRadius: 4, fontFamily: SANS, fontSize: 15, color: C.improveStrong, fontWeight: 600,
+              padding: "20px 24px", background: "#1A1613", border: "1px solid #0E7477",
+              borderRadius: 4, fontFamily: SANS, fontSize: 15, color: "#2BA5A0", fontWeight: 600,
             }}>
               {msg}
             </div>
@@ -1255,25 +1258,25 @@ function CTASection({ mob, med }: { mob: boolean; med: boolean }) {
                   onChange={e => setEmail(e.target.value)}
                   style={{
                     flex: 1, padding: "14px 18px", font: "inherit", fontSize: mob ? 16 : 17,
-                    border: `1px solid ${spotlight ? C.accent : C.rule}`, borderRadius: 4,
-                    background: C.card, color: C.ink,
+                    border: `1px solid ${spotlight ? "#E0493A" : "#3A332D"}`, borderRadius: 4,
+                    background: "#1A1613", color: "#FFFEFC", colorScheme: "dark",
                     // A ring rather than a colour swap: the field keeps its
                     // normal appearance, so nothing looks like an error state.
                     boxShadow: spotlight ? `0 0 0 4px ${C.accent}22` : "none",
                     transition: "box-shadow .25s ease, border-color .25s ease",
                   }}
                 />
-                <button type="submit" disabled={status === "loading"} className="vu-cta vu-cta-p" style={{
+                <button type="submit" disabled={status === "loading"} className="vu-cta" style={{
                   display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8,
                   padding: "14px 24px", borderRadius: 4, fontSize: 15, fontWeight: 600,
-                  background: C.ink, color: C.bg, border: `1px solid ${C.ink}`,
+                  background: "#FFFEFC", color: "#0C0A08", border: "1px solid #FFFEFC",
                   cursor: status === "loading" ? "wait" : "pointer", opacity: status === "loading" ? 0.7 : 1,
                 }}>
                   {status === "loading" ? "..." : <>Subscribe <span className="vu-arw">→</span></>}
                 </button>
               </div>
               {status === "error" && <div style={{ fontSize: 13, color: C.declineStrong }}>{msg}</div>}
-              <div style={{ fontSize: 11, color: C.mute, letterSpacing: "0.04em" }}>
+              <div style={{ fontSize: 11, color: "#8C8479", letterSpacing: "0.04em" }}>
                 Join the community
               </div>
             </>
@@ -1297,10 +1300,10 @@ function Footer({ mob, med }: { mob: boolean; med: boolean }) {
           {/* Brand col */}
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 12, fontFamily: SERIF, fontSize: 18, fontWeight: 600, letterSpacing: "-0.015em" }}>
-              <div style={{ width: 26, height: 26, borderRadius: "50%", background: C.ink, color: C.bg, display: "grid", placeItems: "center", fontFamily: SERIF, fontWeight: 700, fontSize: 13 }}>V</div>
-              <span>Vote <em style={{ fontStyle: "italic", color: C.accent, fontWeight: 500 }}>Unbiased</em></span>
+              <div style={{ width: 26, height: 26, borderRadius: "50%", background: "#F4F0EA", color: "#0C0A08", display: "grid", placeItems: "center", fontFamily: SERIF, fontWeight: 700, fontSize: 13 }}>V</div>
+              <span style={{ color: "#F4F0EA" }}>Vote <em style={{ fontStyle: "italic", color: "#E0493A", fontWeight: 500 }}>Unbiased</em></span>
             </div>
-            <p style={{ color: C.sub, marginTop: 12, maxWidth: "38ch", fontSize: 13, lineHeight: 1.55 }}>
+            <p style={{ color: "#A69E92", marginTop: 12, maxWidth: "38ch", fontSize: 13, lineHeight: 1.55 }}>
               An independent, non-partisan data project. No advertisers, no political action
               committee, no affiliation with any campaign or party.
             </p>
@@ -1313,8 +1316,8 @@ function Footer({ mob, med }: { mob: boolean; med: boolean }) {
             { h: "Stay in touch", links: [{ l: "Newsletter", href: "#cta" }] },
           ].map(col => (
             <div key={col.h}>
-              <h4 style={{ fontSize: 11, color: C.mute, letterSpacing: "0.12em", textTransform: "uppercase", fontWeight: 500, marginBottom: 14 }}>{col.h}</h4>
-              <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: 8, color: C.sub, padding: 0, margin: 0 }}>
+              <h4 style={{ fontSize: 11, color: "#8C8479", letterSpacing: "0.12em", textTransform: "uppercase", fontWeight: 500, marginBottom: 14 }}>{col.h}</h4>
+              <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: 8, color: "#D8CFC4", padding: 0, margin: 0 }}>
                 {col.links.map(l => <li key={l.l}><a href={l.href} style={{ color: "inherit", textDecoration: "none", transition: "color 0.15s" }}>{l.l}</a></li>)}
               </ul>
             </div>
@@ -1322,9 +1325,9 @@ function Footer({ mob, med }: { mob: boolean; med: boolean }) {
         </div>
 
         <div style={{
-          borderTop: `1px solid ${C.rule}`, marginTop: 48, padding: "20px 0",
+          borderTop: "1px solid rgba(255,255,255,.1)", marginTop: 48, padding: "20px 0 28px",
           display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8,
-          fontSize: 11, color: C.mute, letterSpacing: "0.06em", textTransform: "uppercase",
+          fontSize: 11, color: "#8C8479", letterSpacing: "0.06em", textTransform: "uppercase",
         }}>
           <span>© 2026 Vote Unbiased · voteunbiased.org</span>
           <span>No spin · No editorial · You interpret</span>
@@ -1799,7 +1802,14 @@ export default function LandingPage() {
   // Nav is smoked-glass while it floats over the dark hero, cream after.
   const [overHero, setOverHero] = useState(true);
   useEffect(() => {
-    const on = () => setOverHero(window.scrollY < window.innerHeight - NAV_H - 10);
+    // Dark whenever the panel sits over any dark band (hero, Live, closing),
+    // not only the hero — over the Live band the cream panel read as grey.
+    const on = () => {
+      const y = NAV_H / 2 + 6;
+      setOverHero([...document.querySelectorAll("[data-dark]")].some(el => {
+        const r = el.getBoundingClientRect(); return r.top <= y && r.bottom >= y;
+      }));
+    };
     on(); window.addEventListener("scroll", on, { passive: true }); window.addEventListener("resize", on);
     return () => { window.removeEventListener("scroll", on); window.removeEventListener("resize", on); };
   }, []);
@@ -1830,8 +1840,12 @@ export default function LandingPage() {
       <Tile mob={mob} dark><ComingSoonSection /></Tile>
       <Tile mob={mob}><PrinciplesSection mob={mob} med={med} /></Tile>
       <Tile mob={mob}><SourcesSection mob={mob} med={med} /></Tile>
-      <Tile mob={mob}><CTASection mob={mob} med={med} /></Tile>
-      <Footer mob={mob} med={med} />
+      {/* Closing band: newsletter + footer on near-black, bookending the
+          hero — dark · light · dark · light · dark down the page. */}
+      <div data-dark style={{ background: "#0C0A08", color: "#F4F0EA" }}>
+        <CTASection mob={mob} med={med} />
+        <Footer mob={mob} med={med} />
+      </div>
       </div>
     </div>
   );

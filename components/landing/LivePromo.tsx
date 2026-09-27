@@ -201,7 +201,7 @@ export default function LivePromo() {
   );
 
   return (
-    <section aria-labelledby="lp-h" className="lp" style={{ background: "#0C0A08", color: "#FFFEFC", fontFamily: SANS, overflow: "hidden" }}>
+    <section aria-labelledby="lp-h" data-dark className="lp" style={{ background: "#0C0A08", color: "#FFFEFC", fontFamily: SANS, overflow: "hidden" }}>
       <style>{`
         .lp{padding:88px 20px 120px}
         @keyframes lpBreathe{0%,100%{opacity:.95}50%{opacity:.3}}
