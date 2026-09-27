@@ -1660,7 +1660,9 @@ export default function LandingPage() {
       <Nav mob={mob} />
       <div style={{ display: "flex", flexDirection: "column", gap: TILE_GAP, background: PAGE_BG, paddingTop: LAYOUT === "cards" ? 8 : 0 }}>
       <Tile mob={mob}><Hero mob={mob} med={med} /></Tile>
-      <Tile mob={mob}>
+      {/* Room before the dark band: a hard colour cut only reads as
+          deliberate when the section before it has space to finish. */}
+      <Tile mob={mob} style={{ paddingBottom: mob ? 56 : 112 }}>
         <div style={{ maxWidth: 1280, margin: "0 auto", padding: mob ? "0 20px" : "0 32px" }}>
           <InsightsStrip mob={mob} limit={3} eyebrow="What's notable right now" />
         </div>
