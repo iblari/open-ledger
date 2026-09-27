@@ -173,7 +173,6 @@ function Nav({ mob, dark = false, overlay = false }: { mob: boolean; dark?: bool
         {/* Links — desktop only */}
         {!mob && (
           <div style={{ display: "flex", gap: 24, fontSize: 13, color: sub, fontWeight: 500 }}>
-            <a href="/dashboard?tab=data" style={{ padding: "4px 0", color: sub, transition: "color 0.15s" }}>Scorecard</a>
             <a href="#method" style={{ padding: "4px 0", color: sub }}>Methodology</a>
             <a href="#sources" style={{ padding: "4px 0", color: sub }}>Sources</a>
           </div>
