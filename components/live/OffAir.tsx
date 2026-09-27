@@ -13,13 +13,16 @@
  * opening one.
  */
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import type { HomeArchiveItem, HomeScheduleItem, TopicTally } from "@/lib/live-home";
 import TopicBreakdown from "./TopicBreakdown";
 import type { MomentumResult } from "@/lib/topic-breadth";
 
 const C = {
+  // Same cream as the homepage. The old greyer #E7E2D9 made this page read
+  // like an admin screen next to the rest of the site.
+  bg: "#f8f5f0",
   paper: "#E7E2D9", card: "#FFFEFC", ink: "#14110E", secondary: "#5F5850",
   muted: "#8C8479", faint: "#A69E92", rule: "#DFD9CF", rule2: "#D6D0C5",
   ok: "#0E7477", mis: "#B45309", con: "#C2410C", accent: "#C0392B",
@@ -148,6 +151,59 @@ function AlertButton() {
   );
 }
 
+/**
+ * Titles arrive exactly as the channel wrote them: "LIVE: …" on recordings
+ * that ended days ago, a trailing date the card already shows, and the
+ * speaker's full title at the front of nearly every one. Split the speaker
+ * out and trim the noise; the original stays in the tooltip.
+ */
+const SPEAKERS: [RegExp, string][] = [
+  [/^President Trump(?:[‘'’]s)?\s+/i, "Trump"],
+  [/^(?:Vice President\s+)?JD Vance(?:[‘'’]s)?\s+/i, "Vance"],
+];
+export function cleanTitle(raw: string): { title: string; speaker: string | null } {
+  let t = raw.trim().replace(/^(?:WATCH\s+)?LIVE:\s*/i, "");
+  let speaker: string | null = null;
+  for (const [re, who] of SPEAKERS) {
+    if (re.test(t)) { speaker = who; t = t.replace(re, ""); break; }
+  }
+  if (speaker) {
+    if (/^and the First Lady\s+/i.test(t)) { speaker += " & First Lady"; t = t.replace(/^and the First Lady\s+/i, ""); }
+    t = t.replace(/^(?:Delivers|Holds|Gives)\s+/i, "").replace(/^Participates? in (?:an?\s+|the\s+)?/i, "");
+  }
+  t = t
+    .replace(/,?\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\.?\s+\d{1,2},\s+\d{4}$/i, "")
+    .replace(/\s*[-–—]\s*\d{1,2}\/\d{1,2}\/\d{2,4}$/, "")
+    .trim();
+  if (!t) t = raw;
+  return { title: t.charAt(0).toUpperCase() + t.slice(1), speaker };
+}
+
+const thumb = (id: string, size: "mq" | "hq") => `https://i.ytimg.com/vi/${id}/${size}default.jpg`;
+
+function Thumb({ id, size, duration }: { id: string; size: "mq" | "hq"; duration: string }) {
+  return (
+    <span style={{ position: "relative", display: "block", aspectRatio: "16 / 9", background: "#1A1613", overflow: "hidden" }}>
+      {/* hqdefault is 4:3 with letterbox bars baked in; cover crops them. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={thumb(id, size)} alt="" loading="lazy" decoding="async"
+        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+      <span style={{ position: "absolute", left: 8, bottom: 8, fontFamily: SANS, fontSize: 11, fontWeight: 600, color: "#fff", background: "rgba(12,10,8,.72)", padding: "3px 7px", borderRadius: 4 }}>
+        ▶ {duration}
+      </span>
+    </span>
+  );
+}
+
+function Tally({ counts, total, size = 11.5 }: { counts: HomeArchiveItem["counts"]; total: number; size?: number }) {
+  return (
+    <span style={{ fontFamily: SANS, fontSize: size, color: C.secondary }}>
+      <b style={{ color: C.ok, fontWeight: 600 }}>{counts.match} true</b> · <b style={{ color: C.mis, fontWeight: 600 }}>{counts.misleading} misleading</b> · <b style={{ color: C.con, fontWeight: 600 }}>{counts.contradicted} false</b>
+      <span style={{ color: C.muted }}> · {total} claims</span>
+    </span>
+  );
+}
+
 export default function OffAir({
   archive, schedule, topics, topicTail, topicMomentum, topicTotals, onWatch,
 }: {
@@ -158,160 +214,168 @@ export default function OffAir({
   topicTotals: { claims: number; broadcasts: number; since: string | null };
   onWatch: (id: string) => void;
 }) {
-  // The pitch is for people who haven't seen it. Returning visitors get
-  // straight to the product.
-  const [showMasthead, setShowMasthead] = useState(false);
-  useEffect(() => {
-    try {
-      const seen = localStorage.getItem("vu_seen_live_masthead");
-      if (!seen) { setShowMasthead(true); localStorage.setItem("vu_seen_live_masthead", "1"); }
-    } catch { setShowMasthead(true); }
-  }, []);
-
-  const [featured, ...rest] = archive;
-  const next = schedule[0];
+  // Broadcasts that produced no economic claims (a ceremony, an arrival) are
+  // real coverage but look broken as a row with an empty bar and a "0".
+  // They're kept one tap away instead.
+  const withClaims = archive.filter(a => a.total > 0);
+  const quiet = archive.filter(a => a.total === 0);
+  const [showQuiet, setShowQuiet] = useState(false);
+  const [featured, ...rest] = withClaims;
+  const [next, ...later] = schedule;
+  const f = featured ? cleanTitle(featured.title) : null;
 
   return (
-    <div style={{ background: C.paper, minHeight: "100vh" }}>
-      <div style={{ maxWidth: 1180, margin: "0 auto", padding: "22px 20px 40px" }}>
+    <div style={{ background: C.bg, minHeight: "100vh" }}>
+      <style>{`
+        .oa-card{transition:transform .15s ease, box-shadow .15s ease}
+        .oa-card:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(20,17,14,.10)}
+        .oa-card:focus-visible{outline:2px solid ${C.ok};outline-offset:3px}
+        .oa-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px}
+        .oa-feat{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr)}
+        @media (max-width:760px){.oa-feat{grid-template-columns:1fr}.oa-grid{grid-template-columns:1fr 1fr;gap:10px}}
+        /* Phones: compact rows (thumbnail beside text) — full-width cards made
+           the list eight screens long. */
+        @media (max-width:560px){
+          .oa-grid{grid-template-columns:1fr;gap:10px}
+          .oa-row{flex-direction:row!important;align-items:stretch}
+          .oa-row>.oa-th{width:128px;flex:none}
+          .oa-row>.oa-th>span{aspect-ratio:auto!important;height:100%;min-height:84px}
+          .oa-row .oa-body{padding:10px 12px!important}
+          .oa-row .oa-t{font-size:14.5px!important;margin:3px 0 8px!important}
+          .oa-chip{white-space:normal!important}
+        }
+        @media (prefers-reduced-motion:reduce){.oa-card{transition:none}.oa-card:hover{transform:none}}
+      `}</style>
 
-        {showMasthead && (
-          <header style={{ display: "flex", gap: 40, flexWrap: "wrap", alignItems: "flex-start", marginBottom: 26 }}>
-            <div style={{ flex: "2 1 420px", minWidth: 280 }}>
-              <h1 style={{ fontFamily: SERIF, fontSize: "clamp(34px,5vw,56px)", fontWeight: 600, lineHeight: 1.05, letterSpacing: "-0.02em", margin: 0, color: C.ink }}>
-                Every economic claim, checked against the data — as it&rsquo;s said.
+      {/* ── Dark band: what's next, and the one action off air ── */}
+      <section style={{ background: "#0C0A08", color: "#FFFEFC" }}>
+        <div style={{ maxWidth: 1180, margin: "0 auto", padding: "40px 20px 34px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 9, fontFamily: SANS, fontSize: 11, fontWeight: 700, letterSpacing: "0.16em", color: C.faint }}>
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#6B645C" }} />
+            OFF AIR{next ? <> · NEXT UP {fmtWhen(next.startsAt).toUpperCase()}</> : null}
+          </div>
+          <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 20, flexWrap: "wrap", marginTop: 12 }}>
+            <div style={{ minWidth: 0, flex: "1 1 420px" }}>
+              <h1 style={{ fontFamily: SERIF, fontWeight: 600, fontSize: "clamp(30px, 4.6vw, 52px)", lineHeight: 1.04, letterSpacing: "-0.02em", margin: 0 }}>
+                {next ? next.title : "Nothing scheduled right now"}
               </h1>
-              <p style={{ fontFamily: SANS, fontSize: 15, color: C.secondary, lineHeight: 1.6, maxWidth: "52ch", margin: "14px 0 0" }}>
-                We transcribe official broadcasts live and check every number against BLS, BEA,
-                Treasury and Fed series. You get the quote, the real figure and the source — no verdict on the politics.
+              <p style={{ fontFamily: SANS, fontSize: 15, color: C.faint, margin: "10px 0 0", lineHeight: 1.5 }}>
+                {next
+                  ? <>We&rsquo;ll fact-check it live, claim by claim, against official data.</>
+                  : "Official events are usually announced a few hours ahead. Coverage starts automatically."}
               </p>
             </div>
-            <div style={{ flex: "1 1 260px", minWidth: 220 }}>
-              {[
-                ["Verbatim quotes", "Never a paraphrase, so you can check it against the tape."],
-                ["The number, both ways", "What was said and what the official series says."],
-                ["A record you can take", "Every broadcast downloads as a citable document."],
-              ].map(([t, d], i) => (
-                <div key={t} style={{ padding: "11px 0", borderTop: i === 0 ? "none" : `1px solid ${C.rule2}` }}>
-                  <div style={{ fontFamily: SANS, fontSize: 12.5, fontWeight: 700, color: C.ink }}>{t}</div>
-                  <div style={{ fontFamily: SANS, fontSize: 11.5, color: C.muted, lineHeight: 1.5, marginTop: 2 }}>{d}</div>
-                </div>
+            <AlertButton />
+          </div>
+          {later.length > 0 && (
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 22 }}>
+              {later.slice(0, 4).map(s => (
+                <span key={s.title + s.startsAt} className="oa-chip" style={{ fontFamily: SANS, fontSize: 12, color: "#BDB5A8", border: "1px solid #332C27", borderRadius: 99, padding: "5px 12px", whiteSpace: "nowrap" }}>
+                  <span style={{ fontFamily: MONO, color: C.faint }}>{fmtDate(s.startsAt)}</span> · {s.title}
+                </span>
               ))}
             </div>
-          </header>
-        )}
-
-        {/* Status strip — replaces the empty card and both CTA boxes */}
-        <div style={{
-          background: C.ink, borderRadius: 8, padding: "14px 18px", marginBottom: 22,
-          display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap",
-        }}>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-            <span className="live-pulse" style={{ width: 8, height: 8, borderRadius: "50%", background: C.faint }} />
-            <span style={{ fontFamily: SANS, fontSize: 10.5, fontWeight: 700, letterSpacing: "0.16em", color: C.faint }}>OFF AIR</span>
-          </span>
-          <span style={{ flex: 1, minWidth: 200, fontFamily: SANS, fontSize: 12.5, color: "#E7E2D9", lineHeight: 1.5 }}>
-            {next
-              ? <>Next up: <strong style={{ fontWeight: 600 }}>{next.title}</strong> · {fmtWhen(next.startsAt)}</>
-              : "Nothing scheduled right now — official events are usually announced a few hours ahead."}
-          </span>
-          <AlertButton />
+          )}
         </div>
+      </section>
 
-        <div style={{ display: "flex", gap: 22, flexWrap: "wrap", alignItems: "flex-start" }}>
-          {/* Archive */}
-          <section style={{ flex: "1.6 1 520px", minWidth: 300 }}>
-            <h2 style={{ fontFamily: SANS, fontSize: 10, fontWeight: 700, letterSpacing: "0.16em", textTransform: "uppercase", color: C.muted, margin: "0 0 12px" }}>
-              Recent broadcasts · full record
-            </h2>
+      <div style={{ maxWidth: 1180, margin: "0 auto", padding: "34px 20px 48px" }}>
+        {!featured ? (
+          <div style={{ background: C.card, border: `1px dashed ${C.rule2}`, borderRadius: 10, padding: "34px 22px", textAlign: "center" }}>
+            <div style={{ fontFamily: SERIF, fontSize: 20, fontWeight: 600, color: C.ink, marginBottom: 6 }}>No recent broadcasts yet</div>
+            <p style={{ fontFamily: SANS, fontSize: 13, color: C.secondary, lineHeight: 1.6, maxWidth: "44ch", margin: "0 auto" }}>
+              Coverage runs automatically whenever an official channel goes live.
+            </p>
+          </div>
+        ) : (
+          <>
+            <h2 style={H2}>Latest</h2>
+            <button onClick={() => onWatch(featured.id)} className="oa-card oa-feat" title={featured.title} style={{
+              width: "100%", textAlign: "left", cursor: "pointer", padding: 0, font: "inherit",
+              background: C.card, border: `1px solid ${C.rule}`, borderRadius: 12, overflow: "hidden",
+            }}>
+              <Thumb id={featured.id} size="hq" duration={featured.duration} />
+              <span style={{ display: "flex", flexDirection: "column", justifyContent: "center", padding: "22px 24px", minWidth: 0 }}>
+                <span style={{ fontFamily: SANS, fontSize: 12, color: C.muted }}>
+                  {fmtDate(featured.date)}{f?.speaker ? ` · ${f.speaker}` : ""}
+                </span>
+                <span style={{ fontFamily: SERIF, fontSize: "clamp(21px, 2.4vw, 28px)", fontWeight: 600, lineHeight: 1.18, color: C.ink, margin: "6px 0 16px" }}>
+                  {f?.title}
+                </span>
+                <VerdictBar counts={featured.counts} total={featured.total} />
+                <span style={{ marginTop: 8 }}><Tally counts={featured.counts} total={featured.total} /></span>
+                <span style={{ fontFamily: SANS, fontSize: 14, color: C.ok, fontWeight: 700, marginTop: 18 }}>
+                  Watch with fact-check →
+                </span>
+              </span>
+            </button>
 
-            {!featured ? (
-              <div style={{ background: C.card, border: `1px dashed ${C.rule2}`, borderRadius: 8, padding: "34px 22px", textAlign: "center" }}>
-                <div style={{ fontFamily: SERIF, fontSize: 18, fontWeight: 600, color: C.ink, marginBottom: 6 }}>No broadcasts in the last 72 hours</div>
-                <p style={{ fontFamily: SANS, fontSize: 12.5, color: C.secondary, lineHeight: 1.6, maxWidth: "44ch", margin: "0 auto" }}>
-                  Coverage runs automatically whenever an official channel goes live.
-                </p>
-              </div>
-            ) : (
+            {rest.length > 0 && (
               <>
-                <button onClick={() => onWatch(featured.id)} style={{
-                  display: "block", width: "100%", textAlign: "left", cursor: "pointer",
-                  background: C.card, border: `1px solid ${C.rule}`, borderRadius: 8, padding: "18px 20px", marginBottom: 10,
-                }}>
-                  <div style={{ fontFamily: SANS, fontSize: 10, color: C.muted, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 6 }}>
-                    {fmtDate(featured.date)} · {featured.venue} · {featured.duration}
-                  </div>
-                  <div style={{ fontFamily: SERIF, fontSize: 22, fontWeight: 600, lineHeight: 1.25, color: C.ink, marginBottom: 12 }}>
-                    {featured.title}
-                  </div>
-                  <VerdictBar counts={featured.counts} total={featured.total} />
-                  <div style={{ fontFamily: SANS, fontSize: 11.5, color: C.ok, fontWeight: 700, marginTop: 11 }}>
-                    Open the record →
-                  </div>
-                </button>
-
-                {/* Was capped at four. A busy stretch — or broadcasts restored
-                    after an outage — holds more than that, and a hidden one
-                    reads as missing coverage. The 72-hour window already
-                    bounds the list; twelve is just a guard against a
-                    runaway. */}
-                {rest.slice(0, 11).map(a => (
-                  <button key={a.id} onClick={() => onWatch(a.id)} style={{
-                    display: "flex", width: "100%", textAlign: "left", cursor: "pointer",
-                    alignItems: "center", gap: 14, flexWrap: "wrap",
-                    background: C.card, border: `1px solid ${C.rule}`, borderRadius: 8,
-                    padding: "12px 16px", marginBottom: 8,
-                  }}>
-                    <span style={{ flex: "1 1 220px", minWidth: 0 }}>
-                      <span style={{ display: "block", fontFamily: SERIF, fontSize: 15, fontWeight: 600, color: C.ink, lineHeight: 1.3 }}>{a.title}</span>
-                      <span style={{ display: "block", fontFamily: SANS, fontSize: 10.5, color: C.muted, marginTop: 3 }}>
-                        {fmtDate(a.date)} · {a.duration}
+                <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, flexWrap: "wrap", margin: "36px 0 12px" }}>
+                  <h2 style={{ ...H2, margin: 0 }}>Recent broadcasts</h2>
+                  {/* The bars mean nothing without this. */}
+                  <span style={{ display: "flex", gap: 14, fontFamily: SANS, fontSize: 11.5, color: C.muted }}>
+                    {([["True", C.ok], ["Misleading", C.mis], ["False", C.con]] as const).map(([l, c]) => (
+                      <span key={l} style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                        <span style={{ width: 9, height: 9, borderRadius: 2, background: c }} />{l}
                       </span>
-                    </span>
-                    <span style={{ flex: "0 1 170px", minWidth: 120 }}>
-                      <VerdictBar counts={a.counts} total={a.total} />
-                    </span>
-                  </button>
-                ))}
-              </>
-            )}
-          </section>
-
-          {/* Right rail */}
-          <aside style={{ flex: "1 1 340px", minWidth: 280, position: "sticky", top: 82, display: "flex", flexDirection: "column", gap: 14 }}>
-
-            <section style={{ background: C.card, border: `1px solid ${C.rule}`, borderRadius: 8, padding: "16px 18px" }}>
-              <h3 style={{ fontFamily: SANS, fontSize: 10, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: C.muted, margin: "0 0 10px" }}>
-                What&rsquo;s coming
-              </h3>
-              {schedule.length === 0 && (
-                <p style={{ fontFamily: SANS, fontSize: 12, color: C.muted, margin: 0 }}>Nothing scheduled yet.</p>
-              )}
-              {schedule.map(s => (
-                <div key={s.title + s.startsAt} style={{
-                  display: "flex", gap: 11, alignItems: "flex-start",
-                  padding: "10px 0", borderTop: `1px solid ${C.rule2}`,
-                }}>
-                  <span style={{
-                    flexShrink: 0, fontFamily: MONO, fontSize: 10, color: C.ink,
-                    background: C.paper, border: `1px solid ${C.rule2}`, borderRadius: 4,
-                    padding: "4px 7px", textAlign: "center", lineHeight: 1.25, minWidth: 42,
-                  }}>{fmtDate(s.startsAt)}</span>
-                  <span style={{ minWidth: 0 }}>
-                    <span style={{ display: "block", fontFamily: SANS, fontSize: 12.5, fontWeight: 600, color: C.ink, lineHeight: 1.35 }}>{s.title}</span>
-                    <span style={{ display: "block", fontFamily: SANS, fontSize: 10.5, color: C.muted, marginTop: 2 }}>
-                      {fmtWhen(s.startsAt)}
-                    </span>
+                    ))}
                   </span>
                 </div>
-              ))}
-            </section>
-          </aside>
-        </div>
+                <div className="oa-grid">
+                  {rest.slice(0, 12).map(a => {
+                    const t = cleanTitle(a.title);
+                    return (
+                      <button key={a.id} onClick={() => onWatch(a.id)} className="oa-card oa-row" title={a.title} style={{
+                        display: "flex", flexDirection: "column", textAlign: "left", cursor: "pointer", padding: 0, font: "inherit",
+                        background: C.card, border: `1px solid ${C.rule}`, borderRadius: 10, overflow: "hidden", minWidth: 0,
+                      }}>
+                        <span className="oa-th" style={{ display: "block" }}><Thumb id={a.id} size="mq" duration={a.duration} /></span>
+                        <span className="oa-body" style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, padding: "12px 14px 14px" }}>
+                          <span style={{ fontFamily: SANS, fontSize: 11.5, color: C.muted }}>
+                            {fmtDate(a.date)}{t.speaker ? ` · ${t.speaker}` : ""}
+                          </span>
+                          <span className="oa-t" style={{ fontFamily: SERIF, fontSize: 16, fontWeight: 600, lineHeight: 1.25, color: C.ink, margin: "4px 0 12px", flex: 1 }}>
+                            {t.title}
+                          </span>
+                          <VerdictBar counts={a.counts} total={a.total} />
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
 
-        {/* Full width, below both columns: the bars need horizontal room, and
-            the 128px topic labels would wrap in the 340px right rail. */}
-        <div style={{ marginTop: 22 }}>
+            {quiet.length > 0 && (
+              <div style={{ marginTop: 16 }}>
+                <button onClick={() => setShowQuiet(v => !v)} aria-expanded={showQuiet} style={{
+                  background: "none", border: "none", padding: "6px 0", cursor: "pointer",
+                  fontFamily: SANS, fontSize: 12.5, color: C.muted,
+                }}>
+                  {quiet.length} {quiet.length === 1 ? "broadcast" : "broadcasts"} with no economic claims · <span style={{ color: C.ok, fontWeight: 600 }}>{showQuiet ? "Hide" : "Show"}</span>
+                </button>
+                {showQuiet && (
+                  <ul style={{ listStyle: "none", margin: "6px 0 0", padding: 0 }}>
+                    {quiet.map(a => (
+                      <li key={a.id}>
+                        <button onClick={() => onWatch(a.id)} style={{
+                          background: "none", border: "none", padding: "6px 0", cursor: "pointer", textAlign: "left",
+                          fontFamily: SANS, fontSize: 13, color: C.secondary,
+                        }}>
+                          <span style={{ fontFamily: MONO, fontSize: 11.5, color: C.muted }}>{fmtDate(a.date)}</span> · {cleanTitle(a.title).title} <span style={{ color: C.muted }}>· {a.duration}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </>
+        )}
+
+        <div style={{ marginTop: 44 }}>
           <TopicBreakdown topics={topics} tail={topicTail} momentum={topicMomentum} totals={topicTotals} />
         </div>
 
@@ -319,8 +383,8 @@ export default function OffAir({
           <span style={{ fontFamily: SANS, fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: C.muted }}>
             Every claim checked against
           </span>
-          {["BLS", "BEA", "Census", "Treasury", "Federal Reserve"].map(a => (
-            <span key={a} style={{ fontFamily: SANS, fontSize: 11.5, fontWeight: 600, color: C.secondary }}>{a}</span>
+          {["BLS", "BEA", "Census", "Treasury", "Federal Reserve"].map(x => (
+            <span key={x} style={{ fontFamily: SANS, fontSize: 11.5, fontWeight: 600, color: C.secondary }}>{x}</span>
           ))}
           <Link href="/" style={{ marginLeft: "auto", fontFamily: SANS, fontSize: 11.5, color: C.muted, textDecoration: "none" }}>
             ← voteunbiased.org
@@ -330,3 +394,8 @@ export default function OffAir({
     </div>
   );
 }
+
+const H2: React.CSSProperties = {
+  fontFamily: SANS, fontSize: 11, fontWeight: 700, letterSpacing: "0.16em",
+  textTransform: "uppercase", color: C.muted, margin: "0 0 12px",
+};
