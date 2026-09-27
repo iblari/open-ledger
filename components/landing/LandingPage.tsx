@@ -1346,6 +1346,7 @@ function MobileTicker() {
 }
 
 function MobileLanding() {
+  const [openSource, setOpenSource] = useState<string | null>(null);
   // The sticky "Open the ledger" bar steps aside while the dark Live band is
   // on screen — sitting at the bottom of the viewport, it landed right on the
   // band's headline.
@@ -1579,18 +1580,35 @@ function MobileLanding() {
           Where the numbers come from
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6 }}>
-          {SOURCES.map(s => (
-            <div key={s.src} title={s.d} style={{
-              minHeight: 44, display: "flex", alignItems: "center", justifyContent: "center",
-              background: "#fff", border: `1px solid ${C.rule}`, borderRadius: 4,
-              fontFamily: SERIF, fontSize: 12, fontWeight: 600, lineHeight: 1.15,
-              textAlign: "center", padding: "4px 3px",
-            }}>{s.src}</div>
-          ))}
+          {/* Tap, not long-press: the description used to live in a title
+              tooltip, which phones never show. */}
+          {SOURCES.map(s => {
+            const on = openSource === s.src;
+            return (
+              <button key={s.src} type="button" aria-expanded={on}
+                onClick={() => setOpenSource(on ? null : s.src)} style={{
+                minHeight: 44, display: "flex", alignItems: "center", justifyContent: "center",
+                background: on ? C.ink : "#fff", color: on ? "#f8f5f0" : C.ink,
+                border: `1px solid ${on ? C.ink : C.rule}`, borderRadius: 4, cursor: "pointer",
+                fontFamily: SERIF, fontSize: 12, fontWeight: 600, lineHeight: 1.15,
+                textAlign: "center", padding: "4px 3px", transition: "background .15s, color .15s",
+              }}>{s.src}</button>
+            );
+          })}
         </div>
-        <div style={{ fontSize: 9, color: C.mute, textAlign: "center", marginTop: 6 }}>
-          Long-press a tile for what it covers.
-        </div>
+        {(() => {
+          const sel = SOURCES.find(x => x.src === openSource);
+          return sel ? (
+            <div role="status" style={{
+              marginTop: 8, padding: "9px 11px", background: "#fff", border: `1px solid ${C.rule}`,
+              borderLeft: `3px solid ${C.accent}`, borderRadius: 4, fontSize: 11.5, lineHeight: 1.45, color: C.sub,
+            }}>{sel.d}</div>
+          ) : (
+            <div style={{ fontSize: 9, color: C.mute, textAlign: "center", marginTop: 6 }}>
+              Tap a tile for what it covers.
+            </div>
+          );
+        })()}
       </div>
 
       </Tile>
