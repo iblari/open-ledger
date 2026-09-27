@@ -1822,7 +1822,7 @@ export default function LandingPage() {
       <DarkHero med={med} />
       {/* Room before the dark band: a hard colour cut only reads as
           deliberate when the section before it has space to finish. */}
-      <Tile mob={mob} style={{ paddingBottom: mob ? 56 : 112 }}>
+      <Tile mob={mob} style={{ paddingBottom: mob ? 56 : 40 }}>
         <div style={{ maxWidth: 1280, margin: "0 auto", padding: mob ? "0 20px" : "0 32px" }}>
           <InsightsStrip mob={mob} limit={3} eyebrow="What's notable right now" />
         </div>
