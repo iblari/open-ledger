@@ -1,3 +1,4 @@
+import { normalizeQuote } from "./align";
 /**
  * Simple KV store for live broadcast state.
  *
@@ -448,7 +449,7 @@ const RESTORED_IDS = new Set([
  * filled in — the replay shows the video and its checks, without the scrolling
  * caption.
  */
-export async function getReplayable(): Promise<RecentBroadcast[]> {
+async function getReplayableRaw(): Promise<RecentBroadcast[]> {
   const recent = await getRecentBroadcasts();
   if (Date.now() > Date.parse(RESTORED_UNTIL)) return recent;
   const have = new Set(recent.map(b => b.videoId));
@@ -474,6 +475,102 @@ export async function getReplayable(): Promise<RecentBroadcast[]> {
       })) as LiveClaim[],
     }));
   return [...recent, ...restored].sort((a, b) => b.endedAt.localeCompare(a.endedAt));
+}
+
+/* ── Post-broadcast alignment ─────────────────────────────────────────
+ *
+ * Kept apart from the broadcast records rather than written into them: a
+ * replay can come from the 72-hour store or from the ledger, whose claim ids
+ * differ, and the overlay applies the same result to either by quote. It also
+ * means a bad alignment is one key to delete, not a rewrite of the record.
+ */
+export interface Alignment {
+  alignedAt: string;
+  /** normalizeQuote(quote) → second in the recording. */
+  times: Record<string, number>;
+  /** Live stamp − recording time; applied to claims that could not be found. */
+  offset: number;
+  matched: number;
+  total: number;
+  /** Recording-timed transcript, "[m:ss] text" lines. */
+  transcript: string;
+}
+
+const ALIGN_KEY = (id: string) => `align:${id}`;
+const ALIGN_TRY_KEY = (id: string) => `align:try:${id}`;
+const ALIGN_TRIES_KEY = (id: string) => `align:tries:${id}`;
+const ALIGN_MAX_TRIES = 4;
+/** YouTube needs time to finish processing a long stream into a recording. */
+const ALIGN_MIN_AGE_MS = 20 * 60_000;
+
+export async function getAlignment(videoId: string): Promise<Alignment | null> {
+  const raw = hasUpstash()
+    ? ((await upstashCmd("GET", ALIGN_KEY(videoId))) as string | null)
+    : mem.get(ALIGN_KEY(videoId));
+  if (!raw) return null;
+  try { return JSON.parse(raw) as Alignment; } catch { return null; }
+}
+
+export async function setAlignment(videoId: string, a: Alignment): Promise<void> {
+  // No expiry: the ledger is permanent, and so is knowing where its quotes sit.
+  const json = JSON.stringify(a);
+  if (hasUpstash()) await upstashCmd("SET", ALIGN_KEY(videoId), json);
+  else mem.set(ALIGN_KEY(videoId), json);
+}
+
+/**
+ * The next finished broadcast whose claims have not been re-timed, or null.
+ * Claims a 30-minute lease so the worker is not handed the same one while it
+ * is still downloading, and gives up after four tries — a recording that is
+ * private or deleted should not be retried forever.
+ */
+export async function claimNextAlignment(): Promise<{ videoId: string; title: string } | null> {
+  const list = await getReplayableRaw();
+  const now = Date.now();
+  for (const b of list) {
+    if (!b.videoId || !b.claims?.length) continue;
+    if (now - Date.parse(b.endedAt) < ALIGN_MIN_AGE_MS) continue;
+    if (await getAlignment(b.videoId)) continue;
+    const tries = Number(hasUpstash() ? await upstashCmd("GET", ALIGN_TRIES_KEY(b.videoId)) : mem.get(ALIGN_TRIES_KEY(b.videoId))) || 0;
+    if (tries >= ALIGN_MAX_TRIES) continue;
+    if (!(await claimOnce(ALIGN_TRY_KEY(b.videoId), 30 * 60))) continue;
+    if (hasUpstash()) await upstashCmd("INCR", ALIGN_TRIES_KEY(b.videoId));
+    else mem.set(ALIGN_TRIES_KEY(b.videoId), String(tries + 1));
+    return { videoId: b.videoId, title: b.title };
+  }
+  return null;
+}
+
+/** Claims of a replayable broadcast as stored, before any alignment. */
+export async function getReplayableClaims(videoId: string): Promise<LiveClaim[] | null> {
+  const b = (await getReplayableRaw()).find(x => x.videoId === videoId);
+  return b ? b.claims : null;
+}
+
+/**
+ * Replay store + restored broadcasts, with any alignment laid over them:
+ * located claims take their recording time, the rest shift by the measured
+ * offset, and the transcript becomes the recording-timed one. `aligned` tells
+ * the player it can drop the live-era guesswork.
+ */
+export async function getReplayable(): Promise<(RecentBroadcast & { aligned?: boolean })[]> {
+  const list = await getReplayableRaw();
+  const aligns = await Promise.all(list.map(b => getAlignment(b.videoId).catch(() => null)));
+  return list.map((b, i) => {
+    const a = aligns[i];
+    if (!a) return b;
+    return {
+      ...b,
+      aligned: true,
+      transcript: a.transcript || b.transcript,
+      claims: b.claims.map(c => {
+        const t = a.times[normalizeQuote(c.quote)];
+        return t != null
+          ? { ...c, videoTime: t, aligned: true }
+          : { ...c, videoTime: Math.max(0, (c.videoTime ?? 0) - a.offset), aligned: false };
+      }) as LiveClaim[],
+    };
+  });
 }
 
 export async function getRecentBroadcasts(): Promise<RecentBroadcast[]> {

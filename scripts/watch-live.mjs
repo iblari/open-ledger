@@ -213,15 +213,61 @@ async function fetchAudioTranscript(videoId) {
     const data = await r.json();
     // Utterances carry their own start times, which is what anchors each claim
     // to the right moment in the replay.
-    const segments = (data?.results?.utterances || [])
+    const utts = data?.results?.utterances || [];
+    const segments = utts
       .map(u => ({ time: Math.round(u.start), text: String(u.transcript || "").trim() }))
       .filter(x => x.text);
-    return segments.length ? { title: dl.title || "YouTube video", segments } : null;
+    // Word-level times, for re-timing a finished broadcast's claims. Compact
+    // pairs keep a three-hour recording's ~30k words well inside a request.
+    const words = (data?.results?.channels?.[0]?.alternatives?.[0]?.words || [])
+      .map(w => [w.punctuated_word || w.word, Math.round(w.start * 100) / 100]);
+    const utterances = utts.map(u => [Math.round(u.start * 10) / 10, String(u.transcript || "").trim()]);
+    return segments.length ? { title: dl.title || "YouTube video", segments, words, utterances } : null;
   } catch (e) {
     log(`  audio transcription failed: ${e.message}`);
     return null;
   } finally {
     await unlink(dl.file).catch(() => {});
+  }
+}
+
+/**
+ * Re-time one finished broadcast against its own recording.
+ *
+ * Live stamps mark when a transcript chunk FINISHED, in stream time; replays
+ * compensated with a fixed 30-second lead and a guessed stream→video shift,
+ * so "jump to claim" landed anywhere in a minute. Here the recording itself is
+ * transcribed with word timings and the server locates every quote in it.
+ *
+ * Runs in the background: a long recording takes minutes to download and
+ * transcribe, and none of that may delay noticing a broadcast going live.
+ */
+let realignBusy = false;
+async function realignOne() {
+  if (!ADMIN_KEY || realignBusy) return;
+  realignBusy = true;
+  const auth = { Authorization: `Bearer ${ADMIN_KEY}`, "Content-Type": "application/json" };
+  try {
+    const r = await fetch(`${API}/api/admin/realign`, { headers: auth, signal: AbortSignal.timeout(20_000) });
+    const { target } = await r.json().catch(() => ({}));
+    if (!target) return;
+    log(`⟲ re-timing claims: ${target.title} (${target.videoId})`);
+    const got = await fetchAudioTranscript(target.videoId);
+    if (!got?.words?.length) {
+      await fetch(`${API}/api/admin/realign`, { method: "POST", headers: auth,
+        body: JSON.stringify({ videoId: target.videoId, error: "no audio transcript" }) }).catch(() => {});
+      log(`  ✗ ${target.videoId}: could not transcribe the recording`);
+      return;
+    }
+    const res = await fetch(`${API}/api/admin/realign`, {
+      method: "POST", headers: auth, signal: AbortSignal.timeout(90_000),
+      body: JSON.stringify({ videoId: target.videoId, words: got.words, utterances: got.utterances }),
+    }).then(x => x.json()).catch(e => ({ error: e.message }));
+    log(`  ✓ ${target.videoId}: ${res.matched ?? "?"}/${res.total ?? "?"} claims located, offset ${res.offset ?? "?"}s`, res.error ? `(${res.error})` : "");
+  } catch (e) {
+    log("realign error:", e.message);
+  } finally {
+    realignBusy = false;
   }
 }
 
@@ -326,6 +372,8 @@ while (Date.now() < deadline - RESERVE_MIN * 60_000) {
 
     // Nothing live — spend the idle poll on any queued on-demand checks.
     await drainCheckQueue();
+    // Deliberately not awaited — see realignOne.
+    realignOne();
 
     // Periodic self-repair while idle — catches broadcasts covered by a
     // previous watcher run that retired before captions were ready.

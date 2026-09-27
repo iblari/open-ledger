@@ -67,6 +67,9 @@ interface Claim {
   webVerified?: boolean;
   sources?: { title: string; url: string }[];
   groundTruth?: { value: number; year: number; metricKey: string; source: string };
+  /** Located in the finished recording's own transcript: videoTime is the
+   *  second its first word is spoken in the video being played. */
+  aligned?: boolean;
 }
 
 // Display labels for the 6 anchored metrics, used on the "See full data" link.
@@ -598,6 +601,10 @@ export default function LiveExperience({ autoStartReplay, autoStartLive }: {
      overshoot, which aligns the end of our coverage with the end of the
      video. Display-only: the stored record keeps its true stream times. */
   const [timeShift, setTimeShift] = useState(0);
+  // True once the broadcast has been re-timed against its own recording. Its
+  // claim times and transcript are then already on the video's clock, so the
+  // stream→video shift below must not be applied on top of them.
+  const [replayAligned, setReplayAligned] = useState(false);
   // Full archived transcript shown in replay mode (live mode shows the
   // rolling Deepgram tail instead).
   const [replayTranscript, setReplayTranscript] = useState("");
@@ -739,7 +746,10 @@ export default function LiveExperience({ autoStartReplay, autoStartLive }: {
         // landing "exactly" on it and clipping the front half. Deliberately
         // biased early — hearing 15s of lead-in is mildly slow, but landing
         // after the quote makes the feature feel broken.
-        const LEAD_S = 30;
+        // A re-timed claim knows the exact second its first word is spoken,
+        // so land just before it: enough to hear the start of the sentence,
+        // not a 30-second wait for a stamp that trailed the speech.
+        const LEAD_S = claim.aligned ? 1.5 : 30;
         seekVideo(Math.max(0, claim.videoTime - timeShift - LEAD_S));
       }
       return;
@@ -969,7 +979,7 @@ export default function LiveExperience({ autoStartReplay, autoStartLive }: {
   /* ── Recent broadcasts (last 72h, replayable with stored claims) ── */
   const [recent, setRecent] = useState<{
     videoId: string; title: string; source: string;
-    startedAt: string; endedAt: string; claims: Claim[];
+    startedAt: string; endedAt: string; claims: Claim[]; aligned?: boolean;
   }[]>([]);
   useEffect(() => {
     if (isPlaying) return;
@@ -990,9 +1000,10 @@ export default function LiveExperience({ autoStartReplay, autoStartLive }: {
   /* ── Replay a recent broadcast — claims preloaded, zero API spend ── */
   const replayStartedAt = useRef(Date.now());
   const startReplay = useCallback((b: {
-    videoId: string; title: string; claims: Claim[]; transcript?: string;
+    videoId: string; title: string; claims: Claim[]; transcript?: string; aligned?: boolean;
   }) => {
     replayStartedAt.current = Date.now();
+    setReplayAligned(Boolean(b.aligned));
     demoAbortRef.current = true;
     setIsDemo(false);
     setIsReplay(true);
@@ -1035,7 +1046,7 @@ export default function LiveExperience({ autoStartReplay, autoStartLive }: {
   }, [autoStartReplay, recent, startReplay]);
 
   useEffect(() => {
-    if (!isReplay || !isPlaying) { setTimeShift(0); return; }
+    if (!isReplay || !isPlaying || replayAligned) { setTimeShift(0); return; }
     let tries = 0;
     const id = setInterval(() => {
       const dur = ytPlayerRef.current?.getDuration?.() ?? 0;
@@ -1060,7 +1071,7 @@ export default function LiveExperience({ autoStartReplay, autoStartLive }: {
       }
     }, 400);
     return () => clearInterval(id);
-  }, [isReplay, isPlaying, claims, replaySegments]);
+  }, [isReplay, isPlaying, claims, replaySegments, replayAligned]);
 
   /* ── Caption clock — drives the word-synced transcript strip ── */
   // 300ms tick while captions are loaded: fast enough that the highlighted
