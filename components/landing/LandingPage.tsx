@@ -1598,7 +1598,7 @@ function MobileLanding() {
       {/* ── 7. Newsletter (compact) ── */}
       <div style={{ background: "#fff", border: `1px solid ${C.rule}`, borderRadius: 6, margin: "16px 14px 0", padding: 14 }}>
         <div style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: "0.08em", color: C.sub, marginBottom: 8, fontWeight: 500 }}>
-          Monthly dispatch — the ledger, updated
+          Join the community
         </div>
         {nlStatus === "ok" ? (
           <div style={{ fontSize: 12.5, color: "#0d7377", fontWeight: 500 }}>You’re in. First update drops next month.</div>
