@@ -22,8 +22,8 @@ const LABEL: Record<ShiftRow["confidence"], [string, string, string]> = {
   "too-early": ["Too early to tell", "#F1EFE8", "#5F5E5A"],
 };
 
-function Spark({ series, max, color }: { series: number[]; max: number; color: string }) {
-  const w = 96, h = 28;
+function Spark({ series, max, color, w = 96 }: { series: number[]; max: number; color: string; w?: number }) {
+  const h = 28;
   if (series.length < 2) return <svg width={w} height={h} aria-hidden />;
   const pts = series.map((v, i) => [(i / (series.length - 1)) * w, h - 3 - (v / max) * (h - 6)]);
   const [lx, ly] = pts[pts.length - 1];
@@ -92,7 +92,7 @@ function Mobile({ shift }: { shift: TopicShift }) {
           <span style={{ fontFamily: SANS, fontSize: 13, color: "#5F5850", whiteSpace: "nowrap" }}>
             {r.recent}/{w} <span style={{ color: "#A69E92" }}>← {r.prior}</span>
           </span>
-          <Spark series={r.series} max={w} color={color} />
+          <Spark series={r.series} max={w} color={color} w={60} />
         </div>
       ))}
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", fontFamily: SANS, fontSize: 11, color: "#8C8479", marginTop: 8 }}>

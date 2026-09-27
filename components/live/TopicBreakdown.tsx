@@ -409,7 +409,7 @@ export default function TopicBreakdown({
           <button type="button" onClick={() => setShowAll(v => !v)} aria-expanded={showAll} style={{
             fontFamily: SANS, fontSize: 13, color: C.ink, background: "none", cursor: "pointer",
             border: `1px solid ${C.rule}`, borderRadius: 99, padding: "8px 16px",
-          }}>{showAll ? "Show fewer" : `Show all ${topics.length + (tail && tail.total > 0 ? tail.members?.length ?? 1 : 0)} subjects`}</button>
+          }}>{showAll ? "Show fewer" : `Show ${hiddenOnPhone} more`}</button>
           <p style={{ fontFamily: SANS, fontSize: 12, color: C.ok, margin: "10px 0 0" }}>Tap a subject to read its claims</p>
         </div>
       )}
