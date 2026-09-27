@@ -165,36 +165,60 @@ async function fetchCaptions(videoId) {
  */
 async function fetchAudioTranscript(videoId) {
   const key = process.env.DEEPGRAM_API_KEY;
-  if (!key) { log("  audio fallback skipped: DEEPGRAM_API_KEY not set"); return null; }
+  fetchAudioTranscript.lastError = "";
+  if (!key) { fetchAudioTranscript.lastError = "DEEPGRAM_API_KEY not set on the worker"; log("  audio fallback skipped: DEEPGRAM_API_KEY not set"); return null; }
   const { readFile, unlink } = await import("fs/promises");
   const out = `/tmp/check-${videoId}.%(ext)s`;
-  const args = [
-    "-f", "bestaudio/best", "--no-playlist", "--no-simulate",
-    "--max-filesize", "600M",
-    "--print", "title", "--print", "after_move:filepath",
-    "-o", out,
-    ...(process.env.YT_DLP_EXTRA_ARGS ? process.env.YT_DLP_EXTRA_ARGS.split(" ").filter(Boolean) : []),
-    `https://www.youtube.com/watch?v=${videoId}`,
+  const userExtra = (process.env.YT_DLP_EXTRA_ARGS || "").split(/\s+/).filter(Boolean);
+  // The same client ladder live coverage uses. The default client is the one
+  // YouTube challenges hardest from a datacenter IP; the first version of
+  // this fallback tried only that, and failed in five seconds on the UN
+  // address. Each client is tried through the proxy, then direct.
+  const CLIENTS = [
+    [],
+    ["--extractor-args", "youtube:player_client=android,tv"],
+    ["--extractor-args", "youtube:player_client=ios"],
+    ["--extractor-args", "youtube:player_client=tv_embedded"],
   ];
-  if (process.env.YT_PROXY_URL) args.unshift("--proxy", process.env.YT_PROXY_URL);
+  const EGRESS = process.env.YT_PROXY_URL ? [["--proxy", process.env.YT_PROXY_URL], []] : [[]];
+  const errors = [];
 
-  const dl = await new Promise((resolve) => {
+  const attempt = (client, egress) => new Promise((resolve) => {
+    const args = [
+      ...egress,
+      "-f", "bestaudio/best", "--no-playlist", "--no-simulate",
+      "--max-filesize", "600M",
+      "--print", "title", "--print", "after_move:filepath",
+      "-o", out, ...userExtra, ...client,
+      `https://www.youtube.com/watch?v=${videoId}`,
+    ];
     const proc = spawn("yt-dlp", args);
     let stdout = "", stderr = "";
     const kill = setTimeout(() => proc.kill("SIGKILL"), 8 * 60_000);
     proc.stdout.on("data", d => { stdout += d; });
     proc.stderr.on("data", d => { stderr += d; });
-    proc.on("error", () => { clearTimeout(kill); resolve(null); });
+    proc.on("error", e => { clearTimeout(kill); resolve({ err: `spawn: ${e.message}` }); });
     proc.on("close", code => {
       clearTimeout(kill);
       const lines = stdout.split("\n").map(l => l.trim()).filter(Boolean);
-      if (code !== 0 || lines.length < 2) {
-        log(`  audio download failed (${code}): ${stderr.split("\n").filter(Boolean).slice(-2).join(" | ")}`);
-        return resolve(null);
-      }
-      resolve({ title: lines[0], file: lines[lines.length - 1] });
+      if (code === 0 && lines.length >= 2) return resolve({ title: lines[0], file: lines[lines.length - 1] });
+      const firstErr = (stderr.split("\n").find(l => l.includes("ERROR")) || stderr.trim().split("\n").pop() || `exit ${code}`).trim();
+      resolve({ err: firstErr.slice(0, 180) });
     });
   });
+
+  let dl = null;
+  outer: for (const client of CLIENTS) {
+    for (const egress of EGRESS) {
+      const r = await attempt(client, egress);
+      if (r.file) { dl = r; break outer; }
+      const label = `${client.length ? client[1].split("=")[1] : "default"}${egress.length ? "/proxy" : "/direct"}`;
+      errors.push(`${label}: ${r.err}`);
+      log(`  audio ${label} failed: ${r.err}`);
+    }
+  }
+  // Kept on the function so callers can report WHY, not just that it failed.
+  fetchAudioTranscript.lastError = errors.slice(-3).join(" | ");
   if (!dl) return null;
 
   try {
@@ -209,7 +233,11 @@ async function fetchAudioTranscript(videoId) {
         signal: AbortSignal.timeout(10 * 60_000),
       },
     );
-    if (!r.ok) { log(`  deepgram ${r.status}: ${(await r.text()).slice(0, 200)}`); return null; }
+    if (!r.ok) {
+      const t = (await r.text()).slice(0, 200);
+      fetchAudioTranscript.lastError = `deepgram ${r.status}: ${t}`;
+      log(`  deepgram ${r.status}: ${t}`); return null;
+    }
     const data = await r.json();
     // Utterances carry their own start times, which is what anchors each claim
     // to the right moment in the replay.
@@ -224,6 +252,7 @@ async function fetchAudioTranscript(videoId) {
     const utterances = utts.map(u => [Math.round(u.start * 10) / 10, String(u.transcript || "").trim()]);
     return segments.length ? { title: dl.title || "YouTube video", segments, words, utterances } : null;
   } catch (e) {
+    fetchAudioTranscript.lastError = `transcription: ${e.message}`;
     log(`  audio transcription failed: ${e.message}`);
     return null;
   } finally {
@@ -255,7 +284,7 @@ async function realignOne() {
     const got = await fetchAudioTranscript(target.videoId);
     if (!got?.words?.length) {
       await fetch(`${API}/api/admin/realign`, { method: "POST", headers: auth,
-        body: JSON.stringify({ videoId: target.videoId, error: "no audio transcript" }) }).catch(() => {});
+        body: JSON.stringify({ videoId: target.videoId, error: `no audio transcript: ${fetchAudioTranscript.lastError || "unknown"}`.slice(0, 600) }) }).catch(() => {});
       log(`  ✗ ${target.videoId}: could not transcribe the recording`);
       return;
     }
@@ -287,7 +316,7 @@ async function drainCheckQueue() {
     if (!got) {
       await fetch(`${API}/api/admin/check-queue`, {
         method: "POST", headers: auth,
-        body: JSON.stringify({ videoId: job.videoId, error: "Could not get a transcript: no captions, and the audio could not be downloaded or transcribed." }),
+        body: JSON.stringify({ videoId: job.videoId, error: `Could not get a transcript: no captions, and no audio. ${fetchAudioTranscript.lastError || ""}`.trim().slice(0, 600) }),
       });
       log(`  ✗ ${job.videoId}: no captions and no audio`);
       return;
