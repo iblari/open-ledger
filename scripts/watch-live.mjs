@@ -319,6 +319,28 @@ async function realignOne() {
   }
 }
 
+/**
+ * When a video happened, from yt-dlp's metadata alone (no download). Used when
+ * the transcript came from captions: the InnerTube clients that still return
+ * captions omit the microformat block that carries the date, so the UN address
+ * kept being dated the day it was queued.
+ */
+async function getVideoStart(videoId) {
+  const userExtra = (process.env.YT_DLP_EXTRA_ARGS || "").split(/\s+/).filter(Boolean);
+  const egress = process.env.YT_PROXY_URL ? [["--proxy", process.env.YT_PROXY_URL], []] : [[]];
+  for (const e of egress) {
+    const ts = await new Promise(resolve => {
+      const p = spawn("yt-dlp", [...e, "--skip-download", "--no-warnings", "--print", "%(release_timestamp,timestamp)s", ...userExtra, `https://www.youtube.com/watch?v=${videoId}`]);
+      let out = ""; const kill = setTimeout(() => p.kill("SIGKILL"), 60_000);
+      p.stdout.on("data", d => { out += d; });
+      p.on("error", () => { clearTimeout(kill); resolve(null); });
+      p.on("close", () => { clearTimeout(kill); const n = Number(out.trim().split("\n")[0]); resolve(Number.isFinite(n) && n > 1e9 ? n : null); });
+    });
+    if (ts) return new Date(ts * 1000).toISOString();
+  }
+  return null;
+}
+
 async function checkAllClaims(videoId) {
   const auth = { Authorization: `Bearer ${ADMIN_KEY}`, "Content-Type": "application/json" };
   for (let pass = 0; pass < 60; pass++) {
@@ -358,7 +380,7 @@ async function drainCheckQueue() {
 
     await fetch(`${API}/api/admin/check-queue`, {
       method: "POST", headers: auth,
-      body: JSON.stringify({ videoId: job.videoId, title: got.title, startedAt: got.startedAt || null, segments: got.segments }),
+      body: JSON.stringify({ videoId: job.videoId, title: got.title, startedAt: got.startedAt || (await getVideoStart(job.videoId)), segments: got.segments }),
       signal: AbortSignal.timeout(60_000),
     });
     log(`  ✓ ${job.videoId}: ${got.segments.length} segments archived — fact-checking`);
