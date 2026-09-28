@@ -194,14 +194,25 @@ function Nav({ mob, dark = false, overlay = false }: { mob: boolean; dark?: bool
             <span style={{ width: 6, height: 6, borderRadius: "50%", background: dark ? "#EF4444" : C.accent, animation: "pulse 2s infinite" }} />
             {mob ? "Live" : "Live Broadcast"}
           </Link>
-          <Link href="/dashboard" className="vu-cta vu-cta-p" style={{
+          {/* Desktop: Subscribe (the hero already has "Open the ledger").
+              Scrolls to the newsletter form and puts the cursor in it. */}
+          <Link href={mob ? "/dashboard" : "#cta"} className="vu-cta vu-cta-p"
+            onClick={mob ? undefined : (e) => {
+              const el = document.getElementById("cta");
+              if (!el) return;
+              e.preventDefault();
+              el.scrollIntoView({ behavior: "smooth", block: "start" });
+              const input = el.querySelector("input");
+              if (input) setTimeout(() => (input as HTMLInputElement).focus({ preventScroll: true }), 600);
+            }}
+            style={{
             display: "inline-flex", alignItems: "center", gap: 8,
             padding: mob ? "8px 14px" : "10px 16px",
             borderRadius: 4, fontSize: 13, fontWeight: 500,
             background: ink, color: dark ? "#0C0A08" : C.bg, border: `1px solid ${ink}`,
             textDecoration: "none",
           }}>
-            {mob ? "Data" : "Open the ledger"} <span className="vu-arw">→</span>
+            {mob ? <>Data <span className="vu-arw">→</span></> : "Subscribe"}
           </Link>
         </div>
       </div>
