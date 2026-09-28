@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-21T18:26:02.732Z",
+  "generatedAt": "2026-09-28T19:57:42.289Z",
   "series": [
     {
       "id": "ai_business_adoption",
@@ -99,20 +99,24 @@
         {
           "t": "2026-08-24",
           "v": 23.2
+        },
+        {
+          "t": "2026-09-07",
+          "v": 23.8
         }
       ],
       "latest": {
-        "t": "2026-08-24",
-        "v": 23.2
+        "t": "2026-09-07",
+        "v": 23.8
       },
       "first": {
         "t": "2025-11-17",
         "v": 17.3
       },
-      "score": 61.6,
-      "yoy": 44.5,
+      "score": 61.9,
+      "yoy": 46.6,
       "changeUnit": "percent",
-      "changeWindowDays": 280,
+      "changeWindowDays": 294,
       "comparedWith": {
         "t": "2025-11-17",
         "v": 17.3
@@ -232,7 +236,7 @@
         {
           "t": "2019-07-01",
           "v": 22.34,
-          "label": "Megatron-BERT · NVIDIA"
+          "label": "Megatron-BERT · Nvidia"
         },
         {
           "t": "2019-10-01",
@@ -371,22 +375,22 @@
         },
         {
           "t": "2026-07-01",
-          "v": 26.7,
-          "label": "Grok 4 · xAI"
+          "v": 27,
+          "label": "GPT-6 Astra · OpenAI"
         }
       ],
       "latest": {
         "t": "2026-07-01",
-        "v": 26.7,
-        "label": "Grok 4 · xAI"
+        "v": 27,
+        "label": "GPT-6 Astra · OpenAI"
       },
       "first": {
         "t": "2015-01-01",
         "v": 19.38,
         "label": "MSRA (C, PReLU) · Microsoft Research"
       },
-      "score": 46.8,
-      "yoy": 0,
+      "score": 60.4,
+      "yoy": 0.3,
       "changeUnit": "oom",
       "changeWindowDays": 365,
       "comparedWith": {
