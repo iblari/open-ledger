@@ -196,7 +196,7 @@ function Nav({ mob, dark = false, overlay = false }: { mob: boolean; dark?: bool
           </Link>
           {/* Desktop: Subscribe (the hero already has "Open the ledger").
               Scrolls to the newsletter form and puts the cursor in it. */}
-          <Link href={mob ? "/dashboard" : "#cta"} className="vu-cta vu-cta-p"
+          <Link href={mob ? "/dashboard" : "#cta"} className={`vu-cta vu-cta-p${dark ? " vu-on-dark" : ""}`}
             onClick={mob ? undefined : (e) => {
               const el = document.getElementById("cta");
               if (!el) return;

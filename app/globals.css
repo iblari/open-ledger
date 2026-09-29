@@ -164,6 +164,10 @@
 .vu-cta-p:hover { background: #000 !important; transform: translateY(-1px);
                   box-shadow: 0 3px 10px rgba(26,26,26,.22); }
 .vu-cta-p:active { transform: translateY(0); box-shadow: none; }
+/* Light button on a dark surface (the nav over the dark bands): the hover
+   above paints it black, which on near-black text made it vanish. */
+.vu-cta-p.vu-on-dark:hover { background: #FFFFFF !important;
+                             box-shadow: 0 3px 12px rgba(0,0,0,.45); }
 .vu-cta-s:hover { background: #f3ede5 !important;
                   border-color: #b8372d !important; color: #b8372d !important; }
 .vu-cta-s:active { background: #e2ded6 !important; }
