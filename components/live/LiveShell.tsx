@@ -57,6 +57,10 @@ export default function LiveShell({
         autoStartReplay={enter === "live" ? undefined : enter}
         autoStartLive={live}
         pendingTitle={live?.title ?? initial.archive.find(a => a.id === enter)?.title}
+        onBrowse={enter === "live" ? () => {
+          setEnter(null);
+          if (typeof window !== "undefined") window.scrollTo({ top: 0 });
+        } : undefined}
         onExit={() => {
           // Drop ?v= too, or a reload would reopen the replay just left.
           if (typeof window !== "undefined" && window.location.search) {
@@ -79,6 +83,8 @@ export default function LiveShell({
       topicShift={initial.topicShift}
       topicTotals={initial.topicTotals}
       onWatch={id => setEnter(id)}
+      liveNow={initial.live ? { title: initial.live.title } : null}
+      onReturnLive={() => { setEnter("live"); if (typeof window !== "undefined") window.scrollTo({ top: 0 }); }}
     />
   );
 }

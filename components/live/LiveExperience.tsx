@@ -628,8 +628,11 @@ function PlayerSkeleton({ title }: { title?: string }) {
   );
 }
 
-export default function LiveExperience({ autoStartReplay, autoStartLive, onExit, pendingTitle }: {
+export default function LiveExperience({ autoStartReplay, autoStartLive, onExit, onBrowse, pendingTitle }: {
   autoStartReplay?: string;
+  /** During a LIVE broadcast: step out to the broadcasts & trends page
+   *  without ending anything (the page offers a way back to the live). */
+  onBrowse?: () => void;
   /** Leave the player for the recent-broadcasts list. Supplied by LiveShell;
    *  offered only on replays — during a live broadcast the page IS the
    *  broadcast, and there is nothing to go back to. */
@@ -2000,6 +2003,15 @@ export default function LiveExperience({ autoStartReplay, autoStartLive, onExit,
           display: "flex", alignItems: "center", gap: mob ? 12 : 20,
           fontFamily: "'DM Sans',sans-serif", fontSize: mob ? 11 : 13,
         }}>
+          {/* While live, the broadcasts & trends page is still one click
+              away — it used to be unreachable until the broadcast ended. */}
+          {/* Phones use the ← in the player bar instead (the player covers this nav). */}
+          {!mob && isPlaying && !isReplay && !isDemo && onBrowse && (
+            <button type="button" onClick={onBrowse} style={{
+              background: "none", border: "none", padding: 0, cursor: "pointer", font: "inherit",
+              color: T.sub, fontWeight: 500, whiteSpace: "nowrap",
+            }}>Past broadcasts &amp; trends</button>
+          )}
           <Link href="/dashboard" style={{ color: T.sub, textDecoration: "none", fontWeight: 500 }}>Data</Link>
           {/* "Live" pointed at /live from inside /live, and "Scenarios" sent
               someone mid-broadcast to a counterfactual chart. Replaced with
@@ -2538,7 +2550,7 @@ export default function LiveExperience({ autoStartReplay, autoStartLive, onExit,
               else seekVideo(secs); // timeline scrub — already in player time
             }}
             onStop={isReplay && onExit ? () => { stopSession(); onExit(); } : stopSession}
-            onBack={isReplay && onExit ? onExit : undefined}
+            onBack={isReplay && onExit ? onExit : (!isReplay && !isDemo && onBrowse ? onBrowse : undefined)}
             onFactCheck={manualFactCheck}
             isChecking={isManualChecking}
             onOpenRecord={() => setRecordOpen(true)}

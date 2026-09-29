@@ -178,7 +178,8 @@ export default function ControlRoom({
       {onBack && (
         <button
           type="button" onClick={onBack} className="vu-back"
-          aria-label="Back to recent broadcasts" title="Back to recent broadcasts"
+          aria-label={mode === "live" ? "Past broadcasts & trends (the live keeps running)" : "Back to recent broadcasts"}
+          title={mode === "live" ? "Past broadcasts & trends (the live keeps running)" : "Back to recent broadcasts"}
           style={{
             width: 30, height: 30, borderRadius: "50%", flexShrink: 0,
             display: "inline-flex", alignItems: "center", justifyContent: "center",

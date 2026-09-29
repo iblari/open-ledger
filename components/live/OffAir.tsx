@@ -279,7 +279,12 @@ function BroadcastCarousel({ items, onWatch }: { items: HomeArchiveItem[]; onWat
 
 export default function OffAir({
   archive, schedule, topics, topicTail, topicMomentum, topicShift, topicTotals, onWatch,
+  liveNow = null, onReturnLive,
 }: {
+  /** Set while a broadcast is live and the viewer stepped out to browse:
+   *  the band becomes a "live now — return" bar instead of "off air". */
+  liveNow?: { title: string } | null;
+  onReturnLive?: () => void;
   archive: HomeArchiveItem[]; schedule: HomeScheduleItem[];
   topics: TopicTally[];
   topicTail: TopicTally | null;
@@ -318,6 +323,7 @@ export default function OffAir({
           .oa-row .oa-t{font-size:14.5px!important;margin:3px 0 8px!important}
         }
         .oa-mob{display:none}
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
         .oa-chips::-webkit-scrollbar{display:none}
         /* Phones: the band is a status line, not a hero — it was taking a
            whole screen before any broadcast appeared. */
@@ -333,7 +339,33 @@ export default function OffAir({
         @media (prefers-reduced-motion:reduce){.oa-card{transition:none}.oa-card:hover{transform:none}}
       `}</style>
 
+      {liveNow && onReturnLive && (
+        <section style={{ background: "#0C0A08", color: "#FFFEFC", borderBottom: "1px solid #231E1A" }}>
+          <div className="oa-band" style={{ maxWidth: 1180, margin: "0 auto", padding: "22px 20px 24px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 9, fontFamily: SANS, fontSize: 11, fontWeight: 700, letterSpacing: "0.16em", color: "#F08A7E" }}>
+              <Link href="/" className="vu-back" aria-label="Back to Vote Unbiased home" title="Back to Vote Unbiased home" style={{
+                width: 30, height: 30, borderRadius: "50%", border: "1px solid #332C27", color: "#E7E2D9",
+                display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 15,
+                textDecoration: "none", marginRight: 6, flex: "none", letterSpacing: 0,
+              }}>←</Link>
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#E0493A", animation: "pulse 2s infinite" }} />
+              LIVE NOW<span className="oa-sub">&nbsp;· FACT-CHECKING IN PROGRESS</span>
+            </div>
+            <div className="oa-row1" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 20, flexWrap: "wrap", marginTop: 12 }}>
+              <h1 className="oa-h1" style={{ fontFamily: SERIF, fontWeight: 600, fontSize: "clamp(24px, 3.4vw, 38px)", lineHeight: 1.08, letterSpacing: "-0.02em", margin: 0, flex: "1 1 420px", minWidth: 0 }}>
+                {cleanTitle(liveNow.title).title}
+              </h1>
+              <button type="button" onClick={onReturnLive} style={{
+                fontFamily: SANS, fontSize: 14, fontWeight: 700, cursor: "pointer",
+                background: "#E0493A", color: "#fff", border: "none", borderRadius: 8, padding: "12px 18px", whiteSpace: "nowrap",
+              }}>Return to live →</button>
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* ── Dark band: what's next, and the one action off air ── */}
+      {!liveNow && (
       <section style={{ background: "#0C0A08", color: "#FFFEFC" }}>
         <div className="oa-band" style={{ maxWidth: 1180, margin: "0 auto", padding: "40px 20px 34px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 9, fontFamily: SANS, fontSize: 11, fontWeight: 700, letterSpacing: "0.16em", color: C.faint }}>
@@ -371,6 +403,7 @@ export default function OffAir({
           )}
         </div>
       </section>
+      )}
 
       <div style={{ maxWidth: 1180, margin: "0 auto", padding: "34px 20px 48px" }}>
         {!featured ? (
