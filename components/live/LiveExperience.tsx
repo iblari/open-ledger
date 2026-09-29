@@ -1009,17 +1009,30 @@ export default function LiveExperience({ autoStartReplay, autoStartLive, onExit,
         // Append new claims, deduped against both prior state and our
         // running seen-set (cheap second line of defense vs race conditions).
         if (feed.claims?.length > 0) {
-          const brandNew: Claim[] = feed.claims.filter(
-            (c: Claim) =>
-              !seenClaimIds.current.has(c.id) &&
-              // Near-duplicate re-statements (same line repeated later in the
-              // speech, or a chunk-boundary overlap) — skip; the first card
-              // already carries the verdict.
-              !isDuplicateQuote(c.quote, recentQuotesRef.current)
+          const sessionStart = feed.state?.startedAt ? new Date(feed.state.startedAt).getTime() - 60_000 : 0;
+          const isBackfill = seenClaimIds.current.size === 0;
+          // Oldest first so near-duplicate checks compare against what came
+          // before (the server stores newest first).
+          const incoming: Claim[] = [...feed.claims].sort(
+            (a: Claim, b: Claim) => String(a.timestamp).localeCompare(String(b.timestamp))
           );
+          const kept: Claim[] = [];
+          const quotes = [...recentQuotesRef.current];
+          for (const c of incoming) {
+            if (seenClaimIds.current.has(c.id)) continue;
+            if (sessionStart && new Date(c.timestamp).getTime() < sessionStart) continue;
+            // Near-duplicate re-statements (same line repeated later in the
+            // speech, or a chunk-boundary overlap) — skip; the first card
+            // already carries the verdict.
+            if (isDuplicateQuote(c.quote, quotes)) continue;
+            kept.push(c);
+            quotes.unshift(c.quote);
+          }
+          const brandNew = kept.reverse(); // newest first, like the feed
           if (brandNew.length > 0) {
             for (const c of brandNew) seenClaimIds.current.add(c.id);
-            setNewClaimIds(new Set(brandNew.map(c => c.id)));
+            // Don't flash the whole backlog as "new" when (re)joining.
+            if (!isBackfill) setNewClaimIds(new Set(brandNew.map(c => c.id)));
             setClaims(prev => [...brandNew, ...prev]);
           }
           // Take the MAX timestamp, not the first — server may return either order.
@@ -1209,9 +1222,14 @@ export default function LiveExperience({ autoStartReplay, autoStartLive, onExit,
     // claims persisted in Upstash from a previous broadcast would surface as
     // brand-new on the first poll (audit finding #4).
     seenClaimIds.current = new Set();
-    // Set the poll cursor to "now" so we only pick up claims ingested AFTER
-    // this user pressed start, not whatever's stored from the last session.
-    lastPollTime.current = new Date().toISOString();
+    // No cursor: the first poll fetches the WHOLE current session, so someone
+    // who joins (or re-opens the tab) mid-broadcast sees every check made so
+    // far. This used to be "now", which hid everything before the moment you
+    // pressed play — close the tab, come back, and the feed started empty.
+    // Stale claims from an earlier broadcast can't leak in: go-live clears
+    // them on start, the feed returns none while off, and the poll drops
+    // anything older than the session's startedAt.
+    lastPollTime.current = null;
     sawPipelineLive.current = false;
     setPollError(null);
 
