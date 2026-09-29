@@ -1154,7 +1154,13 @@ export default function LiveExperience({ autoStartReplay, autoStartLive, onExit,
   }, [pendingStart, autoStartReplay, recentLoaded, recent, onExit]);
 
   useEffect(() => {
-    if (!isReplay || !isPlaying || replayAligned) { setTimeShift(0); return; }
+    // Aligned broadcasts are on the recording's clock — but on the clock of
+    // the recording AS DOWNLOADED. Channels often trim the pre-show off the
+    // VOD afterwards (the 28 Sep announcement: aligned against a 56-minute
+    // file, now a 43:20 video), which puts every time ~12 minutes past the
+    // end again. So the overshoot check runs for aligned replays too; it
+    // only ever fires when our times run past the video's actual length.
+    if (!isReplay || !isPlaying) { setTimeShift(0); return; }
     let tries = 0;
     const id = setInterval(() => {
       const dur = ytPlayerRef.current?.getDuration?.() ?? 0;
