@@ -260,7 +260,7 @@ const INH={
 };
 
 function fmt(v,u){
-  if(u==="rT"||u==="T")return`$${v.toFixed(1)}T`;if(u==="B")return`$${Math.abs(v).toLocaleString()}B`;
+  if(u==="rT"||u==="T")return`$${v.toFixed(1)}T`;if(u==="B")return`${v<0?"−":""}$${Math.round(Math.abs(v)).toLocaleString()}B`; /* sign kept: deficits and trade gaps are negative */
   if(u==="%")return`${v.toFixed(1)}%`;if(u==="$")return`$${v.toFixed(2)}`;if(u==="M")return`${v>0?"+":""}${v.toFixed(1)}M`;
   if(u==="inc")return`$${(v/1000).toFixed(1)}K`;if(u==="cc")return v.toFixed(0);if(u==="mfg")return`${v.toFixed(1)}M`;if(u==="pp")return`$${v.toFixed(2)}`;return v.toLocaleString();
 }
