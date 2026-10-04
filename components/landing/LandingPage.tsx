@@ -1,6 +1,7 @@
 "use client";
 import { useState, useMemo, useEffect, useRef } from "react";
 import CheetahMark from "@/components/CheetahMark";
+import { liveAnnual, type Bench } from "@/lib/bench-lens";
 import {
   BarChart, Bar, Cell as RechartsCell, LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
@@ -1365,7 +1366,7 @@ const M_UNIT_TAG: Record<string, string> = { pp: "pp", pct_avg: "% avg", pct_yr:
 const M_FOOTNOTE: Record<string, string> = {
   pp: "Percentage-point change: inherited value → last full year in office.",
   pct_avg: "Average annual rate across the years of each tenure.",
-  pct_yr: "Annualized yearly growth, CPI-adjusted (real). Tap any row below.",
+  pct_yr: "Annualized yearly growth, CPI-adjusted (real). Tap a metric below.",
 };
 const TERM_STARTS: { y: number; idx: number; a: string }[] = [
   { y: 1993, idx: 0, a: "clinton" }, { y: 2001, idx: 8, a: "bush" },
@@ -1506,10 +1507,29 @@ function MobileLanding() {
     } catch { setNlStatus("err"); }
   };
 
+  // Current term, from the live FRED feed: Trump II years are appended to the
+  // finished-term series (the year in progress drawn lighter).
+  const [bench, setBench] = useState<Bench | null>(null);
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/benchmark-data").then(r => r.json()).then(d => { if (alive && d && !d.error) setBench(d); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
   const m = METRICS[selectedMetric];
   const cfg = METRIC_DISPLAY_LANDING[selectedMetric];
   const unitTag = M_UNIT_TAG[cfg?.perMetricUnit || "pp"] || "pp";
-  const series = m.d;
+  const series: { y: number; v: number; a: string; partial?: boolean }[] = useMemo(() => {
+    const hist = m.d.filter(p => p.a !== "trump2");
+    const h24 = hist.find(p => p.a === "biden" && p.y === 2024)?.v ?? null;
+    return [...hist, ...liveAnnual(bench, selectedMetric, h24)];
+  }, [m, bench, selectedMetric]);
+  const step = 98 / Math.max(series.length, 1);
+  const termStarts = series
+    .map((p, i) => ({ y: p.y, idx: i, a: p.a }))
+    .filter((t, i, arr) => i === 0 || arr[i - 1].a !== t.a);
+  const lastYear = series.length ? series[series.length - 1].y : 2024;
+  const colorOf = (a: string) => a === "trump2" ? "#b8372d" : (ADMINS[a as keyof typeof ADMINS]?.color || C.mute);
   const lo = Math.min(0, ...series.map(p => p.v));
   const hi = Math.max(...series.map(p => p.v));
   const span = hi - lo || 1;
@@ -1559,7 +1579,7 @@ function MobileLanding() {
       <div style={{ background: "#fbfaf6", border: `1px solid ${C.rule}`, borderRadius: 6, margin: "16px 14px 0", padding: "12px 12px 10px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 7 }}>
           <span style={{ fontFamily: SERIF, fontSize: 14, fontWeight: 500 }}>{m.l} · {unitTag}</span>
-          <span style={{ fontSize: 8.5, textTransform: "uppercase", color: C.mute, letterSpacing: "0.05em" }}>{m.cat} · ’93–’24</span>
+          <span style={{ fontSize: 8.5, textTransform: "uppercase", color: C.mute, letterSpacing: "0.05em" }}>{m.cat} · ’93–’{String(lastYear).slice(2)}{lastYear > 2024 ? " · live" : ""}</span>
         </div>
         <div style={{ position: "relative", height: 102, background: "#fff", border: `1px solid ${C.rule}`, borderRadius: 4, overflow: "hidden" }}>
           <div style={{ position: "absolute", left: 0, right: 0, top: `${zeroTopPct}%`, borderTop: "1px dashed #d4cfc5" }} />
@@ -1568,21 +1588,23 @@ function MobileLanding() {
             const topPct = isPos ? ((hi - p.v) / span) * 100 : zeroTopPct;
             const hPct = (Math.abs(p.v) / span) * 100;
             return (
-              <div key={p.y} style={{
+              <div key={p.y} title={p.partial ? `${p.y} so far` : String(p.y)} style={{
                 position: "absolute",
-                left: `${i * 3.06 + 1}%`, width: "2.5%",
+                left: `${i * step + 1}%`, width: `${step * 0.82}%`,
                 top: `${topPct}%`, height: `max(${hPct}%, 2px)`,
-                background: ADMINS[p.a]?.color || C.mute, borderRadius: 1,
+                background: colorOf(p.a), borderRadius: 1,
+                opacity: p.partial ? 0.4 : 1,
+                outline: p.partial ? `1px dashed ${colorOf(p.a)}` : undefined,
                 transition: "top .5s ease, height .5s ease, background .5s ease",
               }} />
             );
           })}
         </div>
         <div style={{ position: "relative", height: 14, marginTop: 3 }}>
-          {TERM_STARTS.map(t => (
+          {termStarts.map(t => (
             <span key={t.y} style={{
-              position: "absolute", left: `${t.idx * 3.06 + 1}%`,
-              fontSize: 8.5, fontWeight: 600, color: ADMINS[t.a].color,
+              position: "absolute", left: `${t.idx * step + 1}%`,
+              fontSize: 8.5, fontWeight: 600, color: colorOf(t.a),
             }}>’{String(t.y).slice(2)}</span>
           ))}
         </div>
