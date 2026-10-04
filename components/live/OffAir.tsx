@@ -15,6 +15,7 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
+import { useIsMobileViewport } from "@/lib/viewport";
 import type { HomeArchiveItem, HomeScheduleItem, TopicTally } from "@/lib/live-home";
 import TopicBreakdown from "./TopicBreakdown";
 import TopicShiftPanel from "./TopicShiftPanel";
@@ -292,6 +293,15 @@ function ReplaysArchive({ items, onWatch }: { items: HomeArchiveItem[]; onWatch:
   const [speaker, setSpeaker] = useState<string>("all");
   const [topic, setTopic] = useState<string>("all");
   const [showQuiet, setShowQuiet] = useState(false);
+  // Phones: months fold up (only the newest open) — the full list was
+  // dozens of screens. Desktop shows every month; the grid is dense there.
+  const phone = useIsMobileViewport(640);
+  const [openMonths, setOpenMonths] = useState<Set<string> | null>(null);
+  const toggleMonth = (m: string, first: string) => setOpenMonths(prev => {
+    const cur = new Set(prev ?? [first]);
+    if (cur.has(m)) cur.delete(m); else cur.add(m);
+    return cur;
+  });
 
   const speakers = (() => {
     const m = new Map<string, number>();
@@ -335,6 +345,13 @@ function ReplaysArchive({ items, onWatch }: { items: HomeArchiveItem[]; onWatch:
     <section aria-labelledby="replays-h" style={{ marginTop: 40 }}>
       <style>{`.rp-chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}.rp-chips::-webkit-scrollbar{display:none}
         .rp-ctl{display:grid;grid-template-columns:minmax(0,1fr) 220px;gap:10px}
+        @media (max-width:560px){
+          .rp-list{gap:8px!important}
+          .rp-list .oa-row>.oa-th{width:96px!important}
+          .rp-list .oa-row>.oa-th>span{min-height:64px!important}
+          .rp-list .oa-row .oa-body{padding:8px 10px!important}
+          .rp-list .oa-row .oa-t{font-size:14px!important;margin:2px 0 6px!important;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+        }
         @media (max-width:640px){.rp-ctl{grid-template-columns:1fr}}`}</style>
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
         <h2 id="replays-h" style={{ ...H2, margin: 0 }}>Replays · {items.filter(a => a.total > 0).length} broadcasts</h2>
@@ -402,13 +419,25 @@ function ReplaysArchive({ items, onWatch }: { items: HomeArchiveItem[]; onWatch:
       ) : (
         <>
           {groups.length === 0 && <div style={{ fontFamily: SANS, fontSize: 13.5, color: C.secondary, padding: "22px 0" }}>No broadcasts match these filters.</div>}
-          {groups.map(([month, list]) => (
-            <div key={month} style={{ marginTop: 22 }}>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 10, margin: "0 0 10px", paddingBottom: 6, borderBottom: `1px solid ${C.rule}` }}>
-                <span style={{ fontFamily: SERIF, fontSize: 19, fontWeight: 600, color: C.ink }}>{month}</span>
+          {groups.map(([month, list]) => {
+            const first = groups[0][0];
+            const open = !phone || (openMonths ?? new Set([first])).has(month);
+            return (
+            <div key={month} style={{ marginTop: phone ? 10 : 22 }}>
+              <button type="button" onClick={() => phone && toggleMonth(month, first)} aria-expanded={open} disabled={!phone} style={{
+                display: "flex", alignItems: "baseline", gap: 10, width: "100%", textAlign: "left", font: "inherit",
+                background: "none", border: "none", borderBottom: `1px solid ${C.rule}`, padding: phone ? "10px 0 8px" : "0 0 6px",
+                margin: open ? "0 0 10px" : 0, cursor: phone ? "pointer" : "default", color: "inherit",
+              }}>
+                <span style={{ fontFamily: SERIF, fontSize: phone ? 17 : 19, fontWeight: 600, color: C.ink }}>{month}</span>
                 <span style={{ fontFamily: SANS, fontSize: 12, color: C.muted }}>{list.length} {list.length === 1 ? "broadcast" : "broadcasts"}</span>
-              </div>
-              <div className="oa-grid">
+                {phone && (
+                  <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden style={{ marginLeft: "auto", alignSelf: "center", transform: open ? "rotate(180deg)" : "none", transition: "transform .2s" }}>
+                    <path d="M2 4l4 4 4-4" fill="none" stroke={C.muted} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                )}
+              </button>
+              {open && <div className="oa-grid rp-list">
                 {list.map(a => {
                   const t = cleanTitle(a.title);
                   return (
@@ -427,9 +456,10 @@ function ReplaysArchive({ items, onWatch }: { items: HomeArchiveItem[]; onWatch:
                     </button>
                   );
                 })}
-              </div>
+              </div>}
             </div>
-          ))}
+            );
+          })}
           {quietCount > 0 && (
             <button onClick={() => setShowQuiet(v => !v)} aria-expanded={showQuiet} style={{
               background: "none", border: "none", padding: "14px 0 0", cursor: "pointer", fontFamily: SANS, fontSize: 12.5, color: C.muted,
