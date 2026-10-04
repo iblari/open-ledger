@@ -92,8 +92,12 @@ function formatSaid(v: string | null | undefined): string {
 }
 
 export default function ClaimCard({
-  claim, isNew, onSeek, compact = false,
-}: { claim: LiveClaimView; isNew?: boolean; onSeek?: (c: LiveClaimView) => void; compact?: boolean }) {
+  claim, isNew, onSeek, compact = false, dense = false,
+}: { claim: LiveClaimView; isNew?: boolean; onSeek?: (c: LiveClaimView) => void; compact?: boolean;
+  /** Phone held sideways: the rail is ~260px wide and ~330px tall, so the
+   *  card shrinks to a verdict line, a two-line quote and one figures line —
+   *  three to four checks on screen instead of one and a half. */
+  dense?: boolean }) {
   const [open, setOpen] = useState(false);
   const color = VERDICT_COLOR[claim.verdict];
   const checking = claim.verdict === "checking";
@@ -107,49 +111,62 @@ export default function ClaimCard({
       id={`vu-claim-${claim.id}`}
       onClick={() => hasDetail && setOpen(o => !o)}
       style={{
-        background: L.card, border: `1px solid ${L.cardBorder}`, borderRadius: 12,
+        background: L.card, border: `1px solid ${L.cardBorder}`,
         // Compact is the phone. The card is sized for a desktop rail, where
         // it has a 404px column to itself; on a 393px screen that same card
         // is 206px tall and only 1.6 of them fit the feed.
-        padding: compact ? "10px 12px" : "15px 17px",
-        marginBottom: compact ? 8 : 11,
+        padding: dense ? "8px 10px" : compact ? "10px 12px" : "15px 17px",
+        marginBottom: dense ? 6 : compact ? 8 : 11,
+        borderRadius: dense ? 9 : 12,
         cursor: hasDetail ? "pointer" : "default",
         animation: isNew ? "vuCardIn .45s ease" : undefined,
       }}
     >
       {/* chip + timecode */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: dense ? 5 : 12 }}>
         <span style={{
-          fontFamily: F.ui, fontSize: 11, fontWeight: 700, letterSpacing: "0.1em",
+          fontFamily: F.ui, fontSize: dense ? 8.5 : 11, fontWeight: 700, letterSpacing: "0.1em",
           textTransform: "uppercase",
           color: checking ? L.mutedDark2 : "#fff",
           background: checking ? "transparent" : color,
           border: checking ? `1px solid ${L.cardBorder}` : "none",
-          padding: "6px 12px", borderRadius: 6, lineHeight: 1,
+          padding: dense ? "3px 7px" : "6px 12px", borderRadius: dense ? 4 : 6, lineHeight: 1,
         }}>{VERDICT_LABEL[claim.verdict]}</span>
         <button
           onClick={e => { e.stopPropagation(); onSeek?.(claim); }}
           style={{
-            fontFamily: F.mono, fontSize: 14, color: L.mutedDark, background: "none",
+            fontFamily: F.mono, fontSize: dense ? 11 : 14, color: L.mutedDark, background: "none",
             border: "none", cursor: onSeek ? "pointer" : "default", padding: 0, letterSpacing: "0.02em",
           }}>{claim.time}</button>
       </div>
 
       {/* the quote */}
       <blockquote style={{
-        fontFamily: F.display, fontSize: compact ? 15 : 18.5, fontWeight: 500,
-        lineHeight: compact ? 1.32 : 1.4,
-        // Three lines is enough to recognise a quote; the full text is one
-        // tap away in the detail.
-        ...(compact ? {
-          display: "-webkit-box", WebkitLineClamp: 3,
+        fontFamily: F.display, fontSize: dense ? 13 : compact ? 15 : 18.5, fontWeight: 500,
+        lineHeight: dense ? 1.3 : compact ? 1.32 : 1.4,
+        // Three lines is enough to recognise a quote (two when dense); the
+        // full text is one tap away in the detail.
+        ...(compact || dense ? {
+          display: "-webkit-box", WebkitLineClamp: dense && !open ? 2 : 3,
           WebkitBoxOrient: "vertical" as const, overflow: "hidden",
         } : {}),
-        color: "#F5F1EC", margin: "0 0 16px",
+        color: "#F5F1EC", margin: dense ? "0 0 6px" : "0 0 16px",
       }}>&ldquo;{claim.quote}&rdquo;</blockquote>
 
+      {/* Dense: SAID → DATA on one line, labels dropped, "Why" at the end. */}
+      {!checking && dense && (
+        <div style={{ display: "flex", alignItems: "baseline", gap: 7, fontFamily: F.mono, fontSize: 12 }}>
+          <span style={{ color: "#CFC7BD" }}>{formatSaid(claim.claimed)}</span>
+          <span style={{ color: L.mutedDark, fontFamily: F.ui }}>→</span>
+          <span style={{ color, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{figure}</span>
+          {hasDetail && (
+            <span style={{ marginLeft: "auto", fontFamily: F.ui, fontSize: 10, fontWeight: 700, color: L.true, flex: "none" }}>{open ? "Hide ▲" : "Why ▼"}</span>
+          )}
+        </div>
+      )}
+
       {/* SAID → DATA */}
-      {!checking && (
+      {!checking && !dense && (
         <div style={{ display: "flex", alignItems: "flex-end", gap: 14 }}>
           <div style={{ minWidth: 0, flex: "0 1 auto" }}>
             <div style={{
@@ -224,7 +241,7 @@ export default function ClaimCard({
         </div>
       )}
 
-      {hasDetail && !checking && (
+      {hasDetail && !checking && !dense && (
         <div style={{
           fontFamily: F.ui, fontSize: 10.5, fontWeight: 700, color: L.true,
           marginTop: 12, textAlign: "right",

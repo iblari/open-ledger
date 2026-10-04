@@ -395,7 +395,7 @@ export default function ControlRoom({
         // isNew flag already keeps the entry animation to the new card only.
         flex: 1, minHeight: 0, overflowY: "auto",
         WebkitOverflowScrolling: "touch",
-        padding: "12px 14px 16px",
+        padding: immersive ? "8px 10px 12px" : "12px 14px 16px",
         display: "flex", flexDirection: "column",
       }}>
         {shown.length === 0 ? (
@@ -429,7 +429,7 @@ export default function ControlRoom({
             })()}
           </div>
         ) : shown.map(v => (
-          <ClaimCard key={v.id} claim={v} compact={compact} isNew={newClaimIds.has(v.id)}
+          <ClaimCard key={v.id} claim={v} compact={compact} dense={immersive} isNew={newClaimIds.has(v.id)}
             // Seconds are 0 on purpose: the parent resolves the claim by id
             // and applies its own origin logic. LiveClaimView carries a
             // formatted `time` string, not a number, so reading videoTime
@@ -640,7 +640,9 @@ export default function ControlRoom({
         ) : (
         <div style={{ padding: immersive ? "8px 10px 8px" : "12px 14px", borderBottom: `1px solid ${L.cardBorder}`, flexShrink: 0 }}>
           <div style={{
-            display: "flex", justifyContent: "space-between", alignItems: "baseline",
+            // Sideways: the "ALL n" chip already says it; the title row is
+            // height the cards need.
+            display: immersive ? "none" : "flex", justifyContent: "space-between", alignItems: "baseline",
             marginBottom: immersive ? 6 : 9, fontFamily: F.ui,
           }}>
             <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.16em", textTransform: "uppercase", color: L.mutedDark, whiteSpace: "nowrap" }}>
