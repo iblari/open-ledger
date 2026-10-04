@@ -9,7 +9,7 @@
  * and never hiding that the mix of events drives part of it.
  */
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { ShiftRow, TopicShift } from "@/lib/topic-breadth";
 
 const SERIF = "'Newsreader',Georgia,serif";
@@ -38,6 +38,9 @@ function Spark({ series, raised, points, max, color, topic, w = 96 }: {
 }) {
   const h = 28;
   const [hi, setHi] = useState<number | null>(null);
+  // Phones fire synthetic mouse events after a tap; without this the
+  // readout could be cleared by them the moment it appeared.
+  const lastTouch = useRef(0);
   if (series.length < 2) return <svg width={w} height={h} aria-hidden />;
   const pts = series.map((v, i) => [(i / (series.length - 1)) * w, h - 3 - (v / max) * (h - 6)]);
   const [lx, ly] = pts[pts.length - 1];
@@ -52,10 +55,10 @@ function Spark({ series, raised, points, max, color, topic, w = 96 }: {
     <span style={{ position: "relative", display: "inline-block", flex: "none", lineHeight: 0 }}>
       <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden style={{ display: "block", overflow: "visible", cursor: interactive ? "crosshair" : undefined, touchAction: interactive ? "pan-y" : undefined }}
         onMouseMove={interactive ? e => pick(e.clientX, e.currentTarget) : undefined}
-        onMouseLeave={interactive ? () => setHi(null) : undefined}
-        onTouchStart={interactive ? e => pick(e.touches[0].clientX, e.currentTarget) : undefined}
-        onTouchMove={interactive ? e => pick(e.touches[0].clientX, e.currentTarget) : undefined}
-        onTouchEnd={interactive ? () => setTimeout(() => setHi(null), 1800) : undefined}>
+        onMouseLeave={interactive ? () => { if (Date.now() - lastTouch.current > 3000) setHi(null); } : undefined}
+        onTouchStart={interactive ? e => { lastTouch.current = Date.now(); pick(e.touches[0].clientX, e.currentTarget); } : undefined}
+        onTouchMove={interactive ? e => { lastTouch.current = Date.now(); pick(e.touches[0].clientX, e.currentTarget); } : undefined}
+        onTouchEnd={interactive ? () => { const t = (lastTouch.current = Date.now()); setTimeout(() => { if (lastTouch.current === t) setHi(null); }, 3000); } : undefined}>
         <rect x={-4} y={-6} width={w + 8} height={h + 12} fill="transparent" />
         <polyline points={pts.map(q => q.map(n => n.toFixed(1)).join(",")).join(" ")} fill="none" stroke={color} strokeWidth={1.8} strokeLinejoin="round" />
         {interactive && hi == null && pts.map(([x, y], i) => i < pts.length - 1 && (
