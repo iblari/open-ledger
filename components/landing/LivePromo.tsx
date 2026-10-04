@@ -383,10 +383,15 @@ export default function LivePromo() {
               laptop is dropped on phones — too small to read at 390px. ── */}
         <div className="lp-land" style={{ display: "none", containerType: "inline-size", filter: "drop-shadow(0 24px 40px rgba(0,0,0,.6))" } as React.CSSProperties}>
           <div style={{ position: "relative", aspectRatio: "19.5 / 9", boxSizing: "border-box", borderRadius: "7cqw", padding: "1.7cqw", background: "#000", border: "2px solid #56565A", boxShadow: "inset 0 0 0 1px #1C1C1E, 0 0 0 1px #0E0E0F" }}>
-            <div style={{ position: "relative", width: "100%", height: "100%", borderRadius: "5.4cqw", overflow: "hidden", background: "#14110E", display: "grid", gridTemplateColumns: "64% 36%" }}>
+            <div style={{ position: "relative", width: "100%", height: "100%", borderRadius: "5.4cqw", overflow: "hidden", background: "#14110E", display: "grid", gridTemplateColumns: "64% 36%",
+              // One fixed-height row. With the default auto row, the row grew
+              // whenever a new card landed in the rail, stretching the video
+              // column and pushing its timeline out of frame — the picture
+              // visibly zoomed in and out as the cards cycled.
+              gridTemplateRows: "minmax(0, 1fr)" }}>
               {/* Dynamic Island, on its side */}
               <div style={{ position: "absolute", left: "1.4cqw", top: "50%", transform: "translateY(-50%)", width: "2.4cqw", height: "9cqw", borderRadius: "2cqw", background: "#000", zIndex: 3 }} />
-              <div style={{ display: "flex", flexDirection: "column", minWidth: 0, borderRight: "1px solid #2C2622" }}>
+              <div style={{ display: "flex", flexDirection: "column", minWidth: 0, minHeight: 0, overflow: "hidden", borderRight: "1px solid #2C2622" }}>
                 <div style={{ flex: "none", height: "6.4cqw", display: "flex", alignItems: "center", gap: "1.2cqw", padding: "0 1.4cqw 0 5cqw", borderBottom: "1px solid #2C2622" }}>
                   <Live size="1.25cqw" />
                   <div style={{ flex: 1, minWidth: 0, fontFamily: SERIF, fontSize: "1.9cqw", color: "#F4F0EA", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{TITLE}</div>
@@ -397,7 +402,7 @@ export default function LivePromo() {
                 <div style={{ flex: 1, minHeight: 0, position: "relative", background: "#000" }}><Video /></div>
                 {tickStrip("3.2cqw", ".5cqw", "22%")}
               </div>
-              <div style={{ display: "flex", flexDirection: "column", minWidth: 0, background: "#1A1613" }}>
+              <div style={{ display: "flex", flexDirection: "column", minWidth: 0, minHeight: 0, overflow: "hidden", background: "#1A1613" }}>
                 <div style={{ flex: "none", padding: "1.6cqw 1.6cqw 1.2cqw", borderBottom: "1px solid #2C2622" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: "1.2cqw", fontWeight: 700, letterSpacing: "0.14em", color: "#8C8479" }}>
                     <span>FACT-CHECK FEED</span><span style={{ fontFamily: MONO, color: "#F4F0EA", letterSpacing: 0 }}>{all}</span>
