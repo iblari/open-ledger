@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   metadataBase: new URL('https://voteunbiased.org'),
   // Saved to the home screen, the site opens without any browser bars — the
   // only way an iPhone gives a web page the whole screen.
-  appleWebApp: { capable: true, title: 'Vote Unbiased', statusBarStyle: 'black-translucent' },
+  appleWebApp: { capable: true, title: 'Vote Unbiased', statusBarStyle: 'black' },
   verification: {
     google: 'o9EM5aUToekdkqIelamubG94gJfUyFp9si6LfrhZd2M',
   },
