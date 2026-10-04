@@ -224,10 +224,13 @@ export default function LivePromo() {
           .lp-phone{position:relative;right:auto;bottom:auto;width:60%;margin:28px auto 0}
           .lp-group{padding-bottom:0;transform-origin:50% 0}
           .lp-dev{margin-top:32px!important}
-          .lp-group{display:flex;align-items:center;justify-content:center;gap:10px}
+          /* Phones: the sideways phone large on the left, the upright one
+             overlapping its right edge in front — one composed picture
+             instead of two small devices squeezed into a row. */
+          .lp-group{display:flex!important;align-items:center;max-width:440px;margin:0 auto}
           .lp-laptop{display:none}
-          .lp-phone{position:relative!important;right:auto;bottom:auto;width:23%!important;margin:0!important;flex:none}
-          .lp-land{display:block!important;width:73%;flex:none}
+          .lp-land{display:block!important;width:78%;flex:none;order:1}
+          .lp-phone{position:relative!important;right:auto!important;bottom:auto!important;order:2;width:31%!important;flex:none;margin:0 0 0 -9%!important;z-index:2;filter:drop-shadow(0 18px 30px rgba(0,0,0,.75))!important}
           .lp-copy{margin-top:40px!important}
         }
         @media (prefers-reduced-motion:reduce){.lp-dot,.lp-in{animation:none}.lp-cta{transition:none}}
