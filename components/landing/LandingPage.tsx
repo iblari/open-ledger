@@ -1605,14 +1605,17 @@ function MobileLanding() {
           display: "flex", justifyContent: "space-between", alignItems: "baseline",
         }}>
           <span style={{ fontSize: 12, fontWeight: 600 }}>Tap any metric below</span>
-          <span style={{ fontSize: 9, textTransform: "uppercase", color: C.mute, letterSpacing: "0.06em" }}>’93–’24 + live</span>
+          <span style={{ fontSize: 9, textTransform: "uppercase", color: C.mute, letterSpacing: "0.06em" }}>’93–’24</span>
         </div>
 
         {/* 5.2 column header */}
-        <div style={{ display: "grid", gridTemplateColumns: "90px repeat(6, 1fr)", padding: "7px 4px 6px", borderBottom: `1px solid ${C.rule}` }}>
+        <div style={{ display: "grid", gridTemplateColumns: "90px repeat(5, 1fr)", padding: "7px 4px 6px", borderBottom: `1px solid ${C.rule}` }}>
           <div />
-          {[...AID, "trump2"].map(id => {
-            const a = id === "trump2" ? { name: "Trump II", color: "#c1272d" } : ADMINS[id];
+          {/* Finished terms only. The Trump II column was a row of "LIVE"
+              placeholders on a 390px screen; the live numbers have their own
+              home (Data tab, and the Live band above). */}
+          {AID.map(id => {
+            const a = ADMINS[id];
             return (
               <div key={id} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
                 <span style={{ width: 18, height: 3, borderRadius: 2, background: a.color }} />
@@ -1632,7 +1635,7 @@ function MobileLanding() {
             <div key={mk}
               onClick={() => setSelectedMetric(mk)}
               style={{
-                display: "grid", gridTemplateColumns: "90px repeat(6, 1fr)",
+                display: "grid", gridTemplateColumns: "90px repeat(5, 1fr)",
                 borderBottom: "1px solid #efece6", cursor: "pointer",
                 background: sel ? C.paper : "#fff",
                 borderLeft: sel ? `3px solid ${C.accent}` : "3px solid transparent",
@@ -1664,15 +1667,6 @@ function MobileLanding() {
                   </div>
                 );
               })}
-              <Link href="/dashboard?view=month" onClick={e => e.stopPropagation()} style={{
-                margin: 2, height: 42, borderRadius: 3, textDecoration: "none",
-                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2,
-                border: "1px dashed rgba(193,39,45,.3)",
-                background: "repeating-linear-gradient(-45deg, transparent, transparent 4px, rgba(193,39,45,.05) 4px, rgba(193,39,45,.05) 8px)",
-              }}>
-                <span className="live-pulse" style={{ width: 5, height: 5, borderRadius: "50%", background: "#c1272d" }} />
-                <span style={{ fontSize: 7, fontWeight: 700, letterSpacing: "0.08em", color: "#c1272d" }}>LIVE</span>
-              </Link>
             </div>
           );
         })}
