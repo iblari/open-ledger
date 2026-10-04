@@ -10,6 +10,7 @@
 // against every prior president at the same point in their tenure.
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useIsMobileViewport } from "@/lib/viewport";
 import { useSearchParams } from "next/navigation";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -192,9 +193,8 @@ const META: Record<string, {
 
 // ── Utility helpers (unchanged from original) ─────────────────────
 function useIsMobile() {
-  const [w, setW] = useState(typeof window !== "undefined" ? window.innerWidth : 1024);
-  useEffect(() => { const h = () => setW(window.innerWidth); window.addEventListener("resize", h); return () => window.removeEventListener("resize", h); }, []);
-  return w < 768;
+  // Server-informed: see lib/viewport.tsx (no desktop flash on phones).
+  return useIsMobileViewport(768);
 }
 function ordinal(n: number): string {
   const s = ["th", "st", "nd", "rd"]; const v = n % 100;

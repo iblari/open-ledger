@@ -21,6 +21,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useIsMobileViewport } from "@/lib/viewport";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { geoAlbersUsa, geoPath } from "d3-geo";
@@ -209,13 +210,8 @@ const SR_ONLY: React.CSSProperties = {
 };
 
 function useIsMobile() {
-  const [mob, setMob] = useState(false);
-  useEffect(() => {
-    const check = () => setMob(window.innerWidth < 768);
-    check(); window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
-  }, []);
-  return mob;
+  // Server-informed: see lib/viewport.tsx (no desktop flash on phones).
+  return useIsMobileViewport(768);
 }
 
 /**

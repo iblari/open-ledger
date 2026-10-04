@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useIsMobileViewport } from "@/lib/viewport";
 import Brand from "@/components/Brand";
 import Link from "next/link";
 import { isDuplicateQuote } from "@/lib/claim-utils";
@@ -120,13 +121,8 @@ interface DemoSpeech {
 
 /* ── Responsive hook ──────────────────────────────────────────── */
 function useIsMobile() {
-  const [mob, setMob] = useState(false);
-  useEffect(() => {
-    const check = () => setMob(window.innerWidth < 768);
-    check(); window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
-  }, []);
-  return mob;
+  // Server-informed: see lib/viewport.tsx (no desktop flash on phones).
+  return useIsMobileViewport(768);
 }
 
 /** A phone held sideways. Gets the immersive side-by-side player instead of

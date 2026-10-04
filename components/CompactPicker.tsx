@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useIsMobileViewport } from "@/lib/viewport";
 
 /* ── Types ── */
 export type PickerOption = {
@@ -19,13 +20,8 @@ type CompactPickerProps = {
 
 /* ── Breakpoint hook (matches existing useIsMobile across the site) ── */
 function useIsMobile() {
-  const [w, setW] = useState(typeof window !== "undefined" ? window.innerWidth : 1024);
-  useEffect(() => {
-    const h = () => setW(window.innerWidth);
-    window.addEventListener("resize", h);
-    return () => window.removeEventListener("resize", h);
-  }, []);
-  return w < 768;
+  // Server-informed: see lib/viewport.tsx (no desktop flash on phones).
+  return useIsMobileViewport(768);
 }
 
 /* ── Tokens ── */

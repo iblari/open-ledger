@@ -3,6 +3,8 @@ import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import Script from 'next/script'
 import './globals.css'
+import { headers } from 'next/headers'
+import { ViewportProvider } from '@/lib/viewport'
 
 const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
@@ -74,11 +76,18 @@ export const viewport: Viewport = {
   maximumScale: 1,
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  // Phone or not, decided from the request so the first HTML is already the
+  // right layout (lib/viewport.tsx). Client Hint first, User-Agent fallback;
+  // iPads report a desktop UA and correctly get the desktop layout.
+  const h = await headers()
+  const chMobile = h.get('sec-ch-ua-mobile')
+  const ua = h.get('user-agent') || ''
+  const mobile = chMobile ? chMobile.includes('?1') : /iPhone|iPod|Android.+Mobile|Mobile Safari|Windows Phone|Opera Mini|IEMobile/i.test(ua)
   return (
     <html lang="en">
       <head>
@@ -127,7 +136,7 @@ export default function RootLayout({
         </Script>
       </head>
       <body className="font-sans antialiased">
-        {children}
+        <ViewportProvider mobile={mobile}>{children}</ViewportProvider>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>

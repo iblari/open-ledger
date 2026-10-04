@@ -15,6 +15,7 @@
  */
 
 import { useEffect, useState } from "react";
+import { useIsMobileViewport } from "@/lib/viewport";
 import Link from "next/link";
 import { C, SERIF, SANS } from "@/lib/design-tokens";
 import type { TrendsFeed, TrendItem } from "@/lib/live-kv";
@@ -113,13 +114,8 @@ function TrendCard({ t, mob, lead }: { t: TrendItem; mob: boolean; lead?: boolea
 }
 
 function useIsMobile() {
-  const [mob, setMob] = useState(false);
-  useEffect(() => {
-    const check = () => setMob(window.innerWidth < 768);
-    check(); window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
-  }, []);
-  return mob;
+  // Server-informed: see lib/viewport.tsx (no desktop flash on phones).
+  return useIsMobileViewport(768);
 }
 
 /**

@@ -1,5 +1,6 @@
 "use client";
 import { useState, useMemo, useEffect, useRef, Suspense } from "react";
+import { useIsMobileViewport } from "@/lib/viewport";
 import CheetahMark from "@/components/CheetahMark";
 import SamePointView from "@/components/SamePointView";
 import { benchKeyFor, liveAnnual, type Bench } from "@/lib/bench-lens";
@@ -51,9 +52,8 @@ const LiveBenchmark = nextDynamic(() => import("@/components/LiveBenchmark"), {
 // InsightsStrip import removed — strip lives only on the landing page now.
 
 function useIsMobile() {
-  const [w, setW] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
-  useEffect(() => { const h = () => setW(window.innerWidth); window.addEventListener('resize', h); return () => window.removeEventListener('resize', h); }, []);
-  return w < 768;
+  // Server-informed: see lib/viewport.tsx (no desktop flash on phones).
+  return useIsMobileViewport(768);
 }
 
 /* ─────────────────────────────────────────────

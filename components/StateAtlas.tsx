@@ -12,6 +12,7 @@
 // tilegrid map style toggle. Phase C+ adds more metric sets.
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useIsMobileViewport } from "@/lib/viewport";
 import ShareRow from "@/components/ShareRow";
 import { geoAlbersUsa, geoPath } from "d3-geo";
 import { select } from "d3-selection";
@@ -98,13 +99,8 @@ type TooltipState = { name: string; html: string; x: number; y: number } | null;
 // Local viewport hook — matches the useIsMobile pattern used elsewhere
 // on the site so this component doesn't depend on any one parent's check.
 function useIsMobile() {
-  const [mob, setMob] = useState(false);
-  useEffect(() => {
-    const check = () => setMob(window.innerWidth < 768);
-    check(); window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
-  }, []);
-  return mob;
+  // Server-informed: see lib/viewport.tsx (no desktop flash on phones).
+  return useIsMobileViewport(768);
 }
 
 export function StateAtlas() {

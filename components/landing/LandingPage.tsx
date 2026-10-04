@@ -1,5 +1,6 @@
 "use client";
 import { useState, useMemo, useEffect, useRef } from "react";
+import { useIsMobileViewport, useViewportWidth } from "@/lib/viewport";
 import CheetahMark from "@/components/CheetahMark";
 import { liveAnnual, type Bench } from "@/lib/bench-lens";
 import {
@@ -103,23 +104,12 @@ function fmt(v: number, u: string): string {
    MOBILE HOOK
 ───────────────────────────────────────────── */
 function useIsMobile() {
-  const [w, setW] = useState(typeof window !== "undefined" ? window.innerWidth : 1024);
-  useEffect(() => {
-    const h = () => setW(window.innerWidth);
-    window.addEventListener("resize", h);
-    return () => window.removeEventListener("resize", h);
-  }, []);
-  return w < 768;
+  // Server-informed: see lib/viewport.tsx (no desktop flash on phones).
+  return useIsMobileViewport(768);
 }
 
 function useMedium() {
-  const [w, setW] = useState(typeof window !== "undefined" ? window.innerWidth : 1024);
-  useEffect(() => {
-    const h = () => setW(window.innerWidth);
-    window.addEventListener("resize", h);
-    return () => window.removeEventListener("resize", h);
-  }, []);
-  return w < 980;
+  return useViewportWidth() < 980;
 }
 
 /* ═══════════════════════════════════════════════
