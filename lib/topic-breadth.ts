@@ -277,6 +277,8 @@ export interface ShiftRow {
   /** Rolling count of broadcasts raising the topic, one point per broadcast
    *  once a full window exists — the small trend line. */
   series: number[];
+  /** Per point: did THAT broadcast raise the subject. Same length as series. */
+  raised: boolean[];
   confidence: ShiftConfidence;
 }
 export interface TopicShift {
@@ -288,6 +290,8 @@ export interface TopicShift {
   fading: ShiftRow[];
   /** Raised in most broadcasts in BOTH windows — the standing agenda. */
   steady: string[];
+  /** The broadcast each series point ends on, for the hover readout. */
+  points: { title: string; date: string }[];
 }
 
 /**
@@ -314,9 +318,13 @@ export function computeShift(broadcasts: BreadthBroadcast[], window = 5): TopicS
     for (let i = n - window; i < n; i++) r += has(i);
     for (let i = n - 2 * window; i < n - window; i++) p += has(i);
     const series: number[] = [];
-    for (let i = window - 1; i < n; i++) { let s = 0; for (let j = i - window + 1; j <= i; j++) s += has(j); series.push(s); }
+    const raised: boolean[] = [];
+    for (let i = window - 1; i < n; i++) {
+      let s = 0; for (let j = i - window + 1; j <= i; j++) s += has(j);
+      series.push(s); raised.push(has(i) === 1);
+    }
     const d = Math.abs(r - p);
-    return { topic, recent: r, prior: p, series, confidence: d >= 4 ? "confirmed" : d === 3 ? "early" : "too-early" };
+    return { topic, recent: r, prior: p, series, raised, confidence: d >= 4 ? "confirmed" : d === 3 ? "early" : "too-early" };
   });
   const byDiff = (a: ShiftRow, b: ShiftRow) => Math.abs(b.recent - b.prior) - Math.abs(a.recent - a.prior) || a.topic.localeCompare(b.topic);
   return {
@@ -326,5 +334,6 @@ export function computeShift(broadcasts: BreadthBroadcast[], window = 5): TopicS
     rising: rows.filter(r => r.recent > r.prior).sort(byDiff).slice(0, 4),
     fading: rows.filter(r => r.recent < r.prior).sort(byDiff).slice(0, 5),
     steady: rows.filter(r => r.recent >= 3 && r.prior >= 3).sort((a, b) => b.recent + b.prior - a.recent - a.prior).map(r => r.topic),
+    points: list.slice(window - 1).map(b => ({ title: b.title, date: b.startedAt })),
   };
 }

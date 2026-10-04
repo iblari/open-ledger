@@ -22,20 +22,80 @@ const LABEL: Record<ShiftRow["confidence"], [string, string, string]> = {
   "too-early": ["Too early to tell", "#F1EFE8", "#5F5E5A"],
 };
 
-function Spark({ series, max, color, w = 96 }: { series: number[]; max: number; color: string; w?: number }) {
+/** Short, clean broadcast title for the readout: no "LIVE:" prefix or trailing date. */
+function shortTitle(t: string) {
+  return t.replace(/^\s*LIVE:\s*/i, "").replace(/,?\s*(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+\d{1,2},\s*\d{4}\s*$/i, "").trim();
+}
+
+/**
+ * The trend line, now readable point by point: hover (or drag a finger)
+ * and the nearest point lights up with the broadcast it ends on, whether
+ * that broadcast raised the subject, and the rolling count.
+ */
+function Spark({ series, raised, points, max, color, topic, w = 96 }: {
+  series: number[]; raised?: boolean[]; points?: { title: string; date: string }[];
+  max: number; color: string; topic?: string; w?: number;
+}) {
   const h = 28;
+  const [hi, setHi] = useState<number | null>(null);
   if (series.length < 2) return <svg width={w} height={h} aria-hidden />;
   const pts = series.map((v, i) => [(i / (series.length - 1)) * w, h - 3 - (v / max) * (h - 6)]);
   const [lx, ly] = pts[pts.length - 1];
+  const interactive = Boolean(points && points.length === series.length);
+  const pick = (clientX: number, el: Element) => {
+    const r = el.getBoundingClientRect();
+    const k = Math.round(((clientX - r.left) / r.width) * (series.length - 1));
+    setHi(Math.max(0, Math.min(series.length - 1, k)));
+  };
+  const p = hi != null && points ? points[hi] : null;
   return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden style={{ flex: "none" }}>
-      <polyline points={pts.map(p => p.map(n => n.toFixed(1)).join(",")).join(" ")} fill="none" stroke={color} strokeWidth={1.8} strokeLinejoin="round" />
-      <circle cx={lx} cy={ly} r={2.8} fill={color} />
-    </svg>
+    <span style={{ position: "relative", display: "inline-block", flex: "none", lineHeight: 0 }}>
+      <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden style={{ display: "block", overflow: "visible", cursor: interactive ? "crosshair" : undefined, touchAction: interactive ? "pan-y" : undefined }}
+        onMouseMove={interactive ? e => pick(e.clientX, e.currentTarget) : undefined}
+        onMouseLeave={interactive ? () => setHi(null) : undefined}
+        onTouchStart={interactive ? e => pick(e.touches[0].clientX, e.currentTarget) : undefined}
+        onTouchMove={interactive ? e => pick(e.touches[0].clientX, e.currentTarget) : undefined}
+        onTouchEnd={interactive ? () => setTimeout(() => setHi(null), 1800) : undefined}>
+        <rect x={-4} y={-6} width={w + 8} height={h + 12} fill="transparent" />
+        <polyline points={pts.map(q => q.map(n => n.toFixed(1)).join(",")).join(" ")} fill="none" stroke={color} strokeWidth={1.8} strokeLinejoin="round" />
+        {interactive && hi == null && pts.map(([x, y], i) => i < pts.length - 1 && (
+          <circle key={i} cx={x} cy={y} r={1.3} fill={color} opacity={0.45} />
+        ))}
+        {hi == null && <circle cx={lx} cy={ly} r={2.8} fill={color} />}
+        {hi != null && (
+          <>
+            <line x1={pts[hi][0]} x2={pts[hi][0]} y1={-2} y2={h + 2} stroke="#CFC8BC" strokeWidth={1} />
+            <circle cx={pts[hi][0]} cy={pts[hi][1]} r={3.6} fill="#fff" stroke={color} strokeWidth={2} />
+          </>
+        )}
+      </svg>
+      {p && hi != null && (
+        <span role="tooltip" style={{
+          position: "absolute", bottom: h + 8,
+          // Right-anchored: the line always sits at the right end of its row,
+          // so a left-anchored box ran off the screen on phones.
+          right: Math.max(-6, w - pts[hi][0] - 24),
+          width: 220, zIndex: 20, pointerEvents: "none", lineHeight: 1.35,
+          background: "#14110E", color: "#F4F0EA", borderRadius: 8, padding: "8px 10px",
+          fontFamily: SANS, fontSize: 11.5, boxShadow: "0 6px 18px rgba(20,17,14,.25)", whiteSpace: "normal", textAlign: "left",
+        }}>
+          <span style={{ display: "block", color: "#A69E92", fontSize: 10.5, letterSpacing: "0.04em" }}>
+            {new Date(p.date).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "America/New_York" })}
+          </span>
+          <span style={{ display: "block", fontWeight: 600, margin: "2px 0 5px" }}>{shortTitle(p.title)}</span>
+          {raised && (
+            <span style={{ display: "block", color: raised[hi] ? "#7FD1C7" : "#C9C2B6" }}>
+              {raised[hi] ? "✓ Raised" : "– Didn\u2019t raise"} {topic ? topic.toLowerCase() : "it"}
+            </span>
+          )}
+          <span style={{ display: "block", color: "#C9C2B6" }}>{series[hi]} of the last {max} broadcasts</span>
+        </span>
+      )}
+    </span>
   );
 }
 
-function Column({ title, rows, color, win, arrow }: { title: string; rows: ShiftRow[]; color: string; win: number; arrow: string }) {
+function Column({ title, rows, color, win, arrow, points }: { title: string; rows: ShiftRow[]; color: string; win: number; arrow: string; points?: { title: string; date: string }[] }) {
   return (
     <div style={{ minWidth: 0 }}>
       <div style={{ fontFamily: SANS, fontSize: 11, fontWeight: 700, letterSpacing: "0.12em", color, marginBottom: 6 }}>{arrow} {title}</div>
@@ -51,7 +111,7 @@ function Column({ title, rows, color, win, arrow }: { title: string; rows: Shift
                 <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 99, background: bg, color: fg, whiteSpace: "nowrap" }}>{lab}</span>
               </div>
             </div>
-            <Spark series={r.series} max={win} color={color} />
+            <Spark series={r.series} raised={r.raised} points={points} topic={r.topic} max={win} color={color} />
           </div>
         );
       })}
@@ -92,7 +152,7 @@ function Mobile({ shift }: { shift: TopicShift }) {
           <span style={{ fontFamily: SANS, fontSize: 13, color: "#5F5850", whiteSpace: "nowrap" }}>
             {r.recent}/{w} <span style={{ color: "#A69E92" }}>← {r.prior}</span>
           </span>
-          <Spark series={r.series} max={w} color={color} w={60} />
+          <Spark series={r.series} raised={r.raised} points={shift.points} topic={r.topic} max={w} color={color} w={60} />
         </div>
       ))}
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", fontFamily: SANS, fontSize: 11, color: "#8C8479", marginTop: 8 }}>
@@ -144,8 +204,8 @@ export default function TopicShiftPanel({ shift }: { shift: TopicShift | null })
         The line shows the same count over time, one point per broadcast.
       </p>
       <div className="shift-cols">
-        <Column title="RISING" arrow="▲" rows={shift.rising} color={UP} win={w} />
-        <Column title="FADING" arrow="▼" rows={shift.fading} color={DOWN} win={w} />
+        <Column title="RISING" arrow="▲" rows={shift.rising} color={UP} win={w} points={shift.points} />
+        <Column title="FADING" arrow="▼" rows={shift.fading} color={DOWN} win={w} points={shift.points} />
       </div>
       <div style={{ marginTop: 16, paddingTop: 12, borderTop: "1px solid #DFD9CF", fontFamily: SANS, fontSize: 12.5, color: "#5F5850", lineHeight: 1.6 }}>
         {shift.steady.length > 0 && (
