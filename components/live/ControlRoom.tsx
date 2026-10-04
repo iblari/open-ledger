@@ -546,52 +546,20 @@ export default function ControlRoom({
    * scrolls it into view so pressing the button still visibly does
    * something.
    */
-  if (mob) {
-    // Fixed vertical stack: only the feed scrolls, so the video is never
-    // pushed off screen by what you're reading.
-    return (
-      <div style={{
-        // 100dvh, not inset:0. The DYNAMIC viewport unit tracks the visible
-        // area as mobile browser chrome shows and hides; inset:0 resolves
-        // against the layout viewport, which extends underneath the toolbar
-        // and quietly hides whatever is at the bottom of the stack.
-        position: "fixed", top: 0, left: 0, right: 0,
-        height: "100dvh", maxHeight: "100dvh",
-        zIndex: 60, background: L.ink,
-        display: "flex", flexDirection: "column",
-      }}>
-        {ContextBar}
-        {Stage}
-        {/* The primary action gets its own full-width row DIRECTLY under the
-            video, not the bottom control bar. On a phone the bottom of a
-            fixed stack sits under the browser toolbar and the home
-            indicator, so "Check this moment" was there in the DOM and
-            unreachable on screen. Above the feed it cannot be pushed
-            anywhere. */}
-        <div style={{ padding: "10px 14px 0", background: L.ink, flexShrink: 0 }}>
-          <button onClick={onFactCheck} disabled={isChecking} style={{
-            width: "100%", background: L.true, border: "none", color: "#fff",
-            borderRadius: 8, padding: "9px 14px", fontFamily: F.ui,
-            fontSize: 13.5, fontWeight: 700, cursor: isChecking ? "default" : "pointer",
-            opacity: isChecking ? 0.6 : 1,
-          }}>{isChecking ? "Checking…" : "🔍 Check this moment"}</button>
-        </div>
-        {/* Compact the cards themselves. Reclaiming layout space got the
-            feed to 335px, but a card is 206px — so still only 1.6 fit. The
-            card is sized for a desktop rail; on a phone the quote, the two
-            figures and the padding can all give a little without losing
-            anything. Done in CSS so ClaimCard needs no new prop and desktop
-            is provably untouched. */}
-        <div style={{ padding: "8px 14px 0", background: L.ink, flexShrink: 0 }}>{FilterChips}</div>
-        {Feed}
-        {RecordBar}
-        {RotateHint}
-      </div>
-    );
-  }
-
   return (
-    <div ref={rootRef} style={{
+    // ONE tree for every layout (phone upright, phone sideways, desktop,
+    // full screen). Rotating a phone used to swap between two different
+    // trees, which unmounted the video and rebuilt the YouTube player — the
+    // stream stopped and had to be pressed again. Now the player sits at the
+    // same position in the same tree and only styles change around it.
+    <div ref={rootRef} style={mob ? {
+      // 100dvh, not inset:0: the dynamic unit tracks the visible area as the
+      // browser chrome shows and hides.
+      position: "fixed", top: 0, left: 0, right: 0,
+      height: "100dvh", maxHeight: "100dvh",
+      zIndex: 60, background: L.ink,
+      display: "flex", flexDirection: "column",
+    } : {
       display: "grid", gap: 0, background: L.ink, overflow: "hidden",
       gridTemplateColumns: immersive ? "minmax(0,2fr) minmax(0,1fr)" : fs ? "minmax(0,1fr) 420px" : "minmax(0,1fr) 404px",
       ...(immersive
@@ -602,10 +570,24 @@ export default function ControlRoom({
           ? { height: "100vh", borderRadius: 0, border: "none" }
           : { height: "calc(100vh - 140px)", minHeight: 560, borderRadius: 12, border: `1px solid ${L.cardBorder}` }),
     }}>
-      <div style={{ display: "flex", flexDirection: "column", minWidth: 0, minHeight: 0, borderRight: `1px solid ${L.cardBorder}` }}>
+      <div style={mob
+        ? { display: "flex", flexDirection: "column", flexShrink: 0 }
+        : { display: "flex", flexDirection: "column", minWidth: 0, minHeight: 0, borderRight: `1px solid ${L.cardBorder}` }}>
         {ContextBar}
         {Stage}
-        {!immersive && Controls}
+        {/* Phones: the primary action gets its own full-width row directly
+            under the video, where the browser toolbar can't cover it. */}
+        {mob && (
+          <div style={{ padding: "10px 14px 0", background: L.ink, flexShrink: 0 }}>
+            <button onClick={onFactCheck} disabled={isChecking} style={{
+              width: "100%", background: L.true, border: "none", color: "#fff",
+              borderRadius: 8, padding: "9px 14px", fontFamily: F.ui,
+              fontSize: 13.5, fontWeight: 700, cursor: isChecking ? "default" : "pointer",
+              opacity: isChecking ? 0.6 : 1,
+            }}>{isChecking ? "Checking…" : "🔍 Check this moment"}</button>
+          </div>
+        )}
+        {!mob && !immersive && Controls}
         {/* The leftover height carries the running transcript rather than a
             void. Previously a flex spacer pushed the controls to the bottom
             of the column, leaving a large empty panel and burying the
@@ -613,7 +595,7 @@ export default function ControlRoom({
         {/* This area belongs to "check this moment" — the result of a manual
             check lands here, beside the video, instead of nowhere (it wasn't
             rendered at all after the redesign). */}
-        <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "16px 18px 18px", display: immersive ? "none" : undefined }}>
+        <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "16px 18px 18px", display: immersive || mob ? "none" : undefined }}>
           {isChecking ? (
             <div style={{ fontFamily: F.ui, fontSize: 12.5, color: L.mutedDark2 }}>
               Checking what was just said against the data…
@@ -650,7 +632,12 @@ export default function ControlRoom({
       {/* minHeight:0 is what makes the rail scroll: grid items default to
           min-height:auto, so without it the feed grows to fit its content and
           overflows the card instead of scrolling inside it. */}
-      <aside style={{ display: "flex", flexDirection: "column", minWidth: 0, minHeight: 0, background: L.stageAlt, paddingRight: immersive ? "env(safe-area-inset-right)" : undefined, paddingBottom: immersive ? "env(safe-area-inset-bottom)" : undefined }}>
+      <aside style={mob
+        ? { display: "flex", flexDirection: "column", flex: 1, minWidth: 0, minHeight: 0, background: L.ink }
+        : { display: "flex", flexDirection: "column", minWidth: 0, minHeight: 0, background: L.stageAlt, paddingRight: immersive ? "env(safe-area-inset-right)" : undefined, paddingBottom: immersive ? "env(safe-area-inset-bottom)" : undefined }}>
+        {mob ? (
+          <div style={{ padding: "8px 14px 0", background: L.ink, flexShrink: 0 }}>{FilterChips}</div>
+        ) : (
         <div style={{ padding: immersive ? "8px 10px 8px" : "12px 14px", borderBottom: `1px solid ${L.cardBorder}`, flexShrink: 0 }}>
           <div style={{
             display: "flex", justifyContent: "space-between", alignItems: "baseline",
@@ -663,8 +650,9 @@ export default function ControlRoom({
           </div>
           {FilterChips}
         </div>
+        )}
         {Feed}
-        {!immersive && RecordBar}
+        {(mob || !immersive) && RecordBar}
       </aside>
       {RotateHint}
       {immersive && barsHint && (

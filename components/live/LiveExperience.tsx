@@ -1342,8 +1342,11 @@ export default function LiveExperience({ autoStartReplay, autoStartLive, onExit,
         ytPlayerRef.current = null;
       }
     };
+    // layoutKey is deliberately NOT a dependency any more: ControlRoom keeps
+    // the player at one position in one tree for every layout, so rotating
+    // the phone no longer needs (or triggers) a rebuild — playback carries on.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPlaying, videoId, layoutKey]);
+  }, [isPlaying, videoId]);
 
   /* ── Poll video time → drive transcript + claims ── */
   useEffect(() => {
