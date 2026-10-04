@@ -219,7 +219,10 @@ export function liveAnnual(bench: Bench | null, dashKey: string, hist2024: numbe
   for (let y = 2025; y <= 2028; y++) {
     const r = yearAgg(cur.data, START_YEAR.trump2, y, cfg.agg);
     if (!r) break;
-    const v = Math.round(r.v * scale * 1000) / 1000;
+    // Match the historical series' precision: whole numbers for large
+    // figures ($B, index points), three decimals for rates and ratios.
+    const raw = r.v * scale;
+    const v = Math.abs(raw) >= 100 ? Math.round(raw) : Math.round(raw * 1000) / 1000;
     if (cfg.agg === "fy") {
       // Fiscal years end in September; done once September is reported.
       const ttm = (r as { ttm?: number }).ttm;
