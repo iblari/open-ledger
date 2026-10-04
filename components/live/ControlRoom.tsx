@@ -343,6 +343,9 @@ export default function ControlRoom({
       flexWrap: compact ? "nowrap" : "wrap",
       overflowX: compact ? "auto" : undefined,
       scrollbarWidth: "none",
+      // Sideways rail is narrow: fade the last chip out instead of a hard cut,
+      // so the row reads as scrollable.
+      ...(immersive ? { WebkitMaskImage: "linear-gradient(90deg,#000 85%,transparent)", maskImage: "linear-gradient(90deg,#000 85%,transparent)", paddingRight: 18 } : {}),
     }}>
       {(([
         ["all", `ALL ${views.length}`],
@@ -648,12 +651,12 @@ export default function ControlRoom({
           min-height:auto, so without it the feed grows to fit its content and
           overflows the card instead of scrolling inside it. */}
       <aside style={{ display: "flex", flexDirection: "column", minWidth: 0, minHeight: 0, background: L.stageAlt, paddingRight: immersive ? "env(safe-area-inset-right)" : undefined, paddingBottom: immersive ? "env(safe-area-inset-bottom)" : undefined }}>
-        <div style={{ padding: immersive ? "8px 10px 8px" : "12px 14px", paddingRight: immersive ? "max(10px, env(safe-area-inset-right))" : undefined, borderBottom: `1px solid ${L.cardBorder}`, flexShrink: 0 }}>
+        <div style={{ padding: immersive ? "8px 10px 8px" : "12px 14px", borderBottom: `1px solid ${L.cardBorder}`, flexShrink: 0 }}>
           <div style={{
             display: "flex", justifyContent: "space-between", alignItems: "baseline",
             marginBottom: immersive ? 6 : 9, fontFamily: F.ui,
           }}>
-            <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.16em", textTransform: "uppercase", color: L.mutedDark }}>
+            <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.16em", textTransform: "uppercase", color: L.mutedDark, whiteSpace: "nowrap" }}>
               Fact-check feed
             </span>
             <span style={{ fontFamily: F.mono, fontSize: 12, color: "#fff" }}>{views.length}</span>
