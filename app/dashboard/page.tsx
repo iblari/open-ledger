@@ -1870,7 +1870,7 @@ function App(){
                   <span style={{fontFamily:ESANS,fontSize:mob?10:18,fontWeight:600,color:EC.ink,fontVariantNumeric:"tabular-nums"}}>{fmt(cell?cell.end:0,m.u)}</span>
                 </div>
                 <div style={{display:"flex",alignItems:"center",gap:mob?4:8,marginBottom:mob?4:6}}>
-                  <div style={{fontFamily:ESERIF,fontSize:mob?18:24,fontWeight:600,color:headlineColor,fontVariantNumeric:"tabular-nums",letterSpacing:"-0.015em",lineHeight:1.05}}>{headline}</div>
+                  <div style={{fontFamily:ESERIF,fontSize:mob?18:(sel.length>5?21:24),fontWeight:600,color:headlineColor,whiteSpace:"nowrap",fontVariantNumeric:"tabular-nums",letterSpacing:"-0.015em",lineHeight:1.05}}>{headline}</div>
                   {!mob&&<Sparkline data={sparkData} color={a.color} width={50} height={20} />}
                 </div>
                 <div style={{fontFamily:ESANS,fontSize:mob?9:10,color:EC.mute,display:"flex",justifyContent:"space-between"}}>
