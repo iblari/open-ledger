@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
   const wantChecks = body.checkClaims !== false;
   const windowLimit = Math.min(Number(body.limit) || 8, 14);
 
-  const broadcasts = await getRecentBroadcasts();
+  const broadcasts = await getRecentBroadcasts(true);
   const targets = body.videoId
     ? broadcasts.filter(b => b.videoId === body.videoId)
     : broadcasts;

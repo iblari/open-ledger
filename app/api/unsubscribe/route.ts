@@ -9,7 +9,7 @@ import { getSubscribers, setSubscribers } from "@/lib/live-kv";
  */
 async function remove(email: string, token: string) {
   if (!verifyUnsub(email, token)) return false;
-  const subs = await getSubscribers();
+  const subs = await getSubscribers(true);
   const next = subs.filter(s => s.email.toLowerCase() !== email.toLowerCase());
   await setSubscribers(next);
   return true;

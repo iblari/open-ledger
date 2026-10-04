@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const origin = new URL(req.url).origin;
 
-  const all = await getRecentBroadcasts() as (Awaited<ReturnType<typeof getRecentBroadcasts>>[number] & { claimsCheckedTo?: number })[];
+  const all = await getRecentBroadcasts(true) as (Awaited<ReturnType<typeof getRecentBroadcasts>>[number] & { claimsCheckedTo?: number })[];
   const pending = (b: typeof all[number]) => {
     if (b.source !== "on-demand" || !b.transcript) return false;
     const segs = segments(b.transcript);
@@ -110,7 +110,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Re-read before writing: the store may have changed while we were checking.
-  const latest = await getRecentBroadcasts() as typeof all;
+  const latest = await getRecentBroadcasts(true) as typeof all;
   const target = latest.find(x => x.videoId === b.videoId);
   if (!target) return NextResponse.json({ error: "broadcast vanished during check" }, { status: 409 });
   target.claims = [...target.claims, ...fresh].sort((x, y) => (x.videoTime ?? 0) - (y.videoTime ?? 0));

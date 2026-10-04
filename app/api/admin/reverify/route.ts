@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
   const limit = Math.min(Number(body.limit) || 8, 12);
   const origin = new URL(req.url).origin;
 
-  const broadcasts = await getRecentBroadcasts();
+  const broadcasts = await getRecentBroadcasts(true);
   const before = { UNVERIFIABLE: 0, other: 0 };
   for (const b of broadcasts) {
     for (const c of b.claims) {

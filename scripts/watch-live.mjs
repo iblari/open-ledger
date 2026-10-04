@@ -482,11 +482,18 @@ while (Date.now() < deadline - RESERVE_MIN * 60_000) {
     // recording (minutes), and the loop must keep polling for live streams
     // meanwhile. A busy flag stops two drains overlapping.
     if (!queueBusy) { queueBusy = true; drainCheckQueue().finally(() => { queueBusy = false; }); }
-    // Deliberately not awaited — see realignOne.
-    realignOne();
-    // Any recovered broadcast with unchecked transcript (including ones
-    // archived before this existed) gets its fact-check pass here.
-    if (!claimsBusy) { claimsBusy = true; checkAllClaims(null).finally(() => { claimsBusy = false; }); }
+    // Housekeeping every 10th idle poll (~10 min), not every minute. Each
+    // pass reads the archive from Upstash, and running them per poll was
+    // most of what exhausted the database's monthly request quota on 4 Oct.
+    // Neither is time-critical: alignment waits 20 minutes after a broadcast
+    // anyway, and catch-up fact-checks are for recovered recordings.
+    if (polls % 10 === 2) {
+      // Deliberately not awaited — see realignOne.
+      realignOne();
+      // Any recovered broadcast with unchecked transcript (including ones
+      // archived before this existed) gets its fact-check pass here.
+      if (!claimsBusy) { claimsBusy = true; checkAllClaims(null).finally(() => { claimsBusy = false; }); }
+    }
 
     // Periodic self-repair while idle — catches broadcasts covered by a
     // previous watcher run that retired before captions were ready.

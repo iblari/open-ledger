@@ -179,7 +179,7 @@ export async function POST(req: Request) {
   if ((body.action as string) === "backfill-transcript") {
     const transcript = await getLiveTranscript().catch(() => "");
     if (!transcript) return NextResponse.json({ ok: false, reason: "no transcript in KV" });
-    const recent = await getRecentBroadcasts();
+    const recent = await getRecentBroadcasts(true);
     const target = recent.find(b => !b.transcript);
     if (!target) return NextResponse.json({ ok: false, reason: "nothing to backfill" });
     await archiveBroadcast({ ...target, transcript });

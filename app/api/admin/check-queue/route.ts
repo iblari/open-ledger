@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, status: "failed" });
   }
 
-  const all = await getRecentBroadcasts();
+  const all = await getRecentBroadcasts(true);
   const existing = all.find(b => b.videoId === videoId);
   // A re-run of a recovered video: correct its date to when it actually
   // happened (the old pipeline used the day it was queued). Claims are kept.

@@ -74,6 +74,32 @@ async function upstashCmd(...args: (string | number)[]): Promise<unknown> {
   return data.result;
 }
 
+/**
+ * Same as upstashCmd, but a failure THROWS instead of reading as "empty".
+ *
+ * Use it for the read half of every read-modify-write. With the lenient
+ * version, an Upstash error (on 4 Oct: the plan's request limit) makes the
+ * read return nothing, and the write that follows would then overwrite the
+ * permanent ledger, the subscriber list or the live claims with just the new
+ * item. Failing the whole operation loses one update; the lenient path loses
+ * everything before it.
+ */
+export class KvError extends Error {}
+async function upstashCmdStrict(...args: (string | number)[]): Promise<unknown> {
+  const resp = await fetch(`${UPSTASH_URL}`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${UPSTASH_TOKEN}`, "Content-Type": "application/json" },
+    body: JSON.stringify(args),
+  });
+  const data = await resp.json().catch(() => null) as { result?: unknown; error?: unknown } | null;
+  if (!resp.ok || !data || "error" in data) {
+    const msg = `[upstash] ${String(args[0])} ${String(args[1] ?? "")} failed (strict): HTTP ${resp.status} ${JSON.stringify(data?.error ?? data).slice(0, 300)}`;
+    console.error(msg);
+    throw new KvError(msg);
+  }
+  return data.result;
+}
+
 // ── In-memory fallback ────────────────────────────────────────────
 
 const mem = new Map<string, string>();
@@ -126,10 +152,10 @@ export async function setLiveState(state: LiveState): Promise<void> {
 }
 
 /** Get all claims for the current live session */
-export async function getLiveClaims(): Promise<LiveClaim[]> {
+export async function getLiveClaims(strict = false): Promise<LiveClaim[]> {
   let raw: string | null | undefined;
   if (hasUpstash()) {
-    raw = (await upstashCmd("GET", LIVE_CLAIMS_KEY)) as string | null;
+    raw = (await (strict ? upstashCmdStrict : upstashCmd)("GET", LIVE_CLAIMS_KEY)) as string | null;
   } else {
     raw = mem.get(LIVE_CLAIMS_KEY);
   }
@@ -150,7 +176,7 @@ export async function getClaimsSince(since: string): Promise<LiveClaim[]> {
 
 /** Append new claims to the live session */
 export async function appendLiveClaims(newClaims: LiveClaim[]): Promise<void> {
-  const existing = await getLiveClaims();
+  const existing = await getLiveClaims(true);
   // Keep most recent 200 claims max
   const combined = [...newClaims, ...existing].slice(0, 200);
   const json = JSON.stringify(combined);
@@ -293,10 +319,10 @@ export interface SubscriberRecord {
   liveAlerts?: boolean;
 }
 
-export async function getSubscribers(): Promise<SubscriberRecord[]> {
+export async function getSubscribers(strict = false): Promise<SubscriberRecord[]> {
   let raw: string | null | undefined;
   if (hasUpstash()) {
-    raw = (await upstashCmd("GET", SUBSCRIBERS_KEY)) as string | null;
+    raw = (await (strict ? upstashCmdStrict : upstashCmd)("GET", SUBSCRIBERS_KEY)) as string | null;
   } else {
     raw = mem.get(SUBSCRIBERS_KEY);
   }
@@ -318,7 +344,7 @@ export async function setSubscribers(list: SubscriberRecord[]): Promise<void> {
 }
 
 export async function appendSubscriber(rec: SubscriberRecord): Promise<{ total: number; isNew: boolean }> {
-  const all = await getSubscribers();
+  const all = await getSubscribers(true);
   const key = rec.email.trim().toLowerCase();
   const existing = key ? all.find(s => s.email.trim().toLowerCase() === key) : undefined;
   let isNew = true;
@@ -522,6 +548,17 @@ export async function getAlignment(videoId: string): Promise<Alignment | null> {
   try { return JSON.parse(raw) as Alignment; } catch { return null; }
 }
 
+/** Many alignments in ONE command (MGET). The replay list and the worker's
+ *  "what needs aligning?" poll used to issue a GET per broadcast, per request
+ *  — the single biggest line on the Upstash bill. */
+async function getAlignments(ids: string[]): Promise<(Alignment | null)[]> {
+  if (!ids.length) return [];
+  const raws: (string | null)[] = hasUpstash()
+    ? (((await upstashCmd("MGET", ...ids.map(ALIGN_KEY))) as (string | null)[] | undefined) || ids.map(() => null))
+    : ids.map(id => mem.get(ALIGN_KEY(id)) ?? null);
+  return raws.map(r => { if (!r) return null; try { return JSON.parse(r) as Alignment; } catch { return null; } });
+}
+
 export async function setAlignment(videoId: string, a: Alignment): Promise<void> {
   // No expiry: the ledger is permanent, and so is knowing where its quotes sit.
   const json = JSON.stringify(a);
@@ -536,13 +573,22 @@ export async function setAlignment(videoId: string, a: Alignment): Promise<void>
  * private or deleted should not be retried forever.
  */
 export async function claimNextAlignment(): Promise<{ videoId: string; title: string } | null> {
-  const list = await getReplayableRaw();
   const now = Date.now();
-  for (const b of list) {
-    if (!b.videoId || !b.claims?.length) continue;
-    if (now - Date.parse(b.endedAt) < ALIGN_MIN_AGE_MS) continue;
-    if (await getAlignment(b.videoId)) continue;
-    const tries = Number(hasUpstash() ? await upstashCmd("GET", ALIGN_TRIES_KEY(b.videoId)) : mem.get(ALIGN_TRIES_KEY(b.videoId))) || 0;
+  const list = (await getReplayableRaw()).filter(b =>
+    b.videoId && b.claims?.length && now - Date.parse(b.endedAt) >= ALIGN_MIN_AGE_MS);
+  if (!list.length) return null;
+  // Two commands for the whole list instead of two per broadcast.
+  const ids = list.map(b => b.videoId);
+  const [aligns, triesRaw] = await Promise.all([
+    getAlignments(ids),
+    hasUpstash()
+      ? ((upstashCmd("MGET", ...ids.map(ALIGN_TRIES_KEY)) as Promise<(string | null)[] | undefined>).then(r => r || ids.map(() => null)))
+      : Promise.resolve(ids.map(id => mem.get(ALIGN_TRIES_KEY(id)) ?? null)),
+  ]);
+  for (let k = 0; k < list.length; k++) {
+    const b = list[k];
+    if (aligns[k]) continue;
+    const tries = Number(triesRaw[k]) || 0;
     if (tries >= ALIGN_MAX_TRIES) continue;
     if (!(await claimOnce(ALIGN_TRY_KEY(b.videoId), 30 * 60))) continue;
     if (hasUpstash()) await upstashCmd("INCR", ALIGN_TRIES_KEY(b.videoId));
@@ -566,7 +612,7 @@ export async function getReplayableClaims(videoId: string): Promise<LiveClaim[] 
  */
 export async function getReplayable(): Promise<(RecentBroadcast & { aligned?: boolean })[]> {
   const list = await getReplayableRaw();
-  const aligns = await Promise.all(list.map(b => getAlignment(b.videoId).catch(() => null)));
+  const aligns = await getAlignments(list.map(b => b.videoId)).catch(() => list.map(() => null));
   return list.map((b, i) => {
     const a = aligns[i];
     if (!a) return b;
@@ -584,10 +630,10 @@ export async function getReplayable(): Promise<(RecentBroadcast & { aligned?: bo
   });
 }
 
-export async function getRecentBroadcasts(): Promise<RecentBroadcast[]> {
+export async function getRecentBroadcasts(strict = false): Promise<RecentBroadcast[]> {
   let raw: string | null | undefined;
   if (hasUpstash()) {
-    raw = (await upstashCmd("GET", RECENT_BROADCASTS_KEY)) as string | null;
+    raw = (await (strict ? upstashCmdStrict : upstashCmd)("GET", RECENT_BROADCASTS_KEY)) as string | null;
   } else {
     raw = mem.get(RECENT_BROADCASTS_KEY);
   }
@@ -652,7 +698,7 @@ export async function archiveBroadcast(b: RecentBroadcast): Promise<void> {
   if (b.transcript && b.transcript.length > 120_000) {
     b = { ...b, transcript: "… " + b.transcript.slice(-120_000) };
   }
-  const all = await getRecentBroadcasts(); // already pruned
+  const all = await getRecentBroadcasts(true); // already pruned
   const existing = all.find(x => x.videoId === b.videoId);
   if (existing) {
     // Same stream covered in multiple worker sessions (rotation/restart):
@@ -716,7 +762,7 @@ export async function setRecentBroadcasts(list: RecentBroadcast[]): Promise<void
  *  replay). Deduped by quote so repeated checks of the same passage don't
  *  stack, and re-sorted by video time so the feed and timeline stay ordered. */
 export async function appendClaimsToBroadcast(videoId: string, claims: LiveClaim[]): Promise<number> {
-  const all = await getRecentBroadcasts();
+  const all = await getRecentBroadcasts(true);
   const b = all.find(x => x.videoId === videoId);
   if (!b) return 0;
   // Exact-match dedup let paraphrases through ("worst inflation in 48 years"
@@ -744,7 +790,7 @@ export async function claimsNearTime(videoId: string, videoTime: number, windowS
 
 /** Remove one archived broadcast (ops/testing cleanup). */
 export async function removeRecentBroadcast(videoId: string): Promise<boolean> {
-  const all = await getRecentBroadcasts();
+  const all = await getRecentBroadcasts(true);
   const next = all.filter(b => b.videoId !== videoId);
   if (next.length === all.length) return false;
   const json = JSON.stringify(next);
@@ -1050,9 +1096,9 @@ export function speakerFromTitle(title: string): string | null {
   return hits.length === 1 ? hits[0].name : null;
 }
 
-export async function getLedger(): Promise<LedgerEntry[]> {
+export async function getLedger(strict = false): Promise<LedgerEntry[]> {
   const raw = hasUpstash()
-    ? ((await upstashCmd("GET", LEDGER_KEY)) as string | null)
+    ? ((await (strict ? upstashCmdStrict : upstashCmd)("GET", LEDGER_KEY)) as string | null)
     : mem.get(LEDGER_KEY);
   if (!raw) return [];
   try {
@@ -1108,7 +1154,7 @@ export async function recordInLedger(b: RecentBroadcast): Promise<LedgerEntry> {
     recordedAt: new Date().toISOString(),
   };
 
-  const all = await getLedger();
+  const all = await getLedger(true);
   const i = all.findIndex(x => x.videoId === entry.videoId);
   // Re-coverage updates in place; a broadcast is one row forever.
   if (i >= 0) all[i] = { ...entry, recordedAt: all[i].recordedAt };
