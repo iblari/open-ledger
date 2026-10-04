@@ -141,3 +141,71 @@ export function trump2SoFar(bench: Bench | null, dashKey: string): SoFarCell | n
     improved, benchKey: map.key, month: last.month,
   };
 }
+
+/* ── Live annual points for the year-by-year charts ─────────────────────
+ *
+ * The finished-term charts are annual series. The current term is folded in
+ * from the live monthly feed: each calendar year becomes one point, the year
+ * in progress marked `partial`. How a year is summarised follows how the
+ * historical series is defined (average level, December level, or a yearly
+ * total), and series whose live source sits on a different base (chain-year
+ * dollars, a different deflator or survey basis) are spliced: scaled by the
+ * ratio of the historical 2024 value to the live feed's 2024 value, so the
+ * line joins without a fake jump.
+ */
+const ANNUAL: Record<string, { key: string; agg: "avg" | "last" | "sum"; splice?: boolean; scale?: number }> = {
+  real_gdp: { key: "real_gdp", agg: "avg", splice: true },
+  gdp: { key: "gdp_growth", agg: "avg" },
+  unemployment: { key: "unemployment", agg: "avg" },
+  lfpr: { key: "lfpr", agg: "avg" },
+  jobs: { key: "jobs", agg: "sum", scale: 1 / 1000 },        // thousands/month → millions/yr
+  mfg: { key: "mfg", agg: "avg" },
+  inflation: { key: "inflation", agg: "avg" },
+  gas: { key: "gas", agg: "avg", splice: true },
+  wages: { key: "wages", agg: "avg" },
+  debt_gdp: { key: "debt_gdp", agg: "avg", splice: true },
+  trade: { key: "trade", agg: "sum", splice: true },
+  fed_rate: { key: "fed_rate", agg: "last" },
+  purchasing: { key: "purchasing", agg: "avg", splice: true },
+};
+
+const START_YEAR: Record<string, number> = { biden: 2021, trump2: 2025 };
+
+function yearAgg(data: BenchPoint[], startYear: number, year: number, agg: "avg" | "last" | "sum") {
+  const lo = (year - startYear) * 12, hi = lo + 11;
+  const pts = data.filter(d => d.month >= lo && d.month <= hi && Number.isFinite(d.value)).sort((a, b) => a.month - b.month);
+  if (!pts.length) return null;
+  const n = pts.length;
+  const sum = pts.reduce((s, p) => s + p.value, 0);
+  // A part-year total is annualised so it sits on the same scale as full years.
+  const v = agg === "avg" ? sum / n : agg === "last" ? pts[n - 1].value : (sum / n) * 12;
+  return { v, months: n };
+}
+
+export interface LivePoint { y: number; v: number; a: "trump2"; partial?: boolean; months?: number }
+
+export function liveAnnual(bench: Bench | null, dashKey: string, hist2024: number | null): LivePoint[] {
+  const cfg = ANNUAL[dashKey];
+  if (!bench || !cfg) return [];
+  const m = bench.metrics[cfg.key];
+  const cur = m?.series.find(s => s.id === "trump2");
+  if (!m || !cur) return [];
+  let ratio = 1;
+  if (cfg.splice && hist2024 != null) {
+    const b = m.series.find(s => s.id === "biden");
+    const b24 = b ? yearAgg(b.data, START_YEAR.biden, 2024, cfg.agg) : null;
+    if (b24 && b24.v !== 0) ratio = hist2024 / b24.v;
+  }
+  const scale = (cfg.scale ?? 1) * ratio;
+  // A finished calendar year counts as complete even with a month missing
+  // (the Oct 2025 shutdown left gaps); only the year in progress is partial.
+  const thisYear = new Date(bench.lastUpdated || Date.now()).getUTCFullYear();
+  const out: LivePoint[] = [];
+  for (let y = 2025; y <= 2028; y++) {
+    const r = yearAgg(cur.data, START_YEAR.trump2, y, cfg.agg);
+    if (!r) break;
+    const v = Math.round(r.v * scale * 1000) / 1000;
+    out.push(y >= thisYear ? { y, v, a: "trump2", partial: true, months: r.months } : { y, v, a: "trump2" });
+  }
+  return out;
+}

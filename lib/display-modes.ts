@@ -280,7 +280,10 @@ export function getDisplayedChange(
     return { value: c.avgValue, unit: "pct_avg", improved };
   }
   if (cfg.perMetricUnit === "pct_yr") {
-    const v = dollarMode === "real" ? c.annualizedReal : c.annualizedNominal;
+    // Only CPI-deflate series that are in nominal dollars. Real GDP is
+    // already in constant dollars; deflating it again subtracted inflation a
+    // second time (Biden showed −1.6%/yr while real GDP grew ~3%/yr).
+    const v = dollarMode === "real" && cfg.dollarAware ? c.annualizedReal : c.annualizedNominal;
     if (v === null) return { value: null, unit: "pct_yr", improved: false };
     return {
       value: v,

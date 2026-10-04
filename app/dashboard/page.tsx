@@ -2,7 +2,7 @@
 import { useState, useMemo, useEffect, useRef, Suspense } from "react";
 import CheetahMark from "@/components/CheetahMark";
 import SamePointView from "@/components/SamePointView";
-import { trump2SoFar, benchKeyFor, type Bench } from "@/lib/bench-lens";
+import { benchKeyFor, liveAnnual, type Bench } from "@/lib/bench-lens";
 import ShareRow from "@/components/ShareRow";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -120,8 +120,13 @@ const ADMINS = {
   obama:   { name:"Obama",   party:"D", years:"'09–'17", color:"#2d6a4f", full:"2009–2017" },
   trump1:  { name:"Trump",   party:"R", years:"'17–'21", color:"#c1272d", full:"2017–2021" },
   biden:   { name:"Biden",   party:"D", years:"'21–'25", color:"#4361a6", full:"2021–2025" },
+  // Current term. Its yearly points come from the live feed (lib/bench-lens
+  // liveAnnual) once /api/benchmark-data loads; the year in progress is
+  // drawn lighter and labelled partial.
+  trump2:  { name:"Trump II", party:"R", years:"'25–", color:"#b8372d", full:"2025–" },
 };
 const AID=["clinton","bush","obama","trump1","biden"];
+const AIDX=[...AID,"trump2"];
 
 const COUNTRIES={
   us:{name:"United States",color:"#2563eb",flag:"🇺🇸"},china:{name:"China",color:"#dc2626",flag:"🇨🇳"},
@@ -286,6 +291,7 @@ function Tip({active,payload,label,unit}){
         <div>
           <div style={{fontWeight:800,fontSize:13,letterSpacing:-0.3}}>{label||d?.y}</div>
           {adminData && <div style={{color:adminData.color,fontSize:11,fontWeight:600}}>{adminData.name} ({adminData.years})</div>}
+          {d?.partial && <div style={{color:T.mute,fontSize:10.5,marginTop:2}}>Year to date · {d.months} months{d.a==="trump2"?" · live":""}</div>}
         </div>
       </div>
       {payload.map((p,i)=>(
@@ -897,7 +903,7 @@ function App(){
   const searchParams = useSearchParams();
   const [am,setAm]=useState("gdp");
   const [detail,setDetail]=useState(null);
-  const [sel,setSel]=useState(["clinton","bush","obama","trump1","biden"]);
+  const [sel,setSel]=useState(["clinton","bush","obama","trump1","biden","trump2"]);
   const [ct,setCt]=useState("bar");
   const [gc,setGc]=useState(["us","china","india","uk"]);
   const [cf,setCf]=useState("all");
@@ -913,6 +919,19 @@ function App(){
   // Live monthly data — drives the "same point" lens AND the Trump II
   // "so far" column of the whole-terms table. Cached server-side for 1h.
   const [bench,setBench]=useState<Bench|null>(null);
+  // Heatmap cells including the current term (recomputed once live data is in).
+  const [heatLive,setHeatLive]=useState(HEAT_DATA);
+  useEffect(()=>{
+    if(!bench) return;
+    // Fold the current term's yearly points into each series (replacing any
+    // from an earlier load), then recompute cells for all six columns.
+    for(const k of Object.keys(M)){
+      const hist=M[k].d.filter(p=>p.a!=="trump2");
+      const h24=hist.find(p=>p.a==="biden"&&p.y===2024)?.v ?? null;
+      M[k].d=[...hist,...liveAnnual(bench,k,h24)];
+    }
+    setHeatLive(computeHeatmap(M, AIDX, "inflation"));
+  },[bench]);
   useEffect(()=>{
     let alive=true;
     fetch("/api/benchmark-data").then(r=>r.json()).then(d=>{ if(alive && d && !d.error) setBench(d); }).catch(()=>{});
@@ -1027,7 +1046,7 @@ function App(){
   const vis=cf==="all"?MK:MK.filter(k=>M[k].cat===cf);
 
   const sums=useMemo(()=>{const o={};for(const id of sel){const p=m.d.filter(d=>d.a===id);if(!p.length)continue;
-    o[id]={avg:p.reduce((s,x)=>s+x.v,0)/p.length,chg:p[p.length-1].v-p[0].v};}return o;},[am,sel]);
+    o[id]={avg:p.reduce((s,x)=>s+x.v,0)/p.length,chg:p[p.length-1].v-p[0].v};}return o;},[am,sel,heatLive]);
 
 
   // (Removed: sc/ss/maxP/scores() — Scorecard tab is gone.)
@@ -1419,7 +1438,7 @@ function App(){
                     style={{width:"100%",padding:"11px 12px",border:`1px solid ${T.rule}`,borderRadius:6,background:T.card,fontFamily:"'DM Sans',sans-serif",fontSize:15,fontWeight:600,color:ADMINS[selectedPres]?.color||T.ink}}
                   >
                     {AID.map(id=><option key={id} value={id}>{ADMINS[id].name} ({ADMINS[id].years})</option>)}
-                    <option value="trump2">Trump II (2025–, so far)</option>
+                    {heatLive!==HEAT_DATA && <option value="trump2">Trump II (2025–, so far)</option>}
                   </select>
                 </>)}
               </div>
@@ -1437,27 +1456,7 @@ function App(){
                       <div style={{display:"flex",flexDirection:"column",gap:8}}>
                         {catMetrics.map((k,idx)=>{
                           const mx=M[k];
-                          if(selectedPres==="trump2"){
-                            // Current term: live "so far" figures; measures
-                            // without a live monthly series are skipped.
-                            const so=trump2SoFar(bench,k);
-                            if(!so) return null;
-                            const bg=so.improved==null?EC.paper:so.improved?"rgba(13,115,119,.22)":"rgba(194,65,12,.2)";
-                            const fg=so.improved==null?EC.sub:so.improved?"#0B4A4C":"#7A2418";
-                            return (
-                              <div key={k} className={`hover-lift stagger-${Math.min(idx+1,20)}`}
-                                onClick={()=>{ setView("month"); setMonthDetail(so.benchKey); window.scrollTo({top:0}); }}
-                                style={{background:EC.card,border:`1px solid ${EC.rule}`,borderRadius:3,padding:"12px 14px",display:"flex",alignItems:"center",gap:10,cursor:"pointer",borderLeft:"3px solid #b8372d"}}>
-                                <div style={{flex:1,minWidth:0}}>
-                                  <div style={{fontFamily:ESERIF,fontSize:14,fontWeight:500,color:EC.ink,marginBottom:2}}>{mx.l}</div>
-                                  <div style={{fontFamily:ESANS,fontSize:11,color:EC.mute,fontVariantNumeric:"tabular-nums"}}>{so.detail}</div>
-                                </div>
-                                <div style={{background:bg,color:fg,borderRadius:3,padding:"7px 11px",fontFamily:ESERIF,fontWeight:600,fontSize:15,minWidth:68,textAlign:"center",fontVariantNumeric:"tabular-nums",lineHeight:1.15}}>{so.headline}</div>
-                                <span className="tap-chevron" style={{fontSize:18,color:EC.mute,fontWeight:300,marginLeft:2,lineHeight:1}}>›</span>
-                              </div>
-                            );
-                          }
-                          const c=HEAT_DATA[k]?.[selectedPres];
+                          const c=heatLive[k]?.[selectedPres];
                           if(!c)return null;
                           const disp=resolveDashDisplay(c,k,displayMode,dollarMode);
                           const mag=disp.value!==null
@@ -1600,17 +1599,14 @@ function App(){
                             );
                           })}
                           {(()=>{
-                            const so=trump2SoFar(bench,mk);
-                            if(!so) return <div style={{textAlign:"center",color:EC.mute,fontFamily:ESANS,fontSize:11}} title={bench?"No live monthly series for this measure yet":"Loading live data"}>{bench?"—":"…"}</div>;
-                            const bg=so.improved==null?EC.paper:so.improved?"rgba(13,115,119,.22)":"rgba(194,65,12,.2)";
-                            const fg=so.improved==null?EC.sub:so.improved?"#0B4A4C":"#7A2418";
+                            const c=heatLive[mk]?.trump2;
+                            if(!c) return <div style={{textAlign:"center",color:EC.mute,fontFamily:ESANS,fontSize:11}} title={bench?"No live monthly series for this measure yet":"Loading live data"}>{bench?"—":"…"}</div>;
+                            // Dashed outline = still in progress ("so far").
                             return (
-                              <button type="button" title={`${so.detail} — open month by month`}
-                                onClick={()=>{ setView("month"); setMonthDetail(so.benchKey); window.scrollTo({top:0}); }}
-                                style={{margin:3,background:bg,color:fg,border:"1.5px dashed rgba(184,55,45,.35)",borderRadius:3,padding:"7px 2px",cursor:"pointer",lineHeight:1.15,font:"inherit"}}>
-                                <span style={{display:"block",fontFamily:ESERIF,fontWeight:600,fontSize:13.5,fontVariantNumeric:"tabular-nums"}}>{so.headline}</span>
-                                {!mob && <span style={{display:"block",fontFamily:ESANS,fontSize:9.5,opacity:.8,marginTop:2}}>month {so.month}</span>}
-                              </button>
+                              <div style={{outline:"1.5px dashed rgba(184,55,45,.35)",outlineOffset:-3,borderRadius:4}}>
+                                <DashHeatCell c={c} mk={mk} aid="trump2" displayMode={displayMode} dollarMode={dollarMode} flipBelow={flipBelow}
+                                  onClick={()=>{setAm(mk);setDetail(mk);setOpenFacts(false);}} />
+                              </div>
                             );
                           })()}
                         </div>
@@ -1676,7 +1672,7 @@ function App(){
                   <line x1="2" y1="5" x2="12" y2="5" stroke={T.sub} strokeWidth="1.5" strokeLinecap="round"/>
                   <line x1="4" y1="9" x2="10" y2="9" stroke={T.sub} strokeWidth="1.5" strokeLinecap="round"/>
                 </svg>
-                {sel.length<AID.length&&<span style={{
+                {sel.length<AIDX.length&&<span style={{
                   position:"absolute",top:-4,right:-4,width:14,height:14,borderRadius:"50%",
                   background:T.accent,color:"#fff",fontSize:8,fontWeight:700,
                   display:"flex",alignItems:"center",justifyContent:"center"
@@ -1692,7 +1688,7 @@ function App(){
               }}>
                 <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:1.5,color:T.mute,marginBottom:8}}>Filter Presidents</div>
                 <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
-                  {AID.map(id=>{const a=ADMINS[id];return(
+                  {AIDX.map(id=>{const a=ADMINS[id];return(
                     <button key={id} onClick={()=>tog(id)} style={{
                       display:"flex",alignItems:"center",gap:5,padding:"6px 12px",borderRadius:3,
                       background:sel.includes(id)?a.color+"12":"transparent",
@@ -1752,7 +1748,7 @@ function App(){
             <div>
               <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:1.5,color:T.mute,marginBottom:6}}>Administrations</div>
               <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
-                {AID.map(id=>{const a=ADMINS[id];return(
+                {AIDX.map(id=>{const a=ADMINS[id];return(
                   <button key={id} className="ol-president-toggle" onClick={()=>tog(id)} style={{
                     display:"flex",alignItems:"center",gap:5,padding:"6px 12px",borderRadius:3,
                     background:sel.includes(id)?a.color+"12":"transparent",
@@ -1854,17 +1850,20 @@ function App(){
           </div>
 
           {/* Summary cards */}
-          <div className="ol-grid-summary" style={{display:"grid",gridTemplateColumns:mob?"repeat(2,1fr)":`repeat(${Math.min(sel.length+1,6)},1fr)`,gap:mob?8:10,marginBottom:mob?12:20,order:mob?2:1}}>
+          <div className="ol-grid-summary" style={{display:"grid",gridTemplateColumns:mob?"repeat(2,1fr)":`repeat(${Math.max(1,Math.min(sel.length,6))},1fr)`,gap:mob?8:10,marginBottom:mob?12:20,order:mob?2:1}}>
             {sel.map((id,idx)=>{const s=sums[id];if(!s)return null;const a=ADMINS[id];
               const pts=m.d.filter(d=>d.a===id);if(pts.length<1)return null;
-              const cell=HEAT_DATA[am]?.[id];
+              const cell=heatLive[am]?.[id];
               const disp=cell?resolveDashDisplay(cell,am,displayMode,dollarMode):null;
               const headline=disp?formatDisplayedChange(disp.value,disp.unit,false,{metricUnit:m.u}):"—";
               const headlineColor=disp&&disp.value!==null?(disp.improved?EC.improveStrong:EC.declineStrong):EC.mute;
               const sparkData=pts.map(p=>p.v);
               return <div key={id} className={`hover-lift stagger-${idx+1}`} style={{...sty.card,padding:mob?"10px 12px":"16px 18px",borderTop:`${mob?3:4}px solid ${a.color}`,position:"relative",overflow:"hidden"}}>
                 {!mob&&<div style={{position:"absolute",top:0,right:0,width:80,height:80,background:`linear-gradient(135deg, ${a.color}08 0%, transparent 70%)`,borderRadius:"0 0 0 80px"}}/>}
-                <div style={{fontFamily:ESANS,fontSize:mob?9:10,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.14em",color:a.color,marginBottom:mob?4:6}}>{a.name}</div>
+                <div style={{fontFamily:ESANS,fontSize:mob?9:10,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.14em",color:a.color,marginBottom:mob?4:6,display:"flex",alignItems:"center",gap:5}}>
+                  {id==="trump2"&&<span style={{width:6,height:6,borderRadius:"50%",background:a.color,animation:"pulse 2s ease-in-out infinite"}}/>}
+                  {a.name}{id==="trump2"&&<span style={{color:EC.mute,letterSpacing:"0.08em"}}>· so far</span>}
+                </div>
                 <div style={{display:"flex",alignItems:"baseline",gap:mob?4:6,marginBottom:mob?3:4}}>
                   <span style={{fontFamily:ESANS,fontSize:mob?10:12,color:EC.mute,fontVariantNumeric:"tabular-nums"}}>{fmt(cell?cell.start:0,m.u)}</span>
                   <span style={{fontSize:mob?8:10,color:EC.mute}}>→</span>
@@ -1876,25 +1875,12 @@ function App(){
                 </div>
                 <div style={{fontFamily:ESANS,fontSize:mob?9:10,color:EC.mute,display:"flex",justifyContent:"space-between"}}>
                   <span>avg {fmt(s.avg,m.u)}</span>
-                  <span style={{color:a.color,fontWeight:600}}>{a.years}</span>
+                  {id==="trump2"&&benchKeyFor(am)
+                    ? <a href={`/dashboard?view=month&metric=${benchKeyFor(am)}`} onClick={e=>{e.preventDefault();setDetail(null);setView("month");setMonthDetail(benchKeyFor(am));window.scrollTo({top:0});}} style={{color:a.color,fontWeight:700,textDecoration:"none"}}>Monthly →</a>
+                    : <span style={{color:a.color,fontWeight:600}}>{a.years}</span>}
                 </div>
               </div>;
             })}
-            <a href={`/dashboard?view=month&metric=${benchKeyFor(am) ?? ""}`} onClick={e=>{ e.preventDefault(); setDetail(null); setView("month"); setMonthDetail(benchKeyFor(am)); window.scrollTo({top:0}); }} className={`hover-lift stagger-${sel.length+1}`} style={{
-              background:T.accent,border:`1px solid ${T.accent}`,borderRadius:4,
-              padding:mob?"10px 12px":"16px 18px",textDecoration:"none",color:"#fff",cursor:"pointer",
-              display:"flex",flexDirection:"column",justifyContent:"space-between",minHeight:0
-            }}>
-              <div style={{display:"flex",alignItems:"center",gap:5}}>
-                <span style={{width:6,height:6,borderRadius:"50%",background:"#fff",animation:"pulse 2s ease-in-out infinite"}}/>
-                <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?9:10,fontWeight:700,textTransform:"uppercase",letterSpacing:1.2}}>Live · Trump II</span>
-              </div>
-              <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?11:12,fontWeight:500,color:"rgba(255,255,255,0.88)",margin:"6px 0"}}>Current term, updated daily</div>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:mob?10:11,fontWeight:700}}>See live data</span>
-                <span style={{fontSize:12}}>→</span>
-              </div>
-            </a>
           </div>
 
           {/* Chart */}
@@ -1913,7 +1899,11 @@ function App(){
               {ct==="bar"?(
                 <BarChart data={fd} margin={{top:10,right:10,left:0,bottom:10}}>
                   <defs>
-                    {AID.map(id=>(
+                    <linearGradient id="bar-gradient-partial" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={ADMINS.trump2.color} stopOpacity={0.45}/>
+                      <stop offset="100%" stopColor={ADMINS.trump2.color} stopOpacity={0.2}/>
+                    </linearGradient>
+                    {AIDX.map(id=>(
                       <linearGradient key={id} id={`bar-gradient-${id}`} x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor={ADMINS[id]?.color} stopOpacity={0.9}/>
                         <stop offset="100%" stopColor={ADMINS[id]?.color} stopOpacity={0.6}/>
@@ -1925,7 +1915,7 @@ function App(){
                   <YAxis stroke={T.rule} fontSize={10} fontFamily="'DM Sans',sans-serif" tick={{fill:T.sub}} tickFormatter={v=>fmt(v,m.u)} axisLine={{stroke:T.rule}}/>
                   <Tooltip content={<Tip unit={m.u}/>} cursor={{fill:T.paper,opacity:0.5}}/>
                   <Bar dataKey="v" radius={[4,4,0,0]} maxBarSize={28} animationDuration={600} animationEasing="ease-out">
-                    {fd.map((e,i)=><RechartsCell key={i} fill={`url(#bar-gradient-${e.a})`}/>)}
+                    {fd.map((e,i)=><RechartsCell key={i} fill={e.partial?"url(#bar-gradient-partial)":`url(#bar-gradient-${e.a})`} stroke={e.partial?ADMINS.trump2.color:undefined} strokeDasharray={e.partial?"3 2":undefined}/>)}
                   </Bar>
                 </BarChart>
               ):(
@@ -1963,7 +1953,7 @@ function App(){
                   const pts=m.d.filter(d=>d.a===id);
                   if(pts.length<1)return null;
                   const a=ADMINS[id];
-                  const cell=HEAT_DATA[am]?.[id];
+                  const cell=heatLive[am]?.[id];
                   if(!cell)return null;
                   const disp=resolveDashDisplay(cell,am,displayMode,dollarMode);
                   const headline=formatDisplayedChange(disp.value,disp.unit,false,{metricUnit:m.u});
