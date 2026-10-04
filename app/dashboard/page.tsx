@@ -1365,11 +1365,8 @@ function App(){
         </div>
       </div>
 
-      {mob && tab==="dashboard" && view==="terms" && (
-        <div style={{...sty.header,padding:mob?"10px 16px 8px":"12px 24px 10px",borderTop:"none"}}>
-          <div style={{display:"flex",maxWidth:1080,margin:"0 auto"}}>{presLegend}</div>
-        </div>
-      )}
+      {/* (Removed: the presidents colour key on phones. Every card and chart
+          bar already names its president, so the strip only cost height.) */}
 
       <div className="ol-wrap" style={{maxWidth:1080,margin:"0 auto",padding:"28px 24px 64px"}}>
 
