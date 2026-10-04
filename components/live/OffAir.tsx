@@ -277,6 +277,172 @@ function BroadcastCarousel({ items, onWatch }: { items: HomeArchiveItem[]; onWat
   );
 }
 
+/* ── Replays: every broadcast ever covered ─────────────────────────────
+   Grouped by month, newest first; filter by speaker and subject; search
+   what was actually said. Ceremonies with no economic claims stay behind a
+   toggle so they don't read as empty cards. */
+const VERD: Record<string, [string, string]> = {
+  "TRUE": ["True", C.ok], "MOSTLY TRUE": ["True", C.ok], "MISLEADING": ["Misleading", C.mis], "FALSE": ["False", C.con],
+};
+const mmss = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
+const monthOf = (iso: string) => new Date(iso).toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "America/New_York" });
+
+function ReplaysArchive({ items, onWatch }: { items: HomeArchiveItem[]; onWatch: (id: string) => void }) {
+  const [q, setQ] = useState("");
+  const [speaker, setSpeaker] = useState<string>("all");
+  const [topic, setTopic] = useState<string>("all");
+  const [showQuiet, setShowQuiet] = useState(false);
+
+  const speakers = (() => {
+    const m = new Map<string, number>();
+    for (const a of items) if (a.total > 0) { const k = a.speaker || "Other speakers"; m.set(k, (m.get(k) || 0) + 1); }
+    return [...m.entries()].sort((a, b) => (a[0] === "Other speakers" ? 1 : b[0] === "Other speakers" ? -1 : b[1] - a[1]));
+  })();
+  const topics = (() => {
+    const m = new Map<string, number>();
+    for (const a of items) for (const t of a.topics || []) m.set(t, (m.get(t) || 0) + 1);
+    return [...m.entries()].sort((a, b) => b[1] - a[1]);
+  })();
+
+  const term = q.trim().toLowerCase();
+  const searching = term.length >= 2;
+  const pool = items.filter(a =>
+    (showQuiet || a.total > 0 || searching) &&
+    (speaker === "all" || (a.speaker || "Other speakers") === speaker) &&
+    (topic === "all" || (a.topics || []).includes(topic))
+  );
+
+  const hits = searching
+    ? pool.map(a => ({ a, matches: (a.quotes || []).filter(x => x.q.toLowerCase().includes(term)) }))
+        .filter(h => h.matches.length || h.a.title.toLowerCase().includes(term))
+    : [];
+
+  const groups: [string, HomeArchiveItem[]][] = [];
+  if (!searching) for (const a of pool) {
+    const m = monthOf(a.date);
+    const g = groups.find(x => x[0] === m);
+    if (g) g[1].push(a); else groups.push([m, [a]]);
+  }
+  const quietCount = items.filter(a => a.total === 0).length;
+
+  const chip = (on: boolean): React.CSSProperties => ({
+    flex: "none", border: `1px solid ${on ? C.ink : C.rule}`, background: on ? C.ink : C.card,
+    color: on ? "#f8f5f0" : C.ink, borderRadius: 99, padding: "6px 12px",
+    fontFamily: SANS, fontSize: 12.5, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap",
+  });
+
+  return (
+    <section aria-labelledby="replays-h" style={{ marginTop: 40 }}>
+      <style>{`.rp-chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}.rp-chips::-webkit-scrollbar{display:none}
+        .rp-ctl{display:grid;grid-template-columns:minmax(0,1fr) 220px;gap:10px}
+        @media (max-width:640px){.rp-ctl{grid-template-columns:1fr}}`}</style>
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
+        <h2 id="replays-h" style={{ ...H2, margin: 0 }}>Replays · {items.filter(a => a.total > 0).length} broadcasts</h2>
+        <span style={{ display: "flex", gap: 14, fontFamily: SANS, fontSize: 11.5, color: C.muted }}>
+          {([["True", C.ok], ["Misleading", C.mis], ["False", C.con]] as const).map(([l, c]) => (
+            <span key={l} style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><span style={{ width: 9, height: 9, borderRadius: 2, background: c }} />{l}</span>
+          ))}
+        </span>
+      </div>
+
+      <div className="rp-ctl">
+        <input type="search" value={q} onChange={e => setQ(e.target.value)} aria-label="Search what was said"
+          placeholder="Search what was said — tariffs, gas prices, jobs…"
+          style={{ width: "100%", boxSizing: "border-box", padding: "11px 14px", border: `1px solid ${C.rule}`, borderRadius: 10, background: C.card, fontFamily: SANS, fontSize: 14, color: C.ink }} />
+        <select value={topic} onChange={e => setTopic(e.target.value)} aria-label="Subject"
+          style={{ padding: "11px 12px", border: `1px solid ${C.rule}`, borderRadius: 10, background: C.card, fontFamily: SANS, fontSize: 14, color: C.ink }}>
+          <option value="all">All subjects</option>
+          {topics.map(([t, n]) => <option key={t} value={t}>{t} ({n})</option>)}
+        </select>
+      </div>
+      {speakers.length > 1 && (
+        <div className="rp-chips" role="tablist" aria-label="Speaker" style={{ marginTop: 10 }}>
+          <button type="button" role="tab" aria-selected={speaker === "all"} onClick={() => setSpeaker("all")} style={chip(speaker === "all")}>Everyone</button>
+          {speakers.map(([sp, n]) => (
+            <button key={sp} type="button" role="tab" aria-selected={speaker === sp} onClick={() => setSpeaker(sp)} style={chip(speaker === sp)}>{sp} · {n}</button>
+          ))}
+        </div>
+      )}
+
+      {searching ? (
+        <div style={{ marginTop: 18 }}>
+          <div style={{ fontFamily: SANS, fontSize: 12.5, color: C.muted, marginBottom: 10 }}>
+            {hits.reduce((n, h) => n + h.matches.length, 0)} checked {hits.reduce((n, h) => n + h.matches.length, 0) === 1 ? "claim" : "claims"} in {hits.length} {hits.length === 1 ? "broadcast" : "broadcasts"}
+          </div>
+          {hits.length === 0 && <div style={{ fontFamily: SANS, fontSize: 13.5, color: C.secondary, padding: "18px 0" }}>Nothing checked matches “{q.trim()}”.</div>}
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {hits.map(({ a, matches }) => {
+              const t = cleanTitle(a.title);
+              return (
+                <button key={a.id} onClick={() => onWatch(a.id)} className="oa-card" style={{
+                  display: "grid", gridTemplateColumns: "120px minmax(0,1fr)", gap: 0, textAlign: "left", cursor: "pointer", padding: 0, font: "inherit",
+                  background: C.card, border: `1px solid ${C.rule}`, borderRadius: 10, overflow: "hidden",
+                }}>
+                  <Thumb id={a.id} size="mq" duration={a.duration} />
+                  <span style={{ padding: "10px 14px", minWidth: 0 }}>
+                    <span style={{ display: "block", fontFamily: SANS, fontSize: 11.5, color: C.muted }}>{fmtDate(a.date)}{t.speaker ? ` · ${t.speaker}` : ""}</span>
+                    <span style={{ display: "block", fontFamily: SERIF, fontSize: 15.5, fontWeight: 600, color: C.ink, margin: "2px 0 6px" }}>{t.title}</span>
+                    {matches.slice(0, 3).map((m, i) => {
+                      const v = VERD[(m.r || "").toUpperCase()];
+                      return (
+                        <span key={i} style={{ display: "flex", gap: 8, alignItems: "baseline", fontFamily: SANS, fontSize: 12.5, color: C.secondary, marginTop: 3 }}>
+                          <span style={{ fontFamily: MONO, fontSize: 11, color: C.muted, flex: "none" }}>{mmss(m.t)}</span>
+                          {v && <b style={{ color: v[1], fontWeight: 700, flex: "none", fontSize: 11 }}>{v[0].toUpperCase()}</b>}
+                          <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>“{m.q}”</span>
+                        </span>
+                      );
+                    })}
+                    {matches.length > 3 && <span style={{ display: "block", fontFamily: SANS, fontSize: 11.5, color: C.muted, marginTop: 3 }}>+{matches.length - 3} more</span>}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+        <>
+          {groups.length === 0 && <div style={{ fontFamily: SANS, fontSize: 13.5, color: C.secondary, padding: "22px 0" }}>No broadcasts match these filters.</div>}
+          {groups.map(([month, list]) => (
+            <div key={month} style={{ marginTop: 22 }}>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 10, margin: "0 0 10px", paddingBottom: 6, borderBottom: `1px solid ${C.rule}` }}>
+                <span style={{ fontFamily: SERIF, fontSize: 19, fontWeight: 600, color: C.ink }}>{month}</span>
+                <span style={{ fontFamily: SANS, fontSize: 12, color: C.muted }}>{list.length} {list.length === 1 ? "broadcast" : "broadcasts"}</span>
+              </div>
+              <div className="oa-grid">
+                {list.map(a => {
+                  const t = cleanTitle(a.title);
+                  return (
+                    <button key={a.id} onClick={() => onWatch(a.id)} className="oa-card oa-row" title={a.title} style={{
+                      display: "flex", flexDirection: "column", textAlign: "left", cursor: "pointer", padding: 0, font: "inherit",
+                      background: C.card, border: `1px solid ${C.rule}`, borderRadius: 10, overflow: "hidden", minWidth: 0,
+                    }}>
+                      <span className="oa-th" style={{ display: "block" }}><Thumb id={a.id} size="mq" duration={a.duration} /></span>
+                      <span className="oa-body" style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, padding: "12px 14px 14px" }}>
+                        <span style={{ fontFamily: SANS, fontSize: 11.5, color: C.muted }}>{fmtDate(a.date)}{t.speaker ? ` · ${t.speaker}` : ""}</span>
+                        <span className="oa-t" style={{ fontFamily: SERIF, fontSize: 16, fontWeight: 600, lineHeight: 1.25, color: C.ink, margin: "4px 0 12px", flex: 1 }}>{t.title}</span>
+                        {a.total > 0
+                          ? <VerdictBar counts={a.counts} total={a.total} />
+                          : <span style={{ fontFamily: SANS, fontSize: 11.5, color: C.muted }}>No economic claims</span>}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+          {quietCount > 0 && (
+            <button onClick={() => setShowQuiet(v => !v)} aria-expanded={showQuiet} style={{
+              background: "none", border: "none", padding: "14px 0 0", cursor: "pointer", fontFamily: SANS, fontSize: 12.5, color: C.muted,
+            }}>
+              {quietCount} {quietCount === 1 ? "broadcast" : "broadcasts"} with no economic claims (ceremonies, arrivals) · <span style={{ color: C.ok, fontWeight: 600 }}>{showQuiet ? "Hide" : "Show"}</span>
+            </button>
+          )}
+        </>
+      )}
+    </section>
+  );
+}
+
 export default function OffAir({
   archive, schedule, topics, topicTail, topicMomentum, topicShift, topicTotals, onWatch,
   liveNow = null, onReturnLive,
@@ -297,8 +463,6 @@ export default function OffAir({
   // real coverage but look broken as a row with an empty bar and a "0".
   // They're kept one tap away instead.
   const withClaims = archive.filter(a => a.total > 0);
-  const quiet = archive.filter(a => a.total === 0);
-  const [showQuiet, setShowQuiet] = useState(false);
   const [featured, ...rest] = withClaims;
   const [next, ...later] = schedule;
   const f = featured ? cleanTitle(featured.title) : null;
@@ -419,7 +583,7 @@ export default function OffAir({
                 rest waiting to its right — like Apple's product carousels —
                 instead of eight screens of stacked cards. */}
             <div className="oa-mob">
-              <BroadcastCarousel items={[featured, ...rest.slice(0, 12)]} onWatch={onWatch} />
+              <BroadcastCarousel items={[featured, ...rest.slice(0, 5)]} onWatch={onWatch} />
             </div>
 
             <div className="oa-desk">
@@ -444,69 +608,9 @@ export default function OffAir({
               </span>
             </button>
 
-            {rest.length > 0 && (
-              <>
-                <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, flexWrap: "wrap", margin: "36px 0 12px" }}>
-                  <h2 style={{ ...H2, margin: 0 }}>Recent broadcasts</h2>
-                  {/* The bars mean nothing without this. */}
-                  <span style={{ display: "flex", gap: 14, fontFamily: SANS, fontSize: 11.5, color: C.muted }}>
-                    {([["True", C.ok], ["Misleading", C.mis], ["False", C.con]] as const).map(([l, c]) => (
-                      <span key={l} style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-                        <span style={{ width: 9, height: 9, borderRadius: 2, background: c }} />{l}
-                      </span>
-                    ))}
-                  </span>
-                </div>
-                <div className="oa-grid">
-                  {rest.slice(0, 12).map(a => {
-                    const t = cleanTitle(a.title);
-                    return (
-                      <button key={a.id} onClick={() => onWatch(a.id)} className="oa-card oa-row" title={a.title} style={{
-                        display: "flex", flexDirection: "column", textAlign: "left", cursor: "pointer", padding: 0, font: "inherit",
-                        background: C.card, border: `1px solid ${C.rule}`, borderRadius: 10, overflow: "hidden", minWidth: 0,
-                      }}>
-                        <span className="oa-th" style={{ display: "block" }}><Thumb id={a.id} size="mq" duration={a.duration} /></span>
-                        <span className="oa-body" style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, padding: "12px 14px 14px" }}>
-                          <span style={{ fontFamily: SANS, fontSize: 11.5, color: C.muted }}>
-                            {fmtDate(a.date)}{t.speaker ? ` · ${t.speaker}` : ""}
-                          </span>
-                          <span className="oa-t" style={{ fontFamily: SERIF, fontSize: 16, fontWeight: 600, lineHeight: 1.25, color: C.ink, margin: "4px 0 12px", flex: 1 }}>
-                            {t.title}
-                          </span>
-                          <VerdictBar counts={a.counts} total={a.total} />
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </>
-            )}
             </div>
 
-            {quiet.length > 0 && (
-              <div style={{ marginTop: 16 }}>
-                <button onClick={() => setShowQuiet(v => !v)} aria-expanded={showQuiet} style={{
-                  background: "none", border: "none", padding: "6px 0", cursor: "pointer",
-                  fontFamily: SANS, fontSize: 12.5, color: C.muted,
-                }}>
-                  {quiet.length} {quiet.length === 1 ? "broadcast" : "broadcasts"} with no economic claims · <span style={{ color: C.ok, fontWeight: 600 }}>{showQuiet ? "Hide" : "Show"}</span>
-                </button>
-                {showQuiet && (
-                  <ul style={{ listStyle: "none", margin: "6px 0 0", padding: 0 }}>
-                    {quiet.map(a => (
-                      <li key={a.id}>
-                        <button onClick={() => onWatch(a.id)} style={{
-                          background: "none", border: "none", padding: "6px 0", cursor: "pointer", textAlign: "left",
-                          fontFamily: SANS, fontSize: 13, color: C.secondary,
-                        }}>
-                          <span style={{ fontFamily: MONO, fontSize: 11.5, color: C.muted }}>{fmtDate(a.date)}</span> · {cleanTitle(a.title).title} <span style={{ color: C.muted }}>· {a.duration}</span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            )}
+            <ReplaysArchive items={archive} onWatch={onWatch} />
           </>
         )}
 

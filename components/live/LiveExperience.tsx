@@ -1142,12 +1142,23 @@ export default function LiveExperience({ autoStartReplay, autoStartLive, onExit,
     const target = recent.find(b => b.videoId === autoStartReplay);
     if (target) { autoStarted.current = true; startReplay(target); }
   }, [autoStartReplay, recent, startReplay]);
-  // The list arrived and the broadcast is not in it (expired, or a bad
-  // link): go back to the list rather than dropping onto the old screen.
+  // Not in the 72-hour list: it's an older broadcast. Fetch it from the
+  // permanent archive (/api/replay). Only a genuinely unknown id goes back.
   useEffect(() => {
     if (!pendingStart || !autoStartReplay || !recentLoaded || autoStarted.current) return;
-    if (!recent.some(b => b.videoId === autoStartReplay)) { setPendingStart(false); onExit?.(); }
-  }, [pendingStart, autoStartReplay, recentLoaded, recent, onExit]);
+    if (recent.some(b => b.videoId === autoStartReplay)) return;
+    autoStarted.current = true;
+    let alive = true;
+    fetch(`/api/replay?v=${encodeURIComponent(autoStartReplay)}`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => {
+        if (!alive) return;
+        if (d?.broadcast) startReplay(d.broadcast);
+        else { setPendingStart(false); onExit?.(); }
+      })
+      .catch(() => { if (alive) { setPendingStart(false); onExit?.(); } });
+    return () => { alive = false; };
+  }, [pendingStart, autoStartReplay, recentLoaded, recent, onExit, startReplay]);
 
   useEffect(() => {
     // Aligned broadcasts are on the recording's clock — but on the clock of

@@ -7,8 +7,8 @@
  */
 
 import { knownEvents } from "./known-events";
-import { getLedgerHealed, getLiveState, getLiveClaims, getReplayable } from "./live-kv";
-import { tallyWithTail, type TopicTally } from "./claim-topics";
+import { getLedgerHealed, getLiveState, getLiveClaims, getReplayable, speakerFromTitle } from "./live-kv";
+import { tallyWithTail, topicOf, type TopicTally } from "./claim-topics";
 import { loadTopicTags } from "./topic-tags";
 import { computeMomentum, computeShift, type MomentumResult, type TopicShift } from "./topic-breadth";
 
@@ -26,6 +26,12 @@ export interface HomeArchiveItem {
   id: string; title: string; venue: string; date: string; duration: string;
   counts: { match: number; misleading: number; contradicted: number };
   total: number;
+  /** Principal speaker read from the title, when unambiguous. */
+  speaker?: string | null;
+  /** Subjects the broadcast's checks raised (for the Replays filter). */
+  topics?: string[];
+  /** Every checked quote: text, seconds into the video, verdict (search). */
+  quotes?: { q: string; t: number; r: string }[];
 }
 export type { TopicTally };
 export interface HomeScheduleItem {
@@ -126,18 +132,35 @@ export async function loadLiveHome(origin: string): Promise<{
       }
     : null;
 
-  const archive: HomeArchiveItem[] = (recent?.recent || []).map(b => {
+  // Every broadcast ever covered — the permanent ledger — with the 72-hour
+  // store's copy preferred where it exists (it's the freshest). Newest first.
+  const toItem = (b: { videoId: string; title: string; source: string; startedAt: string; endedAt: string; claims: RawClaim[] }): HomeArchiveItem => {
     const mins = Math.max(1, Math.round((Date.parse(b.endedAt) - Date.parse(b.startedAt)) / 60000));
+    const claims = b.claims || [];
     return {
       id: b.videoId,
       title: b.title,
       venue: b.source === "youtube" ? "Official stream" : b.source,
       date: b.endedAt,
       duration: `${mins} min`,
-      counts: tally(b.claims || []),
-      total: (b.claims || []).length,
+      counts: tally(claims),
+      total: claims.length,
+      speaker: speakerFromTitle(b.title),
+      topics: [...new Set(claims.filter(c => c.quote).map(c => topicOf(c.quote)))].filter(t => t !== "Other"),
+      quotes: claims.filter(c => c.quote).map(c => ({ q: c.quote, t: Math.round(c.videoTime ?? 0), r: c.rating || "" })),
     };
-  });
+  };
+  const seen = new Set<string>();
+  const archive: HomeArchiveItem[] = [
+    ...(recent?.recent || []).map(toItem),
+    ...ledger.map(e => toItem({
+      videoId: e.videoId, title: e.title, source: e.channel || "youtube",
+      startedAt: e.startedAt, endedAt: e.endedAt,
+      claims: e.claims as unknown as RawClaim[],
+    })),
+  ]
+    .filter(a => (seen.has(a.id) ? false : (seen.add(a.id), true)))
+    .sort((a, b) => b.date.localeCompare(a.date));
 
   // Announced streams first (they're dated and imminent), then the year-ahead
   // economic calendar so the rail is never empty.

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { checkCoverage, checkDeaf } from "@/lib/coverage-watch";
 import { tagPending } from "@/lib/topic-tags";
+import { healFullBroadcastsOnce } from "@/lib/live-kv";
 
 /**
  * GET /api/cron/live-tick — the reliable metronome for live coverage.
@@ -40,6 +41,9 @@ export async function GET(req: Request) {
   const deaf = await checkDeaf().catch(() => false);
   // Tag any newly checked claims with a subject, a batch per tick. Idle ticks
   // cost one KV read. Failures fall back to the keyword table, never block.
+  // Once ever: copy the 72-hour store into the permanent per-broadcast keys.
+  const healed = await healFullBroadcastsOnce().catch(() => 0);
+  if (healed) console.log(`[live-tick] saved ${healed} full broadcast records`);
   const tags = await tagPending(40).catch(e => {
     console.error("[live-tick] topic tagging failed:", (e as Error).message);
     return null;
