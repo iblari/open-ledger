@@ -330,22 +330,7 @@ function DarkHero({ med }: { med: boolean }) {
           ))}
         </div>
       </div>
-      {/* Key for the background: without it the bars are decoration; with it
-          they are the record — and the full-size chart below became a repeat. */}
-      <div style={{
-        position: "absolute", left: 0, right: 0, bottom: 22, zIndex: 1,
-        display: "flex", justifyContent: "center", alignItems: "center", gap: 18, flexWrap: "wrap",
-        fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: "#8C8479",
-      }}>
-        <span>GDP growth, {data[0].y}–{data[data.length - 1].y}</span>
-        {AID.map(id => (
-          <span key={id} style={{ display: "inline-flex", alignItems: "center", gap: 6, color: "#BDB5A8" }}>
-            <i style={{ width: 9, height: 9, borderRadius: 2, background: ADMINS[id].color, display: "inline-block" }} />
-            {ADMINS[id].name}
-          </span>
-        ))}
-        <span>Source: BEA</span>
-      </div>
+      {/* (Removed: the GDP-growth key strip along the bottom of the hero.) */}
     </header>
   );
 }
