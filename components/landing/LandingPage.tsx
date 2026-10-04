@@ -301,7 +301,7 @@ function DarkHero({ med }: { med: boolean }) {
           fontSize: 11, color: "#D8CFC4", letterSpacing: "0.12em", textTransform: "uppercase", fontWeight: 500, marginBottom: 28,
         }}>
           <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#E0493A", boxShadow: "0 0 0 3px rgba(224,73,58,.25)" }} />
-          Political &amp; economic intelligence · No spin
+          Political &amp; economic intelligence
         </div>
         <h1 style={{ fontFamily: SERIF, fontWeight: 400, fontSize: med ? 64 : "clamp(64px, 7.4vw, 116px)", lineHeight: 0.98, letterSpacing: "-0.03em", margin: "0 auto", maxWidth: "12ch", textWrap: "balance" } as React.CSSProperties}>
           The economy under every president, <em style={{ fontStyle: "italic", color: "#E0493A" }}>in data.</em>
