@@ -1716,7 +1716,7 @@ function MobileLanding() {
 
       {/* ── 8. Footer line ── */}
       <div style={{ fontSize: 9, textTransform: "uppercase", color: C.mute, textAlign: "center", padding: "14px 0 6px", letterSpacing: "0.06em" }}>
-        © 2026 Vote Unbiased · No spin · You interpret
+        © 2026 Vote Unbiased
       </div>
 
       </Tile>
