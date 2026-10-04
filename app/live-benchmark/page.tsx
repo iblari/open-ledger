@@ -15,7 +15,10 @@ import { useRouter } from "next/navigation";
 export default function LiveBenchmarkRedirect() {
   const router = useRouter();
   useEffect(() => {
-    router.replace("/dashboard?tab=live_benchmark");
+    // Live Benchmark is now the Data tab's "Same point in office" lens.
+    // Keep ?metric= so shared links still open the same chart.
+    const m = new URLSearchParams(window.location.search).get("metric");
+    router.replace(`/dashboard?view=month${m ? `&metric=${encodeURIComponent(m)}` : ""}`);
   }, [router]);
 
   // Brief visible state while the redirect runs — avoids a flash of blank.

@@ -168,7 +168,7 @@ export function InsightsStrip({ limit = 3, mob, eyebrow }: Props) {
             //   - STATIC fallback insights point at the Data tab, since that's
             //     where the annual snapshot data they describe lives.
             href={isLive
-              ? `/dashboard?tab=live_benchmark&metric=${i.metricKey}`
+              ? `/dashboard?view=month&metric=${i.metricKey}`
               : `/dashboard?metric=${i.metricKey}${i.admin ? `&admin=${i.admin}` : ""}`}
             style={{
               display: "block",

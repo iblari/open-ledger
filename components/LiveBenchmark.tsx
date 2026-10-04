@@ -16,6 +16,7 @@ import {
   ResponsiveContainer, ReferenceLine, ReferenceDot,
 } from "recharts";
 import CompactPicker from "@/components/CompactPicker";
+import { samePoint, type Bench } from "@/lib/bench-lens";
 import { C as EC, SERIF as ESERIF, SANS as ESANS } from "@/lib/design-tokens";
 
 // ── Types (shape from /api/benchmark-data) ────────────────────────
@@ -433,10 +434,13 @@ function autoInsight(args: {
 }
 
 // ═══ Main component ════════════════════════════════════════════════
-export default function LiveBenchmark() {
+/** Rendered inside the Data tab's "Same point in office" lens. `initialMetric`
+ *  is the row the reader opened; `onBack` returns to the table. Without them
+ *  it still honours ?metric= (old shared links). */
+export default function LiveBenchmark({ initialMetric, onBack }: { initialMetric?: string; onBack?: () => void } = {}) {
   const mob = useIsMobile();
   const searchParams = useSearchParams();
-  const [metric, setMetric] = useState<string>("unemployment");
+  const [metric, setMetric] = useState<string>(initialMetric || "unemployment");
   const [catFilter, setCatFilter] = useState<string>("all");
   const [data, setData] = useState<APIResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -471,13 +475,13 @@ export default function LiveBenchmark() {
   // could drift in theory). If invalid, fall back to the default.
   useEffect(() => {
     if (!data) return;
-    const m = searchParams.get("metric");
+    const m = initialMetric || searchParams.get("metric");
     if (m && data.metrics[m]) {
       setMetric(m);
       setHighlighted(new Set()); // clear any prior highlight state from URL
       setScrubMonth(null); setRankOpen(false);
     }
-  }, [searchParams, data]);
+  }, [searchParams, data, initialMetric]);
 
   const adminMap = useMemo(() => {
     if (!data) return {};
@@ -545,10 +549,13 @@ export default function LiveBenchmark() {
       if (closest) allAtMonth.push({ id: s.id, value: closest.value, current: s.current });
     }
     allAtMonth.sort((a, b) => md.lowerBetter ? a.value - b.value : b.value - a.value);
-    const rank = allAtMonth.findIndex(a => a.current) + 1;
+    // Same ranking as the Data tab's table (lib/bench-lens): measures whose
+    // level tracks the calendar rank on growth since inauguration.
+    const sp = samePoint(data as unknown as Bench, metric);
+    const rank = sp?.current?.rank ?? allAtMonth.findIndex(a => a.current) + 1;
     const sparkData = currentAdmin.data.filter(p => p.month <= currentMonth).sort((a, b) => a.month - b.month).map(p => p.value);
-    return { currentValue, historicalAvg, rank, total: allAtMonth.length, atMonth, sparkData, allAtMonth };
-  }, [md, currentMonth]);
+    return { currentValue, historicalAvg, rank, total: sp?.current ? sp.n : allAtMonth.length, atMonth, sparkData, allAtMonth };
+  }, [md, currentMonth, data, metric]);
 
   const betterThanAvg = stats && md
     ? (md.lowerBetter ? stats.currentValue < stats.historicalAvg : stats.currentValue > stats.historicalAvg)
@@ -609,7 +616,7 @@ export default function LiveBenchmark() {
 
   // ── Mobile: "Share with friends" — Web Share API with per-metric deep link;
   // falls back to a bottom sheet when unavailable or it rejects (non-abort). ──
-  const shareUrl = `https://voteunbiased.org/dashboard?tab=live_benchmark&metric=${metric}`;
+  const shareUrl = `https://voteunbiased.org/dashboard?view=month&metric=${metric}`;
   const shareText = stats && md
     ? `${md.label} at month ${stats.atMonth} of Trump's 2nd term: ${fmtVal(stats.currentValue, md.unit)} — ranked ${ordinal(stats.rank)} of ${stats.total} administrations at the same point in office. No spin — you interpret.`
     : "";
@@ -662,6 +669,12 @@ export default function LiveBenchmark() {
   return (
     <div style={{ animation: "fadeUp 0.4s ease" }}>
 
+      {onBack && (
+        <button type="button" onClick={onBack} style={{
+          background: "none", border: "none", padding: "0 0 14px", cursor: "pointer",
+          fontFamily: ESANS, fontSize: 13, fontWeight: 600, color: EC.sub,
+        }}>← All metrics</button>
+      )}
       {/* ── Editorial headline (matches dashboard's tab heading pattern) ── */}
       <div style={{ marginBottom: mob ? 12 : 24 }}>
         <div style={{ fontFamily: ESANS, fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: EC.sub, fontWeight: 500, marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>

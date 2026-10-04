@@ -194,3 +194,8 @@
 .vu-back:hover { background: #2c2824 !important; color: #fff !important; border-color: #8C8479 !important; }
 .vu-back:focus-visible { outline: 2px solid #b8372d; outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { .vu-back { transition: none; } }
+
+/* Data tab, same-point lens: whole row is the button. */
+.vu-row { transition: background .12s ease; }
+.vu-row:hover { background: #fbf8f3 !important; }
+.vu-row:focus-visible { outline: 2px solid #b8372d; outline-offset: -2px; }

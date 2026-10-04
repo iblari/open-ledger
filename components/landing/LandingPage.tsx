@@ -765,7 +765,7 @@ function ScorecardSection({ mob, med }: { mob: boolean; med: boolean }) {
                     displayMode={displayMode} dollarMode={dollarMode} />
                 ))}
                 {/* Trump II — live CTA cell */}
-                <Link href="/live-benchmark" style={{
+                <Link href="/dashboard?view=month" style={{
                   margin: mob ? 3 : 5, height: mob ? 44 : 52, borderRadius: 3,
                   display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
                   padding: "4px 6px", textDecoration: "none",
@@ -1322,7 +1322,7 @@ function Footer({ mob, med }: { mob: boolean; med: boolean }) {
 
           {/* Link cols */}
           {[
-            { h: "Data", links: [{ l: "Dashboard", href: "/dashboard" }, { l: "Live benchmark", href: "/live-benchmark" }, { l: "Scorecard", href: "/dashboard" }] },
+            { h: "Data", links: [{ l: "Dashboard", href: "/dashboard" }, { l: "Live benchmark", href: "/dashboard?view=month" }, { l: "Scorecard", href: "/dashboard" }] },
             { h: "About", links: [{ l: "Methodology", href: "#method" }, { l: "Sources", href: "#sources" }] },
             { h: "Stay in touch", links: [{ l: "Newsletter", href: "#cta" }] },
           ].map(col => (
@@ -1664,7 +1664,7 @@ function MobileLanding() {
                   </div>
                 );
               })}
-              <Link href="/live-benchmark" onClick={e => e.stopPropagation()} style={{
+              <Link href="/dashboard?view=month" onClick={e => e.stopPropagation()} style={{
                 margin: 2, height: 42, borderRadius: 3, textDecoration: "none",
                 display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2,
                 border: "1px dashed rgba(193,39,45,.3)",

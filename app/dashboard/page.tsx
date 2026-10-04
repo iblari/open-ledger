@@ -1,6 +1,8 @@
 "use client";
 import { useState, useMemo, useEffect, useRef, Suspense } from "react";
 import CheetahMark from "@/components/CheetahMark";
+import SamePointView from "@/components/SamePointView";
+import { trump2SoFar, benchKeyFor, type Bench } from "@/lib/bench-lens";
 import ShareRow from "@/components/ShareRow";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -725,8 +727,10 @@ function SpendTrendChart({ mob }: { mob?: boolean }) {
 // To restore: add ["abroad","Abroad"] back into both arrays. The tab's
 // implementation (state, render block at the "abroad" branch below) is
 // intentionally left in place so it just works when re-enabled.
-const TABS_DESKTOP=[["dashboard","Data"],["state_atlas","State Atlas"],["live_benchmark","Live Benchmark"]];
-const TABS_MOBILE=[["dashboard","Data"],["state_atlas","State Atlas"],["live_benchmark","Live Benchmark"]];
+// Live Benchmark is no longer a tab: it is the Data tab's second lens
+// ("Same point in office"). Old ?tab=live_benchmark links are mapped onto it.
+const TABS_DESKTOP=[["dashboard","Data"],["state_atlas","State Atlas"]];
+const TABS_MOBILE=[["dashboard","Data"],["state_atlas","State Atlas"]];
 
 // Per-metric heatmap data, computed once at module-load. Uses the shared lib
 // so the dashboard speaks the same data language as the landing page.
@@ -902,6 +906,18 @@ function App(){
   // card-building effect below keys off it.
   const [mobileView]=useState<"table"|"cards">("cards");
   const [selectedPres,setSelectedPres]=useState("clinton");
+  // Data tab lens: whole finished terms (annual, hand-checked) or every
+  // president at the same month in office as the current one (live FRED).
+  const [view,setView]=useState<"terms"|"month">("terms");
+  const [monthDetail,setMonthDetail]=useState<string|null>(null);
+  // Live monthly data — drives the "same point" lens AND the Trump II
+  // "so far" column of the whole-terms table. Cached server-side for 1h.
+  const [bench,setBench]=useState<Bench|null>(null);
+  useEffect(()=>{
+    let alive=true;
+    fetch("/api/benchmark-data").then(r=>r.json()).then(d=>{ if(alive && d && !d.error) setBench(d); }).catch(()=>{});
+    return ()=>{ alive=false; };
+  },[]);
   // Whether a broadcast is on air right now. The nav's red is reserved for
   // this and nothing else, so it has to be true rather than decorative.
   const [onAir,setOnAir]=useState(false);
@@ -934,8 +950,14 @@ function App(){
   // highlighted in the per-administration side panel.
   useEffect(() => {
     const m = searchParams.get("metric");
-    if (m && M[m]) { setAm(m); setDetail(m); }
     const t = searchParams.get("tab");
+    // Same-point lens: ?view=month, or the old Live Benchmark tab links.
+    if (searchParams.get("view") === "month" || t === "live_benchmark") {
+      setTab("dashboard"); setView("month"); setDetail(null);
+      setMonthDetail(m || null);
+      return;
+    }
+    if (m && M[m]) { setAm(m); setDetail(m); }
     // TABS_DESKTOP is the source of truth for valid tab keys. Previously this
     // line referenced an undefined `TABS`, which threw ReferenceError every
     // time someone hit /dashboard?tab=... — visible to users as 'This page
@@ -1323,7 +1345,7 @@ function App(){
         </div>
       </div>
 
-      {mob && tab==="dashboard" && (
+      {mob && tab==="dashboard" && view==="terms" && (
         <div style={{...sty.header,padding:mob?"10px 16px 8px":"12px 24px 10px",borderTop:"none"}}>
           <div style={{display:"flex",maxWidth:1080,margin:"0 auto"}}>{presLegend}</div>
         </div>
@@ -1334,8 +1356,13 @@ function App(){
         {/* ═══ DASHBOARD ═══ */}
         {tab==="dashboard"&&(<div style={{animation:"fadeUp 0.4s ease"}}>
 
+          {/* ── MONTH DETAIL (same-point lens) ── */}
+          {view==="month" && monthDetail && (
+            <LiveBenchmark initialMetric={monthDetail} onBack={()=>{ setMonthDetail(null); window.scrollTo({top:0}); }} />
+          )}
+
           {/* ── OVERVIEW MODE ── */}
-          {!detail&&(<div>
+          {!detail&&!(view==="month"&&monthDetail)&&(<div>
             {/* InsightsStrip removed from the dashboard Data tab. Lives only
                 on the landing page now — putting it here too was duplicative
                 content for users who clicked into the dashboard expecting
@@ -1345,8 +1372,31 @@ function App(){
               <h2 style={{fontFamily:ESERIF,fontSize:mob?26:34,fontWeight:400,letterSpacing:"-0.02em",lineHeight:1.1,margin:"0 0 6px"}}>
                 Compare presidents, <em style={{fontStyle:"italic",color:EC.accent}}>side by side.</em>
               </h2>
-              {/* Data tab intro paragraph removed per design — headline only. */}
+              <p style={{fontFamily:ESANS,fontSize:mob?13:14,color:EC.sub,margin:"0 0 14px",lineHeight:1.5}}>
+                {view==="terms"
+                  ? "How each economy changed from the day they took office to the day they left."
+                  : `Every president at the same month in office as the current one, ranked against all ${bench?.admins.length ?? 10} since Nixon. Live from FRED.`}
+              </p>
+              {/* The lens switch — the whole merge in one control. */}
+              <div role="tablist" aria-label="Compare by" style={{display:"inline-flex",background:"#EFEAE2",borderRadius:99,padding:3,gap:2,maxWidth:"100%"}}>
+                {([["terms","Whole terms"],["month",`Same point in office${bench?` · month ${bench.currentMonth}`:""}`]] as const).map(([k,l])=>(
+                  <button key={k} type="button" role="tab" aria-selected={view===k}
+                    onClick={()=>{ setView(k); setMonthDetail(null); }}
+                    style={{border:"none",borderRadius:99,padding:mob?"7px 12px":"7px 16px",cursor:"pointer",whiteSpace:"nowrap",
+                      fontFamily:ESANS,fontSize:mob?12.5:13,fontWeight:view===k?600:500,
+                      background:view===k?"#fff":"transparent",color:view===k?EC.ink:EC.sub,
+                      boxShadow:view===k?"0 1px 2px rgba(0,0,0,.08)":"none"}}>
+                    {l}{k==="month"&&<span style={{display:"inline-block",width:6,height:6,borderRadius:"50%",background:"#b8372d",marginLeft:6,verticalAlign:"middle"}}/>}
+                  </button>
+                ))}
+              </div>
             </div>
+
+            {view==="month" && (
+              <SamePointView bench={bench} mob={mob} onOpen={k=>{ setMonthDetail(k); window.scrollTo({top:0}); }} />
+            )}
+
+            {view==="terms" && (<>
 
             {/* Administration picker.
                 Once the Cards/Table toggle went, this was left right-aligned
@@ -1369,6 +1419,7 @@ function App(){
                     style={{width:"100%",padding:"11px 12px",border:`1px solid ${T.rule}`,borderRadius:6,background:T.card,fontFamily:"'DM Sans',sans-serif",fontSize:15,fontWeight:600,color:ADMINS[selectedPres]?.color||T.ink}}
                   >
                     {AID.map(id=><option key={id} value={id}>{ADMINS[id].name} ({ADMINS[id].years})</option>)}
+                    <option value="trump2">Trump II (2025–, so far)</option>
                   </select>
                 </>)}
               </div>
@@ -1386,6 +1437,26 @@ function App(){
                       <div style={{display:"flex",flexDirection:"column",gap:8}}>
                         {catMetrics.map((k,idx)=>{
                           const mx=M[k];
+                          if(selectedPres==="trump2"){
+                            // Current term: live "so far" figures; measures
+                            // without a live monthly series are skipped.
+                            const so=trump2SoFar(bench,k);
+                            if(!so) return null;
+                            const bg=so.improved==null?EC.paper:so.improved?"rgba(13,115,119,.22)":"rgba(194,65,12,.2)";
+                            const fg=so.improved==null?EC.sub:so.improved?"#0B4A4C":"#7A2418";
+                            return (
+                              <div key={k} className={`hover-lift stagger-${Math.min(idx+1,20)}`}
+                                onClick={()=>{ setView("month"); setMonthDetail(so.benchKey); window.scrollTo({top:0}); }}
+                                style={{background:EC.card,border:`1px solid ${EC.rule}`,borderRadius:3,padding:"12px 14px",display:"flex",alignItems:"center",gap:10,cursor:"pointer",borderLeft:"3px solid #b8372d"}}>
+                                <div style={{flex:1,minWidth:0}}>
+                                  <div style={{fontFamily:ESERIF,fontSize:14,fontWeight:500,color:EC.ink,marginBottom:2}}>{mx.l}</div>
+                                  <div style={{fontFamily:ESANS,fontSize:11,color:EC.mute,fontVariantNumeric:"tabular-nums"}}>{so.detail}</div>
+                                </div>
+                                <div style={{background:bg,color:fg,borderRadius:3,padding:"7px 11px",fontFamily:ESERIF,fontWeight:600,fontSize:15,minWidth:68,textAlign:"center",fontVariantNumeric:"tabular-nums",lineHeight:1.15}}>{so.headline}</div>
+                                <span className="tap-chevron" style={{fontSize:18,color:EC.mute,fontWeight:300,marginLeft:2,lineHeight:1}}>›</span>
+                              </div>
+                            );
+                          }
                           const c=HEAT_DATA[k]?.[selectedPres];
                           if(!c)return null;
                           const disp=resolveDashDisplay(c,k,displayMode,dollarMode);
@@ -1456,7 +1527,7 @@ function App(){
               {/* Header row */}
               <div style={{
                 display:"grid",
-                gridTemplateColumns:mob?"160px repeat(5, 1fr)":"200px repeat(5, 1fr)",
+                gridTemplateColumns:mob?"160px repeat(6, 1fr)":"200px repeat(6, 1fr)",
                 alignItems:"center",background:EC.paper,borderBottom:`1px solid ${EC.rule}`,
                 padding:"10px 0",fontSize:11,letterSpacing:"0.09em",textTransform:"uppercase",
                 color:EC.sub,fontWeight:500,minWidth:mob?780:undefined,
@@ -1472,6 +1543,12 @@ function App(){
                     </div>
                   );
                 })}
+                {/* Current term — live, so it reads "so far" until it ends. */}
+                <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3,textAlign:"center"}}>
+                  <div style={{width:24,height:3,borderRadius:2,background:"repeating-linear-gradient(-45deg,#c1272d,#c1272d 3px,rgba(193,39,45,.35) 3px,rgba(193,39,45,.35) 6px)"}}/>
+                  <div style={{color:"#b8372d",fontSize:12,fontWeight:500,letterSpacing:"-0.01em",textTransform:"none",fontFamily:ESERIF}}>Trump II</div>
+                  {!mob && <div style={{color:EC.mute,letterSpacing:"0.04em",fontFamily:ESANS,fontSize:10}}>so far</div>}
+                </div>
               </div>
 
               {/* Rows grouped by category */}
@@ -1497,7 +1574,7 @@ function App(){
                           key={mk}
                           style={{
                             display:"grid",
-                            gridTemplateColumns:mob?"160px repeat(5, 1fr)":"200px repeat(5, 1fr)",
+                            gridTemplateColumns:mob?"160px repeat(6, 1fr)":"200px repeat(6, 1fr)",
                             alignItems:"center",borderTop:`1px solid ${EC.rule}`,
                             fontSize:13,minWidth:mob?780:undefined,
                           }}
@@ -1522,6 +1599,20 @@ function App(){
                               />
                             );
                           })}
+                          {(()=>{
+                            const so=trump2SoFar(bench,mk);
+                            if(!so) return <div style={{textAlign:"center",color:EC.mute,fontFamily:ESANS,fontSize:11}} title={bench?"No live monthly series for this measure yet":"Loading live data"}>{bench?"—":"…"}</div>;
+                            const bg=so.improved==null?EC.paper:so.improved?"rgba(13,115,119,.22)":"rgba(194,65,12,.2)";
+                            const fg=so.improved==null?EC.sub:so.improved?"#0B4A4C":"#7A2418";
+                            return (
+                              <button type="button" title={`${so.detail} — open month by month`}
+                                onClick={()=>{ setView("month"); setMonthDetail(so.benchKey); window.scrollTo({top:0}); }}
+                                style={{margin:3,background:bg,color:fg,border:"1.5px dashed rgba(184,55,45,.35)",borderRadius:3,padding:"7px 2px",cursor:"pointer",lineHeight:1.15,font:"inherit"}}>
+                                <span style={{display:"block",fontFamily:ESERIF,fontWeight:600,fontSize:13.5,fontVariantNumeric:"tabular-nums"}}>{so.headline}</span>
+                                {!mob && <span style={{display:"block",fontFamily:ESANS,fontSize:9.5,opacity:.8,marginTop:2}}>month {so.month}</span>}
+                              </button>
+                            );
+                          })()}
                         </div>
                       );
                     })}
@@ -1553,6 +1644,7 @@ function App(){
               </div>
             </div>
             )}
+            </>)}
           </div>)}
 
           {/* ── DETAIL MODE ── */}
@@ -1788,7 +1880,7 @@ function App(){
                 </div>
               </div>;
             })}
-            <a href={`/live-benchmark?metric=${am}`} className={`hover-lift stagger-${sel.length+1}`} style={{
+            <a href={`/dashboard?view=month&metric=${benchKeyFor(am) ?? ""}`} onClick={e=>{ e.preventDefault(); setDetail(null); setView("month"); setMonthDetail(benchKeyFor(am)); window.scrollTo({top:0}); }} className={`hover-lift stagger-${sel.length+1}`} style={{
               background:T.accent,border:`1px solid ${T.accent}`,borderRadius:4,
               padding:mob?"10px 12px":"16px 18px",textDecoration:"none",color:"#fff",cursor:"pointer",
               display:"flex",flexDirection:"column",justifyContent:"space-between",minHeight:0
@@ -1949,7 +2041,7 @@ function App(){
             Used to live at /live-benchmark as a standalone page. Folded in as
             a 5th tab to get header + navigation + design parity for free.
             The component is the source of truth; /live-benchmark redirects here. */}
-        {tab==="live_benchmark"&&<LiveBenchmark/>}
+
 
         {/* ═══ ABROAD ═══ */}
         {tab==="abroad"&&(()=>{
