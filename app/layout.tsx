@@ -13,6 +13,9 @@ export const metadata: Metadata = {
   title: 'Vote Unbiased — Political & Economic Intelligence',
   description: 'The economy under every president, in data — and live fact-checks of what politicians say, against BLS, BEA, Census and Fed figures. No spin.',
   metadataBase: new URL('https://voteunbiased.org'),
+  // Saved to the home screen, the site opens without any browser bars — the
+  // only way an iPhone gives a web page the whole screen.
+  appleWebApp: { capable: true, title: 'Vote Unbiased', statusBarStyle: 'black-translucent' },
   verification: {
     google: 'o9EM5aUToekdkqIelamubG94gJfUyFp9si6LfrhZd2M',
   },
@@ -74,6 +77,9 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
+  // Draw edge to edge, including beside the camera notch when a phone is
+  // held sideways; layouts pad themselves with env(safe-area-inset-*).
+  viewportFit: 'cover',
 }
 
 export default async function RootLayout({

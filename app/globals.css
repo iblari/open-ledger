@@ -199,3 +199,9 @@
 .vu-row { transition: background .12s ease; }
 .vu-row:hover { background: #fbf8f3 !important; }
 .vu-row:focus-visible { outline: 2px solid #b8372d; outline-offset: -2px; }
+
+/* Sideways broadcast view on phones (ControlRoom immersive): let the page
+   scroll a little so Safari can collapse its bars; the player is fixed. */
+html.vu-immersive, html.vu-immersive body { background: #0f0d0b; }
+html.vu-immersive body { min-height: calc(100lvh + 120px); }
+@keyframes vuNudge { 0%,100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, -5px); } }

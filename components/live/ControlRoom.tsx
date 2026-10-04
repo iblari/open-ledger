@@ -146,6 +146,34 @@ export default function ControlRoom({
         </div>
   ) : null;
 
+  /* Sideways on a phone browser: Safari keeps its address and tab bars on
+     screen unless the PAGE scrolls — a fixed, non-scrolling player never
+     lets them collapse (the bars ate a quarter of the height). While the
+     sideways view is up, give the document a little scroll room and nudge
+     the reader to swipe once; the player is fixed and sized to 100dvh, so it
+     grows into the space the moment the bars tuck away. */
+  const [barsHint, setBarsHint] = useState(false);
+  useEffect(() => {
+    if (!immersive) return;
+    const root = document.documentElement;
+    root.classList.add("vu-immersive");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const standalone = (navigator as any).standalone || window.matchMedia("(display-mode: standalone)").matches;
+    const check = () => {
+      // Landscape: the full screen height is the device's SHORT side.
+      const full = Math.min(screen.width, screen.height);
+      setBarsHint(!standalone && !document.fullscreenElement && window.innerHeight < full - 24);
+    };
+    check();
+    window.addEventListener("resize", check);
+    window.addEventListener("scroll", check, { passive: true });
+    return () => {
+      root.classList.remove("vu-immersive");
+      window.removeEventListener("resize", check);
+      window.removeEventListener("scroll", check);
+    };
+  }, [immersive]);
+
   // Layout knobs for the two big modes.
   const big = fs || immersive;
   const compact = mob || immersive;
@@ -619,7 +647,7 @@ export default function ControlRoom({
       {/* minHeight:0 is what makes the rail scroll: grid items default to
           min-height:auto, so without it the feed grows to fit its content and
           overflows the card instead of scrolling inside it. */}
-      <aside style={{ display: "flex", flexDirection: "column", minWidth: 0, minHeight: 0, background: L.stageAlt }}>
+      <aside style={{ display: "flex", flexDirection: "column", minWidth: 0, minHeight: 0, background: L.stageAlt, paddingRight: immersive ? "env(safe-area-inset-right)" : undefined, paddingBottom: immersive ? "env(safe-area-inset-bottom)" : undefined }}>
         <div style={{ padding: immersive ? "8px 10px 8px" : "12px 14px", paddingRight: immersive ? "max(10px, env(safe-area-inset-right))" : undefined, borderBottom: `1px solid ${L.cardBorder}`, flexShrink: 0 }}>
           <div style={{
             display: "flex", justifyContent: "space-between", alignItems: "baseline",
@@ -636,6 +664,14 @@ export default function ControlRoom({
         {!immersive && RecordBar}
       </aside>
       {RotateHint}
+      {immersive && barsHint && (
+        <div aria-hidden style={{
+          position: "fixed", left: "33%", transform: "translateX(-50%)", bottom: 34, zIndex: 80,
+          background: "rgba(20,17,14,.92)", color: "#F2EEE9", border: `1px solid ${L.cardBorder}`,
+          borderRadius: 99, padding: "7px 14px", fontFamily: F.ui, fontSize: 12, fontWeight: 600,
+          pointerEvents: "none", whiteSpace: "nowrap", animation: "vuNudge 1.6s ease-in-out infinite",
+        }}>↑ Swipe up on the top bar for full screen</div>
+      )}
     </div>
   );
 }
