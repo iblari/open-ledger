@@ -224,8 +224,10 @@ export default function LivePromo() {
           .lp-phone{position:relative;right:auto;bottom:auto;width:60%;margin:28px auto 0}
           .lp-group{padding-bottom:0;transform-origin:50% 0}
           .lp-dev{margin-top:32px!important}
-          .lp-group{display:none}
-          .lp-land{display:block!important}
+          .lp-group{display:flex;align-items:center;justify-content:center;gap:10px}
+          .lp-laptop{display:none}
+          .lp-phone{position:relative!important;right:auto;bottom:auto;width:23%!important;margin:0!important;flex:none}
+          .lp-land{display:block!important;width:73%;flex:none}
           .lp-copy{margin-top:40px!important}
         }
         @media (prefers-reduced-motion:reduce){.lp-dot,.lp-in{animation:none}.lp-cta{transition:none}}
@@ -249,59 +251,6 @@ export default function LivePromo() {
 
       {/* Purely a picture of the product — the copy and button below carry the meaning. */}
       <div ref={devRef} aria-hidden className="lp-dev" style={{ maxWidth: 1240, margin: "80px auto 0", padding: "8px 0" }}>
-        {/* ── Phones: one phone held SIDEWAYS, showing the full-screen
-            broadcast view (video ⅔, fact-check rail ⅓) — the way the feature
-            is actually used on a phone. Replaces the laptop + upright phone
-            pair, which on a 390px screen were two tiny pictures. ── */}
-        <div className="lp-land" style={{ display: "none", containerType: "inline-size", filter: "drop-shadow(0 24px 40px rgba(0,0,0,.6))" } as React.CSSProperties}>
-          <div style={{ position: "relative", aspectRatio: "19.5 / 9", boxSizing: "border-box", borderRadius: "7cqw", padding: "1.7cqw", background: "#000", border: "2px solid #56565A", boxShadow: "inset 0 0 0 1px #1C1C1E, 0 0 0 1px #0E0E0F" }}>
-            <div style={{ position: "relative", width: "100%", height: "100%", borderRadius: "5.4cqw", overflow: "hidden", background: "#14110E", display: "grid", gridTemplateColumns: "64% 36%" }}>
-              {/* Dynamic Island, on its side */}
-              <div style={{ position: "absolute", left: "1.4cqw", top: "50%", transform: "translateY(-50%)", width: "2.4cqw", height: "9cqw", borderRadius: "2cqw", background: "#000", zIndex: 3 }} />
-              <div style={{ display: "flex", flexDirection: "column", minWidth: 0, borderRight: "1px solid #2C2622" }}>
-                <div style={{ flex: "none", height: "6.4cqw", display: "flex", alignItems: "center", gap: "1.2cqw", padding: "0 1.4cqw 0 5cqw", borderBottom: "1px solid #2C2622" }}>
-                  <Live size="1.25cqw" />
-                  <div style={{ flex: 1, minWidth: 0, fontFamily: SERIF, fontSize: "1.9cqw", color: "#F4F0EA", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{TITLE}</div>
-                  <div style={{ flex: "none", fontSize: "1.45cqw", color: "#A69E92", whiteSpace: "nowrap" }}><b style={{ color: "#F4F0EA", fontWeight: 600 }}>{score}</b> matched</div>
-                  <div style={{ flex: "none", fontFamily: MONO, fontSize: "1.5cqw", color: "#A69E92" }}>{elapsed}</div>
-                  <div style={{ flex: "none", width: "3.6cqw", height: "3.6cqw", borderRadius: "50%", border: "1px solid #3A332D", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.8cqw", color: "#BDB5A8" }}>✕</div>
-                </div>
-                <div style={{ flex: 1, minHeight: 0, position: "relative", background: "#000" }}><Video /></div>
-                {tickStrip("3.2cqw", ".5cqw", "22%")}
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", minWidth: 0, background: "#1A1613" }}>
-                <div style={{ flex: "none", padding: "1.6cqw 1.6cqw 1.2cqw", borderBottom: "1px solid #2C2622" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "1.2cqw", fontWeight: 700, letterSpacing: "0.14em", color: "#8C8479" }}>
-                    <span>FACT-CHECK FEED</span><span style={{ fontFamily: MONO, color: "#F4F0EA", letterSpacing: 0 }}>{all}</span>
-                  </div>
-                  <div style={{ display: "flex", gap: ".8cqw", marginTop: "1.2cqw", overflow: "hidden" }}>
-                    {([["ALL", all], ["FALSE", nF], ["MISLEADING", nM]] as const).map(([l, v], i) => (
-                      <span key={l} style={{ flex: "none", padding: ".6cqw 1.2cqw", borderRadius: "2cqw", fontSize: "1.05cqw", fontWeight: 700, letterSpacing: ".1em", whiteSpace: "nowrap", ...(i === 0 ? { background: "#F4F0EA", color: "#14110E" } : { border: "1px solid #3A332D", color: "#BDB5A8" }) }}>{l} {v}</span>
-                    ))}
-                  </div>
-                </div>
-                <div style={{ flex: 1, minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column", gap: "1.2cqw", padding: "1.4cqw 1.6cqw" }}>
-                  {feed.slice(0, 3).map(c => {
-                    const [bg, ink] = TONE[c.kind];
-                    return (
-                      <div key={c.time} className={animate ? "lp-in" : undefined} style={{ flex: "none", background: "#211C18", border: "1px solid #332C27", borderRadius: "1.2cqw", padding: "1.2cqw 1.4cqw" }}>
-                        <div style={{ display: "flex", alignItems: "center", fontSize: "1.05cqw" }}>
-                          <span style={{ fontWeight: 700, letterSpacing: ".1em", padding: ".3em .6em", borderRadius: ".3em", background: bg, color: "#FFFEFC" }}>{c.label}</span>
-                          <span style={{ marginLeft: "auto", fontFamily: MONO, color: "#A69E92" }}>{c.time}</span>
-                        </div>
-                        <div style={{ fontFamily: SERIF, fontSize: "1.75cqw", lineHeight: 1.3, color: "#F4F0EA", marginTop: ".7cqw", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" } as React.CSSProperties}>&ldquo;{c.quote}&rdquo;</div>
-                        <div style={{ display: "flex", alignItems: "center", gap: "1cqw", marginTop: ".7cqw", fontFamily: MONO, fontSize: "1.4cqw" }}>
-                          <span style={{ color: "#BDB5A8" }}>{c.said}</span><span style={{ color: "#8C8479" }}>→</span><span style={{ color: ink }}>{c.data}</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
         <div ref={groupRef} className="lp-group">
 
           {/* ── Laptop ── */}
@@ -426,6 +375,57 @@ export default function LivePromo() {
             </div>
           </div>
 
+          {/* ── Phones: the upright phone beside the same broadcast held
+              SIDEWAYS (full-screen view: video ⅔, fact-check rail ⅓). The
+              laptop is dropped on phones — too small to read at 390px. ── */}
+        <div className="lp-land" style={{ display: "none", containerType: "inline-size", filter: "drop-shadow(0 24px 40px rgba(0,0,0,.6))" } as React.CSSProperties}>
+          <div style={{ position: "relative", aspectRatio: "19.5 / 9", boxSizing: "border-box", borderRadius: "7cqw", padding: "1.7cqw", background: "#000", border: "2px solid #56565A", boxShadow: "inset 0 0 0 1px #1C1C1E, 0 0 0 1px #0E0E0F" }}>
+            <div style={{ position: "relative", width: "100%", height: "100%", borderRadius: "5.4cqw", overflow: "hidden", background: "#14110E", display: "grid", gridTemplateColumns: "64% 36%" }}>
+              {/* Dynamic Island, on its side */}
+              <div style={{ position: "absolute", left: "1.4cqw", top: "50%", transform: "translateY(-50%)", width: "2.4cqw", height: "9cqw", borderRadius: "2cqw", background: "#000", zIndex: 3 }} />
+              <div style={{ display: "flex", flexDirection: "column", minWidth: 0, borderRight: "1px solid #2C2622" }}>
+                <div style={{ flex: "none", height: "6.4cqw", display: "flex", alignItems: "center", gap: "1.2cqw", padding: "0 1.4cqw 0 5cqw", borderBottom: "1px solid #2C2622" }}>
+                  <Live size="1.25cqw" />
+                  <div style={{ flex: 1, minWidth: 0, fontFamily: SERIF, fontSize: "1.9cqw", color: "#F4F0EA", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{TITLE}</div>
+                  <div style={{ flex: "none", fontSize: "1.45cqw", color: "#A69E92", whiteSpace: "nowrap" }}><b style={{ color: "#F4F0EA", fontWeight: 600 }}>{score}</b> matched</div>
+                  <div style={{ flex: "none", fontFamily: MONO, fontSize: "1.5cqw", color: "#A69E92" }}>{elapsed}</div>
+                  <div style={{ flex: "none", width: "3.6cqw", height: "3.6cqw", borderRadius: "50%", border: "1px solid #3A332D", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.8cqw", color: "#BDB5A8" }}>✕</div>
+                </div>
+                <div style={{ flex: 1, minHeight: 0, position: "relative", background: "#000" }}><Video /></div>
+                {tickStrip("3.2cqw", ".5cqw", "22%")}
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", minWidth: 0, background: "#1A1613" }}>
+                <div style={{ flex: "none", padding: "1.6cqw 1.6cqw 1.2cqw", borderBottom: "1px solid #2C2622" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "1.2cqw", fontWeight: 700, letterSpacing: "0.14em", color: "#8C8479" }}>
+                    <span>FACT-CHECK FEED</span><span style={{ fontFamily: MONO, color: "#F4F0EA", letterSpacing: 0 }}>{all}</span>
+                  </div>
+                  <div style={{ display: "flex", gap: ".8cqw", marginTop: "1.2cqw", overflow: "hidden" }}>
+                    {([["ALL", all], ["FALSE", nF], ["MISLEADING", nM]] as const).map(([l, v], i) => (
+                      <span key={l} style={{ flex: "none", padding: ".6cqw 1.2cqw", borderRadius: "2cqw", fontSize: "1.05cqw", fontWeight: 700, letterSpacing: ".1em", whiteSpace: "nowrap", ...(i === 0 ? { background: "#F4F0EA", color: "#14110E" } : { border: "1px solid #3A332D", color: "#BDB5A8" }) }}>{l} {v}</span>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ flex: 1, minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column", gap: "1.2cqw", padding: "1.4cqw 1.6cqw" }}>
+                  {feed.slice(0, 3).map(c => {
+                    const [bg, ink] = TONE[c.kind];
+                    return (
+                      <div key={c.time} className={animate ? "lp-in" : undefined} style={{ flex: "none", background: "#211C18", border: "1px solid #332C27", borderRadius: "1.2cqw", padding: "1.2cqw 1.4cqw" }}>
+                        <div style={{ display: "flex", alignItems: "center", fontSize: "1.05cqw" }}>
+                          <span style={{ fontWeight: 700, letterSpacing: ".1em", padding: ".3em .6em", borderRadius: ".3em", background: bg, color: "#FFFEFC" }}>{c.label}</span>
+                          <span style={{ marginLeft: "auto", fontFamily: MONO, color: "#A69E92" }}>{c.time}</span>
+                        </div>
+                        <div style={{ fontFamily: SERIF, fontSize: "1.75cqw", lineHeight: 1.3, color: "#F4F0EA", marginTop: ".7cqw", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" } as React.CSSProperties}>&ldquo;{c.quote}&rdquo;</div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "1cqw", marginTop: ".7cqw", fontFamily: MONO, fontSize: "1.4cqw" }}>
+                          <span style={{ color: "#BDB5A8" }}>{c.said}</span><span style={{ color: "#8C8479" }}>→</span><span style={{ color: ink }}>{c.data}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
         </div>
       </div>
 
