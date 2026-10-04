@@ -63,7 +63,14 @@ async function upstashCmd(...args: (string | number)[]): Promise<unknown> {
     },
     body: JSON.stringify(args),
   });
-  const data = await resp.json();
+  const data = await resp.json().catch(() => ({ error: `HTTP ${resp.status} (non-JSON body)` }));
+  // Upstash reports failures (quota exhausted, bad token, deleted database)
+  // as { error } with no `result`. This used to return undefined silently,
+  // which every caller reads as "empty" — so an outage looked like an empty
+  // archive instead of an error anyone could see.
+  if (!resp.ok || (data && typeof data === "object" && "error" in data)) {
+    console.error(`[upstash] ${String(args[0])} ${String(args[1] ?? "")} failed: HTTP ${resp.status} ${JSON.stringify((data as { error?: unknown })?.error ?? data).slice(0, 300)}`);
+  }
   return data.result;
 }
 
