@@ -1555,7 +1555,7 @@ function MobileLanding() {
 
       {/* Trends feed lives at /trends — homepage strip removed per design. */}
 
-      {/* ── 4. Metric chart panel (ABOVE the table; table drives it) ── */}
+      {/* ── 4. Metric chart panel (chips below pick the metric) ── */}
       <div style={{ background: "#fbfaf6", border: `1px solid ${C.rule}`, borderRadius: 6, margin: "16px 14px 0", padding: "12px 12px 10px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 7 }}>
           <span style={{ fontFamily: SERIF, fontSize: 14, fontWeight: 500 }}>{m.l} · {unitTag}</span>
@@ -1589,6 +1589,19 @@ function MobileLanding() {
         <div style={{ fontSize: 9.5, color: C.mute, marginTop: 4, lineHeight: 1.5 }}>
           {M_FOOTNOTE[cfg?.perMetricUnit || "pp"]}
         </div>
+        {/* Metric picker — replaces the table rows that used to drive this chart. */}
+        <div role="tablist" aria-label="Metric" className="vu-chips" style={{ display: "flex", gap: 6, overflowX: "auto", margin: "10px -12px 0", padding: "0 12px 2px", scrollbarWidth: "none" }}>
+          {METRIC_ORDER.map(mk => {
+            const on = selectedMetric === mk;
+            return (
+              <button key={mk} type="button" role="tab" aria-selected={on} onClick={() => setSelectedMetric(mk)} style={{
+                flex: "none", border: `1px solid ${on ? C.ink : C.rule}`, background: on ? C.ink : "#fff",
+                color: on ? "#f8f5f0" : C.ink, borderRadius: 99, padding: "6px 11px",
+                fontSize: 11.5, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap",
+              }}>{METRICS[mk].l}</button>
+            );
+          })}
+        </div>
       </div>
 
       </Tile>
@@ -1596,109 +1609,10 @@ function MobileLanding() {
           table: at phone length the table is several screens, and most
           visitors never scrolled past it to the product's newest feature. ── */}
       <div ref={liveBandRef}><Tile mob dark><LivePromo /></Tile></div>
-      <Tile mob style={{ paddingBottom: 18 }}>
-      {/* ── 5. The ledger table ── */}
-      <div style={{ background: "#fff", border: `1px solid ${C.rule}`, borderRadius: 6, margin: "16px 14px 0", overflow: "hidden" }}>
-        {/* 5.1 header */}
-        <div style={{
-          background: C.paper, padding: "11px 12px 9px", borderBottom: `1px solid ${C.rule}`,
-          display: "flex", justifyContent: "space-between", alignItems: "baseline",
-        }}>
-          <span style={{ fontSize: 12, fontWeight: 600 }}>Tap any metric below</span>
-          <span style={{ fontSize: 9, textTransform: "uppercase", color: C.mute, letterSpacing: "0.06em" }}>’93–’24</span>
-        </div>
-
-        {/* 5.2 column header */}
-        <div style={{ display: "grid", gridTemplateColumns: "90px repeat(5, 1fr)", padding: "7px 4px 6px", borderBottom: `1px solid ${C.rule}` }}>
-          <div />
-          {/* Finished terms only. The Trump II column was a row of "LIVE"
-              placeholders on a 390px screen; the live numbers have their own
-              home (Data tab, and the Live band above). */}
-          {AID.map(id => {
-            const a = ADMINS[id];
-            return (
-              <div key={id} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
-                <span style={{ width: 18, height: 3, borderRadius: 2, background: a.color }} />
-                <span style={{ fontSize: 9, fontWeight: 600 }}>{a.name}</span>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* 5.3 metric rows — whole row selects the chart (mobile semantics) */}
-        {METRIC_ORDER.map(mk => {
-          const mm = METRICS[mk];
-          const sel = selectedMetric === mk;
-          const rowCfg = METRIC_DISPLAY_LANDING[mk];
-          const rowUnit = M_UNIT_TAG[rowCfg?.perMetricUnit || "pp"] || "pp";
-          return (
-            <div key={mk}
-              onClick={() => setSelectedMetric(mk)}
-              style={{
-                display: "grid", gridTemplateColumns: "90px repeat(5, 1fr)",
-                borderBottom: "1px solid #efece6", cursor: "pointer",
-                background: sel ? C.paper : "#fff",
-                borderLeft: sel ? `3px solid ${C.accent}` : "3px solid transparent",
-                transition: "background .15s, border-color .15s",
-              }}>
-              <div style={{ padding: "7px 8px 7px 9px", display: "flex", flexDirection: "column", justifyContent: "center", gap: 1 }}>
-                <span style={{ fontSize: 7.5, textTransform: "uppercase", color: C.mute, letterSpacing: "0.05em" }}>{mm.cat}</span>
-                <span style={{ fontSize: 10.5, fontWeight: 600, lineHeight: 1.15 }}>{mm.l}</span>
-              </div>
-              {AID.map(id => {
-                const c = heat[mk]?.[id];
-                const disp = c ? resolveDisplay(c, mk, "per_metric", "real") : null;
-                const st = disp && disp.value !== null
-                  ? cellColorFromMag(colorMagnitude(disp.value, disp.unit, {
-                      pctAvgTarget: rowCfg?.pctAvgTarget, pctAvgRange: rowCfg?.pctAvgRange,
-                    }), disp.improved)
-                  : { bg: C.paper, text: C.mute };
-                const val = disp && disp.value !== null && isFinite(disp.value)
-                  ? `${disp.unit === "pct_avg" ? "" : disp.value >= 0 ? "+" : ""}${disp.value.toFixed(1)}`
-                  : "—";
-                return (
-                  <div key={id} style={{
-                    margin: 2, height: 42, borderRadius: 3,
-                    display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 1,
-                    background: st.bg, color: st.text,
-                  }}>
-                    <span style={{ fontFamily: SERIF, fontSize: 11.5, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{val}</span>
-                    <span style={{ fontSize: 6.5, textTransform: "uppercase", letterSpacing: "0.05em", opacity: 0.85 }}>{rowUnit}</span>
-                  </div>
-                );
-              })}
-            </div>
-          );
-        })}
-
-        {/* 5.4 "See all" row */}
-        <div style={{ textAlign: "center", padding: "10px 12px", background: "#fff", borderBottom: `1px solid ${C.rule}` }}>
-          <Link href="/dashboard" style={{
-            fontSize: 11, fontWeight: 600, color: C.accent, textDecoration: "none",
-            borderBottom: "1px solid currentColor", paddingBottom: 1,
-          }}>
-            See all 19 metrics in the ledger →
-          </Link>
-        </div>
-
-        {/* 5.5 Legend strip (table footer) */}
-        <div style={{
-          display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-          fontSize: 9, color: C.sub, background: C.paper, padding: "9px 12px",
-        }}>
-          Worsened
-          <span style={{ display: "inline-flex", border: `1px solid ${C.rule}`, borderRadius: 2, overflow: "hidden" }}>
-            {[
-              "rgba(194,65,12,.8)", "rgba(194,65,12,.45)", "rgba(194,65,12,.2)",
-              C.paper,
-              "rgba(13,115,119,.2)", "rgba(13,115,119,.45)", "rgba(13,115,119,.8)",
-            ].map((bg, i) => <span key={i} style={{ width: 16, height: 10, background: bg }} />)}
-          </span>
-          Improved
-        </div>
-      </div>
-
-      </Tile>
+      {/* ── 5. (Removed) The ledger table. On a phone it was several screens
+          of small cells repeating what the Data tab does better; the chart
+          above keeps its metric picker (chips) and "See all 19 metrics"
+          leads to the full comparison. ── */}
       <Tile mob style={{ padding: "4px 0 18px", background: LAYOUT === "cards" ? "#ffffff" : undefined }}>
       {/* ── 5c. Methodology (target of the hero's Methodology button) ── */}
       <div id="method" style={{ margin: "14px 14px 0", scrollMarginTop: 80 }}>
