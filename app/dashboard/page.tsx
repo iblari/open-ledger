@@ -267,7 +267,7 @@ function fmt(v,u){
 
 // (Removed: scores() — only consumer was the deleted Scorecard tab.)
 
-function Tip({active,payload,label,unit}){
+function Tip({active,payload,label,unit,label2}:{active?:boolean;payload?:any[];label?:any;unit?:string;label2?:string}){
   if(!active||!payload?.length)return null;
   const d=payload[0]?.payload;
   const admin=d?.a;
@@ -275,8 +275,9 @@ function Tip({active,payload,label,unit}){
   
   return (
     <div style={{
-      background:"rgba(255,255,255,0.97)",
-      backdropFilter:"blur(8px)",
+      // Opaque, no backdrop blur: blur re-composites on every finger move
+      // and is the expensive part of a tooltip on phones.
+      background:"#fff",
       border:`1px solid ${T.rule}`,
       borderRadius:10,
       padding:"14px 16px",
@@ -284,7 +285,7 @@ function Tip({active,payload,label,unit}){
       boxShadow:"0 8px 24px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06)",
       color:T.ink,
       minWidth:140,
-      animation:"scaleIn 0.15s ease"
+      pointerEvents:"none",
     }}>
       <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,paddingBottom:8,borderBottom:`1px solid ${T.rule}`}}>
         {adminData && <span style={{width:10,height:10,borderRadius:3,background:adminData.color,flexShrink:0}}/>}
@@ -296,7 +297,7 @@ function Tip({active,payload,label,unit}){
       </div>
       {payload.map((p,i)=>(
         <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,marginTop:i>0?4:0}}>
-          <span style={{color:T.sub,fontSize:11}}>{p.name || "Value"}</span>
+          <span style={{color:T.sub,fontSize:11}}>{label2||"Value"}</span>
           <span style={{fontWeight:700,color:p.color||T.ink,fontFamily:"'DM Sans',sans-serif",fontSize:14,fontVariantNumeric:"tabular-nums"}}>
             {typeof p.value==='number'?(unit?fmt(p.value,unit):p.value.toLocaleString()):p.value}
           </span>
@@ -1913,7 +1914,7 @@ function App(){
                   <CartesianGrid strokeDasharray="3 3" stroke={T.rule} strokeOpacity={0.5}/>
                   <XAxis dataKey="y" stroke={T.mute} fontSize={11} fontFamily="'DM Sans',sans-serif" tick={{fill:T.sub}} axisLine={{stroke:T.rule}}/>
                   <YAxis stroke={T.rule} fontSize={10} fontFamily="'DM Sans',sans-serif" tick={{fill:T.sub}} tickFormatter={v=>fmt(v,m.u)} axisLine={{stroke:T.rule}}/>
-                  <Tooltip content={<Tip unit={m.u}/>} cursor={{fill:T.paper,opacity:0.5}}/>
+                  <Tooltip content={<Tip unit={m.u} label2={m.l}/>} cursor={{fill:T.paper,opacity:0.5}} isAnimationActive={false} position={mob?{y:4}:undefined} allowEscapeViewBox={{x:false,y:true}}/>
                   <Bar dataKey="v" radius={[4,4,0,0]} maxBarSize={28} animationDuration={600} animationEasing="ease-out">
                     {fd.map((e,i)=><RechartsCell key={i} fill={e.partial?"url(#bar-gradient-partial)":`url(#bar-gradient-${e.a})`} stroke={e.partial?ADMINS.trump2.color:undefined} strokeDasharray={e.partial?"3 2":undefined}/>)}
                   </Bar>
@@ -1923,7 +1924,7 @@ function App(){
                   <CartesianGrid strokeDasharray="3 3" stroke={T.rule} strokeOpacity={0.5}/>
                   <XAxis dataKey="y" stroke={T.mute} fontSize={11} fontFamily="'DM Sans',sans-serif" tick={{fill:T.sub}} axisLine={{stroke:T.rule}}/>
                   <YAxis stroke={T.rule} fontSize={10} fontFamily="'DM Sans',sans-serif" tick={{fill:T.sub}} tickFormatter={v=>fmt(v,m.u)} axisLine={{stroke:T.rule}}/>
-                  <Tooltip content={<Tip unit={m.u}/>}/>
+                  <Tooltip content={<Tip unit={m.u} label2={m.l}/>} isAnimationActive={false} position={mob?{y:4}:undefined}/>
                   <Line type="monotone" dataKey="v" stroke={T.sub} strokeWidth={1.5} animationDuration={600} dot={p=><circle key={p.index} cx={p.cx} cy={p.cy} r={4} fill={ADMINS[p.payload?.a]?.color||T.sub} stroke={T.card} strokeWidth={2}/>}/>
                 </LineChart>
               )}
