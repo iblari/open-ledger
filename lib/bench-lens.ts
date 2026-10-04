@@ -105,6 +105,8 @@ const M_TO_BENCH: Record<string, { key: string; mode: "change" | "avg" }> = {
   trade: { key: "trade", mode: "avg" },
   fed_rate: { key: "fed_rate", mode: "change" },
   purchasing: { key: "purchasing", mode: "change" },
+  sp500: { key: "sp500", mode: "change" },
+  deficit: { key: "deficit", mode: "avg" },
 };
 
 export function benchKeyFor(dashKey: string): string | null {
