@@ -94,6 +94,58 @@ export default function ControlRoom({
     if (d.fullscreenElement || d.webkitFullscreenElement) (d.exitFullscreen || d.webkitExitFullscreen)?.call(d);
     else if (el) (el.requestFullscreen || el.webkitRequestFullscreen)?.call(el);
   };
+  /* Phones: one button into the sideways, full-screen layout (design A).
+     Android can go full screen and lock landscape itself. iPhone Safari
+     allows neither for a web page, so there the button explains the one
+     thing that works — turning the phone — and the layout follows. */
+  const [rotateHint, setRotateHint] = useState<null | "enter" | "exit">(null);
+  const enterLandscape = async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const el = document.documentElement as any;
+    try { await (el.requestFullscreen || el.webkitRequestFullscreen)?.call(el, { navigationUI: "hide" }); } catch { /* not allowed */ }
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (screen.orientation as any)?.lock?.("landscape");
+    } catch {
+      setRotateHint("enter");
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (!(screen.orientation as any)?.lock) setRotateHint("enter");
+  };
+  const exitLandscape = async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const d = document as any;
+    let handled = false;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    try { (screen.orientation as any)?.unlock?.(); handled = true; } catch { /* fine */ }
+    if (d.fullscreenElement || d.webkitFullscreenElement) {
+      try { await (d.exitFullscreen || d.webkitExitFullscreen)?.call(d); handled = true; } catch { /* fine */ }
+    }
+    // iPhone: nothing a page can do; say how.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (!handled || !(screen.orientation as any)?.lock) setRotateHint("exit");
+  };
+  useEffect(() => { if (!rotateHint) return; const t = setTimeout(() => setRotateHint(null), 4000); return () => clearTimeout(t); }, [rotateHint]);
+
+  const RotateHint = rotateHint ? (
+
+        <div role="status" style={{
+          position: "fixed", left: "50%", top: "50%", transform: "translate(-50%,-50%)", zIndex: 90,
+          background: "#14110E", color: "#F2EEE9", border: `1px solid ${L.cardBorder}`,
+          borderRadius: 14, padding: "18px 20px", textAlign: "center", fontFamily: F.ui, maxWidth: 260,
+          boxShadow: "0 18px 40px rgba(0,0,0,.5)",
+        }} onClick={() => setRotateHint(null)}>
+          <svg width="40" height="40" viewBox="0 0 40 40" aria-hidden style={{ display: "block", margin: "0 auto 10px", transform: rotateHint === "enter" ? "rotate(90deg)" : "none" }}>
+            <rect x="12" y="4" width="16" height="32" rx="3" fill="none" stroke="#F2EEE9" strokeWidth="2" />
+            <line x1="18" y1="31" x2="22" y2="31" stroke="#F2EEE9" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+          <div style={{ fontSize: 13.5, fontWeight: 600 }}>{rotateHint === "enter" ? "Turn your phone sideways" : "Turn your phone upright"}</div>
+          <div style={{ fontSize: 11.5, color: L.mutedDark2, marginTop: 4, lineHeight: 1.45 }}>
+            {rotateHint === "enter" ? "The video and the fact-check feed fill the screen side by side." : "to go back to the normal view."}
+          </div>
+        </div>
+  ) : null;
+
   // Layout knobs for the two big modes.
   const big = fs || immersive;
   const compact = mob || immersive;
@@ -169,8 +221,8 @@ export default function ControlRoom({
 
   const ContextBar = (
     <div style={{
-      height: 44, flexShrink: 0, display: "flex", alignItems: "center", gap: 10,
-      padding: "0 14px", background: L.stage, borderBottom: `1px solid ${L.cardBorder}`,
+      height: immersive ? 38 : 44, flexShrink: 0, display: "flex", alignItems: "center", gap: 10,
+      padding: immersive ? "0 10px 0 max(10px, env(safe-area-inset-left))" : "0 14px", background: L.stage, borderBottom: `1px solid ${L.cardBorder}`,
     }}>
       {/* Icon-only so the title keeps its room on a phone; the label rides on
           aria-label and title, so it is still announced and still explained
@@ -200,7 +252,32 @@ export default function ControlRoom({
         flex: 1, minWidth: 0, fontFamily: F.display, fontSize: 14, fontWeight: 500,
         color: "#F2EEE9", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
       }}>{title}</span>
+      {immersive && (counts.true + counts.misleading + counts.false) > 0 && (
+        // The score panel is dropped sideways (the video needs the height);
+        // its headline rides here instead.
+        <span style={{ fontFamily: F.ui, fontSize: 10.5, color: L.mutedDark2, flexShrink: 0, whiteSpace: "nowrap" }}>
+          <b style={{ color: "#F2EEE9", fontFamily: F.mono, fontWeight: 500 }}>{Math.round((counts.true / Math.max(1, counts.true + counts.misleading + counts.false)) * 100)}%</b> matched
+          {" · "}<span style={{ color: L.true }}>{counts.true}</span>/<span style={{ color: L.misleading }}>{counts.misleading}</span>/<span style={{ color: L.false }}>{counts.false}</span>
+        </span>
+      )}
       <span style={{ fontFamily: F.mono, fontSize: 12, color: L.mutedDark2, flexShrink: 0 }}>{stamp(elapsed)}</span>
+      {(mob || immersive) && (
+        <button type="button" onClick={immersive ? exitLandscape : enterLandscape} className="vu-back"
+          aria-label={immersive ? "Exit full screen" : "Full screen, sideways, with fact-checks"}
+          title={immersive ? "Exit full screen" : "Full screen with fact-checks"}
+          style={{
+            width: 30, height: 30, borderRadius: "50%", flexShrink: 0,
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+            background: "transparent", border: `1px solid ${L.cardBorder}`, color: "#D8D2C8",
+            cursor: "pointer", padding: 0, fontSize: 14, lineHeight: 1,
+          }}>
+          {immersive ? "✕" : (
+            <svg width="13" height="13" viewBox="0 0 14 14" aria-hidden fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M1 5V1h4M13 5V1H9M1 9v4h4M13 9v4H9" />
+            </svg>
+          )}
+        </button>
+      )}
       {!mob && !immersive && canFs && (
         <button type="button" onClick={toggleFs} className="vu-back"
           aria-label={fs ? "Exit full screen" : "Full screen with fact-checks"}
@@ -261,6 +338,7 @@ export default function ControlRoom({
               background: active ? (k === "all" ? "#F2EEE9" : color) : "transparent",
               color: active ? (k === "all" ? L.ink : "#fff") : L.mutedDark2,
               border: `1px solid ${active ? "transparent" : L.cardBorder}`,
+              whiteSpace: "nowrap", flexShrink: 0,
             }}>{label}</button>
           );
         })}
@@ -381,8 +459,8 @@ export default function ControlRoom({
         // feed, which was down to roughly one and a half visible cards.
         // Full screen / sideways: the video takes everything except the bar
         // above it and the timeline + score below it.
-        maxHeight: mob ? "min(25vh, 210px)" : fs ? "calc(100vh - 44px - 120px)" : immersive ? "calc(100dvh - 44px - 92px)" : "min(52vh, 620px)",
-        width: mob ? "100%" : fs ? "min(100%, calc((100vh - 164px) * 16 / 9))" : immersive ? "min(100%, calc((100dvh - 136px) * 16 / 9))" : "min(100%, calc(min(52vh, 620px) * 16 / 9))",
+        maxHeight: mob ? "min(25vh, 210px)" : fs ? "calc(100vh - 44px - 120px)" : immersive ? "calc(100dvh - 38px - 26px)" : "min(52vh, 620px)",
+        width: mob ? "100%" : fs ? "min(100%, calc((100vh - 164px) * 16 / 9))" : immersive ? "min(100%, calc((100dvh - 64px) * 16 / 9))" : "min(100%, calc(min(52vh, 620px) * 16 / 9))",
         margin: mob ? undefined : "0 auto",
       }}>
         {videoSlot}
@@ -419,8 +497,10 @@ export default function ControlRoom({
           ? videoDuration
           : Math.max(elapsed, ...ticks.map(t => t.at), 60)}
         onSeek={onSeek} />
-      <RunningScore trueCount={counts.true} misleadingCount={counts.misleading}
-        falseCount={counts.false} unverifiableCount={unscored} mob={compact} />
+      {!immersive && (
+        <RunningScore trueCount={counts.true} misleadingCount={counts.misleading}
+          falseCount={counts.false} unverifiableCount={unscored} mob={compact} />
+      )}
     </>
   );
 
@@ -474,6 +554,7 @@ export default function ControlRoom({
         <div style={{ padding: "8px 14px 0", background: L.ink, flexShrink: 0 }}>{FilterChips}</div>
         {Feed}
         {RecordBar}
+        {RotateHint}
       </div>
     );
   }
@@ -539,10 +620,10 @@ export default function ControlRoom({
           min-height:auto, so without it the feed grows to fit its content and
           overflows the card instead of scrolling inside it. */}
       <aside style={{ display: "flex", flexDirection: "column", minWidth: 0, minHeight: 0, background: L.stageAlt }}>
-        <div style={{ padding: "12px 14px", borderBottom: `1px solid ${L.cardBorder}`, flexShrink: 0 }}>
+        <div style={{ padding: immersive ? "8px 10px 8px" : "12px 14px", paddingRight: immersive ? "max(10px, env(safe-area-inset-right))" : undefined, borderBottom: `1px solid ${L.cardBorder}`, flexShrink: 0 }}>
           <div style={{
             display: "flex", justifyContent: "space-between", alignItems: "baseline",
-            marginBottom: 9, fontFamily: F.ui,
+            marginBottom: immersive ? 6 : 9, fontFamily: F.ui,
           }}>
             <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.16em", textTransform: "uppercase", color: L.mutedDark }}>
               Fact-check feed
@@ -552,8 +633,9 @@ export default function ControlRoom({
           {FilterChips}
         </div>
         {Feed}
-        {RecordBar}
+        {!immersive && RecordBar}
       </aside>
+      {RotateHint}
     </div>
   );
 }
