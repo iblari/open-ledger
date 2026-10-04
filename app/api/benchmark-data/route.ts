@@ -63,6 +63,16 @@ const FRED_SERIES: Record<string, string> = {
   BOPGSTB:           'BOPGSTB',           // Trade balance millions, monthly, from 1992
 };
 
+// Optional series: fetched separately and allowed to fail. A licence change
+// or outage on one of these must not take the whole benchmark down.
+//  - SP500: S&P Dow Jones licenses FRED only the last ~10 years, so it covers
+//    Trump I onwards; asked for as a monthly average of the daily closes.
+//  - MTSDS133FMS: Treasury Monthly Statement surplus/deficit ($M), from 1980.
+const OPTIONAL_SERIES: Record<string, { id: string; query?: string }> = {
+  SP500: { id: 'SP500', query: '&frequency=m&aggregation_method=avg' },
+  MTSDS133FMS: { id: 'MTSDS133FMS' },
+};
+
 // ── Metric definitions ──
 interface MetricDef {
   key: string;
@@ -71,7 +81,7 @@ interface MetricDef {
   unit: string;
   lowerBetter: boolean;
   cat: string;
-  transform: 'direct' | 'cpi_yoy' | 'quarterly' | 'gdp_trillions' | 'payroll_change' | 'mfg_millions' | 'wage_yoy' | 'trade_billions' | 'purchasing' | 'retail_billions' | 'ratio';
+  transform: 'direct' | 'cpi_yoy' | 'quarterly' | 'gdp_trillions' | 'payroll_change' | 'mfg_millions' | 'wage_yoy' | 'trade_billions' | 'purchasing' | 'retail_billions' | 'ratio' | 'deficit_12m';
   fredKey: string;
   /** Second series, for metrics that are a RATIO of two series. */
   divisorKey?: string;
@@ -110,6 +120,11 @@ const METRICS: MetricDef[] = [
   { key: 'saving', label: 'Saving Rate', short: 'Save', unit: '%', lowerBetter: false, cat: 'fiscal', transform: 'direct', fredKey: 'PSAVERT' },
   // Sentiment
   { key: 'consumer_conf', label: 'Consumer Sentiment', short: 'Sent', unit: '', lowerBetter: false, cat: 'sentiment', transform: 'direct', fredKey: 'UMCSENT' },
+  { key: 'sp500', label: 'S&P 500', short: 'S&P', unit: 'idx', lowerBetter: false, cat: 'growth', transform: 'direct', fredKey: 'SP500' },
+  // Trailing 12-month total, not the raw month: single months swing wildly
+  // with tax dates (April is usually a surplus). The September value of the
+  // rolling sum is exactly the fiscal-year deficit.
+  { key: 'deficit', label: 'Budget Balance (12-mo)', short: 'Deficit', unit: 'B', lowerBetter: false, cat: 'fiscal', transform: 'deficit_12m', fredKey: 'MTSDS133FMS' },
 ];
 
 const CATS: Record<string, string> = {
@@ -128,8 +143,8 @@ function monthsDiff(a: Date, b: Date): number {
 /** Small sleep helper for retry backoff. */
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
-async function fetchFRED(seriesId: string, apiKey: string, start: string): Promise<{ date: string; value: string }[]> {
-  const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${seriesId}&api_key=${apiKey}&file_type=json&observation_start=${start}`;
+async function fetchFRED(seriesId: string, apiKey: string, start: string, query = ''): Promise<{ date: string; value: string }[]> {
+  const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${seriesId}&api_key=${apiKey}&file_type=json&observation_start=${start}${query}`;
   // Keep per-FRED-call cache aligned with the route-level revalidate above
   // (1h) so the two layers don't disagree and serve mismatched freshness.
   // Retry on 429 (rate limit) and 5xx (FRED transient flake) with exponential
@@ -276,6 +291,16 @@ export async function GET() {
     const parsedMap: Record<string, { date: Date; value: number }[]> = {};
     fredKeys.forEach((k, i) => { parsedMap[k] = parseObs(rawResults[i]); });
 
+    const optKeys = Object.keys(OPTIONAL_SERIES);
+    const optResults = await Promise.allSettled(
+      optKeys.map(k => fetchFRED(OPTIONAL_SERIES[k].id, apiKey, '1968-01-01', OPTIONAL_SERIES[k].query))
+    );
+    optKeys.forEach((k, i) => {
+      const r = optResults[i];
+      if (r.status === 'fulfilled') parsedMap[k] = parseObs(r.value);
+      else console.warn(`[benchmark] optional series ${k} unavailable: ${(r.reason as Error)?.message}`);
+    });
+
     const maxMonths = 48;
 
     // Build per-admin aligned series for a given transformed dataset
@@ -350,6 +375,20 @@ export async function GET() {
         case 'purchasing':
           transformed = purchasingPower(raw);
           break;
+        case 'deficit_12m': {
+          // $M monthly → trailing 12-month total in $B; only where all 12
+          // months exist, so a gap can't masquerade as a smaller deficit.
+          const sorted = [...raw].sort((a, b) => a.date.getTime() - b.date.getTime());
+          const key = (d: Date) => d.getUTCFullYear() * 12 + d.getUTCMonth();
+          const byKey = new Map(sorted.map(p => [key(p.date), p.value]));
+          transformed = [];
+          for (const p of sorted) {
+            let sum = 0, ok = true;
+            for (let j = 0; j < 12; j++) { const v = byKey.get(key(p.date) - j); if (v === undefined) { ok = false; break; } sum += v; }
+            if (ok) transformed.push({ date: p.date, value: Math.round(sum / 100) / 10 });
+          }
+          break;
+        }
         default:
           transformed = raw;
       }

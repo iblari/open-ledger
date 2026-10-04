@@ -82,6 +82,7 @@ export function fmtBench(v: number, unit: string, signed = false): string {
     case "B": return `${sign}$${Math.round(a).toLocaleString("en-US")}B`;
     case "$": return `${sign}$${a.toFixed(2)}`;
     case "x": return `${sign}${a.toFixed(2)}×`;
+    case "idx": return `${sign}${Math.round(a).toLocaleString("en-US")}`;
     default: return `${sign}${a.toFixed(1)}`;
   }
 }
@@ -153,7 +154,12 @@ export function trump2SoFar(bench: Bench | null, dashKey: string): SoFarCell | n
  * ratio of the historical 2024 value to the live feed's 2024 value, so the
  * line joins without a fake jump.
  */
-const ANNUAL: Record<string, { key: string; agg: "avg" | "last" | "sum"; splice?: boolean; scale?: number }> = {
+const ANNUAL: Record<string, { key: string; agg: "avg" | "last" | "sum" | "fy"; splice?: boolean; scale?: number }> = {
+  // Year-end level; FRED's series is the monthly average of daily closes,
+  // so December's average stands in for the year-end close.
+  sp500: { key: "sp500", agg: "last" },
+  // Fiscal year (Oct–Sep), the basis the historical deficits are stated on.
+  deficit: { key: "deficit", agg: "fy" },
   real_gdp: { key: "real_gdp", agg: "avg", splice: true },
   gdp: { key: "gdp_growth", agg: "avg" },
   unemployment: { key: "unemployment", agg: "avg" },
@@ -171,7 +177,16 @@ const ANNUAL: Record<string, { key: string; agg: "avg" | "last" | "sum"; splice?
 
 const START_YEAR: Record<string, number> = { biden: 2021, trump2: 2025 };
 
-function yearAgg(data: BenchPoint[], startYear: number, year: number, agg: "avg" | "last" | "sum") {
+function yearAgg(data: BenchPoint[], startYear: number, year: number, agg: "avg" | "last" | "sum" | "fy") {
+  if (agg === "fy") {
+    // Trailing-12-month series: September's value IS the fiscal-year total.
+    // For the fiscal year in progress, the latest 12-month figure.
+    const sep = (year - startYear) * 12 + 8, from = sep - 11;
+    const pts = data.filter(d => d.month >= from && d.month <= sep && Number.isFinite(d.value)).sort((a, b) => a.month - b.month);
+    if (!pts.length) return null;
+    const last = pts[pts.length - 1];
+    return { v: last.value, months: last.month === sep ? 12 : pts.length, ttm: last.month !== sep ? last.month : undefined };
+  }
   const lo = (year - startYear) * 12, hi = lo + 11;
   const pts = data.filter(d => d.month >= lo && d.month <= hi && Number.isFinite(d.value)).sort((a, b) => a.month - b.month);
   if (!pts.length) return null;
@@ -182,7 +197,7 @@ function yearAgg(data: BenchPoint[], startYear: number, year: number, agg: "avg"
   return { v, months: n };
 }
 
-export interface LivePoint { y: number; v: number; a: "trump2"; partial?: boolean; months?: number }
+export interface LivePoint { y: number; v: number; a: "trump2"; partial?: boolean; months?: number; note?: string }
 
 export function liveAnnual(bench: Bench | null, dashKey: string, hist2024: number | null): LivePoint[] {
   const cfg = ANNUAL[dashKey];
@@ -205,6 +220,16 @@ export function liveAnnual(bench: Bench | null, dashKey: string, hist2024: numbe
     const r = yearAgg(cur.data, START_YEAR.trump2, y, cfg.agg);
     if (!r) break;
     const v = Math.round(r.v * scale * 1000) / 1000;
+    if (cfg.agg === "fy") {
+      // Fiscal years end in September; done once September is reported.
+      const ttm = (r as { ttm?: number }).ttm;
+      if (ttm === undefined) out.push({ y, v, a: "trump2" });
+      else {
+        const d = new Date(Date.UTC(2025, ttm, 1));
+        out.push({ y, v, a: "trump2", partial: true, months: 12, note: `12 months to ${d.toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "UTC" })} · live` });
+      }
+      continue;
+    }
     out.push(y >= thisYear ? { y, v, a: "trump2", partial: true, months: r.months } : { y, v, a: "trump2" });
   }
   return out;

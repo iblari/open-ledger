@@ -40,7 +40,10 @@ export default function SamePointView({
     );
   }
   const cats = Object.entries(bench.categories);
-  const keysIn = (cat: string) => Object.keys(bench.metrics).filter(k => bench.metrics[k].cat === cat);
+  // A rank needs a field: series that only reach back a few terms (the S&P
+  // 500 is licensed to FRED for ~10 years) stay out of this lens.
+  const keysIn = (cat: string) => Object.keys(bench.metrics).filter(k =>
+    bench.metrics[k].cat === cat && (samePoint(bench, k)?.n ?? 0) >= 5);
 
   if (mob) {
     return (

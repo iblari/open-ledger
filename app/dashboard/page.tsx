@@ -291,7 +291,7 @@ function Tip({active,payload,label,unit}){
         <div>
           <div style={{fontWeight:800,fontSize:13,letterSpacing:-0.3}}>{label||d?.y}</div>
           {adminData && <div style={{color:adminData.color,fontSize:11,fontWeight:600}}>{adminData.name} ({adminData.years})</div>}
-          {d?.partial && <div style={{color:T.mute,fontSize:10.5,marginTop:2}}>Year to date · {d.months} months{d.a==="trump2"?" · live":""}</div>}
+          {d?.partial && <div style={{color:T.mute,fontSize:10.5,marginTop:2}}>{d.note || <>Year to date · {d.months} months{d.a==="trump2"?" · live":""}</>}</div>}
         </div>
       </div>
       {payload.map((p,i)=>(
