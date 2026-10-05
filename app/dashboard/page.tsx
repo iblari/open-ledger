@@ -1816,7 +1816,8 @@ function App(){
               <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:600,color:"#991b1b",lineHeight:1.4}}>{m.bench.warn}</div>
             </div>
           </div>}
-          {m.bench&&<div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:T.sub,lineHeight:1.6,marginBottom:16,padding:"0 2px"}}><strong style={{color:T.ink}}>Why this matters: </strong>{m.bench.why}</div>}
+          {/* Some entries keep `why` beside `bench` rather than inside it; read both, and hide the line when neither has text. */}
+          {(m.bench?.why||m.why)&&<div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:T.sub,lineHeight:1.6,marginBottom:16,padding:"0 2px"}}><strong style={{color:T.ink}}>Why this matters: </strong>{m.bench?.why||m.why}</div>}
           </>)}
 
           {/* ─── MOBILE: compressed benchmark strip ─── */}
