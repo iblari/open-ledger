@@ -1523,7 +1523,6 @@ function TrendingStrip({ cards }: { cards: TrendCard[] }) {
 const HEADLINES: [string, string][] = [
   ["The economy under every president, ", "in data."],
   ["Economic & political ", "intelligence."],
-  ["Every claim, checked ", "live."],
 ];
 function RotatingHeadline() {
   const [k, setK] = useState(0);
