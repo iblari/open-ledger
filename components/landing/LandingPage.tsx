@@ -18,7 +18,6 @@ import {
   cellColor, cellColorFromMag,
 } from "@/lib/display-modes";
 import { PillToggle } from "@/components/PillToggle";
-import { InsightsStrip } from "@/components/InsightsStrip";
 
 // Below-the-fold, client-only teaser animation — keep out of the main bundle.
 import LivePromo from "./LivePromo";
@@ -1456,8 +1455,35 @@ function MobileTicker() {
    found client-side in the live FRED feed (lib/bench-lens dataSignals);
    repeated lines and rising subjects come from the broadcast ledger on the
    server (lib/trending-live). Freshest + most unusual first. ── */
+/** Interleave: best data signal, best broadcast signal, … — capped at n. */
+function mergeTrends(bench: Bench | null, liveTrends: TrendCard[], n = 5): TrendCard[] {
+  const d = dataSignals(bench), l = [...liveTrends].sort((a, b) => b.score - a.score);
+  const out: TrendCard[] = [];
+  while ((d.length || l.length) && out.length < n) {
+    if (d.length) out.push(d.shift()!);
+    if (l.length && out.length < n) out.push(l.shift()!);
+  }
+  return out;
+}
+
+/* Desktop: the same cards as the phone strip, laid out as a row. Replaced
+   the "What's notable right now" InsightsStrip. */
+function DesktopTrending({ liveTrends, med }: { liveTrends: TrendCard[]; med: boolean }) {
+  const [bench, setBench] = useState<Bench | null>(null);
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/benchmark-data").then(r => r.json()).then(d => { if (alive && d && !d.error) setBench(d); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
+  const cols = med ? 3 : 5;
+  const cards = useMemo(() => mergeTrends(bench, liveTrends, cols), [bench, liveTrends, cols]);
+  // Hold the row's height while FRED loads so the page below doesn't jump.
+  if (!cards.length) return <div style={{ minHeight: 200 }} />;
+  return <TrendingStrip cards={cards} desktop cols={cols} />;
+}
+
 const TONE: Record<TrendCard["tone"], string> = { good: "#1f7a6d", bad: "#c2410c", neutral: "#b8372d" };
-function TrendingStrip({ cards }: { cards: TrendCard[] }) {
+function TrendingStrip({ cards, desktop = false, cols = 5 }: { cards: TrendCard[]; desktop?: boolean; cols?: number }) {
   const ref = useRef<HTMLDivElement>(null);
   const [idx, setIdx] = useState(0);
   if (!cards.length) return null;
@@ -1467,11 +1493,11 @@ function TrendingStrip({ cards }: { cards: TrendCard[] }) {
     setIdx(Math.min(cards.length - 1, Math.round(el.scrollLeft / (w + 10))));
   };
   return (
-    <section aria-labelledby="trend-h" style={{ marginTop: 18 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 20px", marginBottom: 8 }}>
-        <h2 id="trend-h" style={{ fontFamily: SERIF, fontSize: 18, fontWeight: 500, margin: 0, letterSpacing: "-0.01em", display: "flex", alignItems: "center", gap: 6 }}>
+    <section aria-labelledby="trend-h" style={{ marginTop: desktop ? 0 : 18 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: desktop ? 0 : "0 20px", marginBottom: desktop ? 14 : 8 }}>
+        <h2 id="trend-h" style={{ fontFamily: SERIF, fontSize: desktop ? 26 : 18, fontWeight: 500, margin: 0, letterSpacing: "-0.01em", display: "flex", alignItems: "center", gap: 6 }}>
           Trending
-          <svg aria-hidden width="19" height="19" viewBox="0 0 24 24" fill="none" stroke={C.accent} strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" style={{ flex: "none" }}>
+          <svg aria-hidden width={desktop ? 26 : 19} height={desktop ? 26 : 19} viewBox="0 0 24 24" fill="none" stroke={C.accent} strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" style={{ flex: "none" }}>
             <path d="M3 17l6-6 4 4 8-8" /><path d="M14 7h7v7" />
           </svg>
         </h2>
@@ -1480,7 +1506,9 @@ function TrendingStrip({ cards }: { cards: TrendCard[] }) {
           <span style={{ background: C.accent, color: "#fff", fontWeight: 700, fontSize: 8.5, padding: "2px 5px", borderRadius: 3, letterSpacing: "0.05em" }}>NEW</span>
         </span>
       </div>
-      <div ref={ref} onScroll={onScroll} className="vu-chips" style={{
+      <div ref={ref} onScroll={desktop ? undefined : onScroll} className="vu-chips" style={desktop ? {
+        display: "grid", gridTemplateColumns: `repeat(${Math.min(cols, cards.length)}, minmax(0, 1fr))`, gap: 14,
+      } : {
         display: "flex", gap: 10, overflowX: "auto", scrollSnapType: "x mandatory",
         padding: "0 20px 2px", scrollPaddingLeft: 20, scrollbarWidth: "none",
       }}>
@@ -1488,14 +1516,14 @@ function TrendingStrip({ cards }: { cards: TrendCard[] }) {
           const col = TONE[c.tone];
           return (
             <Link key={c.id} href={c.href} style={{
-              flex: "0 0 76%", scrollSnapAlign: "start", textDecoration: "none", color: C.ink,
+              flex: desktop ? undefined : "0 0 76%", scrollSnapAlign: "start", textDecoration: "none", color: C.ink,
               background: "#fff", border: `1px solid ${C.rule}`, borderTop: `3px solid ${col}`,
-              borderRadius: 6, padding: "11px 13px 12px", display: "flex", flexDirection: "column", gap: 7, minHeight: 128,
+              borderRadius: 6, padding: desktop ? "15px 16px 15px" : "11px 13px 12px", display: "flex", flexDirection: "column", gap: desktop ? 10 : 7, minHeight: desktop ? 150 : 128,
             }}>
               <span style={{ fontSize: 9.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: col }}>
                 {c.kicker} <span style={{ color: C.mute, fontWeight: 500 }}>· {c.dateLabel}</span>
               </span>
-              <span style={{ fontFamily: SERIF, fontSize: 15.5, lineHeight: 1.25, letterSpacing: "-0.005em", flex: 1 }}>{c.headline}</span>
+              <span style={{ fontFamily: SERIF, fontSize: desktop ? 17 : 15.5, lineHeight: 1.25, letterSpacing: "-0.005em", flex: 1 }}>{c.headline}</span>
               <span style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
                 <span style={{ fontSize: 10.5, fontWeight: 700, color: col, background: col + "14", padding: "3px 7px", borderRadius: 99 }}>{c.badge}</span>
                 <span style={{ fontSize: 10.5, color: C.mute, whiteSpace: "nowrap" }}>{c.kicker === "Fact-checks" || c.kicker === "Broadcasts" ? "Live ledger" : "FRED"} →</span>
@@ -1504,7 +1532,7 @@ function TrendingStrip({ cards }: { cards: TrendCard[] }) {
           );
         })}
       </div>
-      {cards.length > 1 && (
+      {!desktop && cards.length > 1 && (
         <div aria-hidden style={{ display: "flex", justifyContent: "center", gap: 5, marginTop: 9 }}>
           {cards.map((c, i) => (
             <span key={c.id} style={{ width: i === idx ? 14 : 5, height: 5, borderRadius: 99, background: i === idx ? C.ink : C.rule, transition: "width .2s" }} />
@@ -1616,16 +1644,7 @@ function MobileLanding({ liveTrends = [] }: { liveTrends?: TrendCard[] }) {
     return () => { alive = false; };
   }, []);
 
-  // Interleave: best data signal, best broadcast signal, … — capped at 5.
-  const trending = useMemo(() => {
-    const d = dataSignals(bench), l = [...liveTrends].sort((a, b) => b.score - a.score);
-    const out: TrendCard[] = [];
-    while ((d.length || l.length) && out.length < 5) {
-      if (d.length) out.push(d.shift()!);
-      if (l.length && out.length < 5) out.push(l.shift()!);
-    }
-    return out;
-  }, [bench, liveTrends]);
+  const trending = useMemo(() => mergeTrends(bench, liveTrends), [bench, liveTrends]);
 
   const m = METRICS[selectedMetric];
   const cfg = METRIC_DISPLAY_LANDING[selectedMetric];
@@ -1903,7 +1922,7 @@ export default function LandingPage({ liveTrends = [] }: { liveTrends?: TrendCar
           deliberate when the section before it has space to finish. */}
       <Tile mob={mob} style={{ paddingBottom: mob ? 56 : 40 }}>
         <div style={{ maxWidth: 1280, margin: "0 auto", padding: mob ? "0 20px" : "0 32px" }}>
-          <InsightsStrip mob={mob} limit={3} eyebrow="What's notable right now" />
+          <DesktopTrending liveTrends={liveTrends} med={med} />
         </div>
       </Tile>
       <Tile mob={mob} dark><ComingSoonSection /></Tile>
