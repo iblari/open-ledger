@@ -1468,9 +1468,12 @@ function TrendingStrip({ cards }: { cards: TrendCard[] }) {
   };
   return (
     <section aria-labelledby="trend-h" style={{ marginTop: 18 }}>
-      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", padding: "0 20px", marginBottom: 8 }}>
-        <h2 id="trend-h" style={{ fontFamily: SERIF, fontSize: 18, fontWeight: 500, margin: 0, letterSpacing: "-0.01em" }}>
-          Trending <em style={{ fontStyle: "italic", color: C.accent }}>this week</em>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 20px", marginBottom: 8 }}>
+        <h2 id="trend-h" style={{ fontFamily: SERIF, fontSize: 18, fontWeight: 500, margin: 0, letterSpacing: "-0.01em", display: "flex", alignItems: "center", gap: 6 }}>
+          Trending
+          <svg aria-hidden width="19" height="19" viewBox="0 0 24 24" fill="none" stroke={C.accent} strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" style={{ flex: "none" }}>
+            <path d="M3 17l6-6 4 4 8-8" /><path d="M14 7h7v7" />
+          </svg>
         </h2>
         <span style={{ fontSize: 9.5, color: C.mute, textTransform: "uppercase", letterSpacing: "0.06em", display: "flex", alignItems: "center", gap: 6 }}>
           updates daily
