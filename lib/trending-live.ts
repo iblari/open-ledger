@@ -54,7 +54,7 @@ async function compute(): Promise<TrendCard[]> {
       id: `rep-${c.id}`,
       kicker: "Fact-checks",
       headline: `“${cap(q)}” — said again${who ? ` by ${who.split(" ").slice(-1)[0]}` : ""}, now in ${broadcasts} broadcasts`,
-      badge: top.length ? `Mostly rated ${title(top[0])}` : `${broadcasts}× repeated`,
+      badge: top.length ? `Mostly ${title(top[0])}` : `${broadcasts}× repeated`,
       tone: bad ? "bad" : "neutral",
       date: last, dateLabel: fmtDay(last),
       href: `/live?v=${latest.videoId}`,
@@ -87,6 +87,6 @@ async function compute(): Promise<TrendCard[]> {
 
 export const liveTrending = unstable_cache(
   async () => { try { return await compute(); } catch { return []; } },
-  ["trending-live-v1"],
+  ["trending-live-v2"],
   { revalidate: 600 },
 );

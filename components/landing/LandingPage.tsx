@@ -1525,7 +1525,7 @@ function TrendingStrip({ cards, desktop = false, cols = 5 }: { cards: TrendCard[
               </span>
               <span style={{ fontFamily: SERIF, fontSize: desktop ? 17 : 15.5, lineHeight: 1.25, letterSpacing: "-0.005em", flex: 1 }}>{c.headline}</span>
               <span style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                <span style={{ fontSize: 10.5, fontWeight: 700, color: col, background: col + "14", padding: "3px 7px", borderRadius: 99 }}>{c.badge}</span>
+                <span style={{ fontSize: 10.5, fontWeight: 700, color: col, background: col + "14", padding: "3px 7px", borderRadius: 99, whiteSpace: "nowrap" }}>{c.badge}</span>
                 <span style={{ fontSize: 10.5, color: C.mute, whiteSpace: "nowrap" }}>{c.kicker === "Fact-checks" || c.kicker === "Broadcasts" ? "Live ledger" : "FRED"} →</span>
               </span>
             </Link>
