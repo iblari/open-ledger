@@ -149,6 +149,31 @@ const CATS: Record<string, string> = {
   markets: 'Markets & Rates',
 };
 
+// ── Record lookups for the homepage "Trending" cards ──
+// The per-admin series above cover only each president's first 48 months, so
+// second terms (and Ford) are missing from them. A "highest since…" claim
+// built from those would skip whole years. These are computed here, from the
+// full monthly history. Months are y*12+m; one value per month (last wins,
+// which collapses weekly series).
+interface Extremes { t: number; v: number; high: number | null; low: number | null; start: number }
+function extremes(series: { date: Date; value: number }[]): Extremes | null {
+  const byMonth = new Map<number, number>();
+  for (const p of series) {
+    if (!Number.isFinite(p.value)) continue;
+    byMonth.set(p.date.getUTCFullYear() * 12 + p.date.getUTCMonth(), p.value);
+  }
+  const ts = [...byMonth.keys()].sort((a, b) => a - b);
+  if (ts.length < 2) return null;
+  const t = ts[ts.length - 1], v = byMonth.get(t)!;
+  let high: number | null = null, low: number | null = null;
+  for (let i = ts.length - 2; i >= 0 && (high === null || low === null); i--) {
+    const x = byMonth.get(ts[i])!;
+    if (high === null && x >= v) high = ts[i];
+    if (low === null && x <= v) low = ts[i];
+  }
+  return { t, v, high, low, start: ts[0] };
+}
+
 // ── Helpers ──
 function monthsDiff(a: Date, b: Date): number {
   return (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth());
@@ -331,6 +356,7 @@ export async function GET() {
     // Apply transforms and build metrics
     const metricsOut: Record<string, {
       label: string; short: string; unit: string; lowerBetter: boolean; cat: string; series: AdminSeries[];
+      hist: Extremes | null;
     }> = {};
 
     for (const m of METRICS) {
@@ -414,6 +440,7 @@ export async function GET() {
         lowerBetter: m.lowerBetter,
         cat: m.cat,
         series: buildSeries(transformed),
+        hist: extremes(transformed),
       };
     }
 

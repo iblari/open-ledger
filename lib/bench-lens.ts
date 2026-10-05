@@ -13,7 +13,12 @@
 
 export interface BenchPoint { month: number; value: number }
 export interface BenchSeries { id: string; name: string; party: string; current: boolean; data: BenchPoint[] }
-export interface BenchMetric { label: string; short: string; unit: string; lowerBetter: boolean; cat: string; series: BenchSeries[] }
+export interface BenchMetric {
+  label: string; short: string; unit: string; lowerBetter: boolean; cat: string; series: BenchSeries[];
+  /** From the full monthly history (months as y*12+m): the latest reading and
+   *  the last earlier month at/above (high) and at/below (low) it. */
+  hist?: { t: number; v: number; high: number | null; low: number | null; start: number } | null;
+}
 export interface Bench {
   lastUpdated: string;
   currentMonth: number;
@@ -278,8 +283,9 @@ const INAUG: Record<string, [number, number]> = {
 const KICKER: Record<string, string> = { growth: "Growth", labor: "Jobs", prices: "Prices", fiscal: "Fiscal", sentiment: "Sentiment" };
 const KICKER_BY_KEY: Record<string, string> = { mortgage: "Housing", housing_starts: "Housing", sp500: "Markets", saving: "Households", ten_year: "Rates", five_year: "Rates", yield_curve: "Rates" };
 // Levels that drift up (or down) with time — a "record" there is the calendar, not news.
-const NO_RECORDS = new Set(["yield_curve", "real_gdp", "retail", "purchasing", "deficit", "jobs", "trade"]);
-const NO_STREAKS = new Set(["jobs", "purchasing", "real_gdp", "retail", "debt_gdp", "deficit", "gdp_growth", "wages"]);
+// The 5-year moves with the 10-year; carding both would show one story twice.
+const NO_RECORDS = new Set(["yield_curve", "five_year", "real_gdp", "retail", "purchasing", "deficit", "jobs", "trade"]);
+const NO_STREAKS = new Set(["five_year", "jobs", "purchasing", "real_gdp", "retail", "debt_gdp", "deficit", "gdp_growth", "wages"]);
 const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const monthLabel = (t: number) => `${MON[t % 12]} ${Math.floor(t / 12)}`;
 
@@ -320,12 +326,25 @@ export function dataSignals(bench: Bench | null): TrendCard[] {
     }
     if (!NO_RECORDS.has(key)) {
       for (const dir of ["high", "low"] as const) {
-        let since: number | null = null;
-        for (let i = ts.length - 2; i >= 0; i--) {
-          const x = cal.get(ts[i])!;
-          if (dir === "high" ? x >= v : x <= v) { since = ts[i]; break; }
+        let since: number | null = null, start: number;
+        if (m.hist && m.hist.t === t) {
+          // Full history from the server — the per-admin series have gaps
+          // (second terms), so they can't answer "since when" on their own.
+          since = dir === "high" ? m.hist.high : m.hist.low;
+          start = m.hist.start;
+        } else {
+          // Fallback: walk back only through unbroken months; reaching a gap
+          // means the answer is unknown, and no claim is made.
+          let i = ts.length - 2, unknown = false;
+          for (; i >= 0; i--) {
+            if (ts[i] !== ts[i + 1] - 1) { unknown = true; break; }
+            const x = cal.get(ts[i])!;
+            if (dir === "high" ? x >= v : x <= v) { since = ts[i]; break; }
+          }
+          if (unknown || since == null) continue;
+          start = ts[0];
         }
-        const gap = since == null ? t - ts[0] : t - since;
+        const gap = since == null ? t - start : t - since;
         if (gap < 24) continue;
         const years = Math.floor(gap / 12);
         const good = m.lowerBetter ? dir === "low" : dir === "high";
