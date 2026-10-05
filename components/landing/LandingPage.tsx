@@ -1515,6 +1515,55 @@ function TrendingStrip({ cards }: { cards: TrendCard[] }) {
   );
 }
 
+/* ── Phone hero headline that rotates through what the site is. All lines
+   sit stacked in one grid cell, so the box is always as tall as the longest
+   and nothing below it moves. The h1 text stays the first line for search
+   and screen readers; the others are decorative. Holds still for
+   prefers-reduced-motion. ── */
+const HEADLINES: [string, string][] = [
+  ["The economy under every president, ", "in data."],
+  ["Economic & political ", "intelligence."],
+  ["Every claim, checked ", "live."],
+];
+function RotatingHeadline() {
+  const [k, setK] = useState(0);
+  useEffect(() => {
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    const t = setInterval(() => setK(x => (x + 1) % HEADLINES.length), 3500);
+    return () => clearInterval(t);
+  }, []);
+  return (
+    <div>
+      <h1 aria-label={HEADLINES[0].join("")} style={{
+        fontFamily: SERIF, fontSize: 31, lineHeight: 1.02, letterSpacing: "-0.028em",
+        fontWeight: 400, margin: 0, display: "grid", overflow: "hidden",
+        // Room for descenders (the g in "intelligence") inside the clip.
+        paddingBottom: "0.1em", marginBottom: "-0.1em",
+      }}>
+        {HEADLINES.map(([lead, tail], i) => {
+          const prev = (k - 1 + HEADLINES.length) % HEADLINES.length;
+          const y = i === k ? "0" : i === prev ? "-100%" : "100%";
+          return (
+            <span key={i} aria-hidden style={{
+              gridArea: "1 / 1", transform: `translateY(${y})`, opacity: i === k ? 1 : 0,
+              // Only the entering and leaving lines animate; the parked one
+              // jumps back below without sweeping across the visible area.
+              transition: i === k || i === prev ? "transform .55s cubic-bezier(.2,.8,.2,1), opacity .55s" : "none",
+            }}>
+              {lead}<em style={{ fontStyle: "italic", color: C.accent }}>{tail}</em>
+            </span>
+          );
+        })}
+      </h1>
+      <div aria-hidden style={{ display: "flex", gap: 5, marginTop: 9 }}>
+        {HEADLINES.map((_, i) => (
+          <span key={i} style={{ height: 4, borderRadius: 9, width: i === k ? 14 : 4, background: i === k ? C.ink : C.rule, transition: "width .3s, background .3s" }} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function MobileLanding({ liveTrends = [] }: { liveTrends?: TrendCard[] }) {
   const [openSource, setOpenSource] = useState<string | null>(null);
   // The sticky "Open the ledger" bar steps aside while the dark Live band is
@@ -1612,12 +1661,7 @@ function MobileLanding({ liveTrends = [] }: { liveTrends?: TrendCard[] }) {
       {/* ── 2+3. Ticker (full-bleed) + compact hero ── */}
       <div style={{ padding: "20px 20px 6px" }}>
         <MobileTicker />
-        <h1 style={{
-          fontFamily: SERIF, fontSize: 31, lineHeight: 1.02, letterSpacing: "-0.028em",
-          fontWeight: 400, margin: 0,
-        }}>
-          The economy under every president, <em style={{ fontStyle: "italic", color: C.accent }}>in data.</em>
-        </h1>
+        <RotatingHeadline />
         <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
           <Link href="/dashboard" style={{
             background: C.ink, color: "#f8f5f0", fontSize: 12.5, fontWeight: 500,
