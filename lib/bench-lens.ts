@@ -239,3 +239,111 @@ export function liveAnnual(bench: Bench | null, dashKey: string, hist2024: numbe
   }
   return out;
 }
+
+/* ── Trending: data signals ─────────────────────────────────────────────
+ *
+ * Turning points in the live data, worded for a homepage card:
+ *  - a reading that's the highest/lowest in at least two years
+ *  - three or more monthly moves in the same direction
+ * Every administration's series is laid on one calendar so "highest since"
+ * reaches back across presidents.
+ */
+export interface TrendCard {
+  id: string;
+  kicker: string;
+  headline: string;
+  badge: string;
+  tone: "good" | "bad" | "neutral";
+  /** ISO date the card is about (data period, or broadcast day). */
+  date: string;
+  dateLabel: string;
+  note?: string;
+  href: string;
+  score: number;
+}
+
+const INAUG: Record<string, [number, number]> = {
+  nixon: [1969, 0], carter: [1977, 0], reagan: [1981, 0], bush41: [1989, 0], clinton: [1993, 0],
+  bush43: [2001, 0], obama: [2009, 0], trump1: [2017, 0], biden: [2021, 0], trump2: [2025, 0],
+};
+const KICKER: Record<string, string> = { growth: "Growth", labor: "Jobs", prices: "Prices", fiscal: "Fiscal", sentiment: "Sentiment" };
+const KICKER_BY_KEY: Record<string, string> = { mortgage: "Housing", housing_starts: "Housing", sp500: "Markets", saving: "Households" };
+// Levels that drift up (or down) with time — a "record" there is the calendar, not news.
+const NO_RECORDS = new Set(["real_gdp", "retail", "purchasing", "deficit", "jobs", "trade"]);
+const NO_STREAKS = new Set(["jobs", "purchasing", "real_gdp", "retail", "debt_gdp", "deficit", "gdp_growth", "wages"]);
+const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const monthLabel = (t: number) => `${MON[t % 12]} ${Math.floor(t / 12)}`;
+
+export function dataSignals(bench: Bench | null): TrendCard[] {
+  if (!bench) return [];
+  const cards: TrendCard[] = [];
+  for (const [key, m] of Object.entries(bench.metrics)) {
+    // calendar month index → value (last reading in the month wins)
+    const cal = new Map<number, number>();
+    for (const s of m.series) {
+      const st = INAUG[s.id]; if (!st) continue;
+      for (const p of s.data) if (Number.isFinite(p.value)) cal.set(st[0] * 12 + st[1] + p.month, p.value);
+    }
+    const ts = [...cal.keys()].sort((a, b) => a - b);
+    if (ts.length < 30) continue;
+    const t = ts[ts.length - 1], v = cal.get(t)!;
+    const label = m.label.replace(/\s*\(.*\)\s*$/, "");
+    const kicker = KICKER_BY_KEY[key] || KICKER[m.cat] || "Economy";
+    const value = fmtBench(v, m.unit);
+    const iso = new Date(Date.UTC(Math.floor(t / 12), t % 12, 15)).toISOString();
+    const dateLabel = `${MON[t % 12]} data`;
+    const href = `/dashboard?view=month&metric=${key}`;
+
+    if (!NO_RECORDS.has(key)) {
+      for (const dir of ["high", "low"] as const) {
+        let since: number | null = null;
+        for (let i = ts.length - 2; i >= 0; i--) {
+          const x = cal.get(ts[i])!;
+          if (dir === "high" ? x >= v : x <= v) { since = ts[i]; break; }
+        }
+        const gap = since == null ? t - ts[0] : t - since;
+        if (gap < 24) continue;
+        const years = Math.floor(gap / 12);
+        const good = m.lowerBetter ? dir === "low" : dir === "high";
+        cards.push({
+          id: `rec-${key}-${dir}`, kicker,
+          headline: since == null
+            ? `${label} at ${value} — the ${dir === "high" ? "highest" : "lowest"} on record`
+            : `${label} at ${value} — the ${dir === "high" ? "highest" : "lowest"} since ${monthLabel(since)}`,
+          badge: since == null ? `Record ${dir}` : `${years}-year ${dir}`,
+          tone: good ? "good" : "bad", date: iso, dateLabel, href,
+          score: 3 + Math.min(years, 15) / 2,
+        });
+      }
+    }
+    if (!NO_STREAKS.has(key)) {
+      // consecutive month-on-month moves in one direction, ending now
+      let n = 0, dirUp: boolean | null = null;
+      for (let i = ts.length - 1; i > 0; i--) {
+        if (ts[i] - ts[i - 1] !== 1) break;
+        const d = cal.get(ts[i])! - cal.get(ts[i - 1])!;
+        if (d === 0) break;
+        const up = d > 0;
+        if (dirUp == null) dirUp = up; else if (up !== dirUp) break;
+        n++;
+      }
+      if (n >= 3 && dirUp != null) {
+        const good = m.lowerBetter ? !dirUp : dirUp;
+        cards.push({
+          id: `streak-${key}`, kicker,
+          headline: `${label} ${dirUp ? "rose" : "fell"} ${n} months in a row, to ${value}`,
+          badge: `${dirUp ? "↑" : "↓"} ${n} months`,
+          tone: good ? "good" : "bad", date: iso, dateLabel, href,
+          score: 1.5 + n / 2,
+        });
+      }
+    }
+  }
+  // One card per measure: keep its strongest.
+  const best = new Map<string, TrendCard>();
+  for (const c of cards) {
+    const k = c.href;
+    if (!best.has(k) || best.get(k)!.score < c.score) best.set(k, c);
+  }
+  return [...best.values()].sort((a, b) => b.score - a.score);
+}

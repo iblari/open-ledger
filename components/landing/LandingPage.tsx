@@ -2,7 +2,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useIsMobileViewport, useViewportWidth } from "@/lib/viewport";
 import CheetahMark from "@/components/CheetahMark";
-import { liveAnnual, type Bench } from "@/lib/bench-lens";
+import { liveAnnual, dataSignals, type Bench, type TrendCard } from "@/lib/bench-lens";
 import {
   BarChart, Bar, Cell as RechartsCell, LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
@@ -1451,7 +1451,68 @@ function MobileTicker() {
   );
 }
 
-function MobileLanding() {
+
+/* ── Trending this week: phone homepage strip. Data records and streaks are
+   found client-side in the live FRED feed (lib/bench-lens dataSignals);
+   repeated lines and rising subjects come from the broadcast ledger on the
+   server (lib/trending-live). Freshest + most unusual first. ── */
+const TONE: Record<TrendCard["tone"], string> = { good: "#1f7a6d", bad: "#c2410c", neutral: "#b8372d" };
+function TrendingStrip({ cards }: { cards: TrendCard[] }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [idx, setIdx] = useState(0);
+  if (!cards.length) return null;
+  const onScroll = () => {
+    const el = ref.current; if (!el) return;
+    const w = (el.firstElementChild as HTMLElement | null)?.offsetWidth || 1;
+    setIdx(Math.min(cards.length - 1, Math.round(el.scrollLeft / (w + 10))));
+  };
+  return (
+    <section aria-labelledby="trend-h" style={{ marginTop: 18 }}>
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", padding: "0 20px", marginBottom: 8 }}>
+        <h2 id="trend-h" style={{ fontFamily: SERIF, fontSize: 18, fontWeight: 500, margin: 0, letterSpacing: "-0.01em" }}>
+          Trending <em style={{ fontStyle: "italic", color: C.accent }}>this week</em>
+        </h2>
+        <span style={{ fontSize: 9.5, color: C.mute, textTransform: "uppercase", letterSpacing: "0.06em", display: "flex", alignItems: "center", gap: 6 }}>
+          updates daily
+          <span style={{ background: C.accent, color: "#fff", fontWeight: 700, fontSize: 8.5, padding: "2px 5px", borderRadius: 3, letterSpacing: "0.05em" }}>NEW</span>
+        </span>
+      </div>
+      <div ref={ref} onScroll={onScroll} className="vu-chips" style={{
+        display: "flex", gap: 10, overflowX: "auto", scrollSnapType: "x mandatory",
+        padding: "0 20px 2px", scrollPaddingLeft: 20, scrollbarWidth: "none",
+      }}>
+        {cards.map(c => {
+          const col = TONE[c.tone];
+          return (
+            <Link key={c.id} href={c.href} style={{
+              flex: "0 0 76%", scrollSnapAlign: "start", textDecoration: "none", color: C.ink,
+              background: "#fff", border: `1px solid ${C.rule}`, borderTop: `3px solid ${col}`,
+              borderRadius: 6, padding: "11px 13px 12px", display: "flex", flexDirection: "column", gap: 7, minHeight: 128,
+            }}>
+              <span style={{ fontSize: 9.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: col }}>
+                {c.kicker} <span style={{ color: C.mute, fontWeight: 500 }}>· {c.dateLabel}</span>
+              </span>
+              <span style={{ fontFamily: SERIF, fontSize: 15.5, lineHeight: 1.25, letterSpacing: "-0.005em", flex: 1 }}>{c.headline}</span>
+              <span style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                <span style={{ fontSize: 10.5, fontWeight: 700, color: col, background: col + "14", padding: "3px 7px", borderRadius: 99 }}>{c.badge}</span>
+                <span style={{ fontSize: 10.5, color: C.mute, whiteSpace: "nowrap" }}>{c.kicker === "Fact-checks" || c.kicker === "Broadcasts" ? "Live ledger" : "FRED"} →</span>
+              </span>
+            </Link>
+          );
+        })}
+      </div>
+      {cards.length > 1 && (
+        <div aria-hidden style={{ display: "flex", justifyContent: "center", gap: 5, marginTop: 9 }}>
+          {cards.map((c, i) => (
+            <span key={c.id} style={{ width: i === idx ? 14 : 5, height: 5, borderRadius: 99, background: i === idx ? C.ink : C.rule, transition: "width .2s" }} />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function MobileLanding({ liveTrends = [] }: { liveTrends?: TrendCard[] }) {
   const [openSource, setOpenSource] = useState<string | null>(null);
   // The sticky "Open the ledger" bar steps aside while the dark Live band is
   // on screen — sitting at the bottom of the viewport, it landed right on the
@@ -1490,6 +1551,17 @@ function MobileLanding() {
     fetch("/api/benchmark-data").then(r => r.json()).then(d => { if (alive && d && !d.error) setBench(d); }).catch(() => {});
     return () => { alive = false; };
   }, []);
+
+  // Interleave: best data signal, best broadcast signal, … — capped at 5.
+  const trending = useMemo(() => {
+    const d = dataSignals(bench), l = [...liveTrends].sort((a, b) => b.score - a.score);
+    const out: TrendCard[] = [];
+    while ((d.length || l.length) && out.length < 5) {
+      if (d.length) out.push(d.shift()!);
+      if (l.length && out.length < 5) out.push(l.shift()!);
+    }
+    return out;
+  }, [bench, liveTrends]);
 
   const m = METRICS[selectedMetric];
   const cfg = METRIC_DISPLAY_LANDING[selectedMetric];
@@ -1548,7 +1620,7 @@ function MobileLanding() {
         </div>
       </div>
 
-      {/* Trends feed lives at /trends — homepage strip removed per design. */}
+      <TrendingStrip cards={trending} />
 
       {/* ── 4. Metric chart panel (chips below pick the metric) ── */}
       <div style={{ background: "#fbfaf6", border: `1px solid ${C.rule}`, borderRadius: 6, margin: "16px 14px 0", padding: "12px 12px 10px" }}>
@@ -1600,6 +1672,7 @@ function MobileLanding() {
           })}
         </div>
       </div>
+
 
       </Tile>
       {/* ── 4b. Live Broadcast showcase (full-bleed). Moved up from below the
@@ -1732,7 +1805,7 @@ function MobileLanding() {
   );
 }
 
-export default function LandingPage() {
+export default function LandingPage({ liveTrends = [] }: { liveTrends?: TrendCard[] } = {}) {
   const mob = useIsMobile();
   const med = useMedium();
   // Nav is smoked-glass while it floats over the dark hero, cream after.
@@ -1756,7 +1829,7 @@ export default function LandingPage() {
     return (
       <div style={{ background: PAGE_BG, color: C.ink, fontFamily: SANS, fontSize: 15, lineHeight: 1.5, minHeight: "100vh" }}>
         <Nav mob={mob} />
-        <MobileLanding />
+        <MobileLanding liveTrends={liveTrends} />
       </div>
     );
   }

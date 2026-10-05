@@ -1,6 +1,7 @@
 import { getLiveState } from "@/lib/live-kv";
 import LiveTakeover, { type LiveNow } from "@/components/LiveTakeover";
 import LandingPage from "@/components/landing/LandingPage";
+import { liveTrending } from "@/lib/trending-live";
 
 /**
  * / — the landing page, with a live broadcast band above it when one is running.
@@ -33,11 +34,13 @@ async function liveNow(): Promise<LiveNow | null> {
 }
 
 export default async function Page() {
-  const live = await liveNow();
+  // Trending cards from the broadcast ledger. Cached (10 min) and never
+  // allowed to fail the page — the strip just shows the data cards alone.
+  const [live, liveTrends] = await Promise.all([liveNow(), liveTrending().catch(() => [])]);
   return (
     <>
       <LiveTakeover live={live} />
-      <LandingPage />
+      <LandingPage liveTrends={liveTrends} />
     </>
   );
 }
