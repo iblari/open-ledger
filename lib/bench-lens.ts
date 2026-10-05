@@ -82,6 +82,7 @@ export function fmtBench(v: number, unit: string, signed = false): string {
     case "B": return `${sign}$${Math.round(a).toLocaleString("en-US")}B`;
     case "$": return `${sign}$${a.toFixed(2)}`;
     case "x": return `${sign}${a.toFixed(2)}×`;
+    case "pts": return `${v > 0 && signed ? "+" : sign}${a.toFixed(2)} pts`;
     case "idx": return `${sign}${Math.round(a).toLocaleString("en-US")}`;
     default: return `${sign}${a.toFixed(1)}`;
   }
@@ -106,6 +107,9 @@ const M_TO_BENCH: Record<string, { key: string; mode: "change" | "avg" }> = {
   fed_rate: { key: "fed_rate", mode: "change" },
   purchasing: { key: "purchasing", mode: "change" },
   sp500: { key: "sp500", mode: "change" },
+  ten_year: { key: "ten_year", mode: "change" },
+  five_year: { key: "five_year", mode: "change" },
+  yield_curve: { key: "yield_curve", mode: "avg" },
   deficit: { key: "deficit", mode: "avg" },
 };
 
@@ -160,6 +164,11 @@ const ANNUAL: Record<string, { key: string; agg: "avg" | "last" | "sum" | "fy"; 
   // Year-end level; FRED's series is the monthly average of daily closes,
   // so December's average stands in for the year-end close.
   sp500: { key: "sp500", agg: "last" },
+  // Treasury yields: annual average of the monthly series, as the historical
+  // points are built.
+  ten_year: { key: "ten_year", agg: "avg" },
+  five_year: { key: "five_year", agg: "avg" },
+  yield_curve: { key: "yield_curve", agg: "avg" },
   // Fiscal year (Oct–Sep), the basis the historical deficits are stated on.
   deficit: { key: "deficit", agg: "fy" },
   real_gdp: { key: "real_gdp", agg: "avg", splice: true },
@@ -267,9 +276,9 @@ const INAUG: Record<string, [number, number]> = {
   bush43: [2001, 0], obama: [2009, 0], trump1: [2017, 0], biden: [2021, 0], trump2: [2025, 0],
 };
 const KICKER: Record<string, string> = { growth: "Growth", labor: "Jobs", prices: "Prices", fiscal: "Fiscal", sentiment: "Sentiment" };
-const KICKER_BY_KEY: Record<string, string> = { mortgage: "Housing", housing_starts: "Housing", sp500: "Markets", saving: "Households" };
+const KICKER_BY_KEY: Record<string, string> = { mortgage: "Housing", housing_starts: "Housing", sp500: "Markets", saving: "Households", ten_year: "Rates", five_year: "Rates", yield_curve: "Rates" };
 // Levels that drift up (or down) with time — a "record" there is the calendar, not news.
-const NO_RECORDS = new Set(["real_gdp", "retail", "purchasing", "deficit", "jobs", "trade"]);
+const NO_RECORDS = new Set(["yield_curve", "real_gdp", "retail", "purchasing", "deficit", "jobs", "trade"]);
 const NO_STREAKS = new Set(["jobs", "purchasing", "real_gdp", "retail", "debt_gdp", "deficit", "gdp_growth", "wages"]);
 const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const monthLabel = (t: number) => `${MON[t % 12]} ${Math.floor(t / 12)}`;
@@ -294,6 +303,21 @@ export function dataSignals(bench: Bench | null): TrendCard[] {
     const dateLabel = `${MON[t % 12]} data`;
     const href = `/dashboard?view=month&metric=${key}`;
 
+    // The yield curve's sign is the news, not its level: flag a flip
+    // (inverted ↔ normal) within the last three months.
+    if (key === "yield_curve") {
+      const back = cal.get(t - 3);
+      if (back != null && Math.sign(back) !== Math.sign(v) && v !== 0) {
+        cards.push({
+          id: "curve-flip", kicker: "Rates",
+          headline: v < 0
+            ? `The yield curve inverted — 10-year now ${fmtBench(-v, "pts")} below the 2-year`
+            : `The yield curve is no longer inverted — 10-year ${fmtBench(v, "pts")} above the 2-year`,
+          badge: v < 0 ? "Recession signal" : "Un-inverted",
+          tone: v < 0 ? "bad" : "good", date: iso, dateLabel, href, score: 9,
+        });
+      }
+    }
     if (!NO_RECORDS.has(key)) {
       for (const dir of ["high", "low"] as const) {
         let since: number | null = null;

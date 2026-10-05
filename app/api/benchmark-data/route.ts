@@ -71,6 +71,13 @@ const FRED_SERIES: Record<string, string> = {
 const OPTIONAL_SERIES: Record<string, { id: string; query?: string }> = {
   SP500: { id: 'SP500', query: '&frequency=m&aggregation_method=avg' },
   MTSDS133FMS: { id: 'MTSDS133FMS' },
+  // Treasury yields, monthly averages of the daily constant-maturity yields,
+  // from 1953 (5y, 10y) and 1976 (the 10y−2y spread). The spread is the
+  // yield-curve signal: below zero ("inverted") has preceded every US
+  // recession since the late 1970s.
+  GS10: { id: 'GS10' },
+  GS5: { id: 'GS5' },
+  T10Y2YM: { id: 'T10Y2YM' },
 };
 
 // ── Metric definitions ──
@@ -120,7 +127,13 @@ const METRICS: MetricDef[] = [
   { key: 'saving', label: 'Saving Rate', short: 'Save', unit: '%', lowerBetter: false, cat: 'fiscal', transform: 'direct', fredKey: 'PSAVERT' },
   // Sentiment
   { key: 'consumer_conf', label: 'Consumer Sentiment', short: 'Sent', unit: '', lowerBetter: false, cat: 'sentiment', transform: 'direct', fredKey: 'UMCSENT' },
-  { key: 'sp500', label: 'S&P 500', short: 'S&P', unit: 'idx', lowerBetter: false, cat: 'growth', transform: 'direct', fredKey: 'SP500' },
+  // Markets & rates
+  { key: 'sp500', label: 'S&P 500', short: 'S&P', unit: 'idx', lowerBetter: false, cat: 'markets', transform: 'direct', fredKey: 'SP500' },
+  { key: 'ten_year', label: '10-Year Treasury', short: '10Y', unit: '%', lowerBetter: true, cat: 'markets', transform: 'direct', fredKey: 'GS10' },
+  { key: 'five_year', label: '5-Year Treasury', short: '5Y', unit: '%', lowerBetter: true, cat: 'markets', transform: 'direct', fredKey: 'GS5' },
+  // Higher is "better" only in the sense that a positive slope is the normal,
+  // healthy shape; negative (inverted) is the recession warning.
+  { key: 'yield_curve', label: 'Yield Curve (10Y–2Y)', short: 'Curve', unit: 'pts', lowerBetter: false, cat: 'markets', transform: 'direct', fredKey: 'T10Y2YM' },
   // Trailing 12-month total, not the raw month: single months swing wildly
   // with tax dates (April is usually a surplus). The September value of the
   // rolling sum is exactly the fiscal-year deficit.
@@ -133,6 +146,7 @@ const CATS: Record<string, string> = {
   prices: 'Prices & Wages',
   fiscal: 'Fiscal',
   sentiment: 'Sentiment',
+  markets: 'Markets & Rates',
 };
 
 // ── Helpers ──

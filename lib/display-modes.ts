@@ -238,6 +238,9 @@ export const METRIC_DISPLAY_DASHBOARD: Record<string, MetricDisplay> = {
   sp500:         { perMetricUnit: "pct_yr",       dollarAware: true  },
   trade:         { perMetricUnit: "avg_per_year", dollarAware: false },
   fed_rate:      { perMetricUnit: "pp",           dollarAware: false },
+  ten_year:      { perMetricUnit: "pp",           dollarAware: false },
+  five_year:     { perMetricUnit: "pp",           dollarAware: false },
+  yield_curve:   { perMetricUnit: "pp",           dollarAware: false },
   purchasing:    { perMetricUnit: "pp",           dollarAware: false },
 };
 

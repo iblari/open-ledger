@@ -317,7 +317,7 @@ function DarkHero({ med }: { med: boolean }) {
           }}>See methodology</a>
         </div>
         <div style={{ display: "flex", justifyContent: "center", gap: 64, marginTop: 72 }}>
-          {[{ n: 19, l: "Economic metrics" }, { n: 5, l: "Administrations" }, { n: 32, l: "Years of data", suffix: "yrs" }].map(st => (
+          {[{ n: 22, l: "Economic metrics" }, { n: 5, l: "Administrations" }, { n: 32, l: "Years of data", suffix: "yrs" }].map(st => (
             <div key={st.l}>
               <div style={{ fontFamily: SERIF, fontSize: 40, lineHeight: 1, letterSpacing: "-0.025em", fontVariantNumeric: "tabular-nums" }}>
                 <CountUp to={st.n} />
@@ -403,7 +403,7 @@ function Hero({ mob, med }: { mob: boolean; med: boolean }) {
                 metric count in particular moved from 14 to 20 on the
                 benchmark today without anyone editing this line, which is
                 precisely why a bare number here goes stale silently. */}
-            {[{ n: 19, l: "Economic metrics" }, { n: 5, l: "Administrations" }, { n: 32, l: "Years of data", suffix: "yrs" }].map((s, i) => (
+            {[{ n: 22, l: "Economic metrics" }, { n: 5, l: "Administrations" }, { n: 32, l: "Years of data", suffix: "yrs" }].map((s, i) => (
               <div key={i}>
                 <div style={{ fontFamily: SERIF, fontSize: mob ? 28 : 40, lineHeight: 1, letterSpacing: "-0.025em", fontVariantNumeric: "tabular-nums" }}>
                   <CountUp to={s.n} />
@@ -959,7 +959,7 @@ function DeepDiveSection({ mob, med }: { mob: boolean; med: boolean }) {
               textDecoration: "none", fontSize: 13,
             }}>
               <div>
-                <div style={{ fontFamily: SERIF, fontWeight: 600, fontSize: 15 }}>See all 19 metrics</div>
+                <div style={{ fontFamily: SERIF, fontWeight: 600, fontSize: 15 }}>See all 22 metrics</div>
                 <div style={{ fontSize: 11, opacity: 0.6, marginTop: 2 }}>Jobs, wages, trade, debt, and more</div>
               </div>
               <span className="vu-arw" style={{ fontSize: 20, opacity: 0.7 }}>→</span>
@@ -1685,7 +1685,7 @@ function MobileLanding({ liveTrends = [] }: { liveTrends?: TrendCard[] }) {
             background: C.ink, color: "#f8f5f0", fontSize: 12.5, fontWeight: 500,
             padding: "10px 15px", borderRadius: 4, textDecoration: "none",
           }}>
-            See all 19 metrics →
+            See all 22 metrics →
           </Link>
           {/* Was a link to /dashboard — "Methodology" landed people on the
               data. It now jumps to the methodology section on this page. */}
@@ -1759,7 +1759,7 @@ function MobileLanding({ liveTrends = [] }: { liveTrends?: TrendCard[] }) {
       <div ref={liveBandRef}><Tile mob dark><LivePromo /></Tile></div>
       {/* ── 5. (Removed) The ledger table. On a phone it was several screens
           of small cells repeating what the Data tab does better; the chart
-          above keeps its metric picker (chips) and "See all 19 metrics"
+          above keeps its metric picker (chips) and "See all 22 metrics"
           leads to the full comparison. ── */}
       <Tile mob style={{ padding: "4px 0 18px", background: LAYOUT === "cards" ? "#ffffff" : undefined }}>
       {/* ── 5c. Methodology (target of the hero's Methodology button) ── */}
@@ -1874,7 +1874,7 @@ function MobileLanding({ liveTrends = [] }: { liveTrends?: TrendCard[] }) {
           <span>
             <span style={{ display: "block", fontFamily: SERIF, fontSize: 15, fontWeight: 600, color: "#f8f5f0" }}>Open the ledger</span>
             <span style={{ display: "block", fontSize: 10.5, color: "rgba(248,245,240,.6)", marginTop: 1 }}>
-              19 metrics · 5 administrations · sources cited
+              22 metrics · 5 administrations · sources cited
             </span>
           </span>
           <span style={{ fontSize: 18, color: "#f8f5f0" }}>→</span>

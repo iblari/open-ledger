@@ -149,10 +149,24 @@ const META: Record<string, {
   },
   ten_year: {
     label: "10-Year Treasury", sub: "Yield %",
-    def: "The yield (annual return) on a 10-year US Treasury bond. Set by bond market, not the Fed. The benchmark for long-term borrowing costs.",
-    bench: { good: "2-4%", target: "Reflects long-term inflation + growth expectations", warn: "Below 1% = recession fears. Above 5% = inflation fears", why: "Drives 30-year mortgage rates, corporate bond yields, and the discount rate for stock valuations." },
-    ctx: "Market-determined. Rising yields = bonds losing value.",
-    facts: [{ t: "Yield vs price", x: "When bond prices fall, yields rise. They move inversely." }],
+    def: "The yield on a 10-year US Treasury note, monthly average of daily constant-maturity yields (Federal Reserve H.15). Set by the bond market, not the Fed. The benchmark for long-term borrowing costs.",
+    bench: { good: "2–4%", target: "Roughly expected inflation plus expected real growth", warn: "Below 1% signals recession fears; above 5% signals inflation or deficit fears", why: "It sets the floor for 30-year mortgage rates, corporate borrowing and the discount rate behind stock valuations. It also prices what the government pays to roll over its debt." },
+    ctx: "Market-determined. Presidents move it indirectly, through deficits and inflation expectations.",
+    facts: [{ t: "Yield vs price", x: "When bond prices fall, yields rise. They move inversely." }, { t: "It hit 0.5% in August 2020", x: "The lowest on record, as investors fled to safety in the pandemic. It topped 15% in 1981." }],
+  },
+  five_year: {
+    label: "5-Year Treasury", sub: "Yield %",
+    def: "The yield on a 5-year US Treasury note, monthly average of daily constant-maturity yields (Federal Reserve H.15). Sits between short rates the Fed controls and long rates the market sets.",
+    bench: { good: "2–4%", target: "Tracks where markets expect the Fed's rate to average over five years", warn: "Above the 10-year means the curve is inverting at the middle", why: "Car loans, many adjustable-rate mortgages and business loans price off the 5-year. It's the market's read on the Fed's next few years." },
+    ctx: "Moves more with Fed expectations than the 10-year does.",
+    facts: [{ t: "Market's forecast of the Fed", x: "When the 5-year falls below the fed funds rate, markets are betting on rate cuts." }],
+  },
+  yield_curve: {
+    label: "Yield Curve", sub: "10-year minus 2-year, pts",
+    def: "The 10-year Treasury yield minus the 2-year (FRED T10Y2YM). Positive is the normal shape: lenders demand more to lend for longer. Negative is an \"inverted\" curve.",
+    bench: { good: "+0.5 to +2.5 pts", target: "A positive, gently upward-sloping curve", warn: "Below zero (inverted) has preceded every US recession since the late 1970s", why: "Inversion means markets expect rates to fall — usually because they expect the economy to weaken. Banks borrow short and lend long, so an inverted curve also squeezes lending." },
+    ctx: "A warning sign, not a timer: recessions have followed inversions by roughly 6 to 24 months, and the 2022–24 inversion, the longest on record, had not produced one by its end.",
+    facts: [{ t: "Inverted July 2022 – Aug 2024", x: "The longest inversion in the series' history, at its deepest about −1.1 pts in mid-2023." }],
   },
   unemployment_claims: {
     label: "Initial Jobless Claims", sub: "Weekly K",
@@ -212,6 +226,7 @@ function fmtVal(v: number | null | undefined, unit: string): string {
   if (unit === "K") return `${v > 0 ? "+" : ""}${v.toFixed(0)}K`;
   if (unit === "$") return `$${v.toFixed(2)}`;
   if (unit === "%") return `${v.toFixed(1)}%`;
+  if (unit === "pts") return `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(2)} pts`;
   return v.toFixed(1) + unit;
 }
 
