@@ -1700,58 +1700,9 @@ function MobileLanding({ liveTrends = [] }: { liveTrends?: TrendCard[] }) {
 
       <TrendingStrip cards={trending} />
 
-      {/* ── 4. Metric chart panel (chips below pick the metric) ── */}
-      <div style={{ background: "#fbfaf6", border: `1px solid ${C.rule}`, borderRadius: 6, margin: "16px 14px 0", padding: "12px 12px 10px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 7 }}>
-          <span style={{ fontFamily: SERIF, fontSize: 14, fontWeight: 500 }}>{m.l} · {unitTag}</span>
-          <span style={{ fontSize: 8.5, textTransform: "uppercase", color: C.mute, letterSpacing: "0.05em" }}>{m.cat} · ’93–’{String(lastYear).slice(2)}{lastYear > 2024 ? " · live" : ""}</span>
-        </div>
-        <div style={{ position: "relative", height: 102, background: "#fff", border: `1px solid ${C.rule}`, borderRadius: 4, overflow: "hidden" }}>
-          <div style={{ position: "absolute", left: 0, right: 0, top: `${zeroTopPct}%`, borderTop: "1px dashed #d4cfc5" }} />
-          {series.map((p, i) => {
-            const isPos = p.v >= 0;
-            const topPct = isPos ? ((hi - p.v) / span) * 100 : zeroTopPct;
-            const hPct = (Math.abs(p.v) / span) * 100;
-            return (
-              <div key={p.y} title={p.partial ? `${p.y} so far` : String(p.y)} style={{
-                position: "absolute",
-                left: `${i * step + 1}%`, width: `${step * 0.82}%`,
-                top: `${topPct}%`, height: `max(${hPct}%, 2px)`,
-                background: colorOf(p.a), borderRadius: 1,
-                opacity: p.partial ? 0.4 : 1,
-                outline: p.partial ? `1px dashed ${colorOf(p.a)}` : undefined,
-                transition: "top .5s ease, height .5s ease, background .5s ease",
-              }} />
-            );
-          })}
-        </div>
-        <div style={{ position: "relative", height: 14, marginTop: 3 }}>
-          {termStarts.map(t => (
-            <span key={t.y} style={{
-              position: "absolute", left: `${t.idx * step + 1}%`,
-              fontSize: 8.5, fontWeight: 600, color: colorOf(t.a),
-            }}>’{String(t.y).slice(2)}</span>
-          ))}
-        </div>
-        <div style={{ fontSize: 9.5, color: C.mute, marginTop: 4, lineHeight: 1.5 }}>
-          {M_FOOTNOTE[cfg?.perMetricUnit || "pp"]}
-        </div>
-        {/* Metric picker — replaces the table rows that used to drive this chart. */}
-        <div role="tablist" aria-label="Metric" className="vu-chips" style={{ display: "flex", gap: 6, overflowX: "auto", margin: "10px -12px 0", padding: "0 12px 2px", scrollbarWidth: "none" }}>
-          {METRIC_ORDER.map(mk => {
-            const on = selectedMetric === mk;
-            return (
-              <button key={mk} type="button" role="tab" aria-selected={on} onClick={() => setSelectedMetric(mk)} style={{
-                flex: "none", border: `1px solid ${on ? C.ink : C.rule}`, background: on ? C.ink : "#fff",
-                color: on ? "#f8f5f0" : C.ink, borderRadius: 99, padding: "6px 11px",
-                fontSize: 11.5, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap",
-              }}>{METRICS[mk].l}</button>
-            );
-          })}
-        </div>
-      </div>
-
-
+      {/* The metric chart panel lived here. Removed on phones to keep the
+          first screen simple: headline, Trending, then Live. The full
+          charts are one tap away on the Data tab. */}
       </Tile>
       {/* ── 4b. Live Broadcast showcase (full-bleed). Moved up from below the
           table: at phone length the table is several screens, and most
