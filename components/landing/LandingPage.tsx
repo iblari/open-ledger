@@ -1526,6 +1526,19 @@ function MobileLanding({ liveTrends = [] }: { liveTrends?: TrendCard[] }) {
     io.observe(el);
     return () => io.disconnect();
   }, []);
+  // ...and once the newsletter is reached. It used to be sticky, which kept a
+  // ~95px slot at the very end of the page; hidden there, that slot was a blank
+  // band under the footer. Fixed + hidden at the end leaves no gap.
+  const endRef = useRef<HTMLDivElement>(null);
+  const [atEnd, setAtEnd] = useState(false);
+  useEffect(() => {
+    const el = endRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(([e]) => setAtEnd(e.isIntersecting || e.boundingClientRect.top < 0), { threshold: 0 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  const ctaHidden = bandInView || atEnd;
   const heat = useMemo(() => computeHeatmap(METRICS, AID), []);
   const [selectedMetric, setSelectedMetric] = useState<string>("gdp");
 
@@ -1742,7 +1755,7 @@ function MobileLanding({ liveTrends = [] }: { liveTrends?: TrendCard[] }) {
       </Tile>
       <Tile mob style={{ padding: "2px 0 18px" }}>
       {/* ── 7. Newsletter (compact) ── */}
-      <div style={{ background: "#fff", border: `1px solid ${C.rule}`, borderRadius: 6, margin: "16px 14px 0", padding: 14 }}>
+      <div ref={endRef} style={{ background: "#fff", border: `1px solid ${C.rule}`, borderRadius: 6, margin: "16px 14px 0", padding: 14 }}>
         <div style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: "0.08em", color: C.sub, marginBottom: 8, fontWeight: 500 }}>
           Join the community
         </div>
@@ -1773,7 +1786,7 @@ function MobileLanding({ liveTrends = [] }: { liveTrends?: TrendCard[] }) {
       </div>
 
       {/* ── 8. Footer line ── */}
-      <div style={{ fontSize: 9, textTransform: "uppercase", color: C.mute, textAlign: "center", padding: "14px 0 6px", letterSpacing: "0.06em" }}>
+      <div style={{ fontSize: 9, textTransform: "uppercase", color: C.mute, textAlign: "center", padding: "14px 0 calc(10px + env(safe-area-inset-bottom))", letterSpacing: "0.06em" }}>
         © 2026 Vote Unbiased
       </div>
 
@@ -1781,13 +1794,14 @@ function MobileLanding({ liveTrends = [] }: { liveTrends?: TrendCard[] }) {
       </div>
 
       {/* ── 9. Sticky bottom CTA (hidden while the Live band is in view) ── */}
-      <div aria-hidden={bandInView} style={{
-        position: "sticky", bottom: 0, zIndex: 20, padding: "12px 16px 16px",
-        opacity: bandInView ? 0 : 1, transform: bandInView ? "translateY(16px)" : "none",
-        pointerEvents: bandInView ? "none" : "auto", transition: "opacity .2s ease, transform .2s ease",
+      <div aria-hidden={ctaHidden} style={{
+        position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 20,
+        padding: "12px 16px calc(16px + env(safe-area-inset-bottom))",
+        opacity: ctaHidden ? 0 : 1, transform: ctaHidden ? "translateY(16px)" : "none",
+        pointerEvents: ctaHidden ? "none" : "auto", transition: "opacity .2s ease, transform .2s ease",
         background: "linear-gradient(180deg, rgba(248,245,240,0) 0%, #f8f5f0 42%)",
       }}>
-        <Link href="/dashboard" tabIndex={bandInView ? -1 : 0} style={{
+        <Link href="/dashboard" tabIndex={ctaHidden ? -1 : 0} style={{
           display: "flex", justifyContent: "space-between", alignItems: "center",
           background: C.ink, borderRadius: 6, padding: "13px 16px", textDecoration: "none",
           boxShadow: "0 10px 26px -10px rgba(0,0,0,.4)",
