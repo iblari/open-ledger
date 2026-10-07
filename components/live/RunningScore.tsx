@@ -57,7 +57,7 @@ export default function RunningScore({
           color: L.mutedDark, letterSpacing: "0.02em", maxWidth: mob ? 92 : 118,
         }}>
           {pct !== null
-            ? `matched the data · of ${checked} checkable claim${checked === 1 ? "" : "s"}`
+            ? (mob ? `matched · of ${checked} checked` : `matched the data · of ${checked} checkable claim${checked === 1 ? "" : "s"}`)
             : "no checkable claims yet"}
         </span>
       </span>
@@ -72,12 +72,12 @@ export default function RunningScore({
             : null}
         </div>
 
-        <div style={{ display: "flex", gap: mob ? 11 : 18, flexWrap: "wrap", alignItems: "baseline" }}>
+        <div style={{ display: "flex", gap: mob ? "2px 9px" : 18, flexWrap: "wrap", alignItems: "baseline" }}>
           {counts.filter(([n]) => n > 0).map(([n, label]) => (
             <span key={label} style={{ display: "inline-flex", gap: 6, alignItems: "baseline" }}>
-              <span style={{ fontFamily: F.display, fontSize: 15, fontWeight: 600, color: "#F2EEE9" }}>{n}</span>
+              <span style={{ fontFamily: F.display, fontSize: mob ? 14 : 15, fontWeight: 600, color: "#F2EEE9" }}>{n}</span>
               <span style={{
-                fontFamily: F.ui, fontSize: 11, fontWeight: 500, letterSpacing: "0.1em",
+                fontFamily: F.ui, fontSize: mob ? 10 : 11, fontWeight: 500, letterSpacing: mob ? "0.06em" : "0.1em",
                 color: L.mutedDark2,
               }}>{label}</span>
             </span>
@@ -87,7 +87,7 @@ export default function RunningScore({
             <span style={{ fontFamily: F.ui, fontSize: 10.5, letterSpacing: "0.06em", color: L.mutedDark }}>
               {/* On a phone the explanatory tail wrapped onto its own line,
                   costing ~30px to restate what the legend already implies. */}
-              +{unverifiableCount} not scored{mob ? "" : " · forecasts & unaudited claims"}
+              +{unverifiableCount} {mob ? "unscored" : "not scored · forecasts & unaudited claims"}
             </span>
           )}
         </div>
