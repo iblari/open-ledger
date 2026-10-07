@@ -75,10 +75,43 @@ const COUNTRY_DEFS: [string, string][] = [
   ["China", "China|Chinese|Beijing"], ["Japan", "Japan|Japanese|Tokyo"], ["South Korea", "South Korea|Korea\\b|Korean"], ["Taiwan", "Taiwan"],
   ["India", "India\\b|Indian"], ["Mexico", "Mexico|Mexican"], ["Canada", "Canada|Canadian"], ["United Kingdom", "United Kingdom|Britain|British|\\bUK\\b"],
   ["Germany", "Germany|German"], ["France", "France|French"], ["Italy", "Italy|Italian"], ["Ireland", "Ireland|Irish"], ["European Union", "European Union|\\bEU\\b|Europe\\b"],
-  ["Russia", "Russia|Russian|Putin"], ["Ukraine", "Ukrain\\w*|Zelensky"], ["Israel", "Israel\\w*"], ["Iran", "Iran\\b|Iranian"], ["Saudi Arabia", "Saudi"],
+  ["Russia", "Russia|Russian"], ["Ukraine", "Ukrain\\w*"], ["Israel", "Israel\\w*"], ["Iran", "Iran\\b|Iranian"], ["Saudi Arabia", "Saudi"],
   ["Qatar", "Qatar"], ["UAE", "UAE|United Arab Emirates|Emirat\\w*"], ["Venezuela", "Venezuela\\w*"], ["Brazil", "Brazil\\w*"], ["Argentina", "Argentin\\w*"],
-  ["Vietnam", "Vietnam\\w*"], ["Cuba", "Cuba\\b|Cuban"], ["Panama", "Panama"], ["Greenland", "Greenland"], ["Egypt", "Egypt\\w*"], ["Turkey", "Turkey\\b|Turkish|Erdogan"],
+  ["Vietnam", "Vietnam\\w*"], ["Cuba", "Cuba\\b|Cuban"], ["Panama", "Panama"], ["Greenland", "Greenland"], ["Egypt", "Egypt\\w*"], ["Turkey", "Turkey\\b|Turkish"],
 ];
+
+// People. Two sources, merged by display name:
+//  1. a curated list (world leaders, officials, CEOs) that also counts the
+//     bare surname they are usually called by ("Biden", "Putin", "Powell");
+//  2. any "Firstname Lastname" whose first word is a common first name —
+//     this is what catches the midterm candidates and guests nobody would
+//     think to put on a list. Bare-surname matching is off for these:
+//     "Brown" or "White" alone means nothing.
+const PEOPLE_DEFS: [string, string, string][] = [
+  ["Joe Biden", "Former president", "Joe Biden|Biden"], ["Barack Obama", "Former president", "Barack (?:Hussein )?Obama|Obama"],
+  ["Kamala Harris", "Former VP", "Kamala Harris|Kamala"], ["Hillary Clinton", "Former Sec. of State", "Hillary Clinton|Hillary"],
+  ["JD Vance", "Vice President", "JD Vance|J\\.D\\. Vance|Vance"], ["Marco Rubio", "Secretary of State", "Marco Rubio|Rubio"],
+  ["Pete Hegseth", "Defense Secretary", "Pete Hegseth|Hegseth"], ["Scott Bessent", "Treasury Secretary", "Scott Bessent|Bessent"],
+  ["Howard Lutnick", "Commerce Secretary", "Howard Lutnick|Lutnick"], ["Jerome Powell", "Fed chair", "Jerome Powell|Jay Powell|Powell"],
+  ["Karoline Leavitt", "Press secretary", "Karoline Leavitt|Caroline Levitt|Carolyn Levitt|Caroline Leavitt|Leavitt"],
+  ["Elon Musk", "CEO, Tesla & SpaceX", "Elon Musk|Elon"], ["Jensen Huang", "CEO, Nvidia", "Jensen Huang|Jensen"], ["Tim Cook", "CEO, Apple", "Tim Cook"],
+  ["Nancy Pelosi", "Former Speaker", "Nancy Pelosi|Pelosi"], ["Chuck Schumer", "Senate Dem leader", "Chuck Schumer|Schumer"], ["Mike Johnson", "House Speaker", "Mike Johnson"],
+  ["Gavin Newsom", "Governor, California", "Gavin Newsom|Newsom"], ["Zohran Mamdani", "NYC mayor", "Zohran Mamdani|Mamdani"], ["Bernie Sanders", "Senator", "Bernie Sanders|Bernie"],
+  ["Charlie Kirk", "", "Charlie Kirk"], ["Xi Jinping", "China", "Xi Jinping|President Xi"], ["Vladimir Putin", "Russia", "Vladimir Putin|Putin"],
+  ["Volodymyr Zelensky", "Ukraine", "Zelensky\\w*|Zelenskyy"], ["Benjamin Netanyahu", "Israel", "Netanyahu|Bibi"], ["Kim Jong Un", "North Korea", "Kim Jong[- ]Un"],
+  ["Narendra Modi", "India", "Narendra Modi|Modi"], ["Mark Carney", "Canada", "Mark Carney|Carney"], ["Claudia Sheinbaum", "Mexico", "Sheinbaum"],
+  ["Keir Starmer", "UK", "Keir Starmer|Starmer"], ["Emmanuel Macron", "France", "Emmanuel Macron|Macron"], ["Giorgia Meloni", "Italy", "Giorgia Meloni|Meloni"],
+  ["Recep Erdogan", "Turkey", "Erdogan"], ["Sanae Takaichi", "Japan", "Takaichi"], ["Lee Jae-myung", "South Korea", "Lee Jae[- ]myung|President Lee"],
+  ["Nicolás Maduro", "Venezuela", "Maduro"],
+  ["Chris Wright", "Energy Secretary", "Chris Wright"], ["Sean Duffy", "Transportation Secretary", "Sean Duffy"], ["Doug Burgum", "Interior Secretary", "Doug Burgum|Burgum"],
+  ["Brooke Rollins", "Agriculture Secretary", "Brooke Rollins"], ["Robert F. Kennedy Jr.", "HHS Secretary", "Robert F\\.? Kennedy|RFK"], ["Lee Zeldin", "EPA Administrator", "Lee Zeldin|Zeldin"],
+  ["Tulsi Gabbard", "Intelligence Director", "Tulsi Gabbard|Tulsi"], ["Kristi Noem", "Homeland Security", "Kristi Noem|Noem"], ["Stephen Miller", "Deputy chief of staff", "Stephen Miller"],
+  ["Dan Sullivan", "Senator, Alaska", "Dan Sullivan"], ["Russell Vought", "OMB Director", "Russell Vought|Vought"], ["Susie Wiles", "Chief of staff", "Susie Wiles"], ["Michael Dell", "CEO, Dell", "Michael Dell"], ["Sam Altman", "CEO, OpenAI", "Sam Altman"], ["Larry Ellison", "Oracle", "Larry Ellison"], ["Mohammed bin Salman", "Saudi Arabia", "bin Salman|\\bMBS\\b"],
+];
+const FIRST_NAMES = new Set(("James John Robert Michael William David Richard Joseph Thomas Charles Christopher Daniel Matthew Anthony Mark Donald Steven Paul Andrew Joshua Kenneth Kevin Brian George Timothy Ronald Edward Jason Jeffrey Ryan Jacob Gary Nicholas Eric Jonathan Stephen Larry Justin Scott Brandon Benjamin Samuel Gregory Alexander Frank Patrick Raymond Jack Dennis Jerry Tyler Aaron Jose Adam Nathan Henry Douglas Zachary Peter Kyle Noah Ethan Jeremy Walter Christian Keith Roger Terry Austin Sean Gerald Carl Harold Dylan Arthur Lawrence Jordan Jesse Bryan Billy Bruce Gabriel Joe Logan Alan Juan Albert Willie Elijah Wayne Randy Vincent Mason Roy Ralph Bobby Russell Bradley Philip Eugene Mike Jim Bob Bill Tom Tim Dan Ken Ted Ron Rick Steve Dave Chris Matt Tony Pete Doug Greg Jeff Lindsey Rand Mitch Tucker Sean Rudy Newt Marco Ron Kristi Sarah Mary Patricia Jennifer Linda Elizabeth Barbara Susan Jessica Karen Nancy Lisa Betty Margaret Sandra Ashley Kimberly Emily Donna Michelle Carol Amanda Melissa Deborah Stephanie Rebecca Laura Sharon Cynthia Kathleen Amy Angela Shirley Anna Brenda Pamela Nicole Emma Samantha Katherine Christine Debra Rachel Catherine Carolyn Janet Ruth Maria Heather Diane Virginia Julie Joyce Victoria Kelly Christina Lauren Joan Evelyn Olivia Judith Megan Cheryl Martha Andrea Frances Hannah Jacqueline Ann Gloria Jean Kathryn Alice Teresa Sara Janice Doris Madison Julia Grace Judy Abigail Marie Denise Beverly Amber Theresa Marilyn Danielle Diana Brittany Natalie Sophia Rose Isabella Alexis Kayla Charlotte Tulsi Kristi Marsha Elise Nikki Lara Kari Dana Susie Marcy Toria Hassan Abdul Jamie Kelly Tina Robin Leslie Casey Taylor Morgan Shannon Lee Dean Glenn Wesley Neil Eric Craig Todd Shane Troy Chad Brent Derek Marcus Lance Curtis Clay Cole Ross Grant Brett Jared Jake Luke Drew Josh Max Sam Ben Nick Alex Jon Don Ed Al Hal Les Lou Mel Sal Vic Ivanka Melania Barron Tiffany Lara Kai Eli Ari Omar Ilhan Rashida Alexandria Gretchen Tammy Kyrsten Joni Marsha Lisa Cindy").split(" "));
+const NOT_PEOPLE = new Set(["Jesus Christ", "George Washington", "Abraham Lincoln", "John Quincy", "Thomas Edison", "Steve Jobs", "Thomas Jefferson", "Ronald Reagan"]);
+const PEOPLE = PEOPLE_DEFS.map(([name, role, pat]) => ({ name, role, rx: new RegExp(`\\b(?:${pat})\\b`, "g") }));
+export const PEOPLE_ROLES = new Map(PEOPLE_DEFS.map(([n, r]) => [n, r]));
 const COMPANIES = COMPANY_DEFS.map(([name, ticker, pat]) => ({ name, ticker, rx: new RegExp(`\\b(?:${pat})\\b`, "g") }));
 const COUNTRIES = COUNTRY_DEFS.map(([name, pat]) => ({ name, rx: new RegExp(`\\b(?:${pat})`, "g") }));
 
@@ -86,7 +119,8 @@ const COUNTRIES = COUNTRY_DEFS.map(([name, pat]) => ({ name, rx: new RegExp(`\\b
 
 interface Snip { t: number | null; text: string }
 interface BcSummary {
-  v: 2; words: number;
+  v: 3; words: number;
+  ppl: Record<string, number>;
   themes: Record<string, number>;
   cos: Record<string, number>;
   ctry: Record<string, number>;
@@ -123,10 +157,25 @@ export function summarize(transcript: string): BcSummary {
   };
   for (const c of COMPANIES) { const n = count(c.rx); if (n) { cos[c.name] = n; const s = lastSnip(c.rx); if (s) snip[c.name] = s; } }
   for (const c of COUNTRIES) { const n = count(c.rx); if (n) { ctry[c.name] = n; const s = lastSnip(c.rx); if (s) snip[c.name] = s; } }
-  return { v: 2, words, themes, cos, ctry, snip };
+  const ppl: Record<string, number> = {};
+  for (const p of PEOPLE) { const n = count(p.rx); if (n) { ppl[p.name] = n; const s = lastSnip(p.rx); if (s) snip[p.name] = s; } }
+  // Auto-detected full names, unless a curated entry already covers them.
+  const auto: Record<string, number> = {};
+  for (const m of body.matchAll(/\b([A-Z][a-z]+) ((?:Mc|Mac|O')?[A-Z][a-z]+(?:-[A-Z][a-z]+)?)\b/g)) {
+    const full = `${m[1]} ${m[2]}`;
+    if (!FIRST_NAMES.has(m[1]) || NOT_PEOPLE.has(full) || m[2] === "Trump") continue;
+    if (PEOPLE.some(p => { p.rx.lastIndex = 0; return p.rx.test(full); })) continue;
+    auto[full] = (auto[full] || 0) + 1;
+  }
+  for (const [full, n] of Object.entries(auto)) {
+    if (n < 2) continue;   // a name said once is usually an aside or a thank-you
+    ppl[full] = n;
+    const s = lastSnip(new RegExp(`\\b${full}\\b`, "g")); if (s) snip[full] = s;
+  }
+  return { v: 3, words, themes, cos, ctry, ppl, snip };
 }
 
-const SUM_KEY = (id: string) => `radar:bc:v2:${id}`;
+const SUM_KEY = (id: string) => `radar:bc:v3:${id}`;
 
 /* ── Aggregate ─────────────────────────────────────────────────────── */
 
@@ -138,7 +187,7 @@ export interface RadarRow {
   weekly: number[];      // rate per 10k words, oldest → newest
 }
 export interface RadarEntity {
-  name: string; ticker?: string;
+  name: string; ticker?: string; role?: string;
   recentCount: number; baseCount: number; recentBroadcasts: number; totalBroadcasts: number;
   status: Status; last: { date: string; videoId: string; title: string; t: number | null; text: string } | null;
 }
@@ -151,6 +200,7 @@ export interface Radar {
   themes: RadarRow[];
   companies: RadarEntity[];
   countries: RadarEntity[];
+  people: RadarEntity[];
 }
 
 const RECENT_DAYS = 14;
@@ -200,7 +250,7 @@ async function compute(): Promise<Radar> {
 type Entry = { videoId: string; title: string; startedAt: string };
 /** Pure: summaries in, radar out (kept separate so it can be tested offline). */
 export function aggregate(ledger: Entry[], sums: (BcSummary | null)[]): Radar {
-  const items = ledger.map((e, i) => ({ e, s: sums[i] })).filter(x => x.s && x.s.words > 500) as { e: Entry; s: BcSummary }[];
+  const items = ledger.map((e, i) => ({ e, s: sums[i] })).filter(x => x.s && x.s.v === 3 && x.s.words > 500) as { e: Entry; s: BcSummary }[];
   const lastDate = items.length ? items[items.length - 1].e.startedAt : new Date().toISOString();
   const cutoff = new Date(Date.parse(lastDate) - RECENT_DAYS * 864e5).toISOString();
   const recent = items.filter(x => x.e.startedAt >= cutoff), base = items.filter(x => x.e.startedAt < cutoff);
@@ -232,7 +282,7 @@ export function aggregate(ledger: Entry[], sums: (BcSummary | null)[]): Radar {
     };
   });
 
-  const entities = (field: "cos" | "ctry", tick?: Map<string, string>): RadarEntity[] => {
+  const entities = (field: "cos" | "ctry" | "ppl", tick?: Map<string, string>): RadarEntity[] => {
     const names = new Set<string>(); items.forEach(x => Object.keys(x.s[field]).forEach(n => names.add(n)));
     return [...names].map(name => {
       const r = recent.reduce((n, x) => n + (x.s[field][name] || 0), 0);
@@ -242,7 +292,7 @@ export function aggregate(ledger: Entry[], sums: (BcSummary | null)[]): Radar {
       const lastIt = [...items].reverse().find(x => x.s[field][name]);
       const sn = lastIt?.s.snip[name];
       return {
-        name, ticker: tick?.get(name),
+        name, ticker: field === "cos" ? tick?.get(name) : undefined, role: field === "ppl" ? (PEOPLE_ROLES.get(name) || undefined) : undefined,
         recentCount: r, baseCount: b, recentBroadcasts: breadth, totalBroadcasts: total,
         status: statusOf(rateZ(r, wr, b, wb), r, b, breadth),
         last: lastIt && sn ? { date: lastIt.e.startedAt, videoId: lastIt.e.videoId, title: lastIt.e.title, t: sn.t, text: sn.text } : null,
@@ -258,7 +308,8 @@ export function aggregate(ledger: Entry[], sums: (BcSummary | null)[]): Radar {
     themes: themes.sort((a, b) => (Number(b.market) - Number(a.market)) || (b.recentRate - a.recentRate)),
     companies: entities("cos", new Map(COMPANIES.map(c => [c.name, c.ticker]))).slice(0, 40),
     countries: entities("ctry").slice(0, 20),
+    people: entities("ppl").filter(p => p.recentCount + p.baseCount >= 3).slice(0, 40),
   };
 }
 
-export const getRadar = unstable_cache(async () => compute(), ["agenda-radar-v2"], { revalidate: 900 });
+export const getRadar = unstable_cache(async () => compute(), ["agenda-radar-v3"], { revalidate: 900 });
