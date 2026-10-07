@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useIsMobileViewport } from "@/lib/viewport";
 import type { Radar, RadarRow, RadarEntity } from "@/lib/agenda-radar";
 
 /**
@@ -36,6 +37,20 @@ function Badge({ s }: { s: RadarRow["status"] }) {
   return <span style={{ fontFamily: SANS, fontSize: 9.5, fontWeight: 700, letterSpacing: "0.08em", color: fg, background: bg, padding: "2px 6px", borderRadius: 4, whiteSpace: "nowrap" }}>{label}</span>;
 }
 
+function ThemeRow({ t, first }: { t: RadarRow; first: boolean }) {
+  const mult = t.baseRate > 0 ? t.recentRate / t.baseRate : null;
+  return (
+    <div style={{ borderTop: first ? "none" : `1px solid ${C.rule}`, padding: "8px 12px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <span style={{ fontFamily: SERIF, fontSize: 15, fontWeight: 500, color: C.ink, flex: 1, minWidth: 0 }}>{t.label}</span>
+        <b style={{ fontFamily: MONO, fontSize: 12.5, fontWeight: 500, color: C.up }}>{mult ? `${mult >= 10 ? Math.round(mult) : mult.toFixed(1)}×` : "new"}</b>
+        <Spark data={t.weekly.slice(-5)} color={C.up} />
+      </div>
+      {t.sectors.length > 0 && <div style={{ fontFamily: SANS, fontSize: 11, color: C.muted, marginTop: 2 }}>{t.sectors.join(" · ")} · {t.recentBroadcasts} broadcasts</div>}
+    </div>
+  );
+}
+
 function ThemeCard({ t }: { t: RadarRow }) {
   const mult = t.baseRate > 0 ? t.recentRate / t.baseRate : null;
   return (
@@ -60,23 +75,28 @@ function ThemeCard({ t }: { t: RadarRow }) {
   );
 }
 
-function EntityRow({ e, open, onToggle }: { e: RadarEntity; open: boolean; onToggle: () => void }) {
+function EntityRow({ e, open, onToggle, first }: { e: RadarEntity; open: boolean; onToggle: () => void; first: boolean }) {
+  const dot = e.status === "new" ? C.newc : e.status === "rising" ? C.up : e.status === "fading" ? C.down : null;
   return (
-    <div style={{ background: C.card, border: `1px solid ${C.rule}`, borderRadius: 9, padding: "9px 11px" }}>
-      <button type="button" onClick={onToggle} aria-expanded={open} style={{ all: "unset", cursor: "pointer", display: "flex", alignItems: "center", flexWrap: "wrap", gap: "4px 8px", width: "100%" }}>
-        <span style={{ fontFamily: SANS, fontSize: 14, fontWeight: 600, color: C.ink }}>{e.name}</span>
-        {e.ticker && <span style={{ fontFamily: MONO, fontSize: 10.5, color: C.muted, border: `1px solid ${C.rule}`, borderRadius: 4, padding: "1px 5px" }}>{e.ticker}</span>}
-        <Badge s={e.status} />
+    <div style={{ borderTop: first ? "none" : `1px solid ${C.rule}` }}>
+      <button type="button" onClick={onToggle} aria-expanded={open} style={{
+        all: "unset", cursor: "pointer", display: "flex", alignItems: "center", gap: 8,
+        width: "100%", boxSizing: "border-box", padding: "8px 12px",
+      }}>
+        <span style={{ fontFamily: SANS, fontSize: 13.5, fontWeight: 600, color: C.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>{e.name}</span>
+        {e.ticker && e.ticker !== "private" && <span style={{ fontFamily: MONO, fontSize: 10, color: C.muted }}>{e.ticker}</span>}
+        {dot && <span title={e.status} style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", color: dot }}>{e.status === "new" ? "NEW" : e.status === "rising" ? "▲" : "▼"}</span>}
         <span style={{ marginLeft: "auto", fontFamily: SANS, fontSize: 12, color: C.secondary, whiteSpace: "nowrap" }}>
-          <b style={{ color: C.ink }}>{e.recentCount}</b> recent · {e.totalBroadcasts} broadcast{e.totalBroadcasts === 1 ? "" : "s"}
+          <b style={{ color: C.ink, fontFamily: MONO, fontWeight: 500 }}>{e.recentCount}</b>
+          <span style={{ color: C.muted }}> · {e.totalBroadcasts}bc</span>
         </span>
+        <span aria-hidden style={{ color: C.muted, fontSize: 11, transform: open ? "rotate(90deg)" : "none", transition: "transform .15s" }}>›</span>
       </button>
       {open && e.last && (
-        <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${C.rule}`, fontFamily: SANS, fontSize: 12.5, color: C.secondary, lineHeight: 1.5 }}>
+        <div style={{ padding: "0 12px 10px", fontFamily: SANS, fontSize: 12.5, color: C.secondary, lineHeight: 1.5 }}>
           <div style={{ fontFamily: SERIF, fontSize: 14.5, color: C.ink }}>“…{e.last.text}…”</div>
           <div style={{ marginTop: 5 }}>
-            {fmtDay(e.last.date)} · {e.last.title.replace(/,? (?:Sep|Oct|Aug|Nov|Dec)\.? \d+, \d{4}$/, "")}
-            {" · "}<a href={`/live?v=${encodeURIComponent(e.last.videoId)}`} style={{ color: C.up, fontWeight: 600 }}>▶ Watch{e.last.t != null ? ` at ${stamp(e.last.t)}` : ""}</a>
+            {fmtDay(e.last.date)}{" · "}<a href={`/live?v=${encodeURIComponent(e.last.videoId)}`} style={{ color: C.up, fontWeight: 600 }}>▶ Watch{e.last.t != null ? ` at ${stamp(e.last.t)}` : ""}</a>
           </div>
         </div>
       )}
@@ -89,6 +109,7 @@ export default function AgendaRadar() {
   const [err, setErr] = useState(false);
   const [open, setOpen] = useState<string | null>(null);
   const [allCos, setAllCos] = useState(false);
+  const phone = useIsMobileViewport(640);
   useEffect(() => {
     let alive = true;
     fetch("/api/radar").then(x => x.json()).then(d => { if (alive) { if (d && !d.error) setR(d); else setErr(true); } }).catch(() => alive && setErr(true));
@@ -101,7 +122,7 @@ export default function AgendaRadar() {
   const up = market.filter(t => t.status === "rising" || t.status === "new");
   const down = r.themes.filter(t => t.status === "fading");
   const cos = r.companies.filter(c => c.recentCount > 0);
-  const shownCos = allCos ? cos : cos.slice(0, 6);
+  const shownCos = allCos ? cos.slice(0, 20) : cos.slice(0, 6);
   const ctry = r.countries.filter(c => c.recentCount > 0).slice(0, 10);
 
   return (
@@ -112,11 +133,18 @@ export default function AgendaRadar() {
         Last 14 days ({r.window.recentBroadcasts} broadcasts, {Math.round(r.window.recentWords / 1000)}k words) against the {r.window.baseBroadcasts} before, measured per 10,000 words of full transcript.
       </div>
 
-      {up.length > 0 && (
+      {up.length > 0 && (phone ? (
+        <div style={{ background: C.card, border: `1px solid ${C.rule}`, borderRadius: 10, overflow: "hidden", marginTop: 12 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, letterSpacing: "0.08em", textTransform: "uppercase", color: C.up, fontWeight: 700, padding: "8px 12px 2px" }}>
+            <span>▲ Rising</span><span style={{ color: C.muted, fontWeight: 500 }}>vs. earlier rate</span>
+          </div>
+          {up.slice(0, 6).map((t, i) => <ThemeRow key={t.key} t={t} first={i === 0} />)}
+        </div>
+      ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: 8, marginTop: 14 }}>
           {up.slice(0, 6).map(t => <ThemeCard key={t.key} t={t} />)}
         </div>
-      )}
+      ))}
       {down.length > 0 && (
         <div style={{ fontSize: 12.5, color: C.secondary, marginTop: 10, lineHeight: 1.6 }}>
           <span style={{ color: C.down, fontWeight: 700 }}>▼ Fading:</span>{" "}
@@ -127,12 +155,15 @@ export default function AgendaRadar() {
       {cos.length > 0 && (
         <>
           <h3 style={{ fontFamily: SERIF, fontWeight: 500, fontSize: 18, margin: "22px 0 8px", color: C.ink }}>Companies named on air</h3>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {shownCos.map(e => <EntityRow key={e.name} e={e} open={open === e.name} onToggle={() => setOpen(o => (o === e.name ? null : e.name))} />)}
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, letterSpacing: "0.08em", textTransform: "uppercase", color: C.muted, padding: "0 12px 4px" }}>
+            <span>Company · ticker</span><span>Mentions (14 days) · broadcasts</span>
+          </div>
+          <div style={{ background: C.card, border: `1px solid ${C.rule}`, borderRadius: 10, overflow: "hidden" }}>
+            {shownCos.map((e, i) => <EntityRow key={e.name} first={i === 0} e={e} open={open === e.name} onToggle={() => setOpen(o => (o === e.name ? null : e.name))} />)}
           </div>
           {cos.length > 6 && (
             <button type="button" onClick={() => setAllCos(v => !v)} style={{ background: "none", border: "none", padding: "8px 0 0", cursor: "pointer", fontSize: 12.5, fontWeight: 600, color: C.up }}>
-              {allCos ? "Show fewer" : `Show all ${cos.length} companies`}
+              {allCos ? "Show fewer" : `Show more (${Math.min(cos.length, 20)})`}
             </button>
           )}
         </>
