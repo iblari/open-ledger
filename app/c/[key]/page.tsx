@@ -75,7 +75,7 @@ export default async function ClaimPage({ params }: { params: Promise<{ key: str
           Fact-check · {fmtDate(c.date)}{c.speaker ? ` · ${c.speaker}` : ""}
         </div>
         <h1 style={{ fontFamily: SERIF, fontWeight: 400, fontSize: "clamp(28px, 5.4vw, 42px)", lineHeight: 1.15, letterSpacing: "-0.015em", margin: "10px 0 16px" }}>
-          “{c.quote}”
+          “{c.quote.charAt(0).toUpperCase() + c.quote.slice(1)}”
         </h1>
         <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           <span style={{ background: color, color: "#fff", fontWeight: 700, fontSize: 14, letterSpacing: "0.08em", padding: "6px 12px", borderRadius: 6 }}>

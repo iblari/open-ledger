@@ -55,7 +55,8 @@ export default async function Image({ params }: { params: Promise<{ key: string 
   const c = r.claim;
   const v = toOutcome(c.rating);
   const col = STAMP[v];
-  const quote = fit(c.quote, 130);
+  const q0 = c.quote.trim();
+  const quote = fit(q0.charAt(0).toUpperCase() + q0.slice(1), 130);
   const qSize = quote.length > 95 ? 50 : quote.length > 60 ? 58 : 66;
   const date = new Date(c.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "America/New_York" }).toUpperCase();
   const times = r.repeats.length + 1;
@@ -71,7 +72,7 @@ export default async function Image({ params }: { params: Promise<{ key: string 
           <div>{date}</div>
         </div>
 
-        <div style={{ display: "flex", marginTop: 34, fontFamily: "Serif", fontSize: qSize, lineHeight: 1.12, maxWidth: 860 }}>
+        <div style={{ display: "flex", marginTop: 34, fontFamily: "Serif", fontSize: qSize, lineHeight: 1.12, maxWidth: 760 }}>
           “{quote}”
         </div>
         <div style={{ display: "flex", marginTop: 18, fontSize: 24, color: "#A39D93" }}>
