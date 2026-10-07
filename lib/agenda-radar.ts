@@ -179,7 +179,7 @@ const SUM_KEY = (id: string) => `radar:bc:v3:${id}`;
 
 /* ── Aggregate ─────────────────────────────────────────────────────── */
 
-export type Status = "rising" | "new" | "fading" | "steady";
+export type Status = "rising" | "new" | "watch" | "fading" | "steady";
 export interface RadarRow {
   key: string; label: string; sectors: string[]; market: boolean;
   recentRate: number; baseRate: number; recentCount: number; baseCount: number;
@@ -190,6 +190,9 @@ export interface RadarEntity {
   name: string; ticker?: string; role?: string;
   recentCount: number; baseCount: number; recentBroadcasts: number; totalBroadcasts: number;
   status: Status; last: { date: string; videoId: string; title: string; t: number | null; text: string } | null;
+  /** First broadcast it was ever named in — set only when that is one of the
+   *  last three, i.e. a name that just appeared. */
+  firstSeen?: string;
 }
 export interface Radar {
   generatedAt: string;
@@ -217,6 +220,21 @@ function rateZ(r: number, wr: number, b: number, wb: number): number {
   const lr = Math.log((r + 0.5) / wr) - Math.log((b + 0.5) / wb);
   return lr / Math.sqrt(1 / (r + 0.5) + 1 / (b + 0.5));
 }
+/**
+ * The early tier. "Rising" waits for a 14-day window to be convincing; WATCH
+ * looks only at the last three broadcasts: at least 3 mentions, spread over
+ * at least 2 of them, at twice the rate (or more) of everything before them.
+ * Looser on purpose — it is labelled an early signal, and things graduate to
+ * Rising when the full test agrees.
+ */
+const WATCH_N = 3;
+function isWatch(cL: number, wL: number, breadthL: number, cPrior: number, wPrior: number): boolean {
+  if (cL < 3 || breadthL < 2 || !wL) return false;
+  const rL = cL / wL;
+  const rP = wPrior ? cPrior / wPrior : 0;
+  return rP === 0 || rL >= 2 * rP;
+}
+
 function statusOf(z: number, r: number, b: number, breadth: number): Status {
   if (b === 0 && r >= 4 && breadth >= 2) return "new";
   if (z >= 2 && r >= 5 && breadth >= 2) return "rising";
@@ -256,6 +274,8 @@ export function aggregate(ledger: Entry[], sums: (BcSummary | null)[]): Radar {
   const recent = items.filter(x => x.e.startedAt >= cutoff), base = items.filter(x => x.e.startedAt < cutoff);
   const W = (xs: typeof items) => xs.reduce((n, x) => n + x.s.words, 0);
   const wr = W(recent), wb = W(base);
+  const lastN = items.slice(-WATCH_N), priorN = items.slice(0, -WATCH_N);
+  const wL = W(lastN), wP = W(priorN);
 
   // Weekly axis: the last WEEKS Mondays up to the latest broadcast.
   const lastMon = monday(lastDate);
@@ -274,11 +294,16 @@ export function aggregate(ledger: Entry[], sums: (BcSummary | null)[]): Radar {
       const n = items.filter(x => monday(x.e.startedAt) === w).reduce((m, x) => m + (x.s.themes[th.key] || 0), 0);
       return weekWords[k] ? Math.round((n / weekWords[k]) * 1e5) / 10 : 0;
     });
+    const cL = lastN.reduce((n, x) => n + (x.s.themes[th.key] || 0), 0);
+    const bL = lastN.filter(x => (x.s.themes[th.key] || 0) > 0).length;
+    const cP = priorN.reduce((n, x) => n + (x.s.themes[th.key] || 0), 0);
+    let st = statusOf(z, r, b, breadth);
+    if (st === "steady" && isWatch(cL, wL, bL, cP, wP)) st = "watch";
     return {
       key: th.key, label: th.label, sectors: th.sectors, market: th.market,
       recentRate: wr ? Math.round((r / wr) * 1e5) / 10 : 0, baseRate: wb ? Math.round((b / wb) * 1e5) / 10 : 0,
       recentCount: r, baseCount: b, recentBroadcasts: breadth, z: Math.round(z * 10) / 10,
-      status: statusOf(z, r, b, breadth), weekly,
+      status: st, weekly,
     };
   });
 
@@ -290,11 +315,19 @@ export function aggregate(ledger: Entry[], sums: (BcSummary | null)[]): Radar {
       const breadth = recent.filter(x => x.s[field][name]).length;
       const total = items.filter(x => x.s[field][name]).length;
       const lastIt = [...items].reverse().find(x => x.s[field][name]);
+      const firstIt = items.find(x => x.s[field][name]);
       const sn = lastIt?.s.snip[name];
+      const cL = lastN.reduce((n, x) => n + (x.s[field][name] || 0), 0);
+      const bL = lastN.filter(x => x.s[field][name]).length;
+      const cP = priorN.reduce((n, x) => n + (x.s[field][name] || 0), 0);
+      let st = statusOf(rateZ(r, wr, b, wb), r, b, breadth);
+      if (st === "steady" && isWatch(cL, wL, bL, cP, wP)) st = "watch";
+      const fresh = firstIt && lastN.includes(firstIt) && items.length > WATCH_N;
       return {
         name, ticker: field === "cos" ? tick?.get(name) : undefined, role: field === "ppl" ? (PEOPLE_ROLES.get(name) || undefined) : undefined,
         recentCount: r, baseCount: b, recentBroadcasts: breadth, totalBroadcasts: total,
-        status: statusOf(rateZ(r, wr, b, wb), r, b, breadth),
+        firstSeen: fresh ? firstIt!.e.startedAt : undefined,
+        status: st,
         last: lastIt && sn ? { date: lastIt.e.startedAt, videoId: lastIt.e.videoId, title: lastIt.e.title, t: sn.t, text: sn.text } : null,
       };
     }).sort((a, b) => (b.recentCount - a.recentCount) || (b.totalBroadcasts - a.totalBroadcasts));
@@ -312,4 +345,4 @@ export function aggregate(ledger: Entry[], sums: (BcSummary | null)[]): Radar {
   };
 }
 
-export const getRadar = unstable_cache(async () => compute(), ["agenda-radar-v3"], { revalidate: 900 });
+export const getRadar = unstable_cache(async () => compute(), ["agenda-radar-v4"], { revalidate: 900 });
