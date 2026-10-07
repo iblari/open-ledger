@@ -751,8 +751,11 @@ function SpendTrendChart({ mob }: { mob?: boolean }) {
 // intentionally left in place so it just works when re-enabled.
 // Live Benchmark is no longer a tab: it is the Data tab's second lens
 // ("Same point in office"). Old ?tab=live_benchmark links are mapped onto it.
-const TABS_DESKTOP=[["dashboard","Data"],["state_atlas","State Atlas"]];
-const TABS_MOBILE=[["dashboard","Data"],["state_atlas","State Atlas"]];
+// State Atlas hidden (Oct 2026) to keep the site simple. Its code stays in
+// components/StateAtlas.tsx; re-add ["state_atlas","State Atlas"] here to bring it back.
+// Old ?tab=state_atlas links fall back to Data, since tabs are validated against this list.
+const TABS_DESKTOP=[["dashboard","Data"]];
+const TABS_MOBILE=[["dashboard","Data"]];
 
 // Per-metric heatmap data, computed once at module-load. Uses the shared lib
 // so the dashboard speaks the same data language as the landing page.

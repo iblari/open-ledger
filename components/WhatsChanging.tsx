@@ -99,9 +99,6 @@ function TrendCard({ t, mob, lead }: { t: TrendItem; mob: boolean; lead?: boolea
                 </span>
               </div>
             ))}
-            <Link href="/dashboard?tab=state_atlas" style={{ display: "inline-block", marginTop: 8, fontFamily: SANS, fontSize: 11, fontWeight: 600, color: "#1d4ed8", textDecoration: "none" }}>
-              Explore these counties on the map →
-            </Link>
           </div>
 
           <div style={{ fontFamily: SANS, fontSize: 9.5, color: C.mute, lineHeight: 1.55 }}>
