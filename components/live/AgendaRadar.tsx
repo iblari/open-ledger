@@ -37,16 +37,30 @@ function Badge({ s }: { s: RadarRow["status"] }) {
   return <span style={{ fontFamily: SANS, fontSize: 9.5, fontWeight: 700, letterSpacing: "0.08em", color: fg, background: bg, padding: "2px 6px", borderRadius: 4, whiteSpace: "nowrap" }}>{label}</span>;
 }
 
+/** "9.4×" up, "↓ 6.2×" down (earlier rate ÷ recent), "new" from nothing. */
+function fmtMult(t: RadarRow): string {
+  if (t.status === "fading") {
+    if (!t.recentRate) return "gone";
+    const d = t.baseRate / t.recentRate;
+    return `↓ ${d >= 10 ? Math.round(d) : d.toFixed(1)}×`;
+  }
+  if (!t.baseRate) return "new";
+  const m = t.recentRate / t.baseRate;
+  return `${m >= 10 ? Math.round(m) : m.toFixed(1)}×`;
+}
+
 function ThemeRow({ t, first }: { t: RadarRow; first: boolean }) {
-  const mult = t.baseRate > 0 ? t.recentRate / t.baseRate : null;
+  const down = t.status === "fading";
   return (
     <div style={{ borderTop: first ? "none" : `1px solid ${C.rule}`, padding: "8px 12px" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <span style={{ fontFamily: SERIF, fontSize: 15, fontWeight: 500, color: C.ink, flex: 1, minWidth: 0 }}>{t.label}</span>
-        <b style={{ fontFamily: MONO, fontSize: 12.5, fontWeight: 500, color: C.up }}>{mult ? `${mult >= 10 ? Math.round(mult) : mult.toFixed(1)}×` : "new"}</b>
-        <Spark data={t.weekly.slice(-5)} color={C.up} />
+        <b style={{ fontFamily: MONO, fontSize: 12.5, fontWeight: 500, color: down ? C.down : C.up }}>{fmtMult(t)}</b>
+        <Spark data={t.weekly.slice(-5)} color={down ? C.down : C.up} />
       </div>
-      {t.sectors.length > 0 && <div style={{ fontFamily: SANS, fontSize: 11, color: C.muted, marginTop: 2 }}>{t.sectors.join(" · ")} · {t.recentBroadcasts} broadcasts</div>}
+      <div style={{ fontFamily: SANS, fontSize: 11, color: C.muted, marginTop: 2 }}>
+        {down ? `${t.baseRate} → ${t.recentRate} per 10k words` : `${t.sectors.length ? t.sectors.join(" · ") + " · " : ""}${t.recentBroadcasts} broadcasts`}
+      </div>
     </div>
   );
 }
@@ -61,7 +75,7 @@ function ThemeCard({ t }: { t: RadarRow }) {
       </div>
       <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 10 }}>
         <span style={{ fontFamily: SANS, fontSize: 12.5, color: C.secondary, lineHeight: 1.35 }}>
-          <b style={{ fontFamily: MONO, fontWeight: 500, color: C.ink }}>{mult ? `${mult >= 10 ? Math.round(mult) : mult.toFixed(1)}×` : "new"}</b> {mult ? "the earlier rate" : "this fortnight"}<br />
+          <b style={{ fontFamily: MONO, fontWeight: 500, color: C.ink }}>{fmtMult(t)}</b> {t.status === "fading" ? `(${t.baseRate} → ${t.recentRate} per 10k)` : mult ? "the earlier rate" : "this fortnight"}<br />
           in {t.recentBroadcasts} recent broadcast{t.recentBroadcasts === 1 ? "" : "s"}
         </span>
         <Spark data={t.weekly} color={t.status === "fading" ? C.down : C.up} />
@@ -111,6 +125,7 @@ export default function AgendaRadar() {
   const [open, setOpen] = useState<string | null>(null);
   const [allCos, setAllCos] = useState(false);
   const [tab, setTab] = useState<"cos" | "ppl" | "ctry">("cos");
+  const [dir, setDir] = useState<"up" | "down">("up");
   const phone = useIsMobileViewport(640);
   useEffect(() => {
     let alive = true;
@@ -123,6 +138,7 @@ export default function AgendaRadar() {
   const market = r.themes.filter(t => t.market);
   const up = market.filter(t => t.status === "rising" || t.status === "new");
   const down = r.themes.filter(t => t.status === "fading");
+  const rows = (dir === "up" ? up : down).slice(0, 10);
   const cos = r.companies.filter(c => c.recentCount > 0);
   const ppl = (r.people || []).filter(c => c.recentCount > 0);
   const ctry = r.countries.filter(c => c.recentCount > 0);
@@ -132,27 +148,30 @@ export default function AgendaRadar() {
   return (
     <section aria-labelledby="radar-h" style={{ fontFamily: SANS }}>
       <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.16em", textTransform: "uppercase", color: C.muted }}>Agenda radar</div>
-      <h2 id="radar-h" style={{ fontFamily: SERIF, fontWeight: 500, fontSize: 24, margin: "4px 0 4px", color: C.ink }}>What they&rsquo;re talking about more</h2>
+      <h2 id="radar-h" style={{ fontFamily: SERIF, fontWeight: 500, fontSize: 24, margin: "4px 0 4px", color: C.ink }}>What they&rsquo;re talking about more, and less</h2>
       <div style={{ fontSize: 12.5, color: C.secondary, lineHeight: 1.5 }}>
         Last 14 days ({r.window.recentBroadcasts} broadcasts, {Math.round(r.window.recentWords / 1000)}k words) against the {r.window.baseBroadcasts} before, measured per 10,000 words of full transcript.
       </div>
 
-      {up.length > 0 && (phone ? (
-        <div style={{ background: C.card, border: `1px solid ${C.rule}`, borderRadius: 10, overflow: "hidden", marginTop: 12 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, letterSpacing: "0.08em", textTransform: "uppercase", color: C.up, fontWeight: 700, padding: "8px 12px 2px" }}>
-            <span>▲ Rising</span><span style={{ color: C.muted, fontWeight: 500 }}>vs. earlier rate</span>
-          </div>
-          {up.slice(0, 6).map((t, i) => <ThemeRow key={t.key} t={t} first={i === 0} />)}
+      <div role="tablist" aria-label="Rising or fading" style={{ display: "flex", background: "#EFEAE2", borderRadius: 99, padding: 3, margin: "14px 0 8px", maxWidth: phone ? undefined : 420 }}>
+        {([["up", "▲ Rising", up.length, C.up], ["down", "▼ Fading", down.length, C.down]] as const).map(([k, l, n, c]) => (
+          <button key={k} type="button" role="tab" aria-selected={dir === k} onClick={() => setDir(k)} style={{
+            flex: 1, border: "none", cursor: "pointer", borderRadius: 99, padding: "7px 0",
+            fontFamily: SANS, fontSize: 13, fontWeight: dir === k ? 700 : 500,
+            background: dir === k ? "#fff" : "transparent", color: dir === k ? c : C.secondary,
+            boxShadow: dir === k ? "0 1px 2px rgba(0,0,0,.08)" : "none",
+          }}>{l} · {n}</button>
+        ))}
+      </div>
+      {rows.length === 0 ? (
+        <div style={{ fontSize: 13, color: C.muted, padding: "8px 2px" }}>Nothing moved clearly enough yet.</div>
+      ) : phone ? (
+        <div style={{ background: C.card, border: `1px solid ${C.rule}`, borderRadius: 10, overflow: "hidden" }}>
+          {rows.map((t, i) => <ThemeRow key={t.key} t={t} first={i === 0} />)}
         </div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: 8, marginTop: 14 }}>
-          {up.slice(0, 6).map(t => <ThemeCard key={t.key} t={t} />)}
-        </div>
-      ))}
-      {down.length > 0 && (
-        <div style={{ fontSize: 12.5, color: C.secondary, marginTop: 10, lineHeight: 1.6 }}>
-          <span style={{ color: C.down, fontWeight: 700 }}>▼ Fading:</span>{" "}
-          {down.map(t => `${t.label} (${t.baseRate} → ${t.recentRate})`).join(" · ")}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: 8 }}>
+          {rows.map(t => <ThemeCard key={t.key} t={t} />)}
         </div>
       )}
 
