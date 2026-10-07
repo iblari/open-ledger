@@ -305,7 +305,7 @@ export function dataSignals(bench: Bench | null): TrendCard[] {
     const label = m.label.replace(/\s*\(.*\)\s*$/, "");
     const kicker = KICKER_BY_KEY[key] || KICKER[m.cat] || "Economy";
     const value = fmtBench(v, m.unit);
-    const iso = new Date(Date.UTC(Math.floor(t / 12), t % 12, 15)).toISOString();
+    const iso = new Date(Date.UTC(Math.floor(t / 12), t % 12, 1)).toISOString();
     const dateLabel = `${MON[t % 12]} data`;
     const href = `/dashboard?view=month&metric=${key}`;
 
