@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { claimNextAlignment, getReplayableClaims, setAlignment } from "@/lib/live-kv";
+import { claimNextAlignment, getReplayableClaims, setAlignment, getLedger } from "@/lib/live-kv";
 import { alignClaims, transcriptFromUtterances, type Word } from "@/lib/align";
 
 /**
@@ -39,8 +39,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false });
   }
 
-  const claims = await getReplayableClaims(body.videoId);
-  if (!claims) return NextResponse.json({ error: "not replayable" }, { status: 404 });
+  // Broadcasts queued only for their transcript (the backfill) may have no
+  // stored claims beyond the ledger's slim copy — or none at all. They still
+  // get an alignment record, which is where the transcript lives.
+  let claims: { quote: string; videoTime?: number }[] | null = await getReplayableClaims(body.videoId);
+  if (!claims) {
+    const e = (await getLedger().catch(() => [])).find(x => x.videoId === body.videoId);
+    if (!e) return NextResponse.json({ error: "not replayable" }, { status: 404 });
+    claims = e.claims.filter(c => c.quote).map(c => ({ quote: c.quote, videoTime: c.videoTime }));
+  }
   const words: Word[] = (body.words || [])
     .map(([w, s]) => ({ w: String(w).toLowerCase().replace(/(\d),(?=\d)/g, "$1").replace(/[^a-z0-9%$.]/g, "").replace(/\.$/, ""), s: Number(s) }))
     .filter(x => x.w && Number.isFinite(x.s));

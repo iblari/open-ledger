@@ -19,6 +19,7 @@ import { useIsMobileViewport } from "@/lib/viewport";
 import type { HomeArchiveItem, HomeScheduleItem, TopicTally } from "@/lib/live-home";
 import TopicBreakdown from "./TopicBreakdown";
 import TopicShiftPanel from "./TopicShiftPanel";
+import AgendaRadar from "./AgendaRadar";
 import type { MomentumResult, TopicShift } from "@/lib/topic-breadth";
 
 const C = {
@@ -658,6 +659,9 @@ export default function OffAir({
         )}
 
         <div style={{ marginTop: 44 }}>
+          <AgendaRadar />
+        </div>
+        <div style={{ marginTop: 34 }}>
           <TopicShiftPanel shift={topicShift ?? null} />
         </div>
         <div style={{ marginTop: 22 }}>

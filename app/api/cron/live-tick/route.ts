@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { checkCoverage, checkDeaf } from "@/lib/coverage-watch";
 import { tagPending } from "@/lib/topic-tags";
-import { healFullBroadcastsOnce } from "@/lib/live-kv";
+import { healFullBroadcastsOnce, seedTranscriptBackfillOnce } from "@/lib/live-kv";
 
 /**
  * GET /api/cron/live-tick — the reliable metronome for live coverage.
@@ -44,6 +44,9 @@ export async function GET(req: Request) {
   // Once ever: copy the 72-hour store into the permanent per-broadcast keys.
   const healed = await healFullBroadcastsOnce().catch(() => 0);
   if (healed) console.log(`[live-tick] saved ${healed} full broadcast records`);
+  // Once ever: queue broadcasts that have no transcript for the worker.
+  const queued = await seedTranscriptBackfillOnce().catch(() => 0);
+  if (queued) console.log(`[live-tick] queued ${queued} broadcasts for transcript backfill`);
   const tags = await tagPending(40).catch(e => {
     console.error("[live-tick] topic tagging failed:", (e as Error).message);
     return null;

@@ -116,6 +116,29 @@ const LIVE_TRANSCRIPT_KEY = "live:transcript";
  * the next cron tick two minutes on — get false. Used so a coverage gap is
  * reported once, not every two minutes for the rest of the day.
  */
+/** Many keys in one MGET (generic, for derived caches like the radar). */
+export async function kvGet(keys: string[]): Promise<(string | null)[]> {
+  if (!keys.length) return [];
+  if (hasUpstash()) {
+    const r = (await upstashCmd("MGET", ...keys)) as (string | null)[] | undefined;
+    return r || keys.map(() => null);
+  }
+  return keys.map(k => mem.get(k) ?? null);
+}
+
+/** Write several keys; ttlSec 0 = no expiry. One MSET for the permanent
+ *  ones, one SET each for the few that expire. */
+export async function kvSetMany(items: [string, string, number][]): Promise<void> {
+  const forever = items.filter(i => !i[2]);
+  const expiring = items.filter(i => i[2]);
+  if (hasUpstash()) {
+    if (forever.length) await upstashCmd("MSET", ...forever.flatMap(([k, v]) => [k, v]));
+    for (const [k, v, ttl] of expiring) await upstashCmd("SET", k, v, "EX", ttl);
+  } else {
+    for (const [k, v] of items) mem.set(k, v);
+  }
+}
+
 export async function claimOnce(key: string, ttlSec: number): Promise<boolean> {
   if (hasUpstash()) {
     const r = await upstashCmd("SET", key, "1", "NX", "EX", ttlSec);
@@ -641,7 +664,68 @@ export async function claimNextAlignment(): Promise<{ videoId: string; title: st
     else mem.set(ALIGN_TRIES_KEY(b.videoId), String(tries + 1));
     return { videoId: b.videoId, title: b.title };
   }
+  return nextTranscriptBackfill();
+}
+
+/* ── Transcript backfill ───────────────────────────────────────────────
+ *
+ * The agenda radar reads full transcripts, and broadcasts recorded before
+ * full records were kept have none. They are queued once (seed) and fed to
+ * the same worker job that re-times claims — it already downloads and
+ * transcribes the recording, and its result carries the transcript. Only
+ * when nothing recent is waiting, so live-era work always goes first.
+ */
+const BACKFILL_KEY = "align:backfill";
+
+async function readBackfill(): Promise<{ videoId: string; title: string }[]> {
+  const raw = hasUpstash() ? ((await upstashCmd("GET", BACKFILL_KEY)) as string | null) : mem.get(BACKFILL_KEY);
+  if (!raw) return [];
+  try { return JSON.parse(raw); } catch { return []; }
+}
+
+async function nextTranscriptBackfill(): Promise<{ videoId: string; title: string } | null> {
+  const queue = await readBackfill();
+  if (!queue.length) return null;
+  const ids = queue.map(q => q.videoId);
+  const [aligns, triesRaw] = await Promise.all([
+    hasUpstash()
+      ? ((upstashCmd("MGET", ...ids.map(ALIGN_KEY)) as Promise<(string | null)[] | undefined>).then(r => (r || []).map(x => !!x)))
+      : Promise.resolve(ids.map(id => !!mem.get(ALIGN_KEY(id)))),
+    hasUpstash()
+      ? ((upstashCmd("MGET", ...ids.map(ALIGN_TRIES_KEY)) as Promise<(string | null)[] | undefined>).then(r => r || ids.map(() => null)))
+      : Promise.resolve(ids.map(id => mem.get(ALIGN_TRIES_KEY(id)) ?? null)),
+  ]);
+  const left = queue.filter((_, i) => !aligns[i] && (Number(triesRaw[i]) || 0) < ALIGN_MAX_TRIES);
+  if (left.length !== queue.length) {
+    const json = JSON.stringify(left);
+    if (hasUpstash()) await upstashCmd("SET", BACKFILL_KEY, json); else mem.set(BACKFILL_KEY, json);
+  }
+  for (const q of left) {
+    if (!(await claimOnce(ALIGN_TRY_KEY(q.videoId), 30 * 60))) continue;
+    const tries = Number(triesRaw[ids.indexOf(q.videoId)]) || 0;
+    if (hasUpstash()) await upstashCmd("INCR", ALIGN_TRIES_KEY(q.videoId));
+    else mem.set(ALIGN_TRIES_KEY(q.videoId), String(tries + 1));
+    return q;
+  }
   return null;
+}
+
+/** Once ever: queue every ledger broadcast with no transcript anywhere
+ *  (no alignment, no transcript in its full record). ~2 reads a broadcast,
+ *  one time. Newest first, so the radar's recent weeks fill in first. */
+export async function seedTranscriptBackfillOnce(): Promise<number> {
+  if (!(await claimOnce("align:backfill:seeded:v1", 60 * 60 * 24 * 3650))) return 0;
+  const ledger = await getLedger(true);
+  const missing: { videoId: string; title: string }[] = [];
+  for (const e of [...ledger].sort((a, b) => b.startedAt.localeCompare(a.startedAt))) {
+    if (await getAlignment(e.videoId).catch(() => null)) continue;
+    const full = await getFullBroadcast(e.videoId).catch(() => null);
+    if (full?.transcript && full.transcript.length > 1000) continue;
+    missing.push({ videoId: e.videoId, title: e.title });
+  }
+  const json = JSON.stringify(missing);
+  if (hasUpstash()) await upstashCmd("SET", BACKFILL_KEY, json); else mem.set(BACKFILL_KEY, json);
+  return missing.length;
 }
 
 /** Claims of a replayable broadcast as stored, before any alignment. */
