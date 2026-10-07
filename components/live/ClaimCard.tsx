@@ -186,7 +186,7 @@ export default function ClaimCard({
       {/* Dense: SAID → DATA on one line, labels dropped, "Why" at the end. */}
       {!checking && dense && (
         <div style={{ display: "flex", alignItems: "baseline", gap: 7, fontFamily: F.mono, fontSize: roomy ? 13.5 : 12 }}>
-          {claim.verdict === "true" && sameFigure(formatSaid(claim.claimed), figure) ? (
+          {(claim.verdict === "true" && sameFigure(formatSaid(claim.claimed), figure)) || formatSaid(claim.claimed) === "—" ? (
             <span style={{ color: L.mutedDark, fontFamily: F.ui, fontSize: roomy ? 10.5 : 9.5, letterSpacing: "0.1em", textTransform: "uppercase" }}>On record</span>
           ) : (<>
             <span style={{ color: "#CFC7BD" }}>{formatSaid(claim.claimed)}</span>
