@@ -17,7 +17,6 @@ import { useRef, useState } from "react";
 import Link from "next/link";
 import { useIsMobileViewport } from "@/lib/viewport";
 import type { HomeArchiveItem, HomeScheduleItem, TopicTally } from "@/lib/live-home";
-import TopicBreakdown from "./TopicBreakdown";
 import AgendaRadar from "./AgendaRadar";
 import type { MomentumResult, TopicShift } from "@/lib/topic-breadth";
 
@@ -663,9 +662,6 @@ export default function OffAir({
         {/* The older "more, and less" panel (TopicShiftPanel, claim-based) was
             removed: the agenda radar above answers the same question from full
             transcripts. */}
-        <div style={{ marginTop: 22 }}>
-          <TopicBreakdown topics={topics} tail={topicTail} momentum={topicMomentum} totals={topicTotals} />
-        </div>
 
         <footer style={{ marginTop: 34, paddingTop: 16, borderTop: `1px solid ${C.rule2}`, display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center" }}>
           <span style={{ fontFamily: SANS, fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: C.muted }}>
