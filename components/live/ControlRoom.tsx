@@ -292,7 +292,9 @@ export default function ControlRoom({
           {" · "}<span style={{ color: L.true }}>{counts.true}</span>/<span style={{ color: L.misleading }}>{counts.misleading}</span>/<span style={{ color: L.false }}>{counts.false}</span>
         </span>
       )}
-      <span style={{ fontFamily: F.mono, fontSize: 12, color: L.mutedDark2, flexShrink: 0 }}>{stamp(elapsed)}</span>
+      {/* Phones: the clock is dropped — the timeline under the video already
+          shows where playback is, and the title needs the room. */}
+      {!mob && <span style={{ fontFamily: F.mono, fontSize: 12, color: L.mutedDark2, flexShrink: 0 }}>{stamp(elapsed)}</span>}
       {(mob || immersive) && (
         <button type="button" onClick={immersive ? exitLandscape : enterLandscape} className="vu-back"
           aria-label={immersive ? "Exit full screen" : "Full screen, sideways, with fact-checks"}
@@ -445,7 +447,26 @@ export default function ControlRoom({
     </div>
   );
 
-  const RecordBar = (
+  const RecordBar = mob ? (
+    // Phones: one bar for both actions. Each used to take a full row, which
+    // with the score panel left room for about one fact-check on screen.
+    <div style={{
+      flexShrink: 0, display: "flex", alignItems: "center", gap: 10,
+      padding: "10px 14px calc(10px + env(safe-area-inset-bottom))",
+      background: L.stageAlt, borderTop: `1px solid ${L.cardBorder}`,
+    }}>
+      <button onClick={onFactCheck} disabled={isChecking} style={{
+        flex: 1, background: L.true, border: "none", color: "#fff", borderRadius: 8,
+        padding: "10px 12px", fontFamily: F.ui, fontSize: 13.5, fontWeight: 700,
+        cursor: isChecking ? "default" : "pointer", opacity: isChecking ? 0.6 : 1,
+      }}>{isChecking ? "Checking…" : "Check this moment"}</button>
+      <button onClick={onOpenRecord} aria-label={`Download the record of ${views.length} claims`} style={{
+        flexShrink: 0, background: "transparent", border: `1px solid ${L.cardBorder}`, color: "#F2EEE9",
+        borderRadius: 8, padding: "10px 12px", fontFamily: F.ui, fontSize: 12.5, fontWeight: 600, cursor: "pointer",
+        whiteSpace: "nowrap",
+      }}>Record · {views.length} ↓</button>
+    </div>
+  ) : (
     <button onClick={onOpenRecord} style={{
       flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between",
       gap: 10, width: "100%", padding: "16px 16px calc(16px + env(safe-area-inset-bottom))",
@@ -579,18 +600,8 @@ export default function ControlRoom({
         : { display: "flex", flexDirection: "column", minWidth: 0, minHeight: 0, borderRight: `1px solid ${L.cardBorder}` }}>
         {ContextBar}
         {Stage}
-        {/* Phones: the primary action gets its own full-width row directly
-            under the video, where the browser toolbar can't cover it. */}
-        {mob && (
-          <div style={{ padding: "10px 14px 0", background: L.ink, flexShrink: 0 }}>
-            <button onClick={onFactCheck} disabled={isChecking} style={{
-              width: "100%", background: L.true, border: "none", color: "#fff",
-              borderRadius: 8, padding: "9px 14px", fontFamily: F.ui,
-              fontSize: 13.5, fontWeight: 700, cursor: isChecking ? "default" : "pointer",
-              opacity: isChecking ? 0.6 : 1,
-            }}>{isChecking ? "Checking…" : "🔍 Check this moment"}</button>
-          </div>
-        )}
+        {/* Phones: "Check this moment" now shares the bottom bar with the
+            record link (see RecordBar) instead of taking a row of its own. */}
         {!mob && !immersive && Controls}
         {/* The leftover height carries the running transcript rather than a
             void. Previously a flex spacer pushed the controls to the bottom

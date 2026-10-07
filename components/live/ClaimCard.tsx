@@ -80,6 +80,22 @@ function headline(actual: string): { figure: string; rest: string } {
   return { figure: (at > 12 ? cut.slice(0, at) : cut).trim() + "…", rest: t };
 }
 
+
+/** A figure as a plain number, scale words applied ("$3.2 billion" → 3.2e9). */
+function toNum(s: string | null | undefined): number | null {
+  const t = String(s ?? "").replace(/,/g, "");
+  const m = t.match(/(-?\d+(?:\.\d+)?)\s*(trillion|billion|million|thousand|[TBMK])?\b/i);
+  if (!m) return null;
+  const k = (m[2] || "").toLowerCase();
+  const mult = k.startsWith("t") ? 1e12 : k.startsWith("b") ? 1e9 : k.startsWith("m") ? 1e6 : k === "k" || k.startsWith("th") ? 1e3 : 1;
+  return Number(m[1]) * mult;
+}
+/** SAID and DATA carry the same number — showing both just repeats it. */
+function sameFigure(said: string, figure: string): boolean {
+  const a = toNum(said), b = toNum(figure);
+  return a != null && b != null && a !== 0 && Math.abs(a - b) / Math.abs(a) < 0.01;
+}
+
 /** Raw claimed values arrive unformatted (1500000000000). Make them readable
  *  at a glance so SAID and DATA are comparable. */
 function formatSaid(v: string | null | undefined): string {
@@ -173,8 +189,17 @@ export default function ClaimCard({
         </div>
       )}
 
+      {/* Matches the record: one line instead of the same figure twice. */}
+      {!checking && !dense && claim.verdict === "true" && sameFigure(formatSaid(claim.claimed), figure) && (
+        <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+          <span style={{ fontFamily: F.ui, fontSize: 10.5, fontWeight: 500, letterSpacing: "0.14em", textTransform: "uppercase", color: L.mutedDark }}>On record</span>
+          <span style={{ fontFamily: F.mono, fontSize: compact ? 15 : 18, color }}>{figure}</span>
+          <span style={{ fontFamily: F.ui, fontSize: 12, color, fontWeight: 700 }}>✓ matches</span>
+        </div>
+      )}
+
       {/* SAID → DATA */}
-      {!checking && !dense && (
+      {!checking && !dense && !(claim.verdict === "true" && sameFigure(formatSaid(claim.claimed), figure)) && (
         <div style={{ display: "flex", alignItems: "flex-end", gap: 14 }}>
           <div style={{ minWidth: 0, flex: "0 1 auto" }}>
             <div style={{

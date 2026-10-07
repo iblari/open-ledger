@@ -36,13 +36,22 @@ export default function ShareClaimButton({ path, quote, verdict, variant = "dark
       aria-label="Share this fact-check"
       style={small ? {
         fontSize: 11.5, fontWeight: 600, color: "#CFC7BD", background: "transparent",
-        border: "1px solid #3A322B", borderRadius: 6, padding: "4px 9px", cursor: "pointer", lineHeight: 1,
+        border: "1px solid #3A322B", borderRadius: 6, padding: "5px 9px", cursor: "pointer", lineHeight: 1,
       } : {
         fontSize: 14, fontWeight: 600, borderRadius: 8, padding: "11px 18px", cursor: "pointer",
         background: light ? "#14110E" : "#F5F1EC", color: light ? "#F8F5F0" : "#14110E", border: "none",
       }}
     >
-      {msg ?? "Share ↗"}
+      {msg ?? (
+        <span style={{ display: "inline-flex", alignItems: "center", gap: small ? 5 : 7 }}>
+          {/* An SVG, not the ↗ character: iOS draws that as a blue emoji box. */}
+          <svg width={small ? 11 : 14} height={small ? 11 : 14} viewBox="0 0 14 14" aria-hidden fill="none"
+            stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M7 1.5v8M3.8 4.6 7 1.5l3.2 3.1M2 8.5v3.2c0 .5.4.8.8.8h8.4c.4 0 .8-.3.8-.8V8.5" />
+          </svg>
+          Share
+        </span>
+      )}
     </button>
   );
 }
