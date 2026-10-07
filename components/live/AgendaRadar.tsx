@@ -209,12 +209,6 @@ export default function AgendaRadar() {
         </>
       )}
 
-      <p style={{ fontSize: 11.5, color: C.muted, lineHeight: 1.6, marginTop: 14 }}>
-        Rising = a statistically clear jump in rate (Poisson z ≥ 2) that shows up in at least two separate broadcasts, so one long speech can&rsquo;t fake a trend.
-        Watch = an early signal: at least twice the earlier rate across the last 3 broadcasts, in 2 of them. 1st = first time ever named, within the last 3 broadcasts.
-        Mentions include everyone on stage, not only the principal. Full transcripts for {r.coverage.withTranscript} of {r.coverage.total} broadcasts so far; the rest are being added.
-        What was said and which sectors it touches — not investment advice.
-      </p>
     </section>
   );
 }

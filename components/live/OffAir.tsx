@@ -18,7 +18,6 @@ import Link from "next/link";
 import { useIsMobileViewport } from "@/lib/viewport";
 import type { HomeArchiveItem, HomeScheduleItem, TopicTally } from "@/lib/live-home";
 import TopicBreakdown from "./TopicBreakdown";
-import TopicShiftPanel from "./TopicShiftPanel";
 import AgendaRadar from "./AgendaRadar";
 import type { MomentumResult, TopicShift } from "@/lib/topic-breadth";
 
@@ -661,9 +660,9 @@ export default function OffAir({
         <div style={{ marginTop: 44 }}>
           <AgendaRadar />
         </div>
-        <div style={{ marginTop: 34 }}>
-          <TopicShiftPanel shift={topicShift ?? null} />
-        </div>
+        {/* The older "more, and less" panel (TopicShiftPanel, claim-based) was
+            removed: the agenda radar above answers the same question from full
+            transcripts. */}
         <div style={{ marginTop: 22 }}>
           <TopicBreakdown topics={topics} tail={topicTail} momentum={topicMomentum} totals={topicTotals} />
         </div>
