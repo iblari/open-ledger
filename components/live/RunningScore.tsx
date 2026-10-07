@@ -29,6 +29,27 @@ export default function RunningScore({
     [falseCount, "FALSE", L.false],
   ];
 
+  // Phones: one thin bar and one line. The big serif number and two-line
+  // label cost ~80px of a feed that had room for about one card.
+  if (mob) return (
+    <div style={{ background: L.ink, padding: "8px 14px 8px", borderBottom: `1px solid ${L.cardBorder}` }}>
+      <div style={{ display: "flex", height: 5, borderRadius: 5, overflow: "hidden", background: "#2A2420" }}>
+        {checked > 0 ? [seg(trueCount, L.true, "true"), seg(misleadingCount, L.misleading, "misleading"), seg(falseCount, L.false, "false")] : null}
+      </div>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginTop: 6, fontFamily: F.ui, fontSize: 12, color: L.mutedDark2, whiteSpace: "nowrap", overflow: "hidden" }}>
+        {pct !== null ? (<>
+          <b style={{ fontFamily: F.display, fontSize: 15, fontWeight: 600, color: "#F2EEE9" }}>{pct}%</b>
+          <span>matched</span>
+          <span style={{ color: L.mutedDark }}>·</span>
+          <span><b style={{ color: L.true }}>{trueCount}</b> true</span>
+          <span><b style={{ color: L.misleading }}>{misleadingCount}</b> misleading</span>
+          <span><b style={{ color: L.false }}>{falseCount}</b> false</span>
+          {unverifiableCount > 0 && <span style={{ color: L.mutedDark }}>+{unverifiableCount}</span>}
+        </>) : <span>No checkable claims yet</span>}
+      </div>
+    </div>
+  );
+
   return (
     <div style={{
       // On a phone this block was ~190px of a ~640px usable column — more

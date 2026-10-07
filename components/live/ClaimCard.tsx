@@ -111,8 +111,12 @@ function formatSaid(v: string | null | undefined): string {
 }
 
 export default function ClaimCard({
-  claim, isNew, onSeek, compact = false, dense = false,
+  claim, isNew, onSeek, compact = false, dense = false, roomy = false, highlight = false,
 }: { claim: LiveClaimView; isNew?: boolean; onSeek?: (c: LiveClaimView) => void; compact?: boolean;
+  /** Phone held upright: the dense layout, at a size meant for reading. */
+  roomy?: boolean;
+  /** Picked from the timeline — outlined for a moment so the eye finds it. */
+  highlight?: boolean;
   /** Phone held sideways: the rail is ~260px wide and ~330px tall, so the
    *  card shrinks to a verdict line, a two-line quote and one figures line —
    *  three to four checks on screen instead of one and a half. */
@@ -130,35 +134,37 @@ export default function ClaimCard({
       id={`vu-claim-${claim.id}`}
       onClick={() => hasDetail && setOpen(o => !o)}
       style={{
-        background: L.card, border: `1px solid ${L.cardBorder}`,
+        background: L.card, border: `1px solid ${highlight ? color : L.cardBorder}`,
+        boxShadow: highlight ? `0 0 0 2px ${color}` : undefined,
+        transition: "box-shadow .3s ease, border-color .3s ease",
         // Compact is the phone. The card is sized for a desktop rail, where
         // it has a 404px column to itself; on a 393px screen that same card
         // is 206px tall and only 1.6 of them fit the feed.
-        padding: dense ? "8px 10px" : compact ? "10px 12px" : "15px 17px",
-        marginBottom: dense ? 6 : compact ? 8 : 11,
+        padding: roomy ? "10px 12px" : dense ? "8px 10px" : compact ? "10px 12px" : "15px 17px",
+        marginBottom: roomy ? 8 : dense ? 6 : compact ? 8 : 11,
         borderRadius: dense ? 9 : 12,
         cursor: hasDetail ? "pointer" : "default",
         animation: isNew ? "vuCardIn .45s ease" : undefined,
       }}
     >
       {/* chip + timecode */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: dense ? 5 : 12 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: roomy ? 7 : dense ? 5 : 12 }}>
         <span style={{
-          fontFamily: F.ui, fontSize: dense ? 8.5 : 11, fontWeight: 700, letterSpacing: "0.1em",
+          fontFamily: F.ui, fontSize: roomy ? 10 : dense ? 8.5 : 11, fontWeight: 700, letterSpacing: "0.1em",
           textTransform: "uppercase",
           color: checking ? L.mutedDark2 : "#fff",
           background: checking ? "transparent" : color,
           border: checking ? `1px solid ${L.cardBorder}` : "none",
-          padding: dense ? "3px 7px" : "6px 12px", borderRadius: dense ? 4 : 6, lineHeight: 1,
+          padding: roomy ? "4px 8px" : dense ? "3px 7px" : "6px 12px", borderRadius: dense ? 4 : 6, lineHeight: 1,
         }}>{VERDICT_LABEL[claim.verdict]}</span>
         <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        {claim.sharePath && !checking && !dense && (
-          <ShareClaimButton small path={claim.sharePath} quote={claim.quote} verdict={VERDICT_LABEL[claim.verdict]} />
+        {claim.sharePath && !checking && (!dense || roomy) && (
+          <ShareClaimButton small iconOnly={roomy} path={claim.sharePath} quote={claim.quote} verdict={VERDICT_LABEL[claim.verdict]} />
         )}
         <button
           onClick={e => { e.stopPropagation(); onSeek?.(claim); }}
           style={{
-            fontFamily: F.mono, fontSize: dense ? 11 : 14, color: L.mutedDark, background: "none",
+            fontFamily: F.mono, fontSize: roomy ? 12.5 : dense ? 11 : 14, color: L.mutedDark, background: "none",
             border: "none", cursor: onSeek ? "pointer" : "default", padding: 0, letterSpacing: "0.02em",
           }}>{claim.time}</button>
         </span>
@@ -166,22 +172,26 @@ export default function ClaimCard({
 
       {/* the quote */}
       <blockquote style={{
-        fontFamily: F.display, fontSize: dense ? 13 : compact ? 15 : 18.5, fontWeight: 500,
+        fontFamily: F.display, fontSize: roomy ? 15.5 : dense ? 13 : compact ? 15 : 18.5, fontWeight: 500,
         lineHeight: dense ? 1.3 : compact ? 1.32 : 1.4,
         // Three lines is enough to recognise a quote (two when dense); the
         // full text is one tap away in the detail.
         ...(compact || dense ? {
-          display: "-webkit-box", WebkitLineClamp: dense && !open ? 2 : 3,
+          display: "-webkit-box", WebkitLineClamp: open ? 12 : roomy ? 3 : dense ? 2 : 3,
           WebkitBoxOrient: "vertical" as const, overflow: "hidden",
         } : {}),
-        color: "#F5F1EC", margin: dense ? "0 0 6px" : "0 0 16px",
+        color: "#F5F1EC", margin: roomy ? "0 0 8px" : dense ? "0 0 6px" : "0 0 16px",
       }}>&ldquo;{claim.quote}&rdquo;</blockquote>
 
       {/* Dense: SAID → DATA on one line, labels dropped, "Why" at the end. */}
       {!checking && dense && (
-        <div style={{ display: "flex", alignItems: "baseline", gap: 7, fontFamily: F.mono, fontSize: 12 }}>
-          <span style={{ color: "#CFC7BD" }}>{formatSaid(claim.claimed)}</span>
-          <span style={{ color: L.mutedDark, fontFamily: F.ui }}>→</span>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 7, fontFamily: F.mono, fontSize: roomy ? 13.5 : 12 }}>
+          {claim.verdict === "true" && sameFigure(formatSaid(claim.claimed), figure) ? (
+            <span style={{ color: L.mutedDark, fontFamily: F.ui, fontSize: roomy ? 10.5 : 9.5, letterSpacing: "0.1em", textTransform: "uppercase" }}>On record</span>
+          ) : (<>
+            <span style={{ color: "#CFC7BD" }}>{formatSaid(claim.claimed)}</span>
+            <span style={{ color: L.mutedDark, fontFamily: F.ui }}>→</span>
+          </>)}
           <span style={{ color, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{figure}</span>
           {hasDetail && (
             <span style={{ marginLeft: "auto", fontFamily: F.ui, fontSize: 10, fontWeight: 700, color: L.true, flex: "none" }}>{open ? "Hide ▲" : "Why ▼"}</span>

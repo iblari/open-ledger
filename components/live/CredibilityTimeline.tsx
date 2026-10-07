@@ -16,9 +16,13 @@ import { L, VERDICT_COLOR, type Verdict } from "@/lib/live-design";
 export interface TimelineTick { id: string; at: number; verdict: Verdict }
 
 export default function CredibilityTimeline({
-  ticks, position, duration, onSeek,
-}: { ticks: TimelineTick[]; position: number; duration: number; onSeek: (seconds: number) => void }) {
+  ticks, position, duration, onSeek, onPickClaim,
+}: { ticks: TimelineTick[]; position: number; duration: number; onSeek: (seconds: number) => void;
+  /** A TAP (not a drag) near a mark picks that claim: the video jumps to it
+   *  and the feed scrolls to its card. */
+  onPickClaim?: (id: string) => void }) {
   const ref = useRef<HTMLDivElement>(null);
+  const down = useRef<{ x: number; moved: boolean } | null>(null);
   const span = Math.max(duration, ...ticks.map(t => t.at), 60);
 
   const seekFromEvent = (clientX: number) => {
@@ -40,10 +44,31 @@ export default function CredibilityTimeline({
         if (e.key === "ArrowLeft") onSeek(Math.max(0, position - 15));
         if (e.key === "ArrowRight") onSeek(Math.min(span, position + 15));
       }}
-      onPointerDown={e => { (e.target as HTMLElement).setPointerCapture?.(e.pointerId); seekFromEvent(e.clientX); }}
-      onPointerMove={e => { if (e.buttons === 1) seekFromEvent(e.clientX); }}
+      onPointerDown={e => {
+        (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+        down.current = { x: e.clientX, moved: false };
+        if (!onPickClaim) seekFromEvent(e.clientX);
+      }}
+      onPointerMove={e => {
+        if (e.buttons !== 1) return;
+        if (down.current && Math.abs(e.clientX - down.current.x) > 6) down.current.moved = true;
+        if (!onPickClaim || down.current?.moved) seekFromEvent(e.clientX);
+      }}
+      onPointerUp={e => {
+        const d = down.current; down.current = null;
+        if (!onPickClaim || !d || d.moved) return;
+        const el = ref.current; if (!el) return;
+        const r = el.getBoundingClientRect();
+        // Nearest mark within a finger's width; otherwise a plain seek.
+        let best: TimelineTick | null = null, bestPx = 16;
+        for (const t of ticks) {
+          const px = Math.abs(r.left + (t.at / span) * r.width - e.clientX);
+          if (px < bestPx) { bestPx = px; best = t; }
+        }
+        if (best) onPickClaim(best.id); else seekFromEvent(e.clientX);
+      }}
       style={{
-        position: "relative", height: 26, background: L.stageAlt,
+        position: "relative", height: 30, background: L.stageAlt,
         borderTop: `1px solid ${L.cardBorder}`, borderBottom: `1px solid ${L.cardBorder}`,
         cursor: "pointer", touchAction: "none", userSelect: "none",
       }}
@@ -52,7 +77,7 @@ export default function CredibilityTimeline({
       {ticks.map(t => (
         <div key={t.id} title={`${t.verdict} at ${stamp(t.at)}`} style={{
           position: "absolute", left: `${(t.at / span) * 100}%`,
-          top: 5, width: 3, height: 16, borderRadius: 1,
+          top: 6, width: 3, height: 18, borderRadius: 1,
           background: VERDICT_COLOR[t.verdict], transform: "translateX(-1.5px)",
         }} />
       ))}

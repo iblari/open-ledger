@@ -73,6 +73,17 @@ export default function ControlRoom({
   mob: boolean;
 }) {
   const [filter, setFilter] = useState<Verdict | "all">("all");
+  // Phone: secondary actions (sideways, record, stop) live behind ⋯.
+  const [menuOpen, setMenuOpen] = useState(false);
+  // A claim picked on the timeline: highlighted briefly in the feed.
+  const [picked, setPicked] = useState<string | null>(null);
+  const pickClaim = (id: string) => {
+    setFilter("all");
+    setPicked(id);
+    onSeek(0, id);
+    setTimeout(() => document.getElementById(`vu-claim-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" }), 60);
+    setTimeout(() => setPicked(p => (p === id ? null : p)), 2600);
+  };
 
   // Full screen that keeps the fact-check. YouTube's own button (now hidden)
   // made the VIDEO full screen and dropped the feed; this makes the whole
@@ -295,22 +306,49 @@ export default function ControlRoom({
       {/* Phones: the clock is dropped — the timeline under the video already
           shows where playback is, and the title needs the room. */}
       {!mob && <span style={{ fontFamily: F.mono, fontSize: 12, color: L.mutedDark2, flexShrink: 0 }}>{stamp(elapsed)}</span>}
-      {(mob || immersive) && (
-        <button type="button" onClick={immersive ? exitLandscape : enterLandscape} className="vu-back"
-          aria-label={immersive ? "Exit full screen" : "Full screen, sideways, with fact-checks"}
-          title={immersive ? "Exit full screen" : "Full screen with fact-checks"}
+      {immersive && (
+        <button type="button" onClick={exitLandscape} className="vu-back"
+          aria-label="Exit full screen" title="Exit full screen"
           style={{
             width: 30, height: 30, borderRadius: "50%", flexShrink: 0,
             display: "inline-flex", alignItems: "center", justifyContent: "center",
             background: "transparent", border: `1px solid ${L.cardBorder}`, color: "#D8D2C8",
             cursor: "pointer", padding: 0, fontSize: 14, lineHeight: 1,
-          }}>
-          {immersive ? "✕" : (
-            <svg width="13" height="13" viewBox="0 0 14 14" aria-hidden fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M1 5V1h4M13 5V1H9M1 9v4h4M13 9v4H9" />
-            </svg>
+          }}>✕</button>
+      )}
+      {mob && !immersive && (
+        <span style={{ position: "relative", flexShrink: 0 }}>
+          <button type="button" onClick={() => setMenuOpen(o => !o)} className="vu-back"
+            aria-label="More: full screen, record, stop" aria-expanded={menuOpen}
+            style={{
+              width: 30, height: 30, borderRadius: "50%",
+              display: "inline-flex", alignItems: "center", justifyContent: "center",
+              background: menuOpen ? "#2A2420" : "transparent", border: `1px solid ${L.cardBorder}`, color: "#D8D2C8",
+              cursor: "pointer", padding: 0, fontSize: 16, lineHeight: 1, letterSpacing: 1,
+            }}>⋯</button>
+          {menuOpen && (
+            <>
+              <div onClick={() => setMenuOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 80 }} />
+              <div role="menu" style={{
+                position: "absolute", right: 0, top: 36, zIndex: 81, minWidth: 210,
+                background: "#221D19", border: `1px solid ${L.cardBorder}`, borderRadius: 10,
+                boxShadow: "0 12px 30px rgba(0,0,0,.5)", overflow: "hidden", fontFamily: F.ui,
+              }}>
+                {([
+                  ["Full screen (turn sideways)", () => enterLandscape()],
+                  [`Download record · ${views.length} claims`, () => onOpenRecord()],
+                  [mode === "live" ? "Stop watching" : "Stop replay", () => onStop()],
+                ] as [string, () => void][]).map(([label, fn], i) => (
+                  <button key={label} role="menuitem" type="button" onClick={() => { setMenuOpen(false); fn(); }} style={{
+                    display: "block", width: "100%", textAlign: "left", padding: "12px 14px",
+                    background: "transparent", border: "none", borderTop: i ? `1px solid ${L.cardBorder}` : "none",
+                    color: "#F2EEE9", fontSize: 13.5, cursor: "pointer",
+                  }}>{label}</button>
+                ))}
+              </div>
+            </>
           )}
-        </button>
+        </span>
       )}
       {!mob && !immersive && canFs && (
         <button type="button" onClick={toggleFs} className="vu-back"
@@ -328,15 +366,6 @@ export default function ControlRoom({
               : <path d="M1 5V1h4M13 5V1H9M1 9v4h4M13 9v4H9" />}
           </svg>
         </button>
-      )}
-      {/* Stop lives here now. As its own full-width bar it cost ~46px of a
-          phone screen to expose an action people use once, at the end. */}
-      {mob && (
-        <button onClick={onStop} aria-label="Stop" style={{
-          background: "transparent", border: `1px solid ${L.cardBorder}`, color: L.mutedDark2,
-          borderRadius: 6, padding: "3px 9px", marginLeft: 8, fontFamily: F.ui,
-          fontSize: 11, fontWeight: 600, cursor: "pointer", flexShrink: 0,
-        }}>■</button>
       )}
     </div>
   );
@@ -401,7 +430,7 @@ export default function ControlRoom({
         // isNew flag already keeps the entry animation to the new card only.
         flex: 1, minHeight: 0, overflowY: "auto",
         WebkitOverflowScrolling: "touch",
-        padding: immersive ? "8px 10px 12px" : "12px 14px 16px",
+        padding: immersive ? "8px 10px 12px" : mob ? "10px 12px 84px" : "12px 14px 16px",
         display: "flex", flexDirection: "column",
       }}>
         {shown.length === 0 ? (
@@ -435,7 +464,8 @@ export default function ControlRoom({
             })()}
           </div>
         ) : shown.map(v => (
-          <ClaimCard key={v.id} claim={v} compact={compact} dense={immersive} isNew={newClaimIds.has(v.id)}
+          <ClaimCard key={v.id} claim={v} compact={compact} dense={compact} roomy={mob && !immersive}
+            highlight={picked === v.id} isNew={newClaimIds.has(v.id)}
             // Seconds are 0 on purpose: the parent resolves the claim by id
             // and applies its own origin logic. LiveClaimView carries a
             // formatted `time` string, not a number, so reading videoTime
@@ -448,24 +478,18 @@ export default function ControlRoom({
   );
 
   const RecordBar = mob ? (
-    // Phones: one bar for both actions. Each used to take a full row, which
-    // with the score panel left room for about one fact-check on screen.
-    <div style={{
-      flexShrink: 0, display: "flex", alignItems: "center", gap: 10,
-      padding: "10px 14px calc(10px + env(safe-area-inset-bottom))",
-      background: L.stageAlt, borderTop: `1px solid ${L.cardBorder}`,
+    // Phones: the record and stop moved into ⋯; the one action people use
+    // mid-broadcast floats over the feed instead of costing a row.
+    <button onClick={onFactCheck} disabled={isChecking} style={{
+      position: "fixed", right: 14, bottom: "calc(14px + env(safe-area-inset-bottom))", zIndex: 62,
+      background: L.true, border: "none", color: "#fff", borderRadius: 99,
+      padding: "12px 18px", fontFamily: F.ui, fontSize: 13.5, fontWeight: 700,
+      boxShadow: "0 8px 24px rgba(0,0,0,.45)", display: "inline-flex", alignItems: "center", gap: 8,
+      cursor: isChecking ? "default" : "pointer", opacity: isChecking ? 0.7 : 1,
     }}>
-      <button onClick={onFactCheck} disabled={isChecking} style={{
-        flex: 1, background: L.true, border: "none", color: "#fff", borderRadius: 8,
-        padding: "10px 12px", fontFamily: F.ui, fontSize: 13.5, fontWeight: 700,
-        cursor: isChecking ? "default" : "pointer", opacity: isChecking ? 0.6 : 1,
-      }}>{isChecking ? "Checking…" : "Check this moment"}</button>
-      <button onClick={onOpenRecord} aria-label={`Download the record of ${views.length} claims`} style={{
-        flexShrink: 0, background: "transparent", border: `1px solid ${L.cardBorder}`, color: "#F2EEE9",
-        borderRadius: 8, padding: "10px 12px", fontFamily: F.ui, fontSize: 12.5, fontWeight: 600, cursor: "pointer",
-        whiteSpace: "nowrap",
-      }}>Record · {views.length} ↓</button>
-    </div>
+      <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round"><circle cx="7" cy="7" r="5" /><path d="M11 11l3.5 3.5" /></svg>
+      {isChecking ? "Checking…" : "Check this moment"}
+    </button>
   ) : (
     <button onClick={onOpenRecord} style={{
       flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -552,7 +576,7 @@ export default function ControlRoom({
         duration={videoDuration && videoDuration > 60
           ? videoDuration
           : Math.max(elapsed, ...ticks.map(t => t.at), 60)}
-        onSeek={onSeek} />
+        onSeek={onSeek} onPickClaim={pickClaim} />
       {!immersive && (
         <RunningScore trueCount={counts.true} misleadingCount={counts.misleading}
           falseCount={counts.false} unverifiableCount={unscored} mob={compact} />
