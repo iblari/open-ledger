@@ -651,14 +651,16 @@ export default function OffAir({
             </button>
 
             </div>
-
-            <ReplaysArchive items={archive} onWatch={onWatch} />
           </>
         )}
 
         <div style={{ marginTop: 44 }}>
           <AgendaRadar />
         </div>
+
+        {/* Replays sit last: the latest broadcast stays at the top, the full
+            archive is for people who come looking for it. */}
+        {featured && <ReplaysArchive items={archive} onWatch={onWatch} />}
         {/* The older "more, and less" panel (TopicShiftPanel, claim-based) was
             removed: the agenda radar above answers the same question from full
             transcripts. */}
