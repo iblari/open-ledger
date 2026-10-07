@@ -17,6 +17,7 @@
 
 import { useState } from "react";
 import { L, F, VERDICT_COLOR, VERDICT_LABEL, type Verdict } from "@/lib/live-design";
+import ShareClaimButton from "@/components/ShareClaimButton";
 
 export interface LiveClaimView {
   id: string;
@@ -29,6 +30,8 @@ export interface LiveClaimView {
   source?: string;
   confidence?: number;
   sources?: { title: string; url: string }[];
+  /** /c/… address of this check, when it can be shared (not in the demo). */
+  sharePath?: string;
 }
 
 /** Keep the on-record figure short enough to sit beside the claimed one.
@@ -132,12 +135,17 @@ export default function ClaimCard({
           border: checking ? `1px solid ${L.cardBorder}` : "none",
           padding: dense ? "3px 7px" : "6px 12px", borderRadius: dense ? 4 : 6, lineHeight: 1,
         }}>{VERDICT_LABEL[claim.verdict]}</span>
+        <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        {claim.sharePath && !checking && !dense && (
+          <ShareClaimButton small path={claim.sharePath} quote={claim.quote} verdict={VERDICT_LABEL[claim.verdict]} />
+        )}
         <button
           onClick={e => { e.stopPropagation(); onSeek?.(claim); }}
           style={{
             fontFamily: F.mono, fontSize: dense ? 11 : 14, color: L.mutedDark, background: "none",
             border: "none", cursor: onSeek ? "pointer" : "default", padding: 0, letterSpacing: "0.02em",
           }}>{claim.time}</button>
+        </span>
       </div>
 
       {/* the quote */}

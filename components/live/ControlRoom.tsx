@@ -21,6 +21,7 @@ import { L, F, VERDICT_COLOR, toVerdict, toOutcome, type Verdict } from "@/lib/l
 import CredibilityTimeline, { type TimelineTick } from "./CredibilityTimeline";
 import RunningScore from "./RunningScore";
 import ClaimCard, { type LiveClaimView } from "./ClaimCard";
+import { claimPath } from "@/lib/claim-link";
 
 export interface ControlRoomClaim {
   id: string; rating: string; quote: string; actual: string; explanation?: string;
@@ -33,8 +34,10 @@ const stamp = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60))
 
 export default function ControlRoom({
   title, mode, elapsed, videoDuration, silentFor, videoSlot, caption, claims, newClaimIds,
-  onSeek, onStop, onFactCheck, isChecking, manualResult, onOpenRecord, mob, onBack, immersive = false,
+  onSeek, onStop, onFactCheck, isChecking, manualResult, onOpenRecord, mob, onBack, immersive = false, videoId,
 }: {
+  /** The broadcast's id; enables per-claim share links. Absent in the demo. */
+  videoId?: string;
   /** Phone held sideways: video and feed side by side, filling the window. */
   immersive?: boolean;
   /** Replays only: return to the list of recent broadcasts. */
@@ -215,6 +218,7 @@ export default function ControlRoom({
     source: c.groundTruth?.source,
     confidence: c.confidence,
     sources: c.sources,
+    sharePath: videoId ? claimPath(videoId, c.quote) : undefined,
   }));
 
   const counts = {

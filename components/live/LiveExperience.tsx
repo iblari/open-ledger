@@ -2545,6 +2545,7 @@ export default function LiveExperience({ autoStartReplay, autoStartLive, onExit,
           <ControlRoom
             title={title || "Live broadcast"}
             mode={isReplay ? "replay" : isDemo ? "demo" : "live"}
+            videoId={isDemo ? undefined : (videoId || undefined)}
             elapsed={captionClock}
             videoDuration={videoDuration}
             silentFor={silentFor}
