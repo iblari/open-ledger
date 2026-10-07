@@ -1455,7 +1455,7 @@ function MobileTicker() {
    found client-side in the live FRED feed (lib/bench-lens dataSignals);
    repeated lines and rising subjects come from the broadcast ledger on the
    server (lib/trending-live). Freshest + most unusual first. ── */
-/** Interleave: best data signal, best broadcast signal, … — capped at n. */
+/** Interleave the best data and broadcast signals (capped at n), then order by date, latest first. */
 function mergeTrends(bench: Bench | null, liveTrends: TrendCard[], n = 5): TrendCard[] {
   const d = dataSignals(bench), l = [...liveTrends].sort((a, b) => b.score - a.score);
   const out: TrendCard[] = [];
@@ -1463,7 +1463,8 @@ function mergeTrends(bench: Bench | null, liveTrends: TrendCard[], n = 5): Trend
     if (d.length) out.push(d.shift()!);
     if (l.length && out.length < n) out.push(l.shift()!);
   }
-  return out;
+  // Picked for importance (a mix of data and broadcasts), shown newest first.
+  return out.sort((a, b) => Date.parse(b.date) - Date.parse(a.date) || b.score - a.score);
 }
 
 /* Desktop: the same cards as the phone strip, laid out as a row. Replaced

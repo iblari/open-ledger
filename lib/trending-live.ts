@@ -1,7 +1,7 @@
 import { unstable_cache } from "next/cache";
 import { getLedgerHealed } from "./live-kv";
 import { findRepeats, type RepeatOccurrence } from "./repeat-claims";
-import { computeShift } from "./topic-breadth";
+import { getRadar } from "./agenda-radar";
 import { loadTopicTags } from "./topic-tags";
 import type { TrendCard } from "./bench-lens";
 
@@ -62,31 +62,51 @@ async function compute(): Promise<TrendCard[]> {
     });
   }
 
-  // ── Rising subject ──
-  const shift = computeShift(ledger.map(e => ({
-    videoId: e.videoId, title: e.title, startedAt: e.startedAt,
-    claims: e.claims.map(c => ({ quote: c.quote })),
-  })), 5);
-  const r = shift?.rising.find(x => x.confidence !== "too-early");
-  if (shift && r && shift.to && now - Date.parse(shift.to) < 2 * WEEK) {
-    cards.push({
-      id: `topic-${r.topic}`,
-      kicker: "Broadcasts",
-      headline: `${r.topic} came up in ${r.recent} of the last ${shift.window} broadcasts, up from ${r.prior}`,
-      badge: `↑ Rising topic`,
-      tone: "neutral",
-      date: shift.to, dateLabel: fmtDay(shift.to),
-      href: "/live#shift-h",
-      score: 4 + (r.recent - r.prior),
-    });
+  // ── From the agenda radar (/live), so the strip and the radar agree ──
+  const rad = await getRadar().catch(() => null);
+  if (rad) {
+    const asOf = rad.window.to;
+    const top = rad.themes.filter(t => t.market && (t.status === "rising" || t.status === "new"))
+      .sort((a, b) => b.z - a.z)[0];
+    if (top && now - Date.parse(asOf) < 2 * WEEK) {
+      const m = top.baseRate > 0 ? top.recentRate / top.baseRate : null;
+      cards.push({
+        id: `radar-${top.key}`,
+        kicker: "Agenda",
+        headline: `${top.label} talk is ${m ? `up ${m >= 10 ? Math.round(m) : m.toFixed(1)}×` : "new"} in the last two weeks, across ${top.recentBroadcasts} broadcasts`,
+        badge: "▲ Rising on air",
+        tone: "neutral",
+        date: asOf, dateLabel: fmtDay(asOf),
+        href: "/live#radar-h",
+        score: 4 + Math.min(top.z, 12) / 2,
+      });
+    }
+    // Names said on air for the first time, newest first.
+    const firsts = [...rad.companies, ...rad.people]
+      .filter(e => e.firstSeen).sort((a, b) => b.firstSeen!.localeCompare(a.firstSeen!));
+    if (firsts.length && now - Date.parse(firsts[0].firstSeen!) < WEEK) {
+      const day = firsts[0].firstSeen!.slice(0, 10);
+      const same = firsts.filter(e => e.firstSeen!.slice(0, 10) === day);
+      const names = same.slice(0, 4).map(e => e.name);
+      cards.push({
+        id: `radar-first-${day}`,
+        kicker: "Named on air",
+        headline: `First time on air: ${names.join(", ")}${same.length > 4 ? ` and ${same.length - 4} more` : ""}`,
+        badge: `${same.length} new name${same.length === 1 ? "" : "s"}`,
+        tone: "neutral",
+        date: firsts[0].firstSeen!, dateLabel: fmtDay(firsts[0].firstSeen!),
+        href: "/live#radar-h",
+        score: 4 + Math.min(same.length, 6) / 2,
+      });
+    }
   }
-  // Two repeat cards only when there's no subject card to vary the strip.
+  // Two repeat cards only when nothing else varies the strip.
   const reps = cards.filter(c => c.kicker === "Fact-checks");
   return reps.length > 1 && cards.length > reps.length ? cards.filter(c => c !== reps[1]) : cards;
 }
 
 export const liveTrending = unstable_cache(
   async () => { try { return await compute(); } catch { return []; } },
-  ["trending-live-v2"],
+  ["trending-live-v3"],
   { revalidate: 600 },
 );
