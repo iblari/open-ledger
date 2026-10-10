@@ -96,11 +96,47 @@ const TONE: Record<string, [string, string, string]> = {
   concerned: ["Concerned", "#B45309", "#F6EBDD"], hostile: ["Hostile", "#C0392B", "#F8E4E1"],
 };
 
-function PriceLine({ closes, w = 76, h = 20 }: { closes: number[]; w?: number; h?: number }) {
+/** 14-day closes. Hover (or tap) to read the price on a day. */
+function PriceLine({ closes, dates, w = 76, h = 20 }: { closes: number[]; dates?: string[]; w?: number; h?: number }) {
+  const [i, setI] = useState<number | null>(null);
   const mn = Math.min(...closes), mx = Math.max(...closes), r = mx - mn || 1;
   const up = closes[closes.length - 1] >= closes[0];
-  const d = closes.map((v, i) => `${i ? "L" : "M"}${(2 + (i / (closes.length - 1)) * (w - 4)).toFixed(1)},${(h - 2 - ((v - mn) / r) * (h - 4)).toFixed(1)}`).join(" ");
-  return <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden style={{ display: "block", flex: "none" }}><path d={d} fill="none" stroke={up ? C.up : "#C2410C"} strokeWidth={1.7} strokeLinejoin="round" /></svg>;
+  const X = (k: number) => 2 + (k / (closes.length - 1)) * (w - 4);
+  const Y = (v: number) => h - 2 - ((v - mn) / r) * (h - 4);
+  const d = closes.map((v, k) => `${k ? "L" : "M"}${X(k).toFixed(1)},${Y(v).toFixed(1)}`).join(" ");
+  const pick = (clientX: number, el: Element) => {
+    const rect = el.getBoundingClientRect();
+    const k = Math.round(((clientX - rect.left - 2) / (rect.width - 4)) * (closes.length - 1));
+    setI(Math.max(0, Math.min(closes.length - 1, k)));
+  };
+  const col = up ? C.up : "#C2410C";
+  const day = i != null && dates?.[i] ? new Date(dates[i] + "T12:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" }) : null;
+  const chg = i != null ? ((closes[i] - closes[0]) / closes[0]) * 100 : 0;
+  return (
+    <span style={{ position: "relative", display: "block", flex: "none", lineHeight: 0 }}
+      onClick={e => e.stopPropagation()}
+      onPointerMove={e => { if (e.pointerType === "mouse") pick(e.clientX, e.currentTarget); }}
+      onPointerDown={e => { e.stopPropagation(); pick(e.clientX, e.currentTarget); if (e.pointerType !== "mouse") setTimeout(() => setI(null), 2500); }}
+      onPointerLeave={e => { if (e.pointerType === "mouse") setI(null); }}>
+      <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-label="Price, last 14 days" style={{ display: "block", cursor: "crosshair" }}>
+        <path d={d} fill="none" stroke={col} strokeWidth={1.7} strokeLinejoin="round" />
+        {i != null && <>
+          <line x1={X(i)} x2={X(i)} y1={0} y2={h} stroke={C.rule} strokeWidth={1} />
+          <circle cx={X(i)} cy={Y(closes[i])} r={2.8} fill={col} stroke="#fff" strokeWidth={1} />
+        </>}
+      </svg>
+      {i != null && (
+        <span role="tooltip" style={{
+          position: "absolute", bottom: h + 6, left: Math.min(Math.max(X(i), 30), w - 30), transform: "translateX(-50%)",
+          background: C.ink, color: "#f8f5f0", borderRadius: 6, padding: "4px 7px", whiteSpace: "nowrap", zIndex: 5,
+          fontFamily: SANS, fontSize: 11, lineHeight: 1.3, boxShadow: "0 4px 12px rgba(0,0,0,.2)", pointerEvents: "none",
+        }}>
+          {day ? `${day} · ` : ""}<b style={{ fontFamily: MONO, fontWeight: 500 }}>${closes[i].toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b>
+          {i > 0 && <span style={{ color: chg >= 0 ? "#7fd1c4" : "#f3a28a" }}> {chg >= 0 ? "+" : "−"}{Math.abs(chg).toFixed(1)}%</span>}
+        </span>
+      )}
+    </span>
+  );
 }
 
 function TonePill({ tone, compact }: { tone?: RadarEntity["tone"]; compact?: boolean }) {
@@ -147,7 +183,7 @@ function EntityRow({ e, open, onToggle, first, phone, kind }: { e: RadarEntity; 
           ) : e.role ? <span style={{ fontFamily: SANS, fontSize: 11, color: C.muted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>{e.role}</span> : null}
         </span>
         {!phone && counts}
-        {kind === "cos" && (st ? <><PriceLine closes={st.closes} w={phone ? 56 : 76} />{chg}</> : <span style={{ width: phone ? 106 : 134, flex: "none", textAlign: "right", fontSize: 11, color: "#A69E92" }}>{e.ticker && e.ticker !== "private" ? "" : "private"}</span>)}
+        {kind === "cos" && (st ? <><PriceLine closes={st.closes} dates={st.dates} w={phone ? 56 : 76} />{chg}</> : <span style={{ width: phone ? 106 : 134, flex: "none", textAlign: "right", fontSize: 11, color: "#A69E92" }}>{e.ticker && e.ticker !== "private" ? "" : "private"}</span>)}
         <TonePill tone={e.tone} compact={phone} />
         <span aria-hidden style={{ color: C.muted, fontSize: 11, transform: open ? "rotate(90deg)" : "none", transition: "transform .15s" }}>›</span>
       </button>
@@ -253,7 +289,9 @@ export default function AgendaRadar() {
             <span>{tab === "cos" ? "Company · ticker" : tab === "ppl" ? "Person · role" : "Country"}</span>
             <span>{phone ? (tab === "cos" ? "Price 14d · tone" : "Tone") : `Last 14 days · broadcasts${tab === "cos" ? " · price, 14 days" : ""} · tone on air`}</span>
           </div>
-          <div style={{ background: C.card, border: `1px solid ${C.rule}`, borderRadius: 10, overflow: "hidden" }}>
+          {/* Not overflow:hidden — the price tooltip has to be able to rise
+              above the first row. */}
+          <div style={{ background: C.card, border: `1px solid ${C.rule}`, borderRadius: 10 }}>
             {shown.map((e, i) => <EntityRow key={e.name} first={i === 0} e={e} phone={phone} kind={tab} open={open === e.name} onToggle={() => setOpen(o => (o === e.name ? null : e.name))} />)}
           </div>
           {list.length > 6 && (
