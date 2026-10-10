@@ -1,4 +1,3 @@
-import { unstable_cache } from "next/cache";
 import { getLedger, getReplayableOne, kvGet, kvSetMany } from "./live-kv";
 import { getStocks, type Stock14 } from "./stocks";
 import { getTones, type Tone } from "./entity-tone";
@@ -363,7 +362,26 @@ async function computeEnriched(): Promise<Radar> {
   return r;
 }
 
-export const getRadar = unstable_cache(async () => computeEnriched(), ["agenda-radar-v5"], { revalidate: 900 });
+/**
+ * Cached in KV for 15 minutes. (unstable_cache was serving a stale copy for
+ * hours: its background refresh can fail silently, and the stale value is
+ * kept forever.) Stale → recompute in the request; summaries and prices are
+ * themselves cached, so a refresh is a few reads and one model-free pass.
+ */
+const RADAR_KEY = "radar:cache:v6";
+const RADAR_TTL_MS = 15 * 60_000;
+export async function getRadar(): Promise<Radar> {
+  try {
+    const [raw] = await kvGet([RADAR_KEY]);
+    if (raw) {
+      const hit = JSON.parse(raw) as Radar;
+      if (Date.now() - Date.parse(hit.generatedAt) < RADAR_TTL_MS) return hit;
+    }
+  } catch { /* fall through and rebuild */ }
+  const fresh = await computeEnriched();
+  await kvSetMany([[RADAR_KEY, JSON.stringify(fresh), 24 * 3600]]).catch(() => {});
+  return fresh;
+}
 
 /** The pattern a name is counted by, for finding the sentences that mention it. */
 export function entityPattern(name: string): RegExp {

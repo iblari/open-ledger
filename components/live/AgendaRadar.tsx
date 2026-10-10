@@ -213,7 +213,7 @@ function EntityRow({ e, open, onToggle, first, phone, kind }: { e: RadarEntity; 
           )}
           {st && (
             <div style={{ marginTop: 4 }}>
-              {st.symbol}, last 14 days: ${st.closes[0].toLocaleString()} → ${st.closes[st.closes.length - 1].toLocaleString()} ({st.changePct >= 0 ? "+" : "−"}{Math.abs(st.changePct).toFixed(1)}%), close of {fmtDay(st.asOf)}. Context, not a cause, and not advice.
+              {st.symbol}, last 14 days: ${st.closes[0].toLocaleString()} → ${st.closes[st.closes.length - 1].toLocaleString()} ({st.changePct >= 0 ? "+" : "−"}{Math.abs(st.changePct).toFixed(1)}%), close of {fmtDay(st.asOf)}.
             </div>
           )}
         </div>
