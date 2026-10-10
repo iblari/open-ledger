@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useIsMobileViewport } from "@/lib/viewport";
 import type { Radar, RadarRow, RadarEntity } from "@/lib/agenda-radar";
 
@@ -99,6 +99,7 @@ const TONE: Record<string, [string, string, string]> = {
 /** 14-day closes. Hover (or tap) to read the price on a day. */
 function PriceLine({ closes, dates, w = 76, h = 20 }: { closes: number[]; dates?: string[]; w?: number; h?: number }) {
   const [i, setI] = useState<number | null>(null);
+  const hideT = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mn = Math.min(...closes), mx = Math.max(...closes), r = mx - mn || 1;
   const up = closes[closes.length - 1] >= closes[0];
   const X = (k: number) => 2 + (k / (closes.length - 1)) * (w - 4);
@@ -113,10 +114,19 @@ function PriceLine({ closes, dates, w = 76, h = 20 }: { closes: number[]; dates?
   const day = i != null && dates?.[i] ? new Date(dates[i] + "T12:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" }) : null;
   const chg = i != null ? ((closes[i] - closes[0]) / closes[0]) * 100 : 0;
   return (
-    <span style={{ position: "relative", display: "block", flex: "none", lineHeight: 0 }}
+    <span style={{ position: "relative", display: "block", flex: "none", lineHeight: 0, touchAction: "pan-y", padding: "6px 0", margin: "-6px 0" }}
+      // Touch: the finger can slide along the line (pan-y keeps the page's
+      // vertical scroll; sideways drags come here). Mouse: plain hover.
       onClick={e => e.stopPropagation()}
-      onPointerMove={e => { if (e.pointerType === "mouse") pick(e.clientX, e.currentTarget); }}
-      onPointerDown={e => { e.stopPropagation(); pick(e.clientX, e.currentTarget); if (e.pointerType !== "mouse") setTimeout(() => setI(null), 2500); }}
+      onPointerDown={e => {
+        e.stopPropagation();
+        if (e.pointerType !== "mouse") { try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* older Safari */ } }
+        if (hideT.current) clearTimeout(hideT.current);
+        pick(e.clientX, e.currentTarget);
+      }}
+      onPointerMove={e => { if (e.pointerType === "mouse" || e.buttons || e.pressure > 0) pick(e.clientX, e.currentTarget); }}
+      onPointerUp={e => { if (e.pointerType !== "mouse") hideT.current = setTimeout(() => setI(null), 1800); }}
+      onPointerCancel={() => setI(null)}
       onPointerLeave={e => { if (e.pointerType === "mouse") setI(null); }}>
       <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-label="Price, last 14 days" style={{ display: "block", cursor: "crosshair" }}>
         <path d={d} fill="none" stroke={col} strokeWidth={1.7} strokeLinejoin="round" />

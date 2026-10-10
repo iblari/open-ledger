@@ -50,8 +50,8 @@ export async function GET(req: Request) {
   // Once ever: queue broadcasts that have no transcript for the worker.
   const queued = await seedTranscriptBackfillOnce().catch(() => 0);
   if (queued) console.log(`[live-tick] queued ${queued} broadcasts for transcript backfill`);
-  // One broadcast's "tone on air" labels per tick (one model call).
-  const toned = await toneBackfill(1).catch(e => { console.error("[live-tick] tone failed:", (e as Error).message); return 0; });
+  // Two broadcasts' "tone on air" labels per tick (one model call each).
+  const toned = await toneBackfill(2).catch(e => { console.error("[live-tick] tone failed:", (e as Error).message); return 0; });
   if (toned) console.log(`[live-tick] labelled tone for ${toned} broadcast(s)`);
   const tags = await tagPending(40).catch(e => {
     console.error("[live-tick] topic tagging failed:", (e as Error).message);
