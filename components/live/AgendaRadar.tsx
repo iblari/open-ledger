@@ -153,7 +153,7 @@ function TonePill({ tone, compact }: { tone?: RadarEntity["tone"]; compact?: boo
   if (!tone) return <span style={{ width: compact ? 10 : 88, flex: "none" }} />;
   const [label, fg, bg] = TONE[tone.label];
   return (
-    <span title={`Tone on air: ${label}`} style={{
+    <span title={`Sentiment: ${label}`} style={{
       flex: "none", display: "inline-flex", alignItems: "center", gap: 5, fontFamily: SANS, fontSize: 11, fontWeight: 600,
       color: fg, background: compact ? "transparent" : bg, borderRadius: 99, padding: compact ? 0 : "2px 8px",
       minWidth: compact ? undefined : 88, justifyContent: compact ? undefined : "center",
@@ -207,7 +207,7 @@ function EntityRow({ e, open, onToggle, first, phone, kind }: { e: RadarEntity; 
           </>}
           {e.tone && (
             <div style={{ marginTop: 6 }}>
-              Tone on air: <b style={{ color: TONE[e.tone.label][1] }}>{TONE[e.tone.label][0]}</b>
+              Sentiment: <b style={{ color: TONE[e.tone.label][1] }}>{TONE[e.tone.label][0]}</b>
               {" "}<span style={{ color: C.muted }}>({(["positive", "neutral", "concerned", "hostile"] as const).filter(l => e.tone!.counts[l]).map(l => `${e.tone!.counts[l]} ${TONE[l][0].toLowerCase()}`).join(", ")} across broadcasts)</span>
             </div>
           )}
@@ -297,7 +297,7 @@ export default function AgendaRadar() {
         <>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, letterSpacing: "0.08em", textTransform: "uppercase", color: C.muted, padding: "0 12px 4px" }}>
             <span>{tab === "cos" ? "Company · ticker" : tab === "ppl" ? "Person · role" : "Country"}</span>
-            <span>{phone ? (tab === "cos" ? "Price 14d · tone" : "Tone") : `Last 14 days · broadcasts${tab === "cos" ? " · price, 14 days" : ""} · tone on air`}</span>
+            <span>{phone ? (tab === "cos" ? "Price 14d · sentiment" : "Sentiment") : `Last 14 days · broadcasts${tab === "cos" ? " · price, 14 days" : ""} · sentiment`}</span>
           </div>
           {/* Not overflow:hidden — the price tooltip has to be able to rise
               above the first row. */}
