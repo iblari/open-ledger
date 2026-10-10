@@ -16,8 +16,10 @@ import OffAir from "./OffAir";
 import LiveExperience from "./LiveExperience";
 
 export default function LiveShell({
-  initial, requested = null,
+  initial, requested = null, startAt,
 }: {
+  /** Seconds into the requested replay to start at (?t=). */
+  startAt?: number;
   /** A specific broadcast asked for by ?v=, already checked against the live
    *  state and the archive by the server. */
   requested?: string | null;
@@ -55,6 +57,7 @@ export default function LiveShell({
     return (
       <LiveExperience
         autoStartReplay={enter === "live" ? undefined : enter}
+        startAt={enter !== "live" && enter === requested ? startAt : undefined}
         autoStartLive={live}
         pendingTitle={live?.title ?? initial.archive.find(a => a.id === enter)?.title}
         onBrowse={enter === "live" ? () => {

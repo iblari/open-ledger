@@ -33,7 +33,7 @@ export const dynamic = "force-dynamic";
 export default async function LivePage({
   searchParams,
 }: {
-  searchParams: Promise<{ v?: string }>;
+  searchParams: Promise<{ v?: string; t?: string }>;
 }) {
   const h = await headers();
   const host = h.get("host") || "voteunbiased.org";
@@ -54,6 +54,8 @@ export default async function LivePage({
     <LiveShell
       initial={data}
       requested={requested && (isLiveNow || inArchive) ? requested : null}
+      // ?t=<seconds> opens the replay at that moment (radar quotes link here).
+      startAt={requested && inArchive && !isLiveNow && Number(params?.t) > 0 ? Math.floor(Number(params!.t)) : undefined}
     />
   );
 }

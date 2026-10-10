@@ -202,7 +202,7 @@ function EntityRow({ e, open, onToggle, first, phone, kind }: { e: RadarEntity; 
           {e.last && <>
             <div style={{ fontFamily: SERIF, fontSize: 14.5, color: C.ink }}>“…{e.last.text}…”</div>
             <div style={{ marginTop: 5 }}>
-              {fmtDay(e.last.date)}{" · "}<a href={`/live?v=${encodeURIComponent(e.last.videoId)}`} style={{ color: C.up, fontWeight: 600 }}>▶ Watch{e.last.t != null ? ` at ${stamp(e.last.t)}` : ""}</a>
+              {fmtDay(e.last.date)}{" · "}<a href={`/live?v=${encodeURIComponent(e.last.videoId)}${e.last.t != null ? `&t=${Math.floor(e.last.t)}` : ""}`} style={{ color: C.up, fontWeight: 600 }}>▶ Watch{e.last.t != null ? ` at ${stamp(e.last.t)}` : ""}</a>
             </div>
           </>}
           {e.tone && (

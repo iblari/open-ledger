@@ -624,8 +624,10 @@ function PlayerSkeleton({ title }: { title?: string }) {
   );
 }
 
-export default function LiveExperience({ autoStartReplay, autoStartLive, onExit, onBrowse, pendingTitle }: {
+export default function LiveExperience({ autoStartReplay, autoStartLive, onExit, onBrowse, pendingTitle, startAt }: {
   autoStartReplay?: string;
+  /** Replay only: seconds (on the transcript's clock) to open at. */
+  startAt?: number;
   /** During a LIVE broadcast: step out to the broadcasts & trends page
    *  without ending anything (the page offers a way back to the live). */
   onBrowse?: () => void;
@@ -1193,6 +1195,31 @@ export default function LiveExperience({ autoStartReplay, autoStartLive, onExit,
     }, 400);
     return () => clearInterval(id);
   }, [isReplay, isPlaying, claims, replaySegments, replayAligned]);
+
+  /* ── Open a replay at a requested moment (?t=) ──
+     Waits until the player knows the video's length, then a beat more so the
+     overshoot correction above (timeShift) has settled, and seeks to the same
+     clock the claims use: transcript time minus the shift. Three seconds of
+     lead-in so the sentence isn't joined mid-word. Once only. */
+  const startAtDone = useRef(false);
+  const timeShiftRef = useRef(0);
+  useEffect(() => { timeShiftRef.current = timeShift; }, [timeShift]);
+  useEffect(() => {
+    if (!startAt || startAtDone.current || !isReplay || !isPlaying) return;
+    let tries = 0;
+    const id = setInterval(() => {
+      const dur = ytPlayerRef.current?.getDuration?.() ?? 0;
+      if (dur > 30) {
+        clearInterval(id);
+        setTimeout(() => {
+          if (startAtDone.current) return;
+          startAtDone.current = true;
+          seekVideo(Math.max(0, Math.min(dur - 5, startAt - timeShiftRef.current - 3)));
+        }, 900);
+      } else if (++tries > 40) clearInterval(id);
+    }, 400);
+    return () => clearInterval(id);
+  }, [startAt, isReplay, isPlaying, seekVideo]);
 
   /* ── Caption clock — drives the word-synced transcript strip ── */
   // 300ms tick while captions are loaded: fast enough that the highlighted
