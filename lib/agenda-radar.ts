@@ -1,5 +1,7 @@
 import { unstable_cache } from "next/cache";
 import { getLedger, getReplayableOne, kvGet, kvSetMany } from "./live-kv";
+import { getStocks, type Stock14 } from "./stocks";
+import { getTones, type Tone } from "./entity-tone";
 
 /**
  * Agenda radar — what officials are talking about MORE, measured.
@@ -58,13 +60,13 @@ const COMPANY_DEFS: [string, string, string][] = [
   ["Toyota", "TM", "Toyota"], ["Honda", "HMC", "Honda"], ["Hyundai", "HYMTF", "Hyundai"], ["Nissan", "NSANY", "Nissan"], ["BMW", "BMWYY", "BMW"],
   ["Boeing", "BA", "Boeing"], ["Lockheed Martin", "LMT", "Lockheed"], ["RTX", "RTX", "Raytheon|\\bRTX\\b"], ["Northrop Grumman", "NOC", "Northrop"],
   ["General Dynamics", "GD", "General Dynamics"], ["Huntington Ingalls", "HII", "Huntington Ingalls"], ["Anduril", "private", "Anduril|Anderrill"],
-  ["Saronic", "private", "Saronic"], ["Hadrian", "private", "Hadrian"], ["Hanwha", "Hanwha (KRX)", "Hanwha"], ["Austal", "ASB.AX", "Austal"],
+  ["Saronic", "private", "Saronic"], ["Hadrian", "private", "Hadrian"], ["Hanwha", "042660.KS", "Hanwha"], ["Austal", "ASB.AX", "Austal"],
   ["Eli Lilly", "LLY", "Eli Lilly"], ["Pfizer", "PFE", "Pfizer"], ["Merck", "MRK", "Merck"], ["Johnson & Johnson", "JNJ", "Johnson (?:&|and) Johnson"],
   ["AstraZeneca", "AZN", "AstraZeneca|Astra Zeneca"], ["Novartis", "NVS", "Novartis"], ["Novo Nordisk", "NVO", "Novo Nordisk"], ["Abbott", "ABT", "Abbott"],
   ["Regeneron", "REGN", "Regeneron"], ["Bristol Myers", "BMY", "Bristol[- ]Myers"], ["Amgen", "AMGN", "Amgen"],
   ["ExxonMobil", "XOM", "Exxon"], ["Chevron", "CVX", "Chevron"], ["ConocoPhillips", "COP", "Conoco"], ["Glenfarne", "private", "Glenfarne"],
   ["Westinghouse", "private", "Westinghouse"], ["GE Vernova", "GEV", "GE Vernova|General Electric"], ["Caterpillar", "CAT", "Caterpillar"],
-  ["U.S. Steel", "Nippon (NPSCY)", "U\\.?S\\.? Steel|United States Steel"], ["Nippon Steel", "NPSCY", "Nippon Steel"], ["Nucor", "NUE", "Nucor"], ["Cleveland-Cliffs", "CLF", "Cleveland[- ]Cliffs"],
+  ["U.S. Steel", "NPSCY", "U\\.?S\\.? Steel|United States Steel"], ["Nippon Steel", "NPSCY", "Nippon Steel"], ["Nucor", "NUE", "Nucor"], ["Cleveland-Cliffs", "CLF", "Cleveland[- ]Cliffs"],
   ["Mesabi Metallics", "private", "Mesabi"], ["MP Materials", "MP", "MP Materials"], ["Peterbilt", "PCAR", "Peterbilt|Paccar|PACCAR"],
   ["Walmart", "WMT", "Walmart|Wal-Mart"], ["Costco", "COST", "Costco"], ["Coca-Cola", "KO", "Coca[- ]Cola|Coke"], ["McDonald's", "MCD", "McDonald's"],
   ["JPMorgan", "JPM", "JPMorgan|JP Morgan|J\\.P\\. Morgan"], ["Goldman Sachs", "GS", "Goldman"], ["BlackRock", "BLK", "BlackRock|Blackrock"], ["Bank of America", "BAC", "Bank of America"],
@@ -188,6 +190,8 @@ export interface RadarRow {
 }
 export interface RadarEntity {
   name: string; ticker?: string; role?: string;
+  stock?: Stock14;
+  tone?: Tone;
   recentCount: number; baseCount: number; recentBroadcasts: number; totalBroadcasts: number;
   status: Status; last: { date: string; videoId: string; title: string; t: number | null; text: string } | null;
   /** First broadcast it was ever named in — set only when that is one of the
@@ -345,4 +349,25 @@ export function aggregate(ledger: Entry[], sums: (BcSummary | null)[]): Radar {
   };
 }
 
-export const getRadar = unstable_cache(async () => compute(), ["agenda-radar-v4"], { revalidate: 900 });
+/** The radar plus the two slower enrichments: prices for listed companies
+ *  and the tone each name was spoken about in. Either can fail on its own
+ *  without taking the radar down. */
+async function computeEnriched(): Promise<Radar> {
+  const r = await compute();
+  const [stocks, tones] = await Promise.all([
+    getStocks(r.companies.slice(0, 30).map(c => c.ticker || "")).catch(() => ({} as Record<string, Stock14>)),
+    getTones(r).catch(() => ({} as Record<string, Tone>)),
+  ]);
+  for (const c of r.companies) { if (c.ticker && stocks[c.ticker]) c.stock = stocks[c.ticker]; }
+  for (const list of [r.companies, r.people, r.countries]) for (const e of list) { if (tones[e.name]) e.tone = tones[e.name]; }
+  return r;
+}
+
+export const getRadar = unstable_cache(async () => computeEnriched(), ["agenda-radar-v5"], { revalidate: 900 });
+
+/** The pattern a name is counted by, for finding the sentences that mention it. */
+export function entityPattern(name: string): RegExp {
+  const hit = [...COMPANIES, ...COUNTRIES, ...PEOPLE].find(e => e.name === name);
+  if (hit) return new RegExp(hit.rx.source, "g");
+  return new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "g");
+}

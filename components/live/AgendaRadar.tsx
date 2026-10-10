@@ -91,31 +91,85 @@ function ThemeCard({ t }: { t: RadarRow }) {
   );
 }
 
-function EntityRow({ e, open, onToggle, first }: { e: RadarEntity; open: boolean; onToggle: () => void; first: boolean }) {
+const TONE: Record<string, [string, string, string]> = {
+  positive: ["Positive", "#0E7477", "#E3F1EE"], neutral: ["Neutral", "#8C8479", "#EEEAE3"],
+  concerned: ["Concerned", "#B45309", "#F6EBDD"], hostile: ["Hostile", "#C0392B", "#F8E4E1"],
+};
+
+function PriceLine({ closes, w = 76, h = 20 }: { closes: number[]; w?: number; h?: number }) {
+  const mn = Math.min(...closes), mx = Math.max(...closes), r = mx - mn || 1;
+  const up = closes[closes.length - 1] >= closes[0];
+  const d = closes.map((v, i) => `${i ? "L" : "M"}${(2 + (i / (closes.length - 1)) * (w - 4)).toFixed(1)},${(h - 2 - ((v - mn) / r) * (h - 4)).toFixed(1)}`).join(" ");
+  return <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden style={{ display: "block", flex: "none" }}><path d={d} fill="none" stroke={up ? C.up : "#C2410C"} strokeWidth={1.7} strokeLinejoin="round" /></svg>;
+}
+
+function TonePill({ tone, compact }: { tone?: RadarEntity["tone"]; compact?: boolean }) {
+  if (!tone) return <span style={{ width: compact ? 10 : 88, flex: "none" }} />;
+  const [label, fg, bg] = TONE[tone.label];
+  return (
+    <span title={`Tone on air: ${label}`} style={{
+      flex: "none", display: "inline-flex", alignItems: "center", gap: 5, fontFamily: SANS, fontSize: 11, fontWeight: 600,
+      color: fg, background: compact ? "transparent" : bg, borderRadius: 99, padding: compact ? 0 : "2px 8px",
+      minWidth: compact ? undefined : 88, justifyContent: compact ? undefined : "center",
+    }}>
+      <span style={{ width: 7, height: 7, borderRadius: "50%", background: fg }} />{compact ? null : label}
+    </span>
+  );
+}
+
+function EntityRow({ e, open, onToggle, first, phone, kind }: { e: RadarEntity; open: boolean; onToggle: () => void; first: boolean; phone: boolean; kind: "cos" | "ppl" | "ctry" }) {
   const dot = e.status === "new" ? C.newc : e.status === "rising" ? C.up : e.status === "watch" ? C.watch : e.status === "fading" ? C.down : null;
+  const st = e.stock;
+  const chg = st ? <span style={{ fontFamily: MONO, fontSize: 11.5, color: st.changePct >= 0 ? C.up : "#C2410C", width: 50, textAlign: "right", flex: "none" }}>{st.changePct >= 0 ? "+" : "−"}{Math.abs(st.changePct).toFixed(1)}%</span> : null;
+  const counts = (
+    <span style={{ fontFamily: SANS, fontSize: 12, color: C.secondary, whiteSpace: "nowrap" }}>
+      <b style={{ color: C.ink, fontFamily: MONO, fontWeight: 500 }}>{e.recentCount}</b>
+      <span style={{ color: C.muted }}> · {e.totalBroadcasts}bc</span>
+    </span>
+  );
   return (
     <div style={{ borderTop: first ? "none" : `1px solid ${C.rule}` }}>
       <button type="button" onClick={onToggle} aria-expanded={open} style={{
         all: "unset", cursor: "pointer", display: "flex", alignItems: "center", gap: 8,
         width: "100%", boxSizing: "border-box", padding: "8px 12px",
       }}>
-        <span style={{ fontFamily: SANS, fontSize: 13.5, fontWeight: 600, color: C.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>{e.name}</span>
-        {e.ticker && e.ticker !== "private" && <span style={{ fontFamily: MONO, fontSize: 10, color: C.muted }}>{e.ticker}</span>}
-        {e.role && <span style={{ fontFamily: SANS, fontSize: 11, color: C.muted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>{e.role}</span>}
-        {dot && <span title={e.status} style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", color: dot }}>{e.status === "new" ? "NEW" : e.status === "rising" ? "▲" : e.status === "watch" ? "WATCH" : "▼"}</span>}
-        {e.firstSeen && <span title={`First named ${fmtDay(e.firstSeen)}`} style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", color: C.newc, background: C.newBg, borderRadius: 3, padding: "1px 4px", whiteSpace: "nowrap" }}>1ST {fmtDay(e.firstSeen).toUpperCase()}</span>}
-        <span style={{ marginLeft: "auto", fontFamily: SANS, fontSize: 12, color: C.secondary, whiteSpace: "nowrap" }}>
-          <b style={{ color: C.ink, fontFamily: MONO, fontWeight: 500 }}>{e.recentCount}</b>
-          <span style={{ color: C.muted }}> · {e.totalBroadcasts}bc</span>
+        <span style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: phone ? "column" : "row", alignItems: phone ? "flex-start" : "center", gap: phone ? 1 : 8 }}>
+          <span style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, maxWidth: "100%" }}>
+            <span style={{ fontFamily: SANS, fontSize: 13.5, fontWeight: 600, color: C.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>{e.name}</span>
+            {e.ticker && e.ticker !== "private" && <span style={{ fontFamily: MONO, fontSize: 10, color: C.muted }}>{e.ticker}</span>}
+            {dot && <span title={e.status} style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", color: dot, whiteSpace: "nowrap" }}>{e.status === "new" ? "NEW" : e.status === "rising" ? "▲" : e.status === "watch" ? "WATCH" : "▼"}</span>}
+            {e.firstSeen && <span title={`First named ${fmtDay(e.firstSeen)}`} style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", color: C.newc, background: C.newBg, borderRadius: 3, padding: "1px 4px", whiteSpace: "nowrap" }}>1ST {fmtDay(e.firstSeen).toUpperCase()}</span>}
+          </span>
+          {phone ? (
+            <span style={{ fontSize: 11, color: C.muted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>
+              {e.role ? `${e.role} · ` : ""}{e.recentCount} mentions · {e.totalBroadcasts}bc{e.tone ? ` · ${TONE[e.tone.label][0]}` : ""}
+            </span>
+          ) : e.role ? <span style={{ fontFamily: SANS, fontSize: 11, color: C.muted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>{e.role}</span> : null}
         </span>
+        {!phone && counts}
+        {kind === "cos" && (st ? <><PriceLine closes={st.closes} w={phone ? 56 : 76} />{chg}</> : <span style={{ width: phone ? 106 : 134, flex: "none", textAlign: "right", fontSize: 11, color: "#A69E92" }}>{e.ticker && e.ticker !== "private" ? "" : "private"}</span>)}
+        <TonePill tone={e.tone} compact={phone} />
         <span aria-hidden style={{ color: C.muted, fontSize: 11, transform: open ? "rotate(90deg)" : "none", transition: "transform .15s" }}>›</span>
       </button>
-      {open && e.last && (
+      {open && (e.last || e.tone || st) && (
         <div style={{ padding: "0 12px 10px", fontFamily: SANS, fontSize: 12.5, color: C.secondary, lineHeight: 1.5 }}>
-          <div style={{ fontFamily: SERIF, fontSize: 14.5, color: C.ink }}>“…{e.last.text}…”</div>
-          <div style={{ marginTop: 5 }}>
-            {fmtDay(e.last.date)}{" · "}<a href={`/live?v=${encodeURIComponent(e.last.videoId)}`} style={{ color: C.up, fontWeight: 600 }}>▶ Watch{e.last.t != null ? ` at ${stamp(e.last.t)}` : ""}</a>
-          </div>
+          {e.last && <>
+            <div style={{ fontFamily: SERIF, fontSize: 14.5, color: C.ink }}>“…{e.last.text}…”</div>
+            <div style={{ marginTop: 5 }}>
+              {fmtDay(e.last.date)}{" · "}<a href={`/live?v=${encodeURIComponent(e.last.videoId)}`} style={{ color: C.up, fontWeight: 600 }}>▶ Watch{e.last.t != null ? ` at ${stamp(e.last.t)}` : ""}</a>
+            </div>
+          </>}
+          {e.tone && (
+            <div style={{ marginTop: 6 }}>
+              Tone on air: <b style={{ color: TONE[e.tone.label][1] }}>{TONE[e.tone.label][0]}</b>
+              {" "}<span style={{ color: C.muted }}>({(["positive", "neutral", "concerned", "hostile"] as const).filter(l => e.tone!.counts[l]).map(l => `${e.tone!.counts[l]} ${TONE[l][0].toLowerCase()}`).join(", ")} across broadcasts)</span>
+            </div>
+          )}
+          {st && (
+            <div style={{ marginTop: 4 }}>
+              {st.symbol}, last 14 days: ${st.closes[0].toLocaleString()} → ${st.closes[st.closes.length - 1].toLocaleString()} ({st.changePct >= 0 ? "+" : "−"}{Math.abs(st.changePct).toFixed(1)}%), close of {fmtDay(st.asOf)}. Context, not a cause, and not advice.
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -196,10 +250,11 @@ export default function AgendaRadar() {
       {list.length > 0 && (
         <>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, letterSpacing: "0.08em", textTransform: "uppercase", color: C.muted, padding: "0 12px 4px" }}>
-            <span>{tab === "cos" ? "Company · ticker" : tab === "ppl" ? "Person · role" : "Country"}</span><span>Last 14 days · broadcasts</span>
+            <span>{tab === "cos" ? "Company · ticker" : tab === "ppl" ? "Person · role" : "Country"}</span>
+            <span>{phone ? (tab === "cos" ? "Price 14d · tone" : "Tone") : `Last 14 days · broadcasts${tab === "cos" ? " · price, 14 days" : ""} · tone on air`}</span>
           </div>
           <div style={{ background: C.card, border: `1px solid ${C.rule}`, borderRadius: 10, overflow: "hidden" }}>
-            {shown.map((e, i) => <EntityRow key={e.name} first={i === 0} e={e} open={open === e.name} onToggle={() => setOpen(o => (o === e.name ? null : e.name))} />)}
+            {shown.map((e, i) => <EntityRow key={e.name} first={i === 0} e={e} phone={phone} kind={tab} open={open === e.name} onToggle={() => setOpen(o => (o === e.name ? null : e.name))} />)}
           </div>
           {list.length > 6 && (
             <button type="button" onClick={() => setAllCos(v => !v)} style={{ background: "none", border: "none", padding: "8px 0 0", cursor: "pointer", fontSize: 12.5, fontWeight: 600, color: C.up }}>

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { checkCoverage, checkDeaf } from "@/lib/coverage-watch";
 import { tagPending } from "@/lib/topic-tags";
 import { healFullBroadcastsOnce, seedTranscriptBackfillOnce } from "@/lib/live-kv";
+import { toneBackfill } from "@/lib/entity-tone";
 
 /**
  * GET /api/cron/live-tick — the reliable metronome for live coverage.
@@ -23,6 +24,8 @@ import { healFullBroadcastsOnce, seedTranscriptBackfillOnce } from "@/lib/live-k
  */
 
 export const dynamic = "force-dynamic";
+
+export const maxDuration = 60;
 
 export async function GET(req: Request) {
   const cronSecret = process.env.CRON_SECRET;
@@ -47,6 +50,9 @@ export async function GET(req: Request) {
   // Once ever: queue broadcasts that have no transcript for the worker.
   const queued = await seedTranscriptBackfillOnce().catch(() => 0);
   if (queued) console.log(`[live-tick] queued ${queued} broadcasts for transcript backfill`);
+  // One broadcast's "tone on air" labels per tick (one model call).
+  const toned = await toneBackfill(1).catch(e => { console.error("[live-tick] tone failed:", (e as Error).message); return 0; });
+  if (toned) console.log(`[live-tick] labelled tone for ${toned} broadcast(s)`);
   const tags = await tagPending(40).catch(e => {
     console.error("[live-tick] topic tagging failed:", (e as Error).message);
     return null;
