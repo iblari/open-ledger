@@ -54,7 +54,7 @@ const COMPANY_DEFS: [string, string, string][] = [
   ["Meta", "META", "Meta"], ["Nvidia", "NVDA", "Nvidia|NVIDIA"], ["Intel", "INTC", "Intel"], ["AMD", "AMD", "AMD"],
   ["Micron", "MU", "Micron"], ["Qualcomm", "QCOM", "Qualcomm"], ["TSMC", "TSM", "TSMC|Taiwan Semiconductor"], ["Samsung", "005930.KS", "Samsung"],
   ["Oracle", "ORCL", "Oracle"], ["IBM", "IBM", "IBM"], ["Palantir", "PLTR", "Palantir"], ["OpenAI", "private", "OpenAI|Open AI"],
-  ["Tesla", "TSLA", "Tesla"], ["SpaceX", "private", "SpaceX|Space X"], ["xAI", "private", "xAI"], ["SoftBank", "SFTBY", "SoftBank|Softbank"],
+  ["Tesla", "TSLA", "Tesla"], ["SpaceX", "SPCX", "SpaceX|Space X"], ["xAI", "private", "xAI"], ["SoftBank", "SFTBY", "SoftBank|Softbank"],
   ["General Motors", "GM", "General Motors|\\bGM\\b"], ["Ford", "F", "Ford(?!,? Ohio)"], ["Stellantis", "STLA", "Stellantis|Chrysler|Jeep"],
   ["Toyota", "TM", "Toyota"], ["Honda", "HMC", "Honda"], ["Hyundai", "HYMTF", "Hyundai"], ["Nissan", "NSANY", "Nissan"], ["BMW", "BMWYY", "BMW"],
   ["Boeing", "BA", "Boeing"], ["Lockheed Martin", "LMT", "Lockheed"], ["RTX", "RTX", "Raytheon|\\bRTX\\b"], ["Northrop Grumman", "NOC", "Northrop"],
@@ -368,7 +368,7 @@ async function computeEnriched(): Promise<Radar> {
  * kept forever.) Stale → recompute in the request; summaries and prices are
  * themselves cached, so a refresh is a few reads and one model-free pass.
  */
-const RADAR_KEY = "radar:cache:v6";
+const RADAR_KEY = "radar:cache:v7";
 const RADAR_TTL_MS = 15 * 60_000;
 export async function getRadar(): Promise<Radar> {
   try {
