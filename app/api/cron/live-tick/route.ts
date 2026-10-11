@@ -3,6 +3,7 @@ import { checkCoverage, checkDeaf } from "@/lib/coverage-watch";
 import { tagPending } from "@/lib/topic-tags";
 import { healFullBroadcastsOnce, seedTranscriptBackfillOnce } from "@/lib/live-kv";
 import { toneBackfill } from "@/lib/entity-tone";
+import { watchUploads } from "@/lib/upload-watch";
 
 /**
  * GET /api/cron/live-tick — the reliable metronome for live coverage.
@@ -50,6 +51,9 @@ export async function GET(req: Request) {
   // Once ever: queue broadcasts that have no transcript for the worker.
   const queued = await seedTranscriptBackfillOnce().catch(() => 0);
   if (queued) console.log(`[live-tick] queued ${queued} broadcasts for transcript backfill`);
+  // Uploaded (not streamed) official videos — gaggles etc. — into the check queue.
+  const uploads = await watchUploads().catch(e => { console.error("[live-tick] upload watch failed:", (e as Error).message); return []; });
+  if (uploads.length) console.log(`[live-tick] queued ${uploads.length} uploaded video(s): ${uploads.map(u => u.title).join(" | ")}`);
   // Two broadcasts' "tone on air" labels per tick (one model call each).
   const toned = await toneBackfill(2).catch(e => { console.error("[live-tick] tone failed:", (e as Error).message); return 0; });
   if (toned) console.log(`[live-tick] labelled tone for ${toned} broadcast(s)`);
