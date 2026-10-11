@@ -1714,24 +1714,6 @@ function MobileLanding({ liveTrends = [] }: { liveTrends?: TrendCard[] }) {
           above keeps its metric picker (chips) and "See all 22 metrics"
           leads to the full comparison. ── */}
       <Tile mob style={{ padding: "4px 0 18px", background: LAYOUT === "cards" ? "#ffffff" : undefined }}>
-      {/* ── 5c. Methodology (target of the hero's Methodology button) ── */}
-      <div id="method" style={{ margin: "14px 14px 0", scrollMarginTop: 80 }}>
-        <div style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: "0.12em", color: C.sub, marginBottom: 8, fontWeight: 500 }}>
-          Methodology · how we stay out of the way
-        </div>
-        <div style={{ background: "#fff", border: `1px solid ${C.rule}`, borderRadius: 6 }}>
-          {METHOD_POINTS.map((m, i) => (
-            <div key={m.n} style={{ display: "flex", gap: 12, padding: "10px 13px", borderTop: i ? `1px solid ${C.rule}` : "none" }}>
-              <span style={{ fontFamily: SERIF, fontStyle: "italic", fontSize: 18, color: C.accent, lineHeight: 1.1, flexShrink: 0 }}>{m.n}</span>
-              <span style={{ minWidth: 0 }}>
-                <span style={{ display: "block", fontFamily: SERIF, fontSize: 14.5, fontWeight: 600, color: C.ink }}>{m.t}</span>
-                <span style={{ display: "block", fontSize: "clamp(10.5px, 3.2vw, 12px)", color: C.sub, lineHeight: 1.4, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{m.p}</span>
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-
       {/* ── 6. Sources tile grid ── */}
       <div style={{ margin: "14px 14px 0" }}>
         <div style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: "0.12em", color: C.sub, marginBottom: 8, fontWeight: 500 }}>
@@ -1767,6 +1749,25 @@ function MobileLanding({ liveTrends = [] }: { liveTrends?: TrendCard[] }) {
             </div>
           );
         })()}
+      </div>
+
+
+      {/* ── 5c. Methodology (target of the hero's Methodology button) ── */}
+      <div id="method" style={{ margin: "14px 14px 0", scrollMarginTop: 80 }}>
+        <div style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: "0.12em", color: C.sub, marginBottom: 8, fontWeight: 500 }}>
+          Methodology · how we stay out of the way
+        </div>
+        <div style={{ background: "#fff", border: `1px solid ${C.rule}`, borderRadius: 6 }}>
+          {METHOD_POINTS.map((m, i) => (
+            <div key={m.n} style={{ display: "flex", gap: 12, padding: "10px 13px", borderTop: i ? `1px solid ${C.rule}` : "none" }}>
+              <span style={{ fontFamily: SERIF, fontStyle: "italic", fontSize: 18, color: C.accent, lineHeight: 1.1, flexShrink: 0 }}>{m.n}</span>
+              <span style={{ minWidth: 0 }}>
+                <span style={{ display: "block", fontFamily: SERIF, fontSize: 14.5, fontWeight: 600, color: C.ink }}>{m.t}</span>
+                <span style={{ display: "block", fontSize: "clamp(10.5px, 3.2vw, 12px)", color: C.sub, lineHeight: 1.4, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{m.p}</span>
+              </span>
+            </div>
+          ))}
+        </div>
       </div>
 
       </Tile>
