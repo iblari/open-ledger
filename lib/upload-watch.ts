@@ -63,7 +63,10 @@ export async function watchUploads(): Promise<Upload[]> {
       if (Date.now() - Date.parse(u.published) > MAX_AGE_MS) continue;
       if (!WORTH_CHECKING.test(u.title)) continue;
       const job = await getCheckJob(u.videoId).catch(() => null);
-      if (job) continue;   // already queued, running, done or failed
+      // Queued, running or done: leave it. Failed: try again after 3 hours —
+      // failures are usually the transcription service (out of credit, rate
+      // limited), not the video, and clear up on their own.
+      if (job && (job.status !== "failed" || Date.now() - Date.parse(job.finishedAt || job.requestedAt) < 3 * 3600 * 1000)) continue;
       if (!(await withinDailyCap(new Date().toISOString().slice(0, 10)))) return queued;
       await enqueueCheck(u.videoId, `https://www.youtube.com/watch?v=${u.videoId}`);
       queued.push(u);
