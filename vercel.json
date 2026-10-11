@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/live-tick",
       "schedule": "*/2 * * * *"
+    },
+    {
+      "path": "/api/cron/signals",
+      "schedule": "15 11 * * *"
     }
   ]
 }

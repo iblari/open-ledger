@@ -119,7 +119,7 @@ const COUNTRIES = COUNTRY_DEFS.map(([name, pat]) => ({ name, rx: new RegExp(`\\b
 /* ── Per-broadcast summary ─────────────────────────────────────────── */
 
 interface Snip { t: number | null; text: string }
-interface BcSummary {
+export interface BcSummary {
   v: 3; words: number;
   ppl: Record<string, number>;
   themes: Record<string, number>;
@@ -246,6 +246,12 @@ function statusOf(z: number, r: number, b: number, breadth: number): Status {
 }
 
 async function compute(): Promise<Radar> {
+  const { ledger, sums } = await loadSummaries();
+  return aggregate(ledger, sums);
+}
+
+/** Every covered broadcast (oldest first) with its transcript summary. */
+export async function loadSummaries(): Promise<{ ledger: Entry[]; sums: (BcSummary | null)[] }> {
   const ledger = (await getLedger()).filter(e => e.videoId).sort((a, b) => a.startedAt.localeCompare(b.startedAt));
   const ids = ledger.map(e => e.videoId);
   const cached = await kvGet(ids.map(SUM_KEY));
@@ -265,10 +271,10 @@ async function compute(): Promise<Radar> {
     toSave.push([SUM_KEY(ids[i]), JSON.stringify(s), s.words > 500 ? 0 : 6 * 3600]);
   }
   if (toSave.length) await kvSetMany(toSave).catch(() => {});
-  return aggregate(ledger, sums);
+  return { ledger, sums };
 }
 
-type Entry = { videoId: string; title: string; startedAt: string };
+export type Entry = { videoId: string; title: string; startedAt: string };
 /** Pure: summaries in, radar out (kept separate so it can be tested offline). */
 export function aggregate(ledger: Entry[], sums: (BcSummary | null)[]): Radar {
   const items = ledger.map((e, i) => ({ e, s: sums[i] })).filter(x => x.s && x.s.v === 3 && x.s.words > 500) as { e: Entry; s: BcSummary }[];
