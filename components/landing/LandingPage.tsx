@@ -174,20 +174,27 @@ function Nav({ mob, dark = false, overlay = false }: { mob: boolean; dark?: bool
               schedule and the record. */}
           {/* C.accent, not the #dc2626 that used to sit here — the same stray
               red that was mismatched in the dashboard nav. */}
-          <Link href="/live" className="vu-cta vu-cta-o" style={{
+          {/* Phones: one button — Live, in the solid style the Data button had
+              (Data is one tap away from the hero's "See all metrics"). */}
+          <Link href="/live" className={mob ? `vu-cta vu-cta-p${dark ? " vu-on-dark" : ""}` : "vu-cta vu-cta-o"} style={mob ? {
+            display: "inline-flex", alignItems: "center", gap: 8,
+            padding: "8px 14px", borderRadius: 4, fontSize: 13, fontWeight: 600,
+            background: ink, color: dark ? "#0C0A08" : C.bg, border: `1px solid ${ink}`,
+            textDecoration: "none",
+          } : {
             display: "inline-flex", alignItems: "center", gap: 6,
-            padding: mob ? "8px 12px" : "10px 14px",
+            padding: "10px 14px",
             borderRadius: 4, fontSize: 13, fontWeight: 600,
             background: "transparent", color: dark ? "#F4F0EA" : C.accent, border: `1px solid ${dark ? "rgba(244,240,234,.3)" : C.accent + "40"}`,
             textDecoration: "none",
           }}>
-            <span style={{ width: 6, height: 6, borderRadius: "50%", background: dark ? "#EF4444" : C.accent, animation: "pulse 2s infinite" }} />
-            {mob ? "Live" : "Live Broadcast"}
+            <span style={{ width: 6, height: 6, borderRadius: "50%", background: mob ? "#E0493A" : (dark ? "#EF4444" : C.accent), animation: "pulse 2s infinite" }} />
+            {mob ? <>Live <span className="vu-arw">→</span></> : "Live Broadcast"}
           </Link>
           {/* Desktop: Subscribe (the hero already has "Open the ledger").
               Scrolls to the newsletter form and puts the cursor in it. */}
-          <Link href={mob ? "/dashboard" : "#cta"} className={`vu-cta vu-cta-p${dark ? " vu-on-dark" : ""}`}
-            onClick={mob ? undefined : (e) => {
+          {!mob && <Link href="#cta" className={`vu-cta vu-cta-p${dark ? " vu-on-dark" : ""}`}
+            onClick={(e) => {
               const el = document.getElementById("cta");
               if (!el) return;
               e.preventDefault();
@@ -197,13 +204,13 @@ function Nav({ mob, dark = false, overlay = false }: { mob: boolean; dark?: bool
             }}
             style={{
             display: "inline-flex", alignItems: "center", gap: 8,
-            padding: mob ? "8px 14px" : "10px 16px",
+            padding: "10px 16px",
             borderRadius: 4, fontSize: 13, fontWeight: 500,
             background: ink, color: dark ? "#0C0A08" : C.bg, border: `1px solid ${ink}`,
             textDecoration: "none",
           }}>
-            {mob ? <>Data <span className="vu-arw">→</span></> : "Subscribe"}
-          </Link>
+            Subscribe
+          </Link>}
         </div>
       </div>
     </nav>
