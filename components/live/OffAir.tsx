@@ -13,7 +13,7 @@
  * opening one.
  */
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useIsMobileViewport } from "@/lib/viewport";
 import type { HomeArchiveItem, HomeScheduleItem, TopicTally } from "@/lib/live-home";
@@ -286,6 +286,33 @@ const VERD: Record<string, [string, string]> = {
 };
 const mmss = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
 const monthOf = (iso: string) => new Date(iso).toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "America/New_York" });
+
+
+/** Headline that slides between lines every 3.5s (same motion as the
+ *  homepage). All lines share one grid cell, so the height never jumps.
+ *  Holds on the first line for reduced-motion users. */
+function RotatingLines({ lines }: { lines: string[] }) {
+  const [k, setK] = useState(0);
+  useEffect(() => {
+    if (lines.length < 2 || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    const t = setInterval(() => setK(x => (x + 1) % lines.length), 3500);
+    return () => clearInterval(t);
+  }, [lines.length]);
+  return (
+    <span style={{ display: "grid", overflow: "hidden", paddingBottom: "0.1em", marginBottom: "-0.1em" }}>
+      {lines.map((l, i) => {
+        const prev = (k - 1 + lines.length) % lines.length;
+        const y = i === k ? "0" : i === prev ? "-100%" : "100%";
+        return (
+          <span key={i} aria-hidden style={{
+            gridArea: "1 / 1", transform: `translateY(${y})`, opacity: i === k ? 1 : 0,
+            transition: i === k || i === prev ? "transform .55s cubic-bezier(.2,.8,.2,1), opacity .55s" : "none",
+          }}>{l}</span>
+        );
+      })}
+    </span>
+  );
+}
 
 function ReplaysArchive({ items, onWatch }: { items: HomeArchiveItem[]; onWatch: (id: string) => void }) {
   const [q, setQ] = useState("");
@@ -587,8 +614,8 @@ export default function OffAir({
           </div>
           <div className="oa-row1" style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 20, flexWrap: "wrap", marginTop: 12 }}>
             <div style={{ minWidth: 0, flex: "1 1 420px" }}>
-              <h1 className="oa-h1" style={{ fontFamily: SERIF, fontWeight: 600, fontSize: "clamp(30px, 4.6vw, 52px)", lineHeight: 1.04, letterSpacing: "-0.02em", margin: 0 }}>
-                {next ? next.title : "Nothing scheduled right now"}
+              <h1 className="oa-h1" aria-label={next ? next.title : "Nothing scheduled right now"} style={{ fontFamily: SERIF, fontWeight: 600, fontSize: "clamp(30px, 4.6vw, 52px)", lineHeight: 1.04, letterSpacing: "-0.02em", margin: 0 }}>
+                <RotatingLines lines={[next ? next.title : "Nothing scheduled right now", "Get notified when we go live next"]} />
               </h1>
               <p className="oa-sub" style={{ fontFamily: SANS, fontSize: 15, color: C.faint, margin: "10px 0 0", lineHeight: 1.5 }}>
                 {next
