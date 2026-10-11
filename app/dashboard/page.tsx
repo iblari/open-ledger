@@ -1487,8 +1487,11 @@ function App(){
                           return (
                             <div
                               key={k}
-                              data-nudge="1"
-                              className={`hover-lift stagger-${Math.min(idx+1,20)}`}
+                              // No entry/nudge animation here. The staggered fade-in (opacity 0
+                              // → 1) and the scroll "nudge" both set \`animation\`; when the nudge
+                              // class came off, the fade restarted from opacity 0, so cards
+                              // blinked out mid-scroll. Static rows scroll smoothly.
+                              className="hover-lift"
                               onClick={()=>{setAm(k);setDetail(k);setOpenFacts(false);}}
                               style={{background:EC.card,border:`1px solid ${EC.rule}`,borderRadius:3,padding:"12px 14px",display:"flex",alignItems:"center",gap:10,cursor:"pointer",borderLeft:`3px solid ${ADMINS[selectedPres]?.color||EC.accent}`,position:"relative"}}
                             >
