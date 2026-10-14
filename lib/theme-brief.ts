@@ -37,7 +37,8 @@ async function sources(key: string) {
   if (!ledger.length) return { picks: [], earlier: false };
   const sums = (await kvGet(ledger.map(e => SUM_KEY(e.videoId)))).map(r => { try { return r ? JSON.parse(r) as BcSummary : null; } catch { return null; } });
   const cutoff = new Date(Date.parse(ledger[0].startedAt) - WINDOW_DAYS * 864e5).toISOString();
-  const hits = ledger.map((e, i) => ({ e, n: sums[i]?.themes?.[key] || 0 })).filter(x => x.n > 0);
+  // Same filter as the radar (full transcripts only), so the counts match.
+  const hits = ledger.map((e, i) => ({ e, n: sums[i]?.themes?.[key] || 0, w: sums[i]?.words || 0 })).filter(x => x.n > 0 && x.w > 500);
   const recent = hits.filter(x => x.e.startedAt >= cutoff);
   return recent.length ? { picks: recent.slice(0, MAX_BC), earlier: false } : { picks: hits.slice(0, 4), earlier: true };
 }
