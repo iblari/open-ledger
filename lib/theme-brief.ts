@@ -19,7 +19,7 @@ export interface ThemeBrief { key: string; label: string; points: BriefPoint[]; 
 const MODEL = "claude-haiku-4-5-20251001";
 const WINDOW_DAYS = 14;
 const MAX_BC = 10, PER_BC = 3, MAX_EX = 28;
-const KEY = (k: string, sig: string) => `theme-brief:v1:${k}:${sig}`;
+const KEY = (k: string, sig: string) => `theme-brief:v2:${k}:${sig}`;
 
 function lines(t: string) {
   return t.split(/\n+/).map(l => {
@@ -81,6 +81,7 @@ export async function getThemeBrief(key: string, opts: { cachedOnly?: boolean } 
     `- reports what was SAID — do not judge whether it is true, and add nothing the excerpts don't contain;\n` +
     `- covers a different point from the other bullets, most-repeated point first;\n` +
     `- cites the single excerpt number that best supports it.\n` +
+    `Attribute carefully: write "Trump says" only when Trump is speaking in the first person. Narration ABOUT him ("President Trump secured…") is the White House speaking — write "The White House says". Use another official's name when they are the speaker.\n` +
     `Ignore excerpts where the keyword is incidental (e.g. "invest" in an unrelated sense). If speakers aren't named, use the broadcast title.\n` +
     `Reply with JSON only: {"bullets":[{"text":"...","src":0}]}`;
   const r = await fetch("https://api.anthropic.com/v1/messages", {
