@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useIsMobileViewport } from "@/lib/viewport";
 import type { Radar, RadarRow, RadarEntity } from "@/lib/agenda-radar";
+import type { ThemeBrief } from "@/lib/theme-brief";
 
 /**
  * Agenda radar: which subjects, companies and countries officials are
@@ -51,29 +52,87 @@ function fmtMult(t: RadarRow): string {
   return `${m >= 10 ? Math.round(m) : m.toFixed(1)}×`;
 }
 
-function ThemeRow({ t, first }: { t: RadarRow; first: boolean }) {
-  const down = t.status === "fading";
+/** Tapped theme: 2–3 bullets of what is actually being said, each linked
+ *  to the moment it came from. Fetched on open; cached server-side. */
+const briefCache = new Map<string, ThemeBrief | "err">();
+function Brief({ k }: { k: string }) {
+  const [b, setB] = useState<ThemeBrief | "err" | null>(briefCache.get(k) ?? null);
+  useEffect(() => {
+    if (briefCache.has(k)) return;
+    let alive = true;
+    fetch(`/api/radar/theme?key=${encodeURIComponent(k)}`).then(x => x.json())
+      .then(d => { const v = d && !d.error ? d as ThemeBrief : "err"; briefCache.set(k, v); if (alive) setB(v); })
+      .catch(() => { if (alive) setB("err"); });
+    return () => { alive = false; };
+  }, [k]);
+  const wrap: React.CSSProperties = { marginTop: 8, paddingTop: 8, borderTop: `1px dashed ${C.rule}`, cursor: "default" };
+  if (!b) return (
+    <div style={wrap} aria-busy>
+      <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: C.muted, marginBottom: 6 }}>Reading the transcripts…</div>
+      {[92, 78, 64].map(w => <div key={w} className="radar-skel" style={{ height: 10, width: `${w}%`, background: "#EFEAE2", borderRadius: 4, margin: "7px 0" }} />)}
+    </div>
+  );
+  if (b === "err" || !b.points.length) return <div style={{ ...wrap, fontSize: 12.5, color: C.muted }}>No summary yet — check back after the next broadcast.</div>;
   return (
-    <div style={{ borderTop: first ? "none" : `1px solid ${C.rule}`, padding: "8px 12px" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <span style={{ fontFamily: SERIF, fontSize: 15, fontWeight: 500, color: C.ink, flex: 1, minWidth: 0 }}>{t.label}</span>
-        <b style={{ fontFamily: MONO, fontSize: 12.5, fontWeight: 500, color: down ? C.down : C.up }}>{fmtMult(t)}</b>
-        <Spark data={t.weekly.slice(-5)} color={down ? C.down : C.up} />
+    <div style={wrap} onClick={e => e.stopPropagation()}>
+      <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: C.muted, marginBottom: 4 }}>
+        {b.earlier ? "What was being said (before it went quiet)" : "What\u2019s being said"}
       </div>
-      <div style={{ fontFamily: SANS, fontSize: 11, color: C.muted, marginTop: 2 }}>
-        {down ? `${t.baseRate} → ${t.recentRate} per 10k words` : `${t.sectors.length ? t.sectors.join(" · ") + " · " : ""}${t.recentBroadcasts} broadcasts`}
-      </div>
+      <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
+        {b.points.map((p, i) => (
+          <li key={i} style={{ display: "flex", gap: 8, padding: "5px 0" }}>
+            <span aria-hidden style={{ color: C.up, fontWeight: 700, lineHeight: "20px" }}>•</span>
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <span style={{ fontFamily: SANS, fontSize: 13.5, color: C.ink, lineHeight: 1.45 }}>{p.text}</span>
+              <a href={`/live?v=${p.videoId}${p.t != null ? `&t=${Math.max(0, Math.floor(p.t))}` : ""}`} title={p.quote}
+                style={{ display: "inline-flex", alignItems: "center", gap: 4, marginLeft: 6, fontSize: 11.5, fontWeight: 600, color: C.up, textDecoration: "none", whiteSpace: "nowrap" }}>
+                <svg width="9" height="9" viewBox="0 0 10 10" aria-hidden><path d="M2 1l7 4-7 4z" fill="currentColor" /></svg>
+                {fmtDay(p.date)}{p.t != null ? ` · ${stamp(p.t)}` : ""}
+              </a>
+            </span>
+          </li>
+        ))}
+      </ul>
+      <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>AI summary of {b.broadcasts} broadcast{b.broadcasts === 1 ? "" : "s"}. Tap a date to hear it said.</div>
     </div>
   );
 }
 
-function ThemeCard({ t }: { t: RadarRow }) {
+const Chev = ({ open }: { open: boolean }) => (
+  <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden style={{ flex: "none", transition: "transform .2s", transform: open ? "rotate(180deg)" : "none", color: C.muted }}>
+    <path d="M2.5 4.5L6 8l3.5-3.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+function ThemeRow({ t, first, open, onToggle }: { t: RadarRow; first: boolean; open: boolean; onToggle: () => void }) {
+  const down = t.status === "fading";
+  return (
+    <div role="button" tabIndex={0} aria-expanded={open} onClick={onToggle} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggle(); } }}
+      style={{ borderTop: first ? "none" : `1px solid ${C.rule}`, padding: "8px 12px", cursor: "pointer", background: open ? "#FBF9F5" : undefined }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <span style={{ fontFamily: SERIF, fontSize: 15, fontWeight: 500, color: C.ink, flex: 1, minWidth: 0 }}>{t.label}</span>
+        <b style={{ fontFamily: MONO, fontSize: 12.5, fontWeight: 500, color: down ? C.down : C.up }}>{fmtMult(t)}</b>
+        <Spark data={t.weekly.slice(-5)} color={down ? C.down : C.up} />
+        <Chev open={open} />
+      </div>
+      <div style={{ fontFamily: SANS, fontSize: 11, color: C.muted, marginTop: 2 }}>
+        {down ? `${t.baseRate} → ${t.recentRate} per 10k words` : `${t.sectors.length ? t.sectors.join(" · ") + " · " : ""}${t.recentBroadcasts} broadcasts`}
+      </div>
+      {open && <Brief k={t.key} />}
+    </div>
+  );
+}
+
+function ThemeCard({ t, open, onToggle }: { t: RadarRow; open: boolean; onToggle: () => void }) {
   const mult = t.baseRate > 0 ? t.recentRate / t.baseRate : null;
   return (
-    <div style={{ background: C.card, border: `1px solid ${C.rule}`, borderRadius: 10, padding: "11px 12px", display: "flex", flexDirection: "column", gap: 6 }}>
+    <div role="button" tabIndex={0} aria-expanded={open} onClick={onToggle} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggle(); } }}
+      className="radar-card"
+      style={{ background: C.card, border: `1px solid ${open ? C.secondary : C.rule}`, borderRadius: 10, padding: "11px 12px", display: "flex", flexDirection: "column", gap: 6, cursor: "pointer", gridColumn: open ? "1 / -1" : undefined }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <span style={{ fontFamily: SERIF, fontSize: 16.5, fontWeight: 500, color: C.ink, flex: 1, minWidth: 0 }}>{t.label}</span>
         <Badge s={t.status} />
+        <Chev open={open} />
       </div>
       <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 10 }}>
         <span style={{ fontFamily: SANS, fontSize: 12.5, color: C.secondary, lineHeight: 1.35 }}>
@@ -87,6 +146,7 @@ function ThemeCard({ t }: { t: RadarRow }) {
           Sectors it touches: <span style={{ color: C.ink }}>{t.sectors.join(" · ")}</span>
         </div>
       )}
+      {open && <Brief k={t.key} />}
     </div>
   );
 }
@@ -229,6 +289,8 @@ export default function AgendaRadar() {
   const [allCos, setAllCos] = useState(false);
   const [tab, setTab] = useState<"cos" | "ppl" | "ctry">("cos");
   const [dir, setDir] = useState<"up" | "watch" | "down">("up");
+  const [openTheme, setOpenTheme] = useState<string | null>(null);
+  const toggleTheme = (k: string) => setOpenTheme(o => (o === k ? null : k));
   const phone = useIsMobileViewport(640);
   useEffect(() => {
     let alive = true;
@@ -251,15 +313,16 @@ export default function AgendaRadar() {
 
   return (
     <section aria-labelledby="radar-h" style={{ fontFamily: SANS }}>
+      <style>{`@keyframes radarPulse{0%,100%{opacity:1}50%{opacity:.45}}.radar-skel{animation:radarPulse 1.2s ease-in-out infinite}.radar-card:hover{border-color:#B9B1A5}`}</style>
       <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.16em", textTransform: "uppercase", color: C.muted }}>Agenda radar</div>
       <h2 id="radar-h" style={{ fontFamily: SERIF, fontWeight: 500, fontSize: 24, margin: "4px 0 4px", color: C.ink }}>What they&rsquo;re talking about more, and less</h2>
       <div style={{ fontSize: 12.5, color: C.secondary, lineHeight: 1.5 }}>
-        Last 14 days ({r.window.recentBroadcasts} broadcasts, {Math.round(r.window.recentWords / 1000)}k words) against the {r.window.baseBroadcasts} before, measured per 10,000 words of full transcript.
+        Tap a topic to see what&rsquo;s being said. Last 14 days ({r.window.recentBroadcasts} broadcasts, {Math.round(r.window.recentWords / 1000)}k words) against the {r.window.baseBroadcasts} before, measured per 10,000 words of full transcript.
       </div>
 
       <div role="tablist" aria-label="Rising or fading" style={{ display: "flex", background: "#EFEAE2", borderRadius: 99, padding: 3, margin: "14px 0 8px", maxWidth: phone ? undefined : 420 }}>
         {([["up", "▲ Rising", up.length, C.up], ["watch", "● Watch", watch.length, C.watch], ["down", "▼ Fading", down.length, C.down]] as const).map(([k, l, n, c]) => (
-          <button key={k} type="button" role="tab" aria-selected={dir === k} onClick={() => setDir(k)} style={{
+          <button key={k} type="button" role="tab" aria-selected={dir === k} onClick={() => { setDir(k); setOpenTheme(null); }} style={{
             flex: 1, border: "none", cursor: "pointer", borderRadius: 99, padding: "7px 0",
             fontFamily: SANS, fontSize: 13, fontWeight: dir === k ? 700 : 500,
             background: dir === k ? "#fff" : "transparent", color: dir === k ? c : C.secondary,
@@ -276,11 +339,11 @@ export default function AgendaRadar() {
         </div>
       ) : phone ? (
         <div style={{ background: C.card, border: `1px solid ${C.rule}`, borderRadius: 10, overflow: "hidden" }}>
-          {rows.map((t, i) => <ThemeRow key={t.key} t={t} first={i === 0} />)}
+          {rows.map((t, i) => <ThemeRow key={t.key} t={t} first={i === 0} open={openTheme === t.key} onToggle={() => toggleTheme(t.key)} />)}
         </div>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: 8 }}>
-          {rows.map(t => <ThemeCard key={t.key} t={t} />)}
+          {rows.map(t => <ThemeCard key={t.key} t={t} open={openTheme === t.key} onToggle={() => toggleTheme(t.key)} />)}
         </div>
       )}
 

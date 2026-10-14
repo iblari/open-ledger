@@ -176,7 +176,7 @@ export function summarize(transcript: string): BcSummary {
   return { v: 3, words, themes, cos, ctry, ppl, snip };
 }
 
-const SUM_KEY = (id: string) => `radar:bc:v3:${id}`;
+export const SUM_KEY = (id: string) => `radar:bc:v3:${id}`;
 
 /* ── Aggregate ─────────────────────────────────────────────────────── */
 

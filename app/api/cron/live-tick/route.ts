@@ -3,6 +3,8 @@ import { checkCoverage, checkDeaf } from "@/lib/coverage-watch";
 import { tagPending } from "@/lib/topic-tags";
 import { healFullBroadcastsOnce, seedTranscriptBackfillOnce } from "@/lib/live-kv";
 import { toneBackfill } from "@/lib/entity-tone";
+import { warmThemeBriefs } from "@/lib/theme-brief";
+import { getRadar } from "@/lib/agenda-radar";
 import { watchUploads } from "@/lib/upload-watch";
 
 /**
@@ -57,6 +59,11 @@ export async function GET(req: Request) {
   // Two broadcasts' "tone on air" labels per tick (one model call each).
   const toned = await toneBackfill(2).catch(e => { console.error("[live-tick] tone failed:", (e as Error).message); return 0; });
   if (toned) console.log(`[live-tick] labelled tone for ${toned} broadcast(s)`);
+  // One radar theme brief per tick (the ones on the Rising/Watch/Fading tabs).
+  const briefed = await getRadar().then(r => warmThemeBriefs(
+    r.themes.filter(t => (t.market && (t.status === "rising" || t.status === "new")) || t.status === "watch" || t.status === "fading").map(t => t.key), 1,
+  )).catch(e => { console.error("[live-tick] theme brief failed:", (e as Error).message); return 0; });
+  if (briefed) console.log(`[live-tick] wrote ${briefed} theme brief(s)`);
   const tags = await tagPending(40).catch(e => {
     console.error("[live-tick] topic tagging failed:", (e as Error).message);
     return null;
