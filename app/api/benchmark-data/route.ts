@@ -155,7 +155,9 @@ const CATS: Record<string, string> = {
 // built from those would skip whole years. These are computed here, from the
 // full monthly history. Months are y*12+m; one value per month (last wins,
 // which collapses weekly series).
-interface Extremes { t: number; v: number; high: number | null; low: number | null; start: number }
+interface Extremes { t: number; v: number; high: number | null; low: number | null; start: number;
+  /** The reading before this one (previous month, or previous quarter for quarterly data). */
+  prevT: number | null; prevV: number | null }
 function extremes(series: { date: Date; value: number }[]): Extremes | null {
   const byMonth = new Map<number, number>();
   for (const p of series) {
@@ -171,7 +173,11 @@ function extremes(series: { date: Date; value: number }[]): Extremes | null {
     if (high === null && x >= v) high = ts[i];
     if (low === null && x <= v) low = ts[i];
   }
-  return { t, v, high, low, start: ts[0] };
+  // Previous distinct reading: quarterly series are spread over months, so
+  // the month before can be the same quarter's value.
+  let prevT: number | null = null, prevV: number | null = null;
+  for (let i = ts.length - 2; i >= 0; i--) { const x = byMonth.get(ts[i])!; if (x !== v || t - ts[i] >= 3) { prevT = ts[i]; prevV = x; break; } }
+  return { t, v, high, low, start: ts[0], prevT, prevV };
 }
 
 // ── Helpers ──
@@ -356,7 +362,7 @@ export async function GET() {
     // Apply transforms and build metrics
     const metricsOut: Record<string, {
       label: string; short: string; unit: string; lowerBetter: boolean; cat: string; series: AdminSeries[];
-      hist: Extremes | null;
+      hist: Extremes | null; released?: string;
     }> = {};
 
     for (const m of METRICS) {
@@ -443,6 +449,23 @@ export async function GET() {
         hist: extremes(transformed),
       };
     }
+
+    // When each headline series was last PUBLISHED (FRED vintage dates), so
+    // the Trending strip can announce a release the day it lands — not just
+    // when the new number happens to set a record.
+    const RELEASES: Record<string, string> = {
+      inflation: 'CPIAUCSL', core_cpi: 'CPILFESL', unemployment: 'UNRATE', jobs: 'PAYEMS',
+      gdp_growth: 'A191RL1Q225SBEA', consumer_conf: 'UMCSENT', retail: 'RSAFS', openings: 'JTSJOL', wages: 'LES1252881600Q',
+    };
+    await Promise.all(Object.entries(RELEASES).map(async ([k, sid]) => {
+      if (!metricsOut[k]) return;
+      try {
+        const r = await fetch(`https://api.stlouisfed.org/fred/series/vintagedates?series_id=${sid}&api_key=${apiKey}&file_type=json&sort_order=desc&limit=1`, { next: { revalidate: 3600 } });
+        const j = await r.json();
+        const d = j?.vintage_dates?.[0];
+        if (d) (metricsOut[k] as { released?: string }).released = d;
+      } catch { /* no release date: no "new data" card, nothing else changes */ }
+    }));
 
     const now = new Date();
     const currentMonth = monthsDiff(new Date('2025-01-20'), now);

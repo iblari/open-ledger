@@ -17,7 +17,9 @@ export interface BenchMetric {
   label: string; short: string; unit: string; lowerBetter: boolean; cat: string; series: BenchSeries[];
   /** From the full monthly history (months as y*12+m): the latest reading and
    *  the last earlier month at/above (high) and at/below (low) it. */
-  hist?: { t: number; v: number; high: number | null; low: number | null; start: number } | null;
+  hist?: { t: number; v: number; high: number | null; low: number | null; start: number; prevT?: number | null; prevV?: number | null } | null;
+  /** Date the latest reading was published (FRED vintage), headline series only. */
+  released?: string;
 }
 export interface Bench {
   lastUpdated: string;
@@ -289,10 +291,49 @@ const NO_STREAKS = new Set(["five_year", "jobs", "purchasing", "real_gdp", "reta
 const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const monthLabel = (t: number) => `${MON[t % 12]} ${Math.floor(t / 12)}`;
 
+
+const MONTH_LONG = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+/** Card for a headline release published in the last 5 days. Dated by the
+ *  release day, so it sorts to the front of the strip. */
+function releaseCard(key: string, m: BenchMetric): TrendCard | null {
+  const h = m.hist;
+  if (!m.released || !h || h.prevV == null || h.prevT == null) return null;
+  const rel = Date.parse(m.released + "T12:30:00Z");   // most releases: 8:30 ET
+  const age = (Date.now() - rel) / 864e5;
+  if (!(age >= -0.5 && age <= 5)) return null;
+  const mon = MONTH_LONG[h.t % 12], prevMon = MONTH_LONG[h.prevT % 12];
+  const v = h.v, p = h.prevV, d = v - p;
+  const pts = m.unit === "%";
+  const f = (x: number) => fmtBench(x, m.unit);
+  const label = m.label.replace(/\s*\(.*\)\s*$/, "");
+  let headline: string;
+  if (key === "jobs") headline = v >= 0 ? `The economy added ${f(v).replace(/^\+/, "")} jobs in ${mon}` : `The economy lost ${f(-v)} jobs in ${mon}`;
+  else if (key === "gdp_growth") headline = `The economy grew at a ${f(v)} rate last quarter, ${d >= 0 ? "up" : "down"} from ${f(p)}`;
+  else if (key === "inflation") headline = `Inflation was ${f(v)} in ${mon}, ${d > 0 ? "up" : d < 0 ? "down" : "unchanged"}${d ? ` from ${f(p)} in ${prevMon}` : ""}`;
+  else headline = `${label} ${d > 0 ? "rose" : d < 0 ? "fell" : "held"} ${d ? "to" : "at"} ${f(v)} in ${mon}${d ? `, from ${f(p)}` : ""}`;
+  const better = d === 0 ? null : m.lowerBetter ? d < 0 : d > 0;
+  const delta = pts ? `${Math.abs(d).toFixed(1)} pts` : fmtBench(Math.abs(d), m.unit);
+  const important = ["inflation", "jobs", "unemployment", "gdp_growth"].includes(key);
+  return {
+    id: `release-${key}-${h.t}`,
+    kicker: "New data",
+    headline,
+    badge: d === 0 ? "Unchanged" : `${d > 0 ? "▲" : "▼"} ${delta}`,
+    tone: better == null ? "neutral" : better ? "good" : "bad",
+    date: new Date(rel).toISOString(),
+    dateLabel: `Out ${new Date(rel).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}`,
+    href: `/dashboard?view=month&metric=${key}`,
+    score: (important ? 12 : 8) - age,
+  };
+}
+
 export function dataSignals(bench: Bench | null): TrendCard[] {
   if (!bench) return [];
   const cards: TrendCard[] = [];
   for (const [key, m] of Object.entries(bench.metrics)) {
+    // ── A release that just landed: "new data" beats waiting for a record.
+    const rc = releaseCard(key, m);
+    if (rc) cards.push(rc);
     // calendar month index → value (last reading in the month wins)
     const cal = new Map<number, number>();
     for (const s of m.series) {
