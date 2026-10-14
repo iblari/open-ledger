@@ -18,7 +18,9 @@ export interface BenchMetric {
   /** From the full monthly history (months as y*12+m): the latest reading and
    *  the last earlier month at/above (high) and at/below (low) it. */
   hist?: { t: number; v: number; high: number | null; low: number | null; start: number; prevT?: number | null; prevV?: number | null } | null;
-  /** Date the latest reading was published (FRED vintage), headline series only. */
+  /** First publication of the latest observation (ALFRED initial release). */
+  published?: { obs: string; d: string };
+  /** Legacy: latest FRED vintage date. */
   released?: string;
 }
 export interface Bench {
@@ -295,10 +297,24 @@ const monthLabel = (t: number) => `${MON[t % 12]} ${Math.floor(t / 12)}`;
 const MONTH_LONG = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 /** Card for a headline release published in the last 5 days. Dated by the
  *  release day, so it sorts to the front of the strip. */
+const HEADLINE = new Set(["inflation", "core_cpi", "unemployment", "jobs", "gdp_growth", "consumer_conf", "retail", "openings", "wages"]);
+/** Month index (y*12+m) of a FRED date string. */
+const monthOf = (iso: string) => { const [y, mo] = iso.split("-").map(Number); return y * 12 + mo - 1; };
+/** When the reading for data month t became public. Uses the ALFRED first-
+ *  release date when it is for this reading (quarterly data sits up to two
+ *  months off the observation date); otherwise the day the month closed. */
+export function publishedAt(m: BenchMetric, t: number): number {
+  const p = m.published;
+  if (p && t - monthOf(p.obs) >= 0 && t - monthOf(p.obs) <= 2) return Date.parse(p.d + "T12:30:00Z"); // most releases: 8:30 ET
+  const close = Date.UTC(Math.floor((t + 1) / 12), (t + 1) % 12, 1);
+  return Math.min(close, Date.now());
+}
+const outLabel = (ms: number) => `Out ${new Date(ms).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}`;
 function releaseCard(key: string, m: BenchMetric): TrendCard | null {
   const h = m.hist;
-  if (!m.released || !h || h.prevV == null || h.prevT == null) return null;
-  const rel = Date.parse(m.released + "T12:30:00Z");   // most releases: 8:30 ET
+  if (!HEADLINE.has(key) || !h || h.prevV == null || h.prevT == null) return null;
+  if (!m.published && !m.released) return null;
+  const rel = m.published ? publishedAt(m, h.t) : Date.parse(m.released + "T12:30:00Z");
   const age = (Date.now() - rel) / 864e5;
   if (!(age >= -0.5 && age <= 5)) return null;
   const mon = MONTH_LONG[h.t % 12], prevMon = MONTH_LONG[h.prevT % 12];
@@ -321,7 +337,7 @@ function releaseCard(key: string, m: BenchMetric): TrendCard | null {
     badge: d === 0 ? "Unchanged" : `${d > 0 ? "▲" : "▼"} ${delta}`,
     tone: better == null ? "neutral" : better ? "good" : "bad",
     date: new Date(rel).toISOString(),
-    dateLabel: `Out ${new Date(rel).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}`,
+    dateLabel: outLabel(rel),
     href: `/dashboard?view=month&metric=${key}`,
     score: (important ? 12 : 8) - age,
   };
@@ -346,8 +362,12 @@ export function dataSignals(bench: Bench | null): TrendCard[] {
     const label = m.label.replace(/\s*\(.*\)\s*$/, "");
     const kicker = KICKER_BY_KEY[key] || KICKER[m.cat] || "Economy";
     const value = fmtBench(v, m.unit);
-    const iso = new Date(Date.UTC(Math.floor(t / 12), t % 12, 1)).toISOString();
-    const dateLabel = `${MON[t % 12]} data`;
+    // Dated by when the reading became public, so every card on the strip
+    // sorts on the same clock ("newest first" means newest news).
+    const pub = publishedAt(m, t);
+    const iso = new Date(pub).toISOString();
+    const dateLabel = outLabel(pub);
+    const inMon = ` in ${MONTH_LONG[t % 12]}`;
     const href = `/dashboard?view=month&metric=${key}`;
 
     // The yield curve's sign is the news, not its level: flag a flip
@@ -392,8 +412,8 @@ export function dataSignals(bench: Bench | null): TrendCard[] {
         cards.push({
           id: `rec-${key}-${dir}`, kicker,
           headline: since == null
-            ? `${label} at ${value} — the ${dir === "high" ? "highest" : "lowest"} on record`
-            : `${label} at ${value} — the ${dir === "high" ? "highest" : "lowest"} since ${monthLabel(since)}`,
+            ? `${label} at ${value}${inMon} — the ${dir === "high" ? "highest" : "lowest"} on record`
+            : `${label} at ${value}${inMon} — the ${dir === "high" ? "highest" : "lowest"} since ${monthLabel(since)}`,
           badge: since == null ? `Record ${dir}` : `${years}-year ${dir}`,
           tone: good ? "good" : "bad", date: iso, dateLabel, href,
           score: 3 + Math.min(years, 15) / 2,
@@ -415,7 +435,7 @@ export function dataSignals(bench: Bench | null): TrendCard[] {
         const good = m.lowerBetter ? !dirUp : dirUp;
         cards.push({
           id: `streak-${key}`, kicker,
-          headline: `${label} ${dirUp ? "rose" : "fell"} ${n} months in a row, to ${value}`,
+          headline: `${label} ${dirUp ? "rose" : "fell"} ${n} months in a row, to ${value}${inMon}`,
           badge: `${dirUp ? "↑" : "↓"} ${n} months`,
           tone: good ? "good" : "bad", date: iso, dateLabel, href,
           score: 1.5 + n / 2,

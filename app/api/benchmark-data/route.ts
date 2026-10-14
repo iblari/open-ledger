@@ -450,21 +450,21 @@ export async function GET() {
       };
     }
 
-    // When each headline series was last PUBLISHED (FRED vintage dates), so
-    // the Trending strip can announce a release the day it lands — not just
-    // when the new number happens to set a record.
-    const RELEASES: Record<string, string> = {
-      inflation: 'CPIAUCSL', core_cpi: 'CPILFESL', unemployment: 'UNRATE', jobs: 'PAYEMS',
-      gdp_growth: 'A191RL1Q225SBEA', consumer_conf: 'UMCSENT', retail: 'RSAFS', openings: 'JTSJOL', wages: 'LES1252881600Q',
-    };
-    await Promise.all(Object.entries(RELEASES).map(async ([k, sid]) => {
-      if (!metricsOut[k]) return;
+    // When the LATEST reading of each metric was first published. ALFRED's
+    // "initial release" view (output_type=4) gives each observation's first
+    // vintage, so later revisions don't count as new data. Daily/weekly
+    // sources (S&P 500, mortgage) have no single release — the client dates
+    // those by when the month closed.
+    const NO_RELEASE = new Set(['SP500', 'MORTGAGE30US']);
+    await Promise.all(METRICS.map(async m => {
+      const out = metricsOut[m.key] as { published?: { obs: string; d: string } } | undefined;
+      const sid = FRED_SERIES[m.fredKey] ?? OPTIONAL_SERIES[m.fredKey]?.id;
+      if (!out || !sid || NO_RELEASE.has(sid)) return;
       try {
-        const r = await fetch(`https://api.stlouisfed.org/fred/series/vintagedates?series_id=${sid}&api_key=${apiKey}&file_type=json&sort_order=desc&limit=1`, { next: { revalidate: 3600 } });
-        const j = await r.json();
-        const d = j?.vintage_dates?.[0];
-        if (d) (metricsOut[k] as { released?: string }).released = d;
-      } catch { /* no release date: no "new data" card, nothing else changes */ }
+        const r = await fetch(`https://api.stlouisfed.org/fred/series/observations?series_id=${sid}&api_key=${apiKey}&file_type=json&realtime_start=1776-07-04&realtime_end=9999-12-31&output_type=4&sort_order=desc&limit=1`, { next: { revalidate: 3600 } });
+        const o = (await r.json())?.observations?.[0];
+        if (o?.date && o?.realtime_start) out.published = { obs: o.date, d: o.realtime_start };
+      } catch { /* no publish date: client falls back to month-close */ }
     }));
 
     const now = new Date();
