@@ -41,7 +41,16 @@ function Line({ pts, color, said, fmt, caption }: {
   pts: { label: string; v: number }[]; color: string; said?: number | null; fmt: (v: number) => string; caption: string;
 }) {
   const [i, setI] = useState<number | null>(null);
-  const W = 600, H = 150, L = 8, R = 8, T = 26, B = 22;
+  // Drawn at the container's real width so text stays 11–13px on phones
+  // (a fixed viewBox scaled down to 340px shrank labels to ~6px).
+  const box = useRef<HTMLDivElement>(null);
+  const [W, setW] = useState(600);
+  useEffect(() => {
+    const el = box.current; if (!el) return;
+    const ro = new ResizeObserver(es => { const w = Math.round(es[0].contentRect.width); if (w > 0) setW(w); });
+    ro.observe(el); return () => ro.disconnect();
+  }, []);
+  const H = W < 480 ? 140 : 150, L = 8, R = 8, T = 26, B = 22;
   const vals = pts.map(p => p.v).concat(said != null ? [said] : []);
   let mn = Math.min(...vals), mx = Math.max(...vals);
   const pad = (mx - mn || Math.abs(mx) || 1) * 0.12; mn -= pad; mx += pad;
@@ -56,7 +65,7 @@ function Line({ pts, color, said, fmt, caption }: {
   const sel = i ?? pts.length - 1;
   const few = pts.length <= 8;
   return (
-    <div>
+    <div ref={box}>
       <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ display: "block", touchAction: "pan-y", cursor: "crosshair", overflow: "visible" }}
         role="img" aria-label={caption}
         onPointerDown={e => { if (e.pointerType !== "mouse") { try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* */ } } pick(e.clientX, e.currentTarget); }}
