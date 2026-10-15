@@ -225,7 +225,7 @@ export async function verifyClaimOnWeb(
             // model search the wrong country.
             claim.actual && !/country other than the United States/i.test(claim.actual) ? `\nPrior note: ${claim.actual}` : "",
             `\nSearch for the authoritative figure FOR THE SUBJECT THE SPEAKER MEANT — if the claim is about another country, find that country's statistics, not America's.`,
-            `\nDeciding the subject: judge it from the sentence the claim is in and what came BEFORE it, never from what is said afterwards. When a US official says "we", "our", "us" or "this country", the subject is the United States unless that same sentence names another country.`,
+            `\nDeciding the subject: judge it from the sentence the claim is in and what came BEFORE it, never from what is said afterwards. When a US official says "we", "our", "us" or "this country", the subject is the United States unless that same sentence names another country. Likewise, a national figure ("our gasoline prices", "inflation", "unemployment") is the NATIONAL US figure — do not narrow it to a state or city mentioned earlier unless the claim itself names that place.`,
             `\nReturn the JSON verdict.`,
           ].join("\n"),
         }],

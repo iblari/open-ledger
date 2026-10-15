@@ -82,6 +82,11 @@ export async function recheckClaims(tag: string, targets: RepairTarget[], max = 
   return { fixed, failed };
 }
 
+/** Oct 15 (2nd pass): national claim narrowed to a state named earlier. */
+export const NATIONAL_SCOPE_FIX: RepairTarget[] = [
+  { videoId: "64w2lEYtw8E", startsWith: "our gasoline prices are lower than Biden" },
+];
+
 /** Oct 15: claims checked against the wrong country (see claimIsForeign). */
 export const FOREIGN_SCOPE_FIX: RepairTarget[] = [
   { videoId: "117BmljC8qk", startsWith: "we inherited a terrible inflation" },
