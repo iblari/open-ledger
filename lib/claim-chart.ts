@@ -39,7 +39,7 @@ export interface ClaimForChart {
 }
 
 const MODEL = "claude-haiku-4-5-20251001";
-export const CHART_KEY = (k: string) => `claim-chart:v2:${k}`;
+export const CHART_KEY = (k: string) => `claim-chart:v3:${k}`;
 
 /* ── Source text ───────────────────────────────────────────────────── */
 
@@ -176,6 +176,12 @@ export async function buildClaimChart(c: ClaimForChart): Promise<ClaimChart | nu
     const q = lo.match(/\bq([1-4])\b/); const mi = MONTHS.findIndex(mo => lo.includes(mo));
     return y * 12 + (q ? (+q[1] - 1) * 3 : mi >= 0 ? mi : 0);
   };
+  // One source per timeline: figures from different publishers rarely
+  // share a definition. Keep the source with the most dated points.
+  const bySrc = new Map<number, ChartPoint[]>();
+  for (const x of pts) bySrc.set(x.src, [...(bySrc.get(x.src) || []), x]);
+  const best = [...bySrc.values()].sort((a, b) => b.length - a.length)[0] || [];
+  if (best.length < pts.length) { dropped += pts.length - best.length; pts.splice(0, pts.length, ...best); }
   const dated = pts.every(x => Number.isFinite(yearOf(x.label)));
   const distinct = new Set(pts.map(x => period(x.label))).size === pts.length;
   const uniq = dated && distinct ? [...pts].sort((a, b) => sortKey(a.label) - sortKey(b.label)) : [];

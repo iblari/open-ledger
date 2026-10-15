@@ -114,7 +114,7 @@ function WebChart({ c, color }: { c: TrendingClaim; color: string }) {
     const io = new IntersectionObserver(es => {
       if (!es.some(e => e.isIntersecting)) return;
       io.disconnect();
-      fetch(`/api/claim-chart?key=${c.key}&v=2`).then(r => r.json()).then(d => { if (alive) setChart(d?.chart ?? null); }).catch(() => alive && setChart(null));
+      fetch(`/api/claim-chart?key=${c.key}&v=3`).then(r => r.json()).then(d => { if (alive) setChart(d?.chart ?? null); }).catch(() => alive && setChart(null));
     }, { rootMargin: "200px" });
     io.observe(ref.current);
     return () => { alive = false; io.disconnect(); };
@@ -135,10 +135,17 @@ function WebChart({ c, color }: { c: TrendingClaim; color: string }) {
       {chart.data && <Compare said={chart.said?.value ?? null} data={chart.data.value} color={color} fmt={fmt} />}
       {chart.points.length >= 2 && (
         <Line pts={chart.points.map(p => ({ label: p.label, v: p.value }))} color={color} fmt={fmt}
+          said={!chart.data && chart.said && sameScale(chart.said.value, chart.points.map(p => p.value)) ? chart.said.value : null}
           caption={`Hover or drag · figures as published by ${[...new Set(chart.points.map(p => src(p.src)?.url ? host(src(p.src).url) : "our fact-check"))].join(", ")}`} />
       )}
     </div>
   );
+}
+
+/** Is a claimed value on the same scale as a line (worth drawing across it)? */
+function sameScale(v: number, vals: number[]): boolean {
+  const lo = Math.min(...vals), hi = Math.max(...vals), span = hi - lo || Math.abs(hi) || 1;
+  return v >= lo - 3 * span && v <= hi + 3 * span;
 }
 
 function MetricChart({ c, bench, color }: { c: TrendingClaim; bench: Bench | null; color: string }) {
@@ -148,8 +155,7 @@ function MetricChart({ c, bench, color }: { c: TrendingClaim; bench: Bench | nul
   if (s.length < 3) return null;
   const said = c.claimedValue;
   // Draw what was said across the line only when it is on the same scale.
-  const lo = Math.min(...s.map(p => p.v)), hi = Math.max(...s.map(p => p.v)), span = hi - lo || Math.abs(hi) || 1;
-  const show = said != null && said >= lo - 3 * span && said <= hi + 3 * span;
+  const show = said != null && sameScale(said, s.map(p => p.v));
   return <Line pts={s.map(p => ({ label: p.label, v: p.v }))} color={color} said={show ? said : null}
     fmt={v => fmtBench(v, m.unit)} caption={`${m.label} · monthly, last 3 years · FRED · hover or drag`} />;
 }
