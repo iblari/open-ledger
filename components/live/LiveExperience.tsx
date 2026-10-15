@@ -2056,6 +2056,7 @@ export default function LiveExperience({ autoStartReplay, autoStartLive, onExit,
             }}>Past broadcasts &amp; trends</button>
           )}
           <Link href="/dashboard" style={{ color: T.sub, textDecoration: "none", fontWeight: 500 }}>Data</Link>
+          <Link href="/trending" style={{ color: T.sub, textDecoration: "none", fontWeight: 500 }}>Trending</Link>
           {/* "Live" pointed at /live from inside /live, and "Scenarios" sent
               someone mid-broadcast to a counterfactual chart. Replaced with
               the one action worth offering a viewer who is already here and

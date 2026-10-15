@@ -7,6 +7,10 @@
     {
       "path": "/api/cron/signals",
       "schedule": "15 11 * * *"
+    },
+    {
+      "path": "/api/cron/claim-charts",
+      "schedule": "*/3 * * * *"
     }
   ]
 }

@@ -451,3 +451,14 @@ export function dataSignals(bench: Bench | null): TrendCard[] {
   }
   return [...best.values()].sort((a, b) => b.score - a.score);
 }
+
+/** One metric as a single calendar series (months as y*12+m), oldest first —
+ *  the per-administration series stitched together. */
+export function monthlySeries(m: BenchMetric): { t: number; v: number; label: string }[] {
+  const cal = new Map<number, number>();
+  for (const s of m.series) {
+    const st = INAUG[s.id]; if (!st) continue;
+    for (const p of s.data) if (Number.isFinite(p.value)) cal.set(st[0] * 12 + st[1] + p.month, p.value);
+  }
+  return [...cal.keys()].sort((a, b) => a - b).map(t => ({ t, v: cal.get(t)!, label: `${MON[t % 12]} ${Math.floor(t / 12)}` }));
+}
