@@ -27,7 +27,12 @@ export async function recheckClaims(tag: string, targets: RepairTarget[], max = 
   for (const t of todo) byVideo.set(t.videoId, [...(byVideo.get(t.videoId) || []), t]);
 
   for (const [videoId, ts] of byVideo) {
-    const full = await getFullBroadcast(videoId).catch(() => null);
+    // The permanent record can lag the 72-hour store (claims added by a later
+    // re-check); prefer whichever copy actually has the claims.
+    const rec = recent.find(b => b.videoId === videoId) || null;
+    const stored = await getFullBroadcast(videoId).catch(() => null);
+    const has = (b: typeof stored) => !!b && ts.every(t => b.claims.some(x => normQuote(x.quote).startsWith(normQuote(t.startsWith))));
+    const full = has(stored) ? stored : has(rec) ? (stored ? { ...stored, claims: rec!.claims.map(c => ({ ...c })) } : rec) : stored || rec;
     if (!full) { failed.push(...ts.map(t => t.startsWith)); continue; }
     const transcript = full.transcript || "";
     const results = await Promise.all(ts.map(async t => {
@@ -39,7 +44,7 @@ export async function recheckClaims(tag: string, targets: RepairTarget[], max = 
     }));
     let changed = false;
     for (const { t, c, v } of results) {
-      if (!c || !v) { failed.push(t.startsWith); continue; }
+      if (!c || !v) { failed.push(`${t.startsWith} (${!c ? "claim not found" : "no verdict"})`); continue; }
       const patch: Partial<LiveClaim> = {
         rating: v.rating, confidence: v.confidence, actual: v.actual, explanation: v.explanation,
         sources: v.sources, webVerified: true, metricKey: null, verifiedFromSource: false, groundTruth: undefined,
