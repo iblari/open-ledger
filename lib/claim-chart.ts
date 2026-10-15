@@ -31,6 +31,7 @@ export interface ClaimChart {
   points: ChartPoint[];       // time-ordered, oldest first; [] when < 2 verified
   sources: { title: string; url: string }[];   // src 0 = our finding
   dropped: number;            // proposals that failed verification
+  rejected?: { value: number; src: number; span: string }[];
   at: string;
 }
 export interface ClaimForChart {
@@ -39,7 +40,7 @@ export interface ClaimForChart {
 }
 
 const MODEL = "claude-haiku-4-5-20251001";
-export const CHART_KEY = (k: string) => `claim-chart:v3:${k}`;
+export const CHART_KEY = (k: string) => `claim-chart:v4:${k}`;
 
 /* ── Source text ───────────────────────────────────────────────────── */
 
@@ -77,23 +78,27 @@ async function fetchPage(url: string): Promise<string> {
 
 const norm = (s: string) => s.toLowerCase().replace(/[’‘]/g, "'").replace(/[–—]/g, "-").replace(/\s+/g, " ").trim();
 
-/** The first number written in a span ("76,282", "36.5%", "$4.20", "2.1 million"). */
-function spanNumber(span: string): number | null {
-  const m = span.replace(/(\d),(\d{3})/g, "$1$2").match(/-?\d+(?:\.\d+)?/);
-  return m ? parseFloat(m[0]) : null;
+/** Numbers written in a span, each with what follows it ("76,282", "36.5%", "2.1 million"). */
+function spanNumbers(span: string): { n: number; after: string }[] {
+  const t = span.replace(/(\d),(\d{3})/g, "$1$2").replace(/(\d),(\d{3})/g, "$1$2");
+  return [...t.matchAll(/-?\d+(?:\.\d+)?/g)].map(m => ({ n: parseFloat(m[0]), after: t.slice(m.index! + m[0].length, m.index! + m[0].length + 9).toLowerCase() }));
 }
-/** Value matches the span's number, allowing a stated scale (thousand…trillion) and rounding. */
-function matches(value: number, span: string): boolean {
-  const n = spanNumber(span);
-  if (n == null || !Number.isFinite(value)) return false;
-  return [1, 1e3, 1e6, 1e9, 1e12].some(m => {
-    const x = n * m;
-    return Math.abs(Math.abs(value) - Math.abs(x)) <= Math.max(0.006 * Math.abs(x), 0.051);
+/** Some number in the span equals the value (allowing a stated scale and
+ *  rounding); for percentages, that number must be written as a percent. */
+function matches(value: number, span: string, unit: string): boolean {
+  if (!Number.isFinite(value)) return false;
+  const pct = /^%|percent/i.test(unit.trim());
+  return spanNumbers(span).some(({ n, after }) => {
+    if (pct && !/^\s*(%|percent|per cent|pct)/.test(after)) return false;
+    return [1, 1e3, 1e6, 1e9, 1e12].some(m => {
+      const x = n * m;
+      return Math.abs(Math.abs(value) - Math.abs(x)) <= Math.max(0.006 * Math.abs(x), 0.051);
+    });
   });
 }
-function verified(value: number, span: string, src: number, texts: string[]): boolean {
+function verified(value: number, span: string, src: number, texts: string[], unit: string): boolean {
   const t = texts[src];
-  return !!t && span.length >= 2 && norm(t).includes(norm(span)) && matches(value, span);
+  return !!t && span.length >= 2 && norm(t).includes(norm(span)) && matches(value, span, unit);
 }
 
 /* ── Build ─────────────────────────────────────────────────────────── */
@@ -118,7 +123,8 @@ export async function buildClaimChart(c: ClaimForChart): Promise<ClaimChart | nu
     ` "data":{"value":number,"label":"short, e.g. 'Data: −36.5%'","src":n,"span":"exact text"} or null,\n` +
     ` "points":[{"label":"time label, e.g. '2023' or 'Q1 2026'","value":number,"src":n,"span":"exact text"}]}\n` +
     `Rules:\n` +
-    `- "said" is the number the speaker claimed, in the same unit as "data" (a drop of 22% → -22).\n` +
+    `- "said" is the number the speaker claimed. "said" and "data" must be the SAME measure in the SAME unit (both a % share, both a count, both $). If the sources have no figure for the same measure, set "data" to null — never compare different things (e.g. a % of crime vs a number of people).\n` +
+    `- Signs: decreases are negative for BOTH said and data ("84% reduction" → -84, "down 41.5%" → -41.5).\n` +
     `- "data" is the figure the verdict rests on — the official / primary figure for the same thing, not the most extreme estimate.\n` +
     `- "points": 2–6 values of ONE measure at DIFFERENT dates (e.g. annual deaths 2022, 2023, 2024), oldest first. Every point must be the same measure, same definition (never mix monthly and annual rates, or levels and changes), and each label must be a date or period ("2023", "Q1 2026", "Aug 2026"). Parts, categories or estimates from different groups are NOT points. If the sources don't give such a series, return [].\n` +
     `- Every "span" must be copied EXACTLY, character for character, from source [src], and must contain the number (e.g. "76,282"). Never compute or round a value that isn't written.\n` +
@@ -144,11 +150,13 @@ export async function buildClaimChart(c: ClaimForChart): Promise<ClaimChart | nu
   };
 
   let dropped = 0;
+  const rejected: { value: number; src: number; span: string }[] = [];
+  const reject = (x: { value?: number; src?: number; span?: string }) => { dropped++; if (rejected.length < 6) rejected.push({ value: Number(x.value), src: Number(x.src), span: String(x.span || "").slice(0, 160) }); };
   let data: ClaimChart["data"] = null;
   if (p.data && typeof p.data.value === "number") {
     const d = p.data;
-    if (verified(d.value!, String(d.span || ""), Number(d.src), texts)) data = { value: d.value!, label: String(d.label || ""), src: Number(d.src), span: String(d.span) };
-    else dropped++;
+    if (verified(d.value!, String(d.span || ""), Number(d.src), texts, String(p.unit || ""))) data = { value: d.value!, label: String(d.label || ""), src: Number(d.src), span: String(d.span) };
+    else reject(d);
   }
   // What was said comes from the quote, not a source; keep it only when it
   // agrees with the value the checker extracted (or the quote has no
@@ -162,8 +170,8 @@ export async function buildClaimChart(c: ClaimForChart): Promise<ClaimChart | nu
   const pts: ChartPoint[] = [];
   for (const q of p.points || []) {
     if (typeof q.value !== "number" || !q.label) continue;
-    if (verified(q.value, String(q.span || ""), Number(q.src), texts)) pts.push({ label: String(q.label), value: q.value, src: Number(q.src), span: String(q.span) });
-    else dropped++;
+    if (verified(q.value, String(q.span || ""), Number(q.src), texts, String(p.unit || ""))) pts.push({ label: String(q.label), value: q.value, src: Number(q.src), span: String(q.span) });
+    else reject(q);
   }
   // A timeline only if every point is a distinct dated period: a label
   // without a year, or two points for the same period (different measures
@@ -189,7 +197,7 @@ export async function buildClaimChart(c: ClaimForChart): Promise<ClaimChart | nu
   return {
     v: 1, metric: String(p.metric || ""), unit: String(p.unit || ""),
     said, data, points: uniq.length >= 2 ? uniq.slice(0, 6) : [],
-    sources, dropped, at: new Date().toISOString(),
+    sources, dropped, rejected, at: new Date().toISOString(),
   };
 }
 
