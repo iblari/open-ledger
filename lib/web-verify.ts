@@ -23,6 +23,7 @@
  */
 
 import { quoteContainment } from "@/lib/claim-utils";
+import { contextBefore } from "@/lib/live-verify";
 
 const MODEL = "claude-haiku-4-5-20251001";
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
@@ -219,8 +220,13 @@ export async function verifyClaimOnWeb(
           content: [
             `Claim to verify (spoken by a US official on live broadcast):\n"""${claim.quote}"""`,
             context ? `\nSurrounding transcript — use it to identify WHO or WHAT the claim is about (which country, agency, program or time period). A quote like "they got 180% inflation" may be about a foreign country:\n"""${context.slice(0, 1200)}"""` : "",
-            claim.actual ? `\nPrior note: ${claim.actual}` : "",
-            `\nSearch for the authoritative figure FOR THE SUBJECT THE SPEAKER MEANT — if the claim is about another country, find that country's statistics, not America's. Return the JSON verdict.`,
+            // The scope gate's own note ("about a country other than the US")
+            // is a routing decision, not evidence — passing it on made the
+            // model search the wrong country.
+            claim.actual && !/country other than the United States/i.test(claim.actual) ? `\nPrior note: ${claim.actual}` : "",
+            `\nSearch for the authoritative figure FOR THE SUBJECT THE SPEAKER MEANT — if the claim is about another country, find that country's statistics, not America's.`,
+            `\nDeciding the subject: judge it from the sentence the claim is in and what came BEFORE it, never from what is said afterwards. When a US official says "we", "our", "us" or "this country", the subject is the United States unless that same sentence names another country.`,
+            `\nReturn the JSON verdict.`,
           ].join("\n"),
         }],
       }),
@@ -293,7 +299,9 @@ export async function upgradeUnverifiable<T extends { rating: string; quote: str
   const targets = claims.filter(c => c.rating === "UNVERIFIABLE").slice(0, max);
   if (!targets.length) return claims;
   await Promise.all(targets.map(async (c) => {
-    const v = await verifyClaimOnWeb(c, { context });
+    // Only what led up to THIS claim — a country named later in the chunk
+    // once turned a US inflation claim into a check of Iran's.
+    const v = await verifyClaimOnWeb(c, { context: contextBefore(c.quote, context) });
     if (!v) return;
     Object.assign(c, {
       rating: v.rating,

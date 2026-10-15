@@ -71,6 +71,59 @@ export function mentionsForeignSubject(text: string): boolean {
   return FOREIGN_SUBJECT_RE.test(text);
 }
 
+/**
+ * Is the CLAIM about a foreign country? (Not: is a country named anywhere
+ * nearby.)
+ *
+ * Observed failure, Oct 14: "we're at 1.7% inflation… for the last three
+ * months, 1.7, 1.8%" — US inflation — was sent to Iran's statistics because
+ * the NEXT sentence said "And Iran will end very shortly", and the old gate
+ * checked the whole transcript chunk for any country word.
+ *
+ * Rules, in order:
+ *  1. The quote names a foreign country → foreign.
+ *  2. The quote speaks in the first person ("we", "our", "us", "this
+ *     country", "America") → the US. A US official's "we" is the US.
+ *  3. Otherwise ("they got 180% inflation") look only BACKWARDS: the ~300
+ *     characters before the quote in the transcript. What is said after a
+ *     claim can't be what the claim was about.
+ *  If the quote can't be located, fall back to the whole context only for
+ *  third-person quotes (they / their / them), the original failure's shape.
+ */
+const FIRST_PERSON_RE = /\b(we|we're|we've|we'll|weve|were at|our|ours|us|this country|our country|america|american|americans|the united states|the us)\b/i;
+const THIRD_PERSON_RE = /\b(they|they're|they've|their|them|that country)\b/i;
+const squash = (s: string) => s.toLowerCase().replace(/\[\d+:\d{2}(?::\d{2})?\]/g, " ").replace(/[^a-z0-9%.$ ]+/g, " ").replace(/\s+/g, " ").trim();
+export function claimIsForeign(quote: string, context = ""): boolean {
+  if (mentionsForeignSubject(quote)) return true;
+  // "we"/"our" settles it — unless the quote is also about "they"
+  // ("they do 95% of their business with us"), then the lead-in decides.
+  if (FIRST_PERSON_RE.test(quote) && !THIRD_PERSON_RE.test(quote)) return false;
+  if (!context) return false;
+  const ctx = squash(context), q = squash(quote);
+  const probe = q.slice(0, Math.min(40, q.length));
+  const at = probe.length >= 8 ? ctx.indexOf(probe) : -1;
+  if (at >= 0) return mentionsForeignSubject(ctx.slice(Math.max(0, at - 300), at + q.length));
+  return THIRD_PERSON_RE.test(quote) && mentionsForeignSubject(context);
+}
+
+/** The transcript up to and including the quote (what came after it is not
+ *  what it was about). Whole context when the quote can't be found. */
+export function contextBefore(quote: string, context: string, chars = 900): string {
+  if (!context) return "";
+  const lc = context.toLowerCase();
+  const probe = quote.toLowerCase().replace(/\s+/g, " ").trim().slice(0, 30);
+  let at = probe.length >= 8 ? lc.indexOf(probe) : -1;
+  if (at < 0) {
+    // Transcript lines carry "[m:ss]" stamps that can split the quote.
+    const words = probe.split(" ").slice(0, 3).join(" ");
+    at = words.length >= 8 ? lc.indexOf(words) : -1;
+  }
+  if (at < 0) return context;
+  // Stop at the quote: a "[m:ss]" stamp inside it can push its end a few
+  // characters on, which is acceptable; the next sentence is not.
+  return context.slice(Math.max(0, at - chars), at + quote.length + 8);
+}
+
 export function verifyClaim(raw: RawClaim, context = ""): VerifiedClaim {
   const out: VerifiedClaim = { ...raw, verifiedFromSource: false };
 
@@ -80,7 +133,7 @@ export function verifyClaim(raw: RawClaim, context = ""): VerifiedClaim {
   // NOTE: check the surrounding transcript as well as the quote. The observed
   // failure ("they got a 180% in inflation") contained no country word at
   // all; "Iranian regimes" appeared two sentences earlier in the chunk.
-  if (out.metricKey && (mentionsForeignSubject(out.quote) || mentionsForeignSubject(context))) {
+  if (out.metricKey && claimIsForeign(out.quote, context)) {
     out.metricKey = null;
     out.rating = "UNVERIFIABLE";
     out.actual = "This claim is about a country other than the United States, so it cannot be checked against US federal data.";

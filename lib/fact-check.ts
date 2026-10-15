@@ -14,7 +14,7 @@
 //   3. verifyClaim() re-rates numeric claims against ground-truth metrics data
 //   4. dedupeClaims() drops near-duplicate re-statements
 
-import { verifyClaim, mentionsForeignSubject, metricAnchorPromptBlock, type RawClaim, type VerifiedClaim } from "./live-verify";
+import { verifyClaim, claimIsForeign, metricAnchorPromptBlock, type RawClaim, type VerifiedClaim } from "./live-verify";
 import { lookupBenchmark, formatBenchValue, rateAgainstBenchmark, isUnitMismatch, benchAnchorPromptBlock } from "./benchmark-verify";
 
 const MODEL = "claude-haiku-4-5-20251001";
@@ -177,7 +177,7 @@ export async function extractAndVerifyClaims(
   // web search on it.
   await Promise.all(claims.map(async (c: VerifiedClaim) => {
     if (c.verifiedFromSource || !c.metricKey) return;
-    if (mentionsForeignSubject(c.quote) || mentionsForeignSubject(userContent)) {
+    if (claimIsForeign(c.quote, userContent)) {
       c.metricKey = null; // US series only — foreign subject in quote or context
       return;
     }
