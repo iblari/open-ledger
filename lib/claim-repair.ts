@@ -1,4 +1,4 @@
-import { getFullBroadcast, getRecentBroadcasts, setRecentBroadcasts, saveFullBroadcasts, recordInLedger, kvGet, kvSetMany, type LiveClaim } from "./live-kv";
+import { getFullBroadcast, getRecentBroadcasts, setRecentBroadcasts, saveFullBroadcasts, recordInLedger, getReplayableOne, patchLedgerClaims, kvGet, kvSetMany, type LiveClaim } from "./live-kv";
 import { verifyClaimOnWeb } from "./web-verify";
 import { contextBefore } from "./live-verify";
 import { normQuote, claimHash } from "./claim-link";
@@ -32,8 +32,11 @@ export async function recheckClaims(tag: string, targets: RepairTarget[], max = 
     const rec = recent.find(b => b.videoId === videoId) || null;
     const stored = await getFullBroadcast(videoId).catch(() => null);
     const has = (b: typeof stored) => !!b && ts.every(t => b.claims.some(x => normQuote(x.quote).startsWith(normQuote(t.startsWith))));
-    const full = has(stored) ? stored : has(rec) ? (stored ? { ...stored, claims: rec!.claims.map(c => ({ ...c })) } : rec) : stored || rec;
-    if (!full) { failed.push(...ts.map(t => t.startsWith)); continue; }
+    let full = has(stored) ? stored : has(rec) ? (stored ? { ...stored, claims: rec!.claims.map(c => ({ ...c })) } : rec) : null;
+    // Ledger-only broadcast: no full record; patch the ledger row itself.
+    const ledgerOnly = !full;
+    if (!full) full = await getReplayableOne(videoId).catch(() => null);
+    if (!full) { failed.push(...ts.map(t => `${t.startsWith} (broadcast not found)`)); continue; }
     const transcript = full.transcript || "";
     const results = await Promise.all(ts.map(async t => {
       const c = full.claims.find(x => normQuote(x.quote).startsWith(normQuote(t.startsWith)));
@@ -59,7 +62,17 @@ export async function recheckClaims(tag: string, targets: RepairTarget[], max = 
         [CHART_KEY(claimHash(videoId, c.quote)), "", 1],
       ]).catch(() => {});
     }
-    if (changed) {
+    if (changed && ledgerOnly) {
+      const fixedQ = new Map(results.filter(r => r.c && r.v).map(r => [normQuote(r.c!.quote), r.c!]));
+      await patchLedgerClaims(videoId, cl => {
+        let n = 0;
+        for (const lc of cl) {
+          const f = fixedQ.get(normQuote(lc.quote));
+          if (f) { lc.rating = f.rating; lc.actual = f.actual; lc.sources = f.sources; n++; }
+        }
+        return n > 0;
+      });
+    } else if (changed) {
       await saveFullBroadcasts([full]);
       if (recent.some(b => b.videoId === videoId)) await setRecentBroadcasts(recent);
       await recordInLedger(full);

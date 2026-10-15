@@ -1318,3 +1318,27 @@ export async function setTopicTags(tags: Record<string, string>): Promise<number
   }
   return entries.length;
 }
+
+/** Rewrite claims of one ledger row in place (verdict repairs on broadcasts
+ *  that only live in the ledger) and recount its verdicts. */
+export async function patchLedgerClaims(
+  videoId: string,
+  patch: (claims: LedgerEntry["claims"]) => boolean,
+): Promise<boolean> {
+  const all = await getLedger(true);
+  const e = all.find(x => x.videoId === videoId);
+  if (!e || !patch(e.claims)) return false;
+  const counts = { total: e.claims.length, true: 0, misleading: 0, false: 0, unverifiable: 0, unconfirmed: 0, projection: 0 };
+  for (const c of e.claims) {
+    const r = (c.rating || "").toUpperCase();
+    if (r === "TRUE" || r === "MOSTLY TRUE") counts.true++;
+    else if (r === "MISLEADING") counts.misleading++;
+    else if (r === "FALSE") counts.false++;
+    else if (r === "UNCONFIRMED") counts.unconfirmed++;
+    else if (r === "PROJECTION") counts.projection++;
+    else counts.unverifiable++;
+  }
+  e.counts = counts;
+  await setLedger(all);
+  return true;
+}
