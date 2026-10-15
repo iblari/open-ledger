@@ -39,7 +39,7 @@ export interface ClaimForChart {
 }
 
 const MODEL = "claude-haiku-4-5-20251001";
-export const CHART_KEY = (k: string) => `claim-chart:v1:${k}`;
+export const CHART_KEY = (k: string) => `claim-chart:v2:${k}`;
 
 /* ── Source text ───────────────────────────────────────────────────── */
 
@@ -119,8 +119,8 @@ export async function buildClaimChart(c: ClaimForChart): Promise<ClaimChart | nu
     ` "points":[{"label":"time label, e.g. '2023' or 'Q1 2026'","value":number,"src":n,"span":"exact text"}]}\n` +
     `Rules:\n` +
     `- "said" is the number the speaker claimed, in the same unit as "data" (a drop of 22% → -22).\n` +
-    `- "data" is the figure the fact-check found for the same thing.\n` +
-    `- "points": 2–6 values of ONE measure over time (same unit, same place), oldest first, for context. Only if the sources give them; otherwise [].\n` +
+    `- "data" is the figure the verdict rests on — the official / primary figure for the same thing, not the most extreme estimate.\n` +
+    `- "points": 2–6 values of ONE measure at DIFFERENT dates (e.g. annual deaths 2022, 2023, 2024), oldest first. Every point must be the same measure, same definition (never mix monthly and annual rates, or levels and changes), and each label must be a date or period ("2023", "Q1 2026", "Aug 2026"). Parts, categories or estimates from different groups are NOT points. If the sources don't give such a series, return [].\n` +
     `- Every "span" must be copied EXACTLY, character for character, from source [src], and must contain the number (e.g. "76,282"). Never compute or round a value that isn't written.\n` +
     `- If the claim has no number to chart, return {"metric":"","unit":"","said":null,"data":null,"points":[]}.\n` +
     `JSON only.`;
@@ -165,7 +165,21 @@ export async function buildClaimChart(c: ClaimForChart): Promise<ClaimChart | nu
     if (verified(q.value, String(q.span || ""), Number(q.src), texts)) pts.push({ label: String(q.label), value: q.value, src: Number(q.src), span: String(q.span) });
     else dropped++;
   }
-  const uniq = pts.filter((x, i) => pts.findIndex(y => y.label === x.label) === i);
+  // A timeline only if every point is a distinct dated period: a label
+  // without a year, or two points for the same period (different measures
+  // mixed together), drops the whole timeline.
+  const period = (l: string) => l.replace(/\(.*?\)/g, "").trim().toLowerCase();
+  const yearOf = (l: string) => +(l.match(/\b(19|20)\d{2}\b/)?.[0] || NaN);
+  const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+  const sortKey = (l: string) => {
+    const y = yearOf(l), lo = l.toLowerCase();
+    const q = lo.match(/\bq([1-4])\b/); const mi = MONTHS.findIndex(mo => lo.includes(mo));
+    return y * 12 + (q ? (+q[1] - 1) * 3 : mi >= 0 ? mi : 0);
+  };
+  const dated = pts.every(x => Number.isFinite(yearOf(x.label)));
+  const distinct = new Set(pts.map(x => period(x.label))).size === pts.length;
+  const uniq = dated && distinct ? [...pts].sort((a, b) => sortKey(a.label) - sortKey(b.label)) : [];
+  if (pts.length && !uniq.length) dropped += pts.length;
   return {
     v: 1, metric: String(p.metric || ""), unit: String(p.unit || ""),
     said, data, points: uniq.length >= 2 ? uniq.slice(0, 6) : [],
