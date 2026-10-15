@@ -40,7 +40,7 @@ export interface ClaimForChart {
 }
 
 const MODEL = "claude-haiku-4-5-20251001";
-export const CHART_KEY = (k: string) => `claim-chart:v4:${k}`;
+export const CHART_KEY = (k: string) => `claim-chart:v5:${k}`;
 
 /* ── Source text ───────────────────────────────────────────────────── */
 
@@ -98,7 +98,15 @@ function matches(value: number, span: string, unit: string): boolean {
 }
 function verified(value: number, span: string, src: number, texts: string[], unit: string): boolean {
   const t = texts[src];
-  return !!t && span.length >= 2 && norm(t).includes(norm(span)) && matches(value, span, unit);
+  if (!t || span.length < 2 || !matches(value, span, unit)) return false;
+  const nt = norm(t).replace(/[^a-z0-9%$.,\- ]/g, ""), ns = norm(span).replace(/[^a-z0-9%$.,\- ]/g, "");
+  if (nt.includes(ns)) return true;
+  // Long spans: the model sometimes trims or re-punctuates a sentence. Accept
+  // when the words around the number (±30 chars) appear verbatim.
+  const at = ns.search(/\d/);
+  if (at < 0 || ns.length < 40) return false;
+  const core = ns.slice(Math.max(0, at - 30), at + 30).trim();
+  return core.length >= 20 && nt.includes(core);
 }
 
 /* ── Build ─────────────────────────────────────────────────────────── */
@@ -166,6 +174,12 @@ export async function buildClaimChart(c: ClaimForChart): Promise<ClaimChart | nu
     const cv = c.claimedValue;
     if (cv == null || Math.abs(Math.abs(cv) - Math.abs(p.said.value)) <= Math.max(0.01 * Math.abs(cv), 0.051)) said = { value: p.said.value, label: String(p.said.label || "") };
     else dropped++;
+  }
+  // The checker extracted a claimed value; if the model gave none, use it,
+  // signed like the claim ("plunged 22%" is -22).
+  if (!said && c.claimedValue != null && Number.isFinite(c.claimedValue)) {
+    const down = /\b(down|drop|dropp|plung|fell|fall|declin|reduc|cut|lower|decreas)/i.test(c.quote);
+    said = { value: down && c.claimedValue > 0 ? -c.claimedValue : c.claimedValue, label: "" };
   }
   const pts: ChartPoint[] = [];
   for (const q of p.points || []) {

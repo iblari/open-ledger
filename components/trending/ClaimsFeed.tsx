@@ -114,7 +114,7 @@ function WebChart({ c, color }: { c: TrendingClaim; color: string }) {
     const io = new IntersectionObserver(es => {
       if (!es.some(e => e.isIntersecting)) return;
       io.disconnect();
-      fetch(`/api/claim-chart?key=${c.key}&v=4`).then(r => r.json()).then(d => { if (alive) setChart(d?.chart ?? null); }).catch(() => alive && setChart(null));
+      fetch(`/api/claim-chart?key=${c.key}&v=5`).then(r => r.json()).then(d => { if (alive) setChart(d?.chart ?? null); }).catch(() => alive && setChart(null));
     }, { rootMargin: "200px" });
     io.observe(ref.current);
     return () => { alive = false; io.disconnect(); };
