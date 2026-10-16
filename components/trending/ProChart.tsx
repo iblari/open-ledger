@@ -325,7 +325,7 @@ export default function ProChart(props: ProChartProps) {
           <g>
             <line x1={claimX} x2={claimX} y1={M.t} y2={H - M.b} stroke={C.ink} strokeOpacity={0.35} />
             <text x={claimX - 4} y={M.t - 6} textAnchor="end" fontSize={10.5} fontWeight={700} fill={C.ink} letterSpacing=".04em">CLAIM</text>
-            {sayY != null && gap != null && !close && (
+            {sayY != null && gap != null && !close && Math.abs(sayY - y(atClaim.v)) >= 22 && (
               <g>
                 <line x1={x(atClaim.ms)} x2={x(atClaim.ms)} y1={sayY} y2={y(atClaim.v)} stroke={C.gapBad} strokeWidth={3} strokeOpacity={0.35} />
                 <text x={x(atClaim.ms) - 8} y={(sayY + y(atClaim.v)) / 2 + 4} textAnchor="end" fontSize={12} fontWeight={700} fill={C.gapBad}
