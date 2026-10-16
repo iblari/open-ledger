@@ -4,6 +4,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { monthlySeries, fmtBench, type Bench } from "@/lib/bench-lens";
 import type { TrendingClaim } from "@/lib/trending-claims";
 import type { ClaimChart } from "@/lib/claim-chart";
+import type { ClaimSeries } from "@/lib/claim-series";
+import type { SeriesData } from "@/lib/series";
+import ProChart from "./ProChart";
 
 /**
  * Trending tab: every True / Mostly true / False claim, newest first, each
@@ -179,6 +182,44 @@ function MetricChart({ c, bench, color }: { c: TrendingClaim; bench: Bench | nul
     fmt={v => fmtBench(v, m.unit)} caption={`${m.label} · monthly, last 3 years · FRED · hover or drag`} />;
 }
 
+/** The official series for this claim (mapped once, server-side), drawn
+ *  with ProChart; falls back to the source-figure chart when nothing fits. */
+function SeriesChart({ c, color, fallback }: { c: TrendingClaim; color: string; fallback: React.ReactNode }) {
+  const [map, setMap] = useState<ClaimSeries | null | undefined>(c.series ?? undefined);
+  const [data, setData] = useState<SeriesData | null | undefined>(undefined);
+  const ref = useRef<HTMLDivElement>(null);
+  const [seen, setSeen] = useState(false);
+  useEffect(() => {
+    if (!ref.current || seen) return;
+    const io = new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) { setSeen(true); io.disconnect(); } }, { rootMargin: "300px" });
+    io.observe(ref.current); return () => io.disconnect();
+  }, [seen]);
+  useEffect(() => {
+    if (!seen || map !== undefined) return;
+    let alive = true;
+    fetch(`/api/claim-series?key=${c.key}`).then(r => r.json()).then(d => { if (alive) setMap(d?.series ?? null); }).catch(() => alive && setMap(null));
+    return () => { alive = false; };
+  }, [seen, map, c.key]);
+  useEffect(() => {
+    if (!seen || !map?.series) return;
+    let alive = true;
+    fetch(`/api/series?id=${map.series}${map.countries.length ? `&c=${map.countries.join(",")}` : ""}`).then(r => r.json())
+      .then(d => { if (alive) setData(d && !d.error ? d as SeriesData : null); }).catch(() => alive && setData(null));
+    return () => { alive = false; };
+  }, [seen, map]);
+
+  const loading = map === undefined || (map?.series && data === undefined);
+  return (
+    <div ref={ref} style={{ margin: "8px 0 4px" }}>
+      {loading ? (
+        <div className="tc-skel" style={{ height: 250, background: "#F3EFE8", borderRadius: 10 }} />
+      ) : map?.series && data ? (
+        <ProChart data={data} said={map.said} saidLine={map.saidCountry} claimDate={c.date} since={map.since} terms={map.terms} tone={color} />
+      ) : fallback}
+    </div>
+  );
+}
+
 function Card({ c, bench }: { c: TrendingClaim; bench: Bench | null }) {
   const color = tone(c.rating);
   const label = c.rating === "MOSTLY TRUE" ? "Mostly true" : isTrue(c.rating) ? "True" : "False";
@@ -197,7 +238,7 @@ function Card({ c, bench }: { c: TrendingClaim; bench: Bench | null }) {
       <a href={c.path} style={{ textDecoration: "none", color: C.ink }}>
         <p style={{ fontFamily: SERIF, fontSize: 19, lineHeight: 1.3, margin: "10px 0 8px", fontWeight: 500 }}>&ldquo;{c.quote}&rdquo;</p>
       </a>
-      {c.metricKey ? <MetricChart c={c} bench={bench} color={color} /> : <WebChart c={c} color={color} />}
+      <SeriesChart c={c} color={color} fallback={c.metricKey ? <MetricChart c={c} bench={bench} color={color} /> : <WebChart c={c} color={color} />} />
       {c.actual && <p style={{ fontFamily: SANS, fontSize: 13.5, lineHeight: 1.5, color: C.sub, margin: "8px 0 0" }}>{c.actual}</p>}
       {srcs.length > 0 && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
@@ -232,7 +273,7 @@ export default function ClaimsFeed() {
   const list = (items || []).filter(c => f === "all" || (f === "true" ? isTrue(c.rating) : !isTrue(c.rating)));
 
   return (
-    <div style={{ maxWidth: 760, margin: "0 auto", padding: "22px 16px 64px" }}>
+    <div style={{ maxWidth: 880, margin: "0 auto", padding: "22px 16px 64px" }}>
       <style>{`@keyframes tcPulse{0%,100%{opacity:1}50%{opacity:.45}}.tc-skel{animation:tcPulse 1.2s ease-in-out infinite}`}</style>
       <h1 style={{ fontFamily: SERIF, fontWeight: 500, fontSize: 30, margin: "0 0 4px", color: C.ink, letterSpacing: "-0.01em" }}>Every checked claim, charted</h1>
       <p style={{ fontFamily: SANS, fontSize: 14, color: C.sub, margin: "0 0 16px", lineHeight: 1.5 }}>

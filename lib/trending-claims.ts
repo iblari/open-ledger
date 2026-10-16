@@ -4,6 +4,7 @@ import {
 } from "./live-kv";
 import { claimHash, claimPath } from "./claim-link";
 import { CHART_KEY, type ClaimChart, type ClaimForChart } from "./claim-chart";
+import { SERIES_KEY, type ClaimSeries } from "./claim-series";
 
 /**
  * The Trending tab's feed: every True / Mostly true / False claim, newest
@@ -14,6 +15,7 @@ export interface TrendingClaim extends ClaimForChart {
   title: string; speaker: string | null; date: string; live: boolean;
   metricKey?: string | null; groundValue?: number | null;
   chart?: ClaimChart | null;
+  series?: ClaimSeries | null;
 }
 
 export const TRENDING_RATINGS = new Set(["TRUE", "MOSTLY TRUE", "FALSE"]);
@@ -68,10 +70,25 @@ export async function listTrendingClaims(): Promise<TrendingClaim[]> {
 
 export async function getTrendingClaims(): Promise<TrendingClaim[]> {
   const items = await listTrendingClaims();
-  const web = items.filter(i => !i.metricKey);
-  const raws = web.length ? await kvGet(web.map(i => CHART_KEY(i.key))) : [];
-  const charts = new Map(web.map((i, k) => { try { return [i.key, raws[k] ? JSON.parse(raws[k]!) as ClaimChart : null] as const; } catch { return [i.key, null] as const; } }));
-  return items.map(i => ({ ...i, explanation: i.explanation?.slice(0, 400), chart: charts.get(i.key) ?? null }));
+  if (!items.length) return [];
+  const raws = await kvGet([...items.map(i => CHART_KEY(i.key)), ...items.map(i => SERIES_KEY(i.key))]);
+  const parse = <T,>(r: string | null | undefined): T | null => { try { return r ? JSON.parse(r) as T : null; } catch { return null; } };
+  return items.map((i, k) => ({
+    ...i, explanation: i.explanation?.slice(0, 400),
+    chart: i.metricKey ? null : parse<ClaimChart>(raws[k]),
+    series: parse<ClaimSeries>(raws[items.length + k]),
+  }));
+}
+
+/** Cron: pick an official series for the newest claims that lack one. */
+export async function backfillClaimSeries(max = 8): Promise<number> {
+  const { getClaimSeries } = await import("./claim-series");
+  const items = await listTrendingClaims();
+  if (!items.length) return 0;
+  const have = await kvGet(items.map(i => SERIES_KEY(i.key)));
+  const todo = items.filter((_, k) => !have[k]).slice(0, max);
+  const res = await Promise.allSettled(todo.map(i => getClaimSeries(i)));
+  return res.filter(r => r.status === "fulfilled" && r.value).length;
 }
 
 /** Cron: build charts for the newest web-checked claims that lack one. */

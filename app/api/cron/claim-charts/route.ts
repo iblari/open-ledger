@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { backfillClaimCharts } from "@/lib/trending-claims";
+import { backfillClaimCharts, backfillClaimSeries } from "@/lib/trending-claims";
 import { recheckClaims, FOREIGN_SCOPE_FIX, NATIONAL_SCOPE_FIX } from "@/lib/claim-repair";
 
 /** GET /api/cron/claim-charts — build charts for new True/False claims (4 per run). */
@@ -16,7 +16,8 @@ export async function GET(req: Request) {
   const rep2 = await recheckClaims("ns1", NATIONAL_SCOPE_FIX, 2).catch(e => ({ fixed: [] as string[], failed: [(e as Error).message] }));
   rep.fixed.push(...rep2.fixed); rep.failed.push(...rep2.failed);
   if (rep.fixed.length || rep.failed.length) console.log("[claim-charts] repair", JSON.stringify(rep));
+  const mapped = await backfillClaimSeries(10).catch(e => { console.error("[claim-series]", (e as Error).message); return 0; });
   const n = await backfillClaimCharts(rep.fixed.length ? 2 : 4).catch(e => { console.error("[claim-charts]", (e as Error).message); return 0; });
   if (n) console.log(`[claim-charts] built ${n}`);
-  return NextResponse.json({ ok: true, built: n, repair: rep });
+  return NextResponse.json({ ok: true, built: n, mapped, repair: rep });
 }
