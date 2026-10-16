@@ -287,7 +287,7 @@ export default function ProChart(props: ProChartProps) {
         {avgs.map(a => (
           <g key={a.name}>
             <line x1={x(a.a)} x2={x(a.b)} y1={y(a.avg)} y2={y(a.avg)} stroke={a.party === "D" ? "#4A6E8A" : "#9A5A50"} strokeWidth={1.5} strokeDasharray="2 3" />
-            {x(a.b) - x(a.a) > 60 && <text x={x(a.b) - 4} y={y(a.avg) - 5} textAnchor="end" fontSize={10.5} fontWeight={600} fill={a.party === "D" ? "#4A6E8A" : "#9A5A50"}>avg {fv(a.avg)}</text>}
+            {x(a.b) - x(a.a) > 60 && <text x={x(a.b) - 4} y={y(a.avg) - 5} textAnchor="end" fontSize={10.5} fontWeight={600} fill={a.party === "D" ? "#4A6E8A" : "#9A5A50"} stroke="#fff" strokeWidth={3} paintOrder="stroke">avg {fv(a.avg)}</text>}
           </g>
         ))}
 
@@ -328,7 +328,8 @@ export default function ProChart(props: ProChartProps) {
             {sayY != null && gap != null && !close && (
               <g>
                 <line x1={x(atClaim.ms)} x2={x(atClaim.ms)} y1={sayY} y2={y(atClaim.v)} stroke={C.gapBad} strokeWidth={3} strokeOpacity={0.35} />
-                <text x={x(atClaim.ms) - 8} y={(sayY + y(atClaim.v)) / 2 + 4} textAnchor="end" fontSize={12} fontWeight={700} fill={C.gapBad}>off by {fmtDiff(gap, data.unit, dec)}</text>
+                <text x={x(atClaim.ms) - 8} y={(sayY + y(atClaim.v)) / 2 + 4} textAnchor="end" fontSize={12} fontWeight={700} fill={C.gapBad}
+                  stroke="#fff" strokeWidth={4} strokeLinejoin="round" paintOrder="stroke">off by {fmtDiff(gap, data.unit, dec)}</text>
               </g>
             )}
             <circle cx={x(atClaim.ms)} cy={y(atClaim.v)} r={5.5} fill={saidL.color} stroke="#fff" strokeWidth={2} />
