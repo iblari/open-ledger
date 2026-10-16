@@ -182,6 +182,13 @@ function MetricChart({ c, bench, color }: { c: TrendingClaim; bench: Bench | nul
     fmt={v => fmtBench(v, m.unit)} caption={`${m.label} · monthly, last 3 years · FRED · hover or drag`} />;
 }
 
+/** A claimed percentage change ("plunged 22%", "up 56%"), signed. */
+function saidChangeOf(c: TrendingClaim): number | null {
+  if (c.claimedValue == null || !/%|percent/i.test(c.quote)) return null;
+  const down = /\b(down|drop|dropp|plung|fell|fall|declin|reduc|cut|lower|decreas|shrank|less)/i.test(c.quote);
+  return down && c.claimedValue > 0 ? -c.claimedValue : c.claimedValue;
+}
+
 /** The official series for this claim (mapped once, server-side), drawn
  *  with ProChart; falls back to the source-figure chart when nothing fits. */
 function SeriesChart({ c, color, fallback }: { c: TrendingClaim; color: string; fallback: React.ReactNode }) {
@@ -214,7 +221,7 @@ function SeriesChart({ c, color, fallback }: { c: TrendingClaim; color: string; 
       {loading ? (
         <div className="tc-skel" style={{ height: 250, background: "#F3EFE8", borderRadius: 10 }} />
       ) : map?.series && data ? (
-        <ProChart data={data} said={map.said} saidLine={map.saidCountry} claimDate={c.date} since={map.since} terms={map.terms} tone={color} />
+        <ProChart data={data} said={map.said ?? c.claimedValue ?? null} saidChange={saidChangeOf(c)} saidLine={map.saidCountry} claimDate={c.date} since={map.since} terms={map.terms} tone={color} />
       ) : fallback}
     </div>
   );

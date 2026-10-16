@@ -63,23 +63,44 @@ export interface ProChartProps {
   since?: string | null;
   terms?: boolean;
   tone: string;                  // verdict colour
+  saidChange?: number | null;    // a claimed % change ("plunged 22%") — drawn on the yearly-change view
+}
+
+/** Year-over-year % change of a line (periods per year by frequency). */
+function yoyLines(d: SeriesData): SeriesData {
+  const per = d.freq === "w" ? 52 : d.freq === "q" ? 4 : d.freq === "a" ? 1 : 12;
+  return {
+    ...d, unit: "%", decimals: 1, label: `${d.label} — change vs a year earlier`,
+    lines: d.lines.map(l => ({ ...l, points: l.points.flatMap((p, i) => i >= per && l.points[i - per].v ? [{ d: p.d, v: (p.v / l.points[i - per].v - 1) * 100 }] : []) })),
+  };
 }
 
 /** Only draw a claimed value the series could actually take (a "-22%" on a
  *  count of deaths, or "$50,000" on the S&P 500 index, is a different measure). */
-function plausible(said: number | null, vals: number[]): number | null {
+function plausible(said: number | null, vals: number[], unit = ""): number | null {
   if (said == null || !vals.length) return null;
   const mn = Math.min(...vals), mx = Math.max(...vals);
   if (mn >= 0 && said < 0) return null;
   if (mx <= 0 && said > 0) return null;
   const big = Math.max(Math.abs(mn), Math.abs(mx)), small = Math.min(Math.abs(mn), Math.abs(mx));
-  if (Math.abs(said) > big * 4 + 1) return null;
+  // Rates can be claimed wildly wrong ("300% inflation" vs 42%); other units
+  // that far off are a different measure.
+  if (Math.abs(said) > (unit === "%" ? big * 12 + 10 : big * 4 + 1)) return null;
   if (mn > 0 && said < small * 0.2) return null;
   return said;
 }
 
-export default function ProChart({ data, said: saidIn, saidLine, claimDate, since, terms, tone }: ProChartProps) {
-  const said = plausible(saidIn, (data.lines.find(l => l.key === saidLine) || data.lines[0])?.points.map(p => p.v) || []);
+export default function ProChart(props: ProChartProps) {
+  const { data: raw, saidLine, saidChange } = props;
+  // Level vs yearly-change view (non-rate series only). A claimed % change
+  // opens on the change view, where it can be compared like for like.
+  const canYoy = raw.unit !== "%" && raw.freq !== "a";
+  const levelSaid = plausible(props.said, (raw.lines.find(l => l.key === saidLine) || raw.lines[0])?.points.map(p => p.v) || [], raw.unit);
+  const [view, setView] = useState<"level" | "yoy">(canYoy && levelSaid == null && saidChange != null ? "yoy" : "level");
+  const yoy = useMemo(() => (canYoy ? yoyLines(raw) : raw), [raw, canYoy]);
+  const data = view === "yoy" ? yoy : raw;
+  const said = view === "yoy" ? (saidChange ?? null) : levelSaid;
+  const { claimDate, since, terms, tone } = props;
   const uid = useId().replace(/:/g, "");
   const box = useRef<HTMLDivElement>(null);
   const [W, setW] = useState(640);
@@ -104,7 +125,7 @@ export default function ProChart({ data, said: saidIn, saidLine, claimDate, sinc
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   const [hover, setHover] = useState<number | null>(null);   // ms
   const [drawn, setDrawn] = useState(false);
-  useEffect(() => { setDrawn(false); const id = requestAnimationFrame(() => setDrawn(true)); return () => cancelAnimationFrame(id); }, [range, W]);
+  useEffect(() => { setDrawn(false); const id = requestAnimationFrame(() => setDrawn(true)); return () => cancelAnimationFrame(id); }, [range, W, view]);
 
   const multi = data.lines.length > 1;
   const color = (i: number) => (multi ? LINE_COLORS[i % LINE_COLORS.length] : tone);
@@ -204,6 +225,17 @@ export default function ProChart({ data, said: saidIn, saidLine, claimDate, sinc
             </div>
           )}
         </div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        {canYoy && (
+          <div role="tablist" aria-label="View" style={{ display: "flex", background: "#F1ECE4", borderRadius: 99, padding: 2 }}>
+            {([["level", "Level"], ["yoy", "Yearly change"]] as const).map(([k, l]) => (
+              <button key={k} type="button" role="tab" aria-selected={view === k} onClick={() => setView(k)} style={{
+                border: "none", cursor: "pointer", borderRadius: 99, padding: "4px 10px", fontFamily: SANS, fontSize: 12, fontWeight: view === k ? 700 : 500,
+                background: view === k ? "#fff" : "transparent", color: view === k ? C.ink : C.sub, boxShadow: view === k ? "0 1px 2px rgba(0,0,0,.08)" : "none",
+              }}>{l}</button>
+            ))}
+          </div>
+        )}
         <div role="tablist" aria-label="Range" style={{ display: "flex", background: "#F1ECE4", borderRadius: 99, padding: 2 }}>
           {RANGES.filter(([, n]) => data.freq !== "a" || n >= 5).map(([l, n]) => (
             <button key={l} type="button" role="tab" aria-selected={range === n} onClick={() => setRange(n)} style={{
@@ -211,6 +243,7 @@ export default function ProChart({ data, said: saidIn, saidLine, claimDate, sinc
               background: range === n ? "#fff" : "transparent", color: range === n ? C.ink : C.sub, boxShadow: range === n ? "0 1px 2px rgba(0,0,0,.08)" : "none",
             }}>{l}</button>
           ))}
+        </div>
         </div>
       </div>
 
