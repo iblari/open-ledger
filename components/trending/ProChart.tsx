@@ -65,7 +65,21 @@ export interface ProChartProps {
   tone: string;                  // verdict colour
 }
 
-export default function ProChart({ data, said, saidLine, claimDate, since, terms, tone }: ProChartProps) {
+/** Only draw a claimed value the series could actually take (a "-22%" on a
+ *  count of deaths, or "$50,000" on the S&P 500 index, is a different measure). */
+function plausible(said: number | null, vals: number[]): number | null {
+  if (said == null || !vals.length) return null;
+  const mn = Math.min(...vals), mx = Math.max(...vals);
+  if (mn >= 0 && said < 0) return null;
+  if (mx <= 0 && said > 0) return null;
+  const big = Math.max(Math.abs(mn), Math.abs(mx)), small = Math.min(Math.abs(mn), Math.abs(mx));
+  if (Math.abs(said) > big * 4 + 1) return null;
+  if (mn > 0 && said < small * 0.2) return null;
+  return said;
+}
+
+export default function ProChart({ data, said: saidIn, saidLine, claimDate, since, terms, tone }: ProChartProps) {
+  const said = plausible(saidIn, (data.lines.find(l => l.key === saidLine) || data.lines[0])?.points.map(p => p.v) || []);
   const uid = useId().replace(/:/g, "");
   const box = useRef<HTMLDivElement>(null);
   const [W, setW] = useState(640);

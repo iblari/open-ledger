@@ -130,7 +130,10 @@ async function cdc(def: SeriesDef): Promise<{ d: string; v: number }[]> {
 async function worldBank(def: SeriesDef, countries: string[]): Promise<SeriesLine[]> {
   const iso = countries.map(c => c.toUpperCase()).filter(c => /^[A-Z]{3}$/.test(c)).slice(0, 6);
   if (!iso.length) iso.push("USA");
-  const r = await fetch(`https://api.worldbank.org/v2/country/${iso.join(";")}/indicator/${def.wb!.indicator}?format=json&date=2000:2030&per_page=1000`, { signal: AbortSignal.timeout(15_000) });
+  // The World Bank API is slow and occasionally drops requests: one retry.
+  const url = `https://api.worldbank.org/v2/country/${iso.join(";")}/indicator/${def.wb!.indicator}?format=json&date=2000:2030&per_page=1000`;
+  let r = await fetch(url, { signal: AbortSignal.timeout(12_000) }).catch(() => null);
+  if (!r || !r.ok) r = await fetch(url, { signal: AbortSignal.timeout(14_000) });
   if (!r.ok) throw new Error(`World Bank ${r.status}`);
   const j = await r.json() as [unknown, { countryiso3code: string; country: { value: string }; date: string; value: number | null }[]];
   const by = new Map<string, SeriesLine>();

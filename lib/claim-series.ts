@@ -22,7 +22,7 @@ export interface ClaimSeries {
 export interface ClaimForSeries { key: string; quote: string; rating: string; actual: string; explanation?: string; date: string; claimedValue?: number | null }
 
 const MODEL = "claude-haiku-4-5-20251001";
-export const SERIES_KEY = (k: string) => `claim-series:v1:${k}`;
+export const SERIES_KEY = (k: string) => `claim-series:v2:${k}`;
 
 const catalogText = CATALOG.map(s => `${s.id} — ${s.label} [${s.unit}] — fits: ${s.about}`).join("\n");
 
@@ -36,6 +36,8 @@ export async function mapClaimToSeries(c: ClaimForSeries): Promise<ClaimSeries |
     `- Pick the series that directly measures what the claim is about. If none does, "series": null. Don't force a loose fit (one company's investment pledge is not "factory construction"; a single city's crime is not a national series).\n` +
     `- Claims about the US use US series. Claims about other countries, or comparing countries, use a World Bank series with "countries" (the country discussed, plus USA when the claim compares to the US; up to 5).\n` +
     `- "said": the speaker's number converted to the series' unit and transform (e.g. "$1.85 a gallon" on gas → 1.85; "1.7% inflation" on cpi_yoy → 1.7; "300% inflation" in Iran on wb_inflation → 300 with saidCountry IRN). Null when the claim is a change that the series doesn't express directly (e.g. "added 72,000 manufacturing jobs" on mfg_jobs, a level in millions).\n` +
+    `- Inflation: use the year-over-year series (cpi_yoy) unless the claim explicitly says "per month" / "last month's" rate.\n` +
+    `- "said" must be a value the series itself could take: a level for level series (a % drop or a $ gain on a price index is NOT a said value → null).\n` +
     `- "since": the start date the claim measures from, if it states one ("since the president took office" → 2025-01-20; "under Biden" → 2021-01-20). Else null.\n` +
     `- "terms": true when the claim compares administrations (e.g. "lower than under Biden", "worst inflation, inherited from Biden").\n` +
     `JSON only.`;
