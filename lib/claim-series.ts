@@ -22,7 +22,7 @@ export interface ClaimSeries {
 export interface ClaimForSeries { key: string; quote: string; rating: string; actual: string; explanation?: string; date: string; claimedValue?: number | null }
 
 const MODEL = "claude-haiku-4-5-20251001";
-export const SERIES_KEY = (k: string) => `claim-series:v2:${k}`;
+export const SERIES_KEY = (k: string) => `claim-series:v3:${k}`;
 
 const catalogText = CATALOG.map(s => `${s.id} — ${s.label} [${s.unit}] — fits: ${s.about}`).join("\n");
 
@@ -54,6 +54,9 @@ export async function mapClaimToSeries(c: ClaimForSeries): Promise<ClaimSeries |
   const m = text.match(/\{[\s\S]*\}/);
   if (!m) throw new Error("no JSON in series reply");
   const p = JSON.parse(m[0]) as Partial<ClaimSeries> & { series?: string | null };
+  // "Inflation" means the annual rate unless the claim says monthly outright
+  // ("for the last three months, 1.7%" is an annual-rate claim about recent months).
+  if (p.series === "cpi_mom" && !/\b(monthly|per month|a month|month over month|month-over-month|last month)\b/i.test(c.quote)) p.series = "cpi_yoy";
   const def = p.series ? CATALOG_BY_ID.get(p.series) : undefined;
   const iso = (x: unknown) => typeof x === "string" && /^[A-Za-z]{3}$/.test(x) ? x.toUpperCase() : null;
   const countries = def?.wb ? (Array.isArray(p.countries) ? p.countries.map(iso).filter((x): x is string => !!x).slice(0, 5) : []) : [];
