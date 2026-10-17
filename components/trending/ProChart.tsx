@@ -59,6 +59,7 @@ export interface ProChartProps {
   saidChange?: number | null;    // a claimed % change ("plunged 22%") — drawn on the yearly-change view
   repeats?: { date: string; videoId: string; t?: number; rating: string }[];   // same claim, other broadcasts
   watchHref?: string;            // the moment it was said
+  fullRange?: boolean;           // start on "Max" (short series from cited sources)
 }
 
 /** Year-over-year % change of a line (periods per year by frequency). */
@@ -139,11 +140,11 @@ export default function ProChart(props: ProChartProps) {
   // Default range: enough to see the claim in context.
   const claimMs = t(claimDate);
   const defaultRange = useMemo(() => {
-    if (data.freq === "a") return 99;
+    if (data.freq === "a" || props.fullRange) return 99;
     if (terms) return 10;
     if (since) { const yrs = (claimMs - t(since)) / (365.25 * 864e5); return yrs < 0.9 ? 1 : yrs < 4.5 ? 5 : 10; }
     return 5;
-  }, [data.freq, terms, since, claimMs]);
+  }, [data.freq, terms, since, claimMs, props.fullRange]);
   const [range, setRange] = useState<number>(defaultRange);
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   const [hover, setHover] = useState<number | null>(null);   // ms
@@ -306,7 +307,7 @@ export default function ProChart(props: ProChartProps) {
               )}
               {rank != null && (
                 <span style={{ fontSize: 12, fontWeight: 600, color: C.sub, background: "#F1ECE4", padding: "3px 8px", borderRadius: 6 }}>
-                  {rank >= 0.5 ? `Higher than ${Math.round(rank * 100)}%` : `Lower than ${Math.round((1 - rank) * 100)}%`} of readings since {firstYear}
+                  {rank === 0 ? `Lowest reading since ${firstYear}` : rank >= (fullMain.length - 1) / fullMain.length ? `Highest reading since ${firstYear}` : `${rank >= 0.5 ? `Higher than ${Math.round(rank * 100)}%` : `Lower than ${Math.round((1 - rank) * 100)}%`} of readings since ${firstYear}`}
                 </span>
               )}
               {asOf && view === "level" && (

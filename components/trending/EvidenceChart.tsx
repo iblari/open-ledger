@@ -64,7 +64,7 @@ export default function EvidenceChart({ chart, tone, claimDate, watchHref }: { c
   // A dated series in the sources → a full interactive chart.
   const series: SeriesData | null = useMemo(() => {
     const pts = chart.points.map(p => ({ d: labelToDate(p.label), v: p.value })).filter((p): p is { d: string; v: number } => !!p.d);
-    if (pts.length < 3) return null;
+    if (pts.length < 4) return null;
     const src = chart.sources[chart.points[0].src];
     return {
       id: "cited", label: chart.metric || "Figures from the cited sources", unit: unit === "%" ? "%" : unit.startsWith("$") ? "$" : unit, source: src?.url ? host(src.url) : "our fact-check",
@@ -127,7 +127,7 @@ export default function EvidenceChart({ chart, tone, claimDate, watchHref }: { c
 
       {/* bars */}
       <div style={{ position: "relative", paddingTop: 18 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "minmax(70px, 22%) 1fr", columnGap: 12, rowGap: 8 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(64px, 26%) 1fr", columnGap: 12, rowGap: 8 }}>
           <div />
           <div style={{ position: "relative", height: 0 }}>
             {ticks.map((tv, i) => (
@@ -142,7 +142,8 @@ export default function EvidenceChart({ chart, tone, claimDate, watchHref }: { c
               <button key={`${r.key}-l`} type="button" onClick={() => setSel(r.key)} onMouseEnter={() => setSel(r.key)} style={{
                 all: "unset", cursor: "pointer", fontSize: 12.5, fontWeight: r.kind === "compare" ? 500 : 700, color: r.kind === "data" ? C.ink : C.sub,
                 textAlign: "right", alignSelf: "center", lineHeight: 1.25,
-              }}>{r.label}</button>,
+                display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden",
+              }} title={r.label}>{r.label}</button>,
               <button key={`${r.key}-b`} type="button" aria-label={`${r.label}: ${compact(r.value, unit)}`} onClick={() => setSel(r.key)} onMouseEnter={() => setSel(r.key)} style={{
                 all: "unset", cursor: "pointer", position: "relative", height: 30, display: "block", borderRadius: 6,
                 background: on ? C.soft : "transparent", backgroundImage: `repeating-linear-gradient(90deg, transparent 0 calc(25% - 1px), ${C.rule} calc(25% - 1px) 25%)`,
@@ -160,10 +161,12 @@ export default function EvidenceChart({ chart, tone, claimDate, watchHref }: { c
                   ))}
                   {r.parts && <span style={{ flex: 1, background: tone, opacity: 0.18 }} />}
                 </span>
+                {/* value: after the bar, or inside its end when the bar is long */}
                 <span style={{
-                  position: "absolute", top: 7, left: `calc(${Math.max(a + w, zero)}% + 6px)`, fontFamily: MONO, fontSize: 13, fontWeight: 500,
-                  color: r.kind === "data" ? tone : C.sub, whiteSpace: "nowrap",
-                  ...(Math.max(a + w, zero) > 78 ? { left: "auto", right: `calc(${100 - a}% + 6px)` } : {}),
+                  position: "absolute", top: 7, fontFamily: MONO, fontSize: 13, fontWeight: 500, whiteSpace: "nowrap",
+                  ...(a + w > 80
+                    ? { right: `calc(${100 - (a + w)}% + 8px)`, color: r.kind === "compare" ? C.ink : "#fff", textShadow: r.kind === "compare" ? "none" : "0 1px 2px rgba(0,0,0,.25)" }
+                    : { left: `calc(${Math.max(a + w, zero)}% + 6px)`, color: r.kind === "data" ? tone : C.sub }),
                 }}>{compact(r.value, unit)}</span>
               </button>,
             ];
@@ -200,7 +203,7 @@ export default function EvidenceChart({ chart, tone, claimDate, watchHref }: { c
 
       {series && (
         <div style={{ marginTop: 16 }}>
-          <ProChart data={series} said={s ?? null} claimDate={claimDate} tone={tone} watchHref={watchHref} />
+          <ProChart data={series} said={s ?? null} claimDate={claimDate} tone={tone} watchHref={watchHref} fullRange />
         </div>
       )}
       <div style={{ fontSize: 11.5, color: C.mute, marginTop: 8 }}>Every bar is a figure quoted word-for-word from the cited sources · tap a bar to see where it comes from</div>

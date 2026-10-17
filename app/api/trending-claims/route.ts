@@ -7,7 +7,7 @@ import { saneContext } from "@/lib/chart-format";
 function chartable(c?: ClaimChart | null): boolean {
   if (!c) return false;
   const bars = (c.data ? 1 : 0) + (c.data && c.said ? 1 : 0) + saneContext(c.context, c.data?.value, c.said?.value).length;
-  return bars >= 2 || c.points.length >= 3;
+  return bars >= 2 || c.points.length >= 4;
 }
 
 /** GET /api/trending-claims — True / Mostly true / False claims, newest first, with charts. */
