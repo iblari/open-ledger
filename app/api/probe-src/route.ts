@@ -8,7 +8,8 @@ export async function GET(req: Request) {
   try {
     const r = await fetch(u, { headers: { "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36", Accept: "*/*" }, signal: AbortSignal.timeout(15000), redirect: "follow" });
     const t = await r.text();
-    const links = [...t.matchAll(/href="([^"]+\.(?:csv|xlsx)[^"]*)"/gi)].map(m => m[1]).slice(0, 30);
+    const f = new URL(req.url).searchParams.get("f") || "\\.(?:csv|xlsx)";
+    const links = [...t.matchAll(/href="([^"]+)"/gi)].map(m => m[1]).filter(h => new RegExp(f, "i").test(h)).slice(0, 40);
     return NextResponse.json({ status: r.status, url: r.url, len: t.length, head: t.slice(0, 300), links });
   } catch (e) { return NextResponse.json({ error: (e as Error).message }); }
 }
