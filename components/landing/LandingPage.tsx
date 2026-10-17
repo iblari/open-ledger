@@ -1292,10 +1292,6 @@ function Footer({ mob, med }: { mob: boolean; med: boolean }) {
               <CheetahMark height={22} ink="#F4F0EA" accent="#E0493A" />
               <span style={{ color: "#F4F0EA" }}>Vote <em style={{ fontStyle: "italic", color: "#E0493A", fontWeight: 500 }}>Unbiased</em></span>
             </div>
-            <p style={{ color: "#A69E92", marginTop: 12, maxWidth: "38ch", fontSize: 13, lineHeight: 1.55 }}>
-              An independent, non-partisan data project. No advertisers, no political action
-              committee, no affiliation with any campaign or party.
-            </p>
           </div>
 
           {/* Link cols */}
@@ -1318,8 +1314,7 @@ function Footer({ mob, med }: { mob: boolean; med: boolean }) {
           display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8,
           fontSize: 11, color: "#8C8479", letterSpacing: "0.06em", textTransform: "uppercase",
         }}>
-          <span>© 2026 Vote Unbiased · voteunbiased.org</span>
-          <span>No spin · No editorial · You interpret</span>
+          <span>© 2026 Vote Unbiased</span>
         </div>
       </div>
     </footer>
