@@ -290,7 +290,7 @@ export default function ClaimsFeed() {
   const list = shown.filter(c => f === "all" || (f === "true" ? isTrue(c.rating) : !isTrue(c.rating)));
 
   return (
-    <div style={{ maxWidth: 1100, margin: "0 auto", padding: "22px 16px 64px" }}>
+    <div style={{ maxWidth: 1400, margin: "0 auto", padding: "22px 24px 64px" }}>
       <style>{`@keyframes tcPulse{0%,100%{opacity:1}50%{opacity:.45}}.tc-skel{animation:tcPulse 1.2s ease-in-out infinite}`}</style>
       <div role="tablist" style={{ display: "flex", gap: 6, marginBottom: 14 }}>
         {([["all", "All"], ["false", "False"], ["true", "True"]] as const).map(([k, l]) => (
