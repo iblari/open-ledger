@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 /** TEMP: can the server reach these official hosts? (removed after testing) */
 export const dynamic = "force-dynamic";
-const OK = /^https:\/\/(www\.)?(cbp\.gov|ohss\.dhs\.gov|datahub\.io|news\.gallup\.com)\//;
+const OK = /^https:\/\/(www\.)?(cbp\.gov|ohss\.dhs\.gov|datahub\.io|news\.gallup\.com|ballotpedia\.org)\//;
 export async function GET(req: Request) {
   const u = new URL(req.url).searchParams.get("u") || "";
   if (!OK.test(u)) return NextResponse.json({ error: "host" }, { status: 400 });
