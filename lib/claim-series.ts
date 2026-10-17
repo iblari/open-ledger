@@ -25,7 +25,7 @@ export interface ClaimForSeries { key: string; quote: string; rating: string; ac
 const MODEL = "claude-haiku-4-5-20251001";
 export const SERIES_KEY = (k: string) => `claim-series:v3:${k}`;
 /** Bump when the catalog grows: claims that found no series get another look. */
-export const CATALOG_VERSION = 2;
+export const CATALOG_VERSION = 3;
 
 const catalogText = CATALOG.map(s => `${s.id} — ${s.label} [${s.unit}] — fits: ${s.about}`).join("\n");
 

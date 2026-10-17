@@ -3,7 +3,7 @@ import { getSeries, getSeriesAsOf } from "@/lib/series";
 
 /** GET /api/series?id=cpi_yoy[&c=USA,IRN] — an official time series from the catalog. */
 export const dynamic = "force-dynamic";
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 export async function GET(req: Request) {
   const u = new URL(req.url);

@@ -15,10 +15,12 @@ export interface SeriesDef {
   id: string;            // catalog key
   label: string;         // "US inflation (CPI, year over year)"
   unit: string;          // "%", "$", "$/gal", "K jobs", "deaths", "index", "$B"
-  source: "FRED" | "CDC" | "World Bank" | "FBI";
+  source: "FRED" | "CDC" | "World Bank" | "FBI" | "CBP" | "Ballotpedia";
   fred?: { id: string; freq?: "m" | "w" | "q" | "a"; agg?: "avg" | "eop" | "sum" };
   cdc?: { indicator: string };
   fbi?: { offense: string };
+  cbp?: { region?: string; component?: string };
+  bp?: { column: string };
   wb?: { indicator: string };
   transform: Transform;
   scale?: number;        // multiply after transform (e.g. 1/1000 for $M → $B)
@@ -106,6 +108,14 @@ export const CATALOG: SeriesDef[] = [
   { id: "murder_rate", label: "US murder rate, per 100,000 (rolling 12 months)", unit: "per 100K", source: "FBI", fbi: { offense: "homicide" }, transform: "sum12", decimals: 1, url: "https://cde.ucr.cjis.gov/", about: "murder / homicide rate, 'lowest murder rate in X years'" },
   { id: "violent_crime_rate", label: "US violent crime rate, per 100,000 (rolling 12 months)", unit: "per 100K", source: "FBI", fbi: { offense: "violent-crime" }, transform: "sum12", decimals: 0, url: "https://cde.ucr.cjis.gov/", about: "violent crime, 'largest drop in violent crime', crime is down (national)" },
   { id: "property_crime_rate", label: "US property crime rate, per 100,000 (rolling 12 months)", unit: "per 100K", source: "FBI", fbi: { offense: "property-crime" }, transform: "sum12", decimals: 0, url: "https://cde.ucr.cjis.gov/", about: "property crime, burglary, theft (national)" },
+  // Border (CBP monthly encounters, FY2020–)
+  { id: "border_sw", label: "Southwest border encounters, monthly", unit: "people", source: "CBP", cbp: { region: "Southwest Land Border" }, transform: "level", decimals: 0, url: "https://www.cbp.gov/newsroom/stats/southwest-land-border-encounters", about: "illegal crossings / border crossings / 'zero people crossed', southern border encounters" },
+  { id: "border_sw_usbp", label: "Border Patrol apprehensions between ports, southwest border", unit: "people", source: "CBP", cbp: { region: "Southwest Land Border", component: "U.S. Border Patrol" }, transform: "level", decimals: 0, url: "https://www.cbp.gov/newsroom/stats/southwest-land-border-encounters", about: "people crossing illegally between ports of entry, Border Patrol apprehensions, 'no one is crossing'" },
+  { id: "border_all", label: "Nationwide border encounters, monthly", unit: "people", source: "CBP", cbp: {}, transform: "level", decimals: 0, url: "https://www.cbp.gov/newsroom/stats/nationwide-encounters", about: "total encounters nationwide, 'millions came in' (sum the months for totals)" },
+  // Public opinion (Ballotpedia's daily polling index, Jan 2025–)
+  { id: "approval", label: "Presidential approval (Ballotpedia polling index)", unit: "%", source: "Ballotpedia", bp: { column: "Presidential approval rating" }, transform: "level", decimals: 0, url: "https://ballotpedia.org/Ballotpedia%27s_Polling_Index:_Presidential_approval_rating", about: "the president's approval rating, popularity" },
+  { id: "congress_approval", label: "Congressional approval (Ballotpedia polling index)", unit: "%", source: "Ballotpedia", bp: { column: "Congressional approval rating" }, transform: "level", decimals: 0, url: "https://ballotpedia.org/Ballotpedia%27s_Polling_Index:_Presidential_approval_rating", about: "approval of Congress" },
+  { id: "right_direction", label: "Country going in the right direction (Ballotpedia index)", unit: "%", source: "Ballotpedia", bp: { column: "Direction of Country rating" }, transform: "level", decimals: 0, url: "https://ballotpedia.org/Ballotpedia%27s_Polling_Index:_Presidential_approval_rating", about: "right direction / wrong track" },
   // Health & safety
   { id: "overdose_all", label: "US drug overdose deaths, 12 months ending", unit: "deaths", source: "CDC", cdc: { indicator: "Number of Drug Overdose Deaths" }, transform: "level", decimals: 0, url: "https://www.cdc.gov/nchs/nvss/vsrr/drug-overdose-data.htm", about: "drug overdose deaths" },
   { id: "overdose_fentanyl", label: "US fentanyl (synthetic opioid) deaths, 12 months ending", unit: "deaths", source: "CDC", cdc: { indicator: "Synthetic opioids, excl. methadone (T40.4)" }, transform: "level", decimals: 0, url: "https://www.cdc.gov/nchs/nvss/vsrr/drug-overdose-data.htm", about: "fentanyl deaths, synthetic opioids" },
@@ -156,6 +166,68 @@ async function fbi(def: SeriesDef): Promise<{ d: string; v: number }[]> {
   const cutoff = Date.now() - 75 * 864e5;
   return Object.entries(d).filter(([, v]) => v != null).map(([k, v]) => ({ d: `${k.slice(3)}-${k.slice(0, 2)}-01`, v: v as number }))
     .filter(p => Date.parse(p.d) < cutoff).sort((a, b) => a.d.localeCompare(b.d));
+}
+
+/** A CSV line split on commas outside quotes. */
+function splitCsv(line: string): string[] {
+  const out: string[] = []; let cur = "", q = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') { if (q && line[i + 1] === '"') { cur += '"'; i++; } else q = !q; }
+    else if (ch === "," && !q) { out.push(cur); cur = ""; }
+    else cur += ch;
+  }
+  out.push(cur); return out;
+}
+const MON3 = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+/** CBP encounters: the newest "FY..-FY.. through <month>" file plus the
+ *  FY20–FY23 file for history, summed by calendar month. File names change
+ *  monthly, so they are read from CBP's own dataset page. */
+async function cbp(def: SeriesDef): Promise<{ d: string; v: number }[]> {
+  const UA = { "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36" };
+  const page = await (await fetch("https://www.cbp.gov/document/stats/nationwide-encounters", { headers: UA, signal: AbortSignal.timeout(15_000) })).text();
+  const files = [...page.matchAll(/href="(\/sites\/default\/files\/[^"]*nationwide-encounters-fy\d\d-fy\d\d[^"]*-aor[^"]*\.csv)"/gi)].map(m => m[1]);
+  if (!files.length) throw new Error("CBP: no data files found");
+  const newest = files[0], old = files.find(f => /fy20-fy23-aor/i.test(f));
+  const by = new Map<string, number>();
+  for (const f of [old, newest].filter(Boolean) as string[]) {
+    const text = await (await fetch(`https://www.cbp.gov${f}`, { headers: UA, signal: AbortSignal.timeout(25_000) })).text();
+    const lines = text.split(/\r?\n/);
+    const h = splitCsv(lines[0]);
+    const iFy = h.indexOf("Fiscal Year"), iM = h.indexOf("Month (abbv)"), iC = h.indexOf("Component"), iR = h.indexOf("Land Border Region"), iN = h.indexOf("Encounter Count");
+    const fileMonths = new Map<string, number>();
+    for (let i = 1; i < lines.length; i++) {
+      if (!lines[i]) continue;
+      const c = splitCsv(lines[i]);
+      if (def.cbp?.region && c[iR] !== def.cbp.region) continue;
+      if (def.cbp?.component && c[iC] !== def.cbp.component) continue;
+      const fy = parseInt(c[iFy]), mi = MON3.indexOf((c[iM] || "").toUpperCase().slice(0, 3)), n = parseInt(c[iN]);
+      if (!fy || mi < 0 || !Number.isFinite(n)) continue;
+      const y = mi >= 9 ? fy - 1 : fy;
+      const k = `${y}-${String(mi + 1).padStart(2, "0")}-01`;
+      fileMonths.set(k, (fileMonths.get(k) || 0) + n);
+    }
+    // The newer file wins for months both cover.
+    for (const [k, v] of fileMonths) by.set(k, v);
+  }
+  return [...by.entries()].map(([d, v]) => ({ d, v })).sort((a, b) => a.d.localeCompare(b.d));
+}
+
+/** Ballotpedia's polling index (daily, via its Datawrapper chart; the
+ *  chart's newest version is resolved first). Kept as a weekly average. */
+async function ballotpedia(def: SeriesDef): Promise<{ d: string; v: number }[]> {
+  const root = await fetch("https://datawrapper.dwcdn.net/UcU3q/", { signal: AbortSignal.timeout(15_000) });
+  const html = await root.text();
+  const ver = html.match(/dwcdn\.net\/UcU3q\/(\d+)/)?.[1] || (root.url.match(/UcU3q\/(\d+)/)?.[1]);
+  const r = await fetch(`https://datawrapper.dwcdn.net/UcU3q/${ver || ""}${ver ? "/" : ""}dataset.csv`, { signal: AbortSignal.timeout(15_000) });
+  const rows = (await r.text()).split(/\r?\n/).map(l => l.split("\t"));
+  const col = rows[0].indexOf(def.bp!.column);
+  const out: { d: string; v: number }[] = [];
+  for (const row of rows.slice(1)) {
+    const m = row[0]?.match(/^(\d+)\/(\d+)\/(\d{4})$/); const v = parseFloat(row[col]);
+    if (m && Number.isFinite(v)) out.push({ d: `${m[3]}-${m[1].padStart(2, "0")}-${m[2].padStart(2, "0")}`, v });
+  }
+  return out.sort((a, b) => a.d.localeCompare(b.d));
 }
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -248,11 +320,15 @@ export async function getSeries(id: string, countries: string[] = []): Promise<S
     if (hit) { const s = JSON.parse(hit) as SeriesData; if (Date.now() - Date.parse(s.fetchedAt) < 6 * 3600_000) return s; }
   } catch { /* refetch */ }
 
-  const freq = (def.fred?.freq || (def.wb ? "a" : "m")) as SeriesData["freq"];
+  const freq = (def.fred?.freq || (def.wb ? "a" : def.bp ? "w" : "m")) as SeriesData["freq"];
   let lines: SeriesLine[] = [];
   if (def.source === "FRED") {
     const per = freq === "w" ? 52 : freq === "q" ? 4 : freq === "a" ? 1 : 12;
     lines = [{ key: id, name: def.label, points: transform(await fred(def), def.transform, per, def.scale) }];
+  } else if (def.source === "CBP") {
+    lines = [{ key: id, name: def.label, points: await cbp(def) }];
+  } else if (def.source === "Ballotpedia") {
+    lines = [{ key: id, name: def.label, points: await ballotpedia(def) }];
   } else if (def.source === "FBI") {
     lines = [{ key: id, name: def.label, points: transform(await fbi(def), "sum12", 12, 1) }];
   } else if (def.source === "CDC") {
