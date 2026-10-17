@@ -149,7 +149,7 @@ async function fred(def: SeriesDef, opts: { asOf?: string; start?: string } = {}
  *  months are incomplete (agencies report late), so they are dropped. */
 async function fbi(def: SeriesDef): Promise<{ d: string; v: number }[]> {
   const key = process.env.FBI_API_KEY || process.env.DATA_GOV_API_KEY || "DEMO_KEY";
-  const r = await fetch(`https://api.usa.gov/crime/fbi/cde/summarized/national/${def.fbi!.offense}?from=01-1985&to=12-2030&type=rates&API_KEY=${key}`, { signal: AbortSignal.timeout(20_000) });
+  const r = await fetch(`https://api.usa.gov/crime/fbi/cde/summarized/national/${def.fbi!.offense}?from=01-1985&to=12-${new Date().getUTCFullYear()}&type=rates&API_KEY=${key}`, { signal: AbortSignal.timeout(20_000) });
   if (!r.ok) throw new Error(`FBI ${r.status}`);
   const j = await r.json() as { offenses?: { rates?: Record<string, Record<string, number | null>> } };
   const d = j.offenses?.rates?.["United States Offenses"] || {};
