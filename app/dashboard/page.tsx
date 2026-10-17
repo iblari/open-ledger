@@ -1296,7 +1296,7 @@ function App(){
           pulse — historical admins 1993-2024 + current term 2025-. */}
       <div style={{...sty.header,padding:mob?"10px 0":"12px 0"}} className="ol-header-wrap">
         <div className="ol-header" style={{
-          maxWidth:1080,margin:"0 auto",
+          maxWidth:1400,margin:"0 auto",
           display:"flex",alignItems:"center",gap:mob?14:28,
         }}>
           {/* Brand — matches the landing page nav. Whole logo links home. */}
@@ -1329,7 +1329,7 @@ function App(){
 
       {/* ── NAV ── */}
       <div style={sty.nav}>
-        <div className="ol-nav-wrap" style={{maxWidth:1080,margin:"0 auto",padding:"0 24px",display:"flex",gap:0,overflowX:"auto"}}>
+        <div className="ol-nav-wrap" style={{maxWidth:1400,margin:"0 auto",padding:"0 24px",display:"flex",gap:0,overflowX:"auto"}}>
           {/* Live Benchmark used to carry permanent red text and a pulsing dot
               purely so it would "pop" beside the analytical tabs. It is a
               static data view: a pulsing red dot on a fact-checking site says
@@ -1391,7 +1391,7 @@ function App(){
       {/* (Removed: the presidents colour key on phones. Every card and chart
           bar already names its president, so the strip only cost height.) */}
 
-      <div className="ol-wrap" style={{maxWidth:1080,margin:"0 auto",padding:"28px 24px 64px"}}>
+      <div className="ol-wrap" style={{maxWidth:1400,margin:"0 auto",padding:"28px 24px 64px"}}>
 
         {/* ═══ DASHBOARD ═══ */}
         {tab==="dashboard"&&(<div style={{animation:"fadeUp 0.4s ease"}}>

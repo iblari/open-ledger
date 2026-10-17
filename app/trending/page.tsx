@@ -19,7 +19,7 @@ export default function TrendingPage() {
   return (
     <div style={{ minHeight: "100vh", background: C.bg, color: C.ink }}>
       <div style={{ borderBottom: `1px solid ${C.rule}`, padding: "12px 0", background: "linear-gradient(180deg,#fff 0%," + C.bg + " 100%)" }}>
-        <div style={{ maxWidth: 1080, margin: "0 auto", padding: "0 20px" }}>
+        <div style={{ maxWidth: 1400, margin: "0 auto", padding: "0 20px" }}>
           <Link href="/" aria-label="Back to Vote Unbiased home" style={{ display: "inline-flex", alignItems: "center", gap: 10, textDecoration: "none", fontFamily: SERIF, fontSize: 19, fontWeight: 600, color: C.ink }}>
             <span style={{ width: 32, height: 32, borderRadius: "50%", border: `1px solid ${C.rule}`, background: "#fff", display: "grid", placeItems: "center", fontFamily: "'DM Sans',sans-serif", fontSize: 16, fontWeight: 500 }}>←</span>
             <CheetahMark height={22} ink={C.ink} accent={C.accent} />
@@ -28,7 +28,7 @@ export default function TrendingPage() {
         </div>
       </div>
       <nav style={{ borderBottom: `1px solid ${C.rule}`, background: C.card }}>
-        <div style={{ maxWidth: 1080, margin: "0 auto", padding: "0 6px", display: "flex", overflowX: "auto" }}>
+        <div style={{ maxWidth: 1400, margin: "0 auto", padding: "0 6px", display: "flex", overflowX: "auto" }}>
           <Link href="/dashboard" style={tab(false)}>Data</Link>
           <Link href="/trending" aria-current="page" style={tab(true)}>Trending</Link>
           <Link href="/live" style={tab(false)}>
