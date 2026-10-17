@@ -180,7 +180,7 @@ export default function ProChart(props: ProChartProps) {
 
   // The reading in force when the claim was made (latest point on/before it).
   const saidL = (saidLine && lines.find(l => l.key === saidLine)) || lines[0];
-  const atClaim = saidL?.pts.filter(p => p.ms <= claimMs + 3 * 864e5).slice(-1)[0] ?? saidL?.pts.slice(-1)[0];
+  const atClaim = saidL?.pts.filter(p => p.ms <= claimMs + 864e5).slice(-1)[0] ?? saidL?.pts.slice(-1)[0];
   const gap = said != null && atClaim ? atClaim.v - said : null;
   const close = gap != null && Math.abs(gap) <= Math.max(Math.abs(said!) * 0.05, data.unit === "%" ? 0.15 : 0);
   const sinceMs = since ? t(since) : null;
@@ -208,7 +208,7 @@ export default function ProChart(props: ProChartProps) {
       if ((!trueIdx[i] || i === fullMain.length - 1) && a != null) { const b = trueIdx[i] ? i : i - 1; trueSegs.push([fullMain[a].ms - 15 * 864e5, fullMain[b].ms + 15 * 864e5]); a = null; }
     });
   }
-  const trueBefore = said != null ? fullMain.filter((p, i) => trueIdx[i] && p.ms <= claimMs + 3 * 864e5) : [];
+  const trueBefore = said != null ? fullMain.filter((p, i) => trueIdx[i] && p.ms <= claimMs + 864e5) : [];
   const lastTrue = trueBefore.length ? trueBefore[trueBefore.length - 1] : null;
   const trueNow = !!(lastTrue && atClaim && lastTrue.ms === atClaim.ms);
   const firstYear = fullMain.length ? new Date(fullMain[0].ms).getUTCFullYear() : null;
@@ -233,8 +233,9 @@ export default function ProChart(props: ProChartProps) {
   const caption = (() => {
     if (!atClaim) return "";
     const parts: string[] = [];
-    const when = atClaim.ms <= claimMs + 3 * 864e5 ? "when this was said" : "most recently";
-    parts.push(`${raw.label.split(" (")[0].replace(/ — .*/, "")} was ${fv(atClaim.v)} ${when}`);
+    const when = atClaim.ms <= claimMs + 864e5 ? "when this was said" : "most recently";
+    const name = raw.label.split(" (")[0].replace(/ — .*/, "");
+    parts.push(view === "yoy" ? `The yearly change in ${name.replace(/^US /, "US ").toLowerCase()} was ${fv(atClaim.v)} ${when}` : `${name} was ${fv(atClaim.v)} ${when}`);
     if (said != null && gap != null) parts[0] += close ? ", in line with the claim" : `, ${fmtDiff(gap, data.unit, dec)} ${gap > 0 ? "above" : "below"} the claimed ${fv(said)}`;
     if (view === "level" && yearAgo && data.unit !== "%" && yearAgo.v) {
       const ch = (atClaim.v / yearAgo.v - 1) * 100;
@@ -280,7 +281,7 @@ export default function ProChart(props: ProChartProps) {
       <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 6 }}>
         <div style={{ minWidth: 0 }}>
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".08em", textTransform: "uppercase", color: C.mute }}>
-            {hoverMs != null ? dateLabel(hoverMs, data.freq) : atClaim && atClaim.ms <= claimMs + 3 * 864e5 ? `When it was said · ${dateLabel(atClaim.ms, data.freq)}` : `Latest · ${latest ? dateLabel(latest.ms, data.freq) : ""}`}
+            {hoverMs != null ? dateLabel(hoverMs, data.freq) : atClaim && atClaim.ms <= claimMs + 864e5 ? `When it was said · ${dateLabel(atClaim.ms, data.freq)}` : `Latest · ${latest ? dateLabel(latest.ms, data.freq) : ""}`}
           </div>
           <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
             {headMain?.p && <span style={{ fontFamily: MONO, fontSize: phone ? 24 : 28, fontWeight: 500, color: C.ink, letterSpacing: "-0.02em" }}>{fv(headMain.p.v)}</span>}
