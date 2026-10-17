@@ -223,6 +223,7 @@ html.vu-immersive body { min-height: calc(100lvh + 120px); }
   white-space: nowrap;
   vertical-align: middle;
   max-width: 260px;
+  padding-right: 3px;           /* room for the italic "d" */
   animation: vuMouth 1.05s cubic-bezier(.65, 0, .25, 1) 0.9s forwards;
 }
 @media (prefers-reduced-motion: reduce) {
