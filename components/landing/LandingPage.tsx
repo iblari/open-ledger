@@ -1064,6 +1064,52 @@ function PrinciplesSection({ mob, med }: { mob: boolean; med: boolean }) {
   );
 }
 
+/* ── Sources + Principles, side by side (desktop) ──
+   One band instead of two: the sources as a compact two-column list on the
+   left, the three principles stacked on the right. */
+const PRINCIPLES = [
+  { n: "01", t: "Raw numbers only", p: "Every value comes straight from the source agency — BEA, BLS, Treasury, Census, Fed. No modeling, no adjustments of our own." },
+  { n: "02", t: "No verdicts, no rankings.", p: "A chart shows what happened. Whether that was good, or the president's doing, is for you to decide." },
+  { n: "03", t: "Context, not commentary.", p: "Each metric comes with a definition, a historical benchmark and what presidents actually influence. No hot takes." },
+];
+function SourcesAndPrinciples() {
+  const label = { fontFamily: SANS, fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase" as const, color: C.sub, fontWeight: 500, marginBottom: 10 };
+  const h2 = { fontFamily: SERIF, fontSize: 34, lineHeight: 1.08, letterSpacing: "-0.02em", fontWeight: 400, margin: "0 0 22px" };
+  return (
+    <section style={{ padding: "52px 0 48px" }}>
+      <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 32px", display: "grid", gridTemplateColumns: "1.25fr 1fr", gap: 56, alignItems: "start" }}>
+        <div id="sources" style={{ scrollMarginTop: 90 }}>
+          <div style={label}>Section 01 · Sources</div>
+          <h2 style={h2}>Where the <em style={{ fontStyle: "italic", color: C.accent }}>numbers come from.</em></h2>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", columnGap: 28 }}>
+            {SOURCES.map(s => (
+              <div key={s.src} title={s.d} style={{ borderTop: `1px solid ${C.rule}`, padding: "10px 0", minWidth: 0 }}>
+                <div style={{ fontFamily: SERIF, fontSize: 15.5, fontWeight: 600, color: C.ink }}>{s.src}</div>
+                <div style={{ fontFamily: SANS, fontSize: 12, color: C.sub, lineHeight: 1.45, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.d.replace(/^[^—]*— /, "")}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div id="method" style={{ scrollMarginTop: 90 }}>
+          <div style={label}>Section 02 · Principles</div>
+          <h2 style={h2}>How we stay <em style={{ fontStyle: "italic", color: C.accent }}>out of the way.</em></h2>
+          <div style={{ background: C.card, border: `1px solid ${C.rule}`, borderRadius: 6 }}>
+            {PRINCIPLES.map((it, i) => (
+              <div key={it.n} style={{ display: "grid", gridTemplateColumns: "44px 1fr", gap: 12, padding: "18px 20px", borderTop: i ? `1px solid ${C.rule}` : "none" }}>
+                <div style={{ fontFamily: SERIF, fontSize: 26, color: C.accent, fontStyle: "italic", lineHeight: 1 }}>{it.n}</div>
+                <div>
+                  <h3 style={{ fontFamily: SERIF, fontWeight: 500, fontSize: 18, lineHeight: 1.2, margin: "0 0 5px" }}>{it.t}</h3>
+                  <p style={{ fontFamily: SANS, fontSize: 13, color: C.sub, lineHeight: 1.55, margin: 0 }}>{it.p}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 /* ── Sources ── */
 const SOURCES = [
     { src: "BEA", d: "Bureau of Economic Analysis — GDP, trade balance, national accounts." },
@@ -1877,8 +1923,15 @@ export default function LandingPage({ liveTrends = [] }: { liveTrends?: TrendCar
         </div>
       </Tile>
       <Tile mob={mob} dark><ComingSoonSection /></Tile>
-      <Tile mob={mob}><SourcesSection mob={mob} med={med} /></Tile>
-      <Tile mob={mob}><PrinciplesSection mob={mob} med={med} /></Tile>
+      {/* Sources and Principles side by side (narrow desktop: stacked as before). */}
+      {med ? (
+        <>
+          <Tile mob={mob}><SourcesSection mob={mob} med={med} /></Tile>
+          <Tile mob={mob}><PrinciplesSection mob={mob} med={med} /></Tile>
+        </>
+      ) : (
+        <Tile mob={mob}><SourcesAndPrinciples /></Tile>
+      )}
       {/* Closing band: newsletter + footer on near-black, bookending the
           hero — dark · light · dark · light · dark down the page. */}
       <div data-dark style={{ background: "#0C0A08", color: "#F4F0EA" }}>
