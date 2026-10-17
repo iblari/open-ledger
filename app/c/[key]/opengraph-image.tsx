@@ -80,7 +80,7 @@ export default async function Image({ params }: { params: Promise<{ key: string 
       const claimMs = Date.parse(c.date);
       const from = sd.freq === "a" ? -Infinity : claimMs - 5 * 365.25 * 864e5;
       const pts = line.points.map(p => ({ ms: Date.parse(p.d + "T12:00:00Z"), v: p.v })).filter(p => p.ms >= from);
-      const atClaim = pts.filter(p => p.ms <= claimMs + 3 * 864e5).slice(-1)[0] ?? pts[pts.length - 1];
+      const atClaim = pts.filter(p => p.ms <= claimMs + 864e5).slice(-1)[0] ?? pts[pts.length - 1];
       const vals = pts.map(p => p.v);
       // Same fallback as the page: the checker's extracted value when the
       // series mapping didn't restate it.
