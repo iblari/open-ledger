@@ -78,7 +78,7 @@ export async function recheckClaims(tag: string, targets: RepairTarget[], max = 
       await recordInLedger(full);
     }
   }
-  if (fixed.length) await kvSetMany([["trending-claims:v2", "", 1]]).catch(() => {});
+  if (fixed.length) await kvSetMany([["trending-claims:v3", "", 1]]).catch(() => {});
   return { fixed, failed };
 }
 

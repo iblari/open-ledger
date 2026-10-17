@@ -620,7 +620,7 @@ export async function getAlignment(videoId: string): Promise<Alignment | null> {
 /** Many alignments in ONE command (MGET). The replay list and the worker's
  *  "what needs aligning?" poll used to issue a GET per broadcast, per request
  *  — the single biggest line on the Upstash bill. */
-async function getAlignments(ids: string[]): Promise<(Alignment | null)[]> {
+export async function getAlignments(ids: string[]): Promise<(Alignment | null)[]> {
   if (!ids.length) return [];
   const raws: (string | null)[] = hasUpstash()
     ? (((await upstashCmd("MGET", ...ids.map(ALIGN_KEY))) as (string | null)[] | undefined) || ids.map(() => null))

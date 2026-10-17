@@ -236,6 +236,10 @@ function Card({ c, bench, onEmpty }: { c: TrendingClaim; bench: Bench | null; on
   const color = tone(c.rating);
   const label = c.rating === "MOSTLY TRUE" ? "Mostly true" : isTrue(c.rating) ? "True" : "False";
   const watch = `/live?v=${c.videoId}${c.videoTime != null ? `&t=${Math.max(0, Math.floor(c.videoTime))}` : ""}`;
+  // YouTube broadcasts play right here; a few seconds of lead-in before the quote.
+  const [playing, setPlaying] = useState(false);
+  const canEmbed = /^[A-Za-z0-9_-]{11}$/.test(c.videoId) && (c.embedStart != null || c.videoTime != null);
+  const start = Math.max(0, Math.floor((c.embedStart ?? c.videoTime ?? 0) - 3));
   const srcs = (c.sources || []).filter(s => s.url).slice(0, 3);
   return (
     <article style={{ background: C.card, border: `1px solid ${C.rule}`, borderRadius: 12, padding: "14px 16px", breakInside: "avoid", marginBottom: 12 }}>
@@ -244,10 +248,34 @@ function Card({ c, bench, onEmpty }: { c: TrendingClaim; bench: Bench | null; on
         {c.live && <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: ".08em", color: "#fff", background: C.false, padding: "3px 7px", borderRadius: 5 }}>LIVE</span>}
         <span>{[c.speaker, day(c.date), stamp(c.videoTime)].filter(Boolean).join(" · ")}</span>
         <span style={{ marginLeft: "auto" }}><ShareClaimButton small variant="light" path={c.path} quote={c.quote} verdict={label} /></span>
-        <a href={watch} style={{ color: C.true, fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}>
-          <svg width="9" height="9" viewBox="0 0 10 10" aria-hidden><path d="M2 1l7 4-7 4z" fill="currentColor" /></svg>Watch
-        </a>
+        {canEmbed ? (
+          <button type="button" onClick={() => setPlaying(p => !p)} aria-expanded={playing} style={{ all: "unset", cursor: "pointer", color: C.true, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 4 }}>
+            {playing
+              ? <><svg width="9" height="9" viewBox="0 0 10 10" aria-hidden><path d="M2 2l6 6M8 2l-6 6" stroke="currentColor" strokeWidth="1.8" /></svg>Close</>
+              : <><svg width="9" height="9" viewBox="0 0 10 10" aria-hidden><path d="M2 1l7 4-7 4z" fill="currentColor" /></svg>Watch</>}
+          </button>
+        ) : (
+          <a href={watch} style={{ color: C.true, fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}>
+            <svg width="9" height="9" viewBox="0 0 10 10" aria-hidden><path d="M2 1l7 4-7 4z" fill="currentColor" /></svg>Watch
+          </a>
+        )}
       </div>
+      {/* Inline player: the broadcast, from the moment the claim is said. */}
+      {playing && canEmbed && (
+        <div style={{ marginTop: 12 }}>
+          <div style={{ position: "relative", width: "100%", maxWidth: 880, aspectRatio: "16 / 9", borderRadius: 10, overflow: "hidden", background: "#000" }}>
+            <iframe
+              src={`https://www.youtube-nocookie.com/embed/${c.videoId}?start=${start}&autoplay=1&rel=0&modestbranding=1&playsinline=1`}
+              title={`${c.title} — from ${stamp(start)}`}
+              allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen
+              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: 0 }} />
+          </div>
+          <div style={{ display: "flex", gap: 12, alignItems: "center", fontFamily: SANS, fontSize: 12, color: C.mute, marginTop: 6 }}>
+            <span>Starts at {stamp(start)}, just before the claim</span>
+            <a href={watch} style={{ color: C.true, fontWeight: 600, textDecoration: "none", marginLeft: "auto" }}>Watch with live fact-check →</a>
+          </div>
+        </div>
+      )}
       <a href={c.path} style={{ textDecoration: "none", color: C.ink }}>
         <p style={{ fontFamily: SERIF, fontSize: 19, lineHeight: 1.3, margin: "10px 0 8px", fontWeight: 500 }}>&ldquo;{c.quote}&rdquo;</p>
       </a>
