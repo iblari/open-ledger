@@ -1228,10 +1228,6 @@ function CTASection({ mob, med }: { mob: boolean; med: boolean }) {
           <h2 style={{ fontFamily: SERIF, fontSize: mob ? 32 : 52, lineHeight: 1.02, letterSpacing: "-0.024em", fontWeight: 400, margin: 0, color: "#FFFEFC" }}>
             One email a month.<br />The ledger, <em style={{ fontStyle: "italic", color: "#E0493A" }}>updated.</em>
           </h2>
-          <p style={{ marginTop: 16, color: "#A69E92", fontSize: 16, maxWidth: "44ch", lineHeight: 1.5 }}>
-            New data lands, old data gets revised, and we flag the ones that changed most.
-            No campaign coverage. No horse race. Just the numbers.
-          </p>
         </div>
 
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 10, maxWidth: 480 }}>
