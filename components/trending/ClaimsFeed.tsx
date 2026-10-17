@@ -7,6 +7,7 @@ import type { ClaimChart } from "@/lib/claim-chart";
 import type { ClaimSeries } from "@/lib/claim-series";
 import type { SeriesData } from "@/lib/series";
 import ProChart from "./ProChart";
+import InlinePlayer from "./InlinePlayer";
 import ShareClaimButton from "@/components/ShareClaimButton";
 
 /**
@@ -260,27 +261,29 @@ function Card({ c, bench, onEmpty }: { c: TrendingClaim; bench: Bench | null; on
           </a>
         )}
       </div>
-      {/* Inline player: the broadcast, from the moment the claim is said. */}
-      {playing && canEmbed && (
-        <div style={{ marginTop: 12 }}>
-          <div style={{ position: "relative", width: "100%", maxWidth: 880, aspectRatio: "16 / 9", borderRadius: 10, overflow: "hidden", background: "#000" }}>
-            <iframe
-              src={`https://www.youtube-nocookie.com/embed/${c.videoId}?start=${start}&autoplay=1&rel=0&modestbranding=1&playsinline=1`}
-              title={`${c.title} — from ${stamp(start)}`}
-              allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen
-              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: 0 }} />
-          </div>
-          <div style={{ display: "flex", gap: 12, alignItems: "center", fontFamily: SANS, fontSize: 12, color: C.mute, marginTop: 6 }}>
-            <span>Starts at {stamp(start)}, just before the claim</span>
-            <a href={watch} style={{ color: C.true, fontWeight: 600, textDecoration: "none", marginLeft: "auto" }}>Watch with live fact-check →</a>
+      {/* Inline player: the broadcast, from the moment the claim is said.
+          Desktop: video beside the quote; phone: stacked. */}
+      {playing && canEmbed ? (
+        <div className="tc-play" style={{ marginTop: 12, display: "grid", gap: 16, alignItems: "start" }}>
+          <InlinePlayer videoId={c.videoId} start={start} title={`${c.title} — from ${stamp(start)}`} />
+          <div>
+            <a href={c.path} style={{ textDecoration: "none", color: C.ink }}>
+              <p style={{ fontFamily: SERIF, fontSize: 22, lineHeight: 1.3, margin: "0 0 10px", fontWeight: 500 }}>&ldquo;{c.quote}&rdquo;</p>
+            </a>
+            <div style={{ fontFamily: SANS, fontSize: 12.5, color: C.mute, lineHeight: 1.6 }}>
+              {c.title}<br />Starts at {stamp(start)}, just before the claim
+            </div>
+            {c.actual && <p style={{ fontFamily: SANS, fontSize: 13.5, lineHeight: 1.5, color: C.sub, margin: "10px 0 0" }}>{c.actual}</p>}
+            <a href={watch} style={{ display: "inline-block", marginTop: 12, fontFamily: SANS, fontSize: 13, color: C.true, fontWeight: 600, textDecoration: "none" }}>Watch with live fact-check →</a>
           </div>
         </div>
+      ) : (
+        <a href={c.path} style={{ textDecoration: "none", color: C.ink }}>
+          <p style={{ fontFamily: SERIF, fontSize: 19, lineHeight: 1.3, margin: "10px 0 8px", fontWeight: 500 }}>&ldquo;{c.quote}&rdquo;</p>
+        </a>
       )}
-      <a href={c.path} style={{ textDecoration: "none", color: C.ink }}>
-        <p style={{ fontFamily: SERIF, fontSize: 19, lineHeight: 1.3, margin: "10px 0 8px", fontWeight: 500 }}>&ldquo;{c.quote}&rdquo;</p>
-      </a>
       <SeriesChart c={c} color={color} onEmpty={onEmpty} fallback={c.metricKey ? <MetricChart c={c} bench={bench} color={color} /> : <WebChart c={c} color={color} />} />
-      {c.actual && <p style={{ fontFamily: SANS, fontSize: 13.5, lineHeight: 1.5, color: C.sub, margin: "8px 0 0" }}>{c.actual}</p>}
+      {c.actual && !(playing && canEmbed) && <p style={{ fontFamily: SANS, fontSize: 13.5, lineHeight: 1.5, color: C.sub, margin: "8px 0 0" }}>{c.actual}</p>}
       {srcs.length > 0 && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
           {srcs.map(s => (
@@ -319,7 +322,7 @@ export default function ClaimsFeed() {
 
   return (
     <div style={{ maxWidth: 1400, margin: "0 auto", padding: "22px 24px 64px" }}>
-      <style>{`@keyframes tcPulse{0%,100%{opacity:1}50%{opacity:.45}}.tc-skel{animation:tcPulse 1.2s ease-in-out infinite}`}</style>
+      <style>{`@keyframes tcPulse{0%,100%{opacity:1}50%{opacity:.45}}.tc-skel{animation:tcPulse 1.2s ease-in-out infinite}.tc-play{grid-template-columns:1fr}@media(min-width:900px){.tc-play{grid-template-columns:minmax(0,1.55fr) minmax(0,1fr)}}`}</style>
       <div role="tablist" style={{ display: "flex", gap: 6, marginBottom: 14 }}>
         {([["all", "All"], ["false", "False"], ["true", "True"]] as const).map(([k, l]) => (
           <button key={k} type="button" role="tab" aria-selected={f === k} onClick={() => { setF(k); setN(20); }} style={{
