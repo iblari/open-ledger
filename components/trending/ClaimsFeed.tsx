@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { monthlySeries, fmtBench, type Bench } from "@/lib/bench-lens";
 import type { TrendingClaim } from "@/lib/trending-claims";
 import type { ClaimChart } from "@/lib/claim-chart";
@@ -192,7 +192,7 @@ function saidChangeOf(c: TrendingClaim): number | null {
 
 /** The official series for this claim (mapped once, server-side), drawn
  *  with ProChart; falls back to the source-figure chart when nothing fits. */
-function SeriesChart({ c, color, fallback }: { c: TrendingClaim; color: string; fallback: React.ReactNode }) {
+function SeriesChart({ c, color, fallback, onEmpty }: { c: TrendingClaim; color: string; fallback: React.ReactNode; onEmpty?: () => void }) {
   const [map, setMap] = useState<ClaimSeries | null | undefined>(c.series ?? undefined);
   const [data, setData] = useState<SeriesData | null | undefined>(undefined);
   const ref = useRef<HTMLDivElement>(null);
@@ -217,6 +217,9 @@ function SeriesChart({ c, color, fallback }: { c: TrendingClaim; color: string; 
   }, [seen, map]);
 
   const loading = map === undefined || (map?.series && data === undefined);
+  // No interactive chart possible → the card is dropped from the feed.
+  const empty = !loading && !(map?.series && data);
+  useEffect(() => { if (empty) onEmpty?.(); }, [empty, onEmpty]);
   return (
     <div ref={ref} style={{ margin: "8px 0 4px" }}>
       {loading ? (
@@ -229,7 +232,7 @@ function SeriesChart({ c, color, fallback }: { c: TrendingClaim; color: string; 
   );
 }
 
-function Card({ c, bench }: { c: TrendingClaim; bench: Bench | null }) {
+function Card({ c, bench, onEmpty }: { c: TrendingClaim; bench: Bench | null; onEmpty?: () => void }) {
   const color = tone(c.rating);
   const label = c.rating === "MOSTLY TRUE" ? "Mostly true" : isTrue(c.rating) ? "True" : "False";
   const watch = `/live?v=${c.videoId}${c.videoTime != null ? `&t=${Math.max(0, Math.floor(c.videoTime))}` : ""}`;
@@ -248,7 +251,7 @@ function Card({ c, bench }: { c: TrendingClaim; bench: Bench | null }) {
       <a href={c.path} style={{ textDecoration: "none", color: C.ink }}>
         <p style={{ fontFamily: SERIF, fontSize: 19, lineHeight: 1.3, margin: "10px 0 8px", fontWeight: 500 }}>&ldquo;{c.quote}&rdquo;</p>
       </a>
-      <SeriesChart c={c} color={color} fallback={c.metricKey ? <MetricChart c={c} bench={bench} color={color} /> : <WebChart c={c} color={color} />} />
+      <SeriesChart c={c} color={color} onEmpty={onEmpty} fallback={c.metricKey ? <MetricChart c={c} bench={bench} color={color} /> : <WebChart c={c} color={color} />} />
       {c.actual && <p style={{ fontFamily: SANS, fontSize: 13.5, lineHeight: 1.5, color: C.sub, margin: "8px 0 0" }}>{c.actual}</p>}
       {srcs.length > 0 && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
@@ -275,19 +278,23 @@ export default function ClaimsFeed() {
     fetch("/api/benchmark-data").then(r => r.json()).then(d => { if (alive && d && !d.error) setBench(d); }).catch(() => {});
     return () => { alive = false; clearInterval(id); };
   }, []);
+  // Cards whose chart couldn't load are removed rather than shown without one.
+  const [gone, setGone] = useState<Set<string>>(new Set());
+  const drop = useCallback((k: string) => setGone(g => (g.has(k) ? g : new Set(g).add(k))), []);
+  const shown = useMemo(() => (items || []).filter(c => !gone.has(c.key)), [items, gone]);
   const counts = useMemo(() => ({
-    all: items?.length ?? 0,
-    false: items?.filter(c => !isTrue(c.rating)).length ?? 0,
-    true: items?.filter(c => isTrue(c.rating)).length ?? 0,
-  }), [items]);
-  const list = (items || []).filter(c => f === "all" || (f === "true" ? isTrue(c.rating) : !isTrue(c.rating)));
+    all: shown.length,
+    false: shown.filter(c => !isTrue(c.rating)).length,
+    true: shown.filter(c => isTrue(c.rating)).length,
+  }), [shown]);
+  const list = shown.filter(c => f === "all" || (f === "true" ? isTrue(c.rating) : !isTrue(c.rating)));
 
   return (
     <div style={{ maxWidth: 880, margin: "0 auto", padding: "22px 16px 64px" }}>
       <style>{`@keyframes tcPulse{0%,100%{opacity:1}50%{opacity:.45}}.tc-skel{animation:tcPulse 1.2s ease-in-out infinite}`}</style>
       <h1 style={{ fontFamily: SERIF, fontWeight: 500, fontSize: 30, margin: "0 0 4px", color: C.ink, letterSpacing: "-0.01em" }}>Every checked claim, charted</h1>
       <p style={{ fontFamily: SANS, fontSize: 14, color: C.sub, margin: "0 0 16px", lineHeight: 1.5 }}>
-        True and false statements from live broadcasts, newest first, with the data behind each verdict. Updates as broadcasts happen.
+        True and false statements from live broadcasts, newest first, each charted against the official data. Updates as broadcasts happen.
       </p>
       <div role="tablist" style={{ display: "flex", gap: 6, marginBottom: 14 }}>
         {([["all", "All"], ["false", "False"], ["true", "True"]] as const).map(([k, l]) => (
@@ -303,7 +310,7 @@ export default function ClaimsFeed() {
         <p style={{ fontFamily: SANS, color: C.mute }}>No claims here yet.</p>
       ) : (
         <>
-          {list.slice(0, n).map(c => <Card key={c.key} c={c} bench={bench} />)}
+          {list.slice(0, n).map(c => <Card key={c.key} c={c} bench={bench} onEmpty={() => drop(c.key)} />)}
           {list.length > n && (
             <button type="button" onClick={() => setN(x => x + 20)} style={{ width: "100%", fontFamily: SANS, fontSize: 14, fontWeight: 600, padding: "12px", borderRadius: 10, border: `1px solid ${C.rule}`, background: C.card, color: C.ink, cursor: "pointer" }}>
               Show more ({list.length - n})
