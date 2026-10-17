@@ -1409,14 +1409,6 @@ function App(){
                 the heatmap as the lead element. */}
 
             <div style={{marginBottom:20}}>
-              <h2 style={{fontFamily:ESERIF,fontSize:mob?26:34,fontWeight:400,letterSpacing:"-0.02em",lineHeight:1.1,margin:"0 0 6px"}}>
-                Compare presidents, <em style={{fontStyle:"italic",color:EC.accent}}>side by side.</em>
-              </h2>
-              <p style={{fontFamily:ESANS,fontSize:mob?13:14,color:EC.sub,margin:"0 0 14px",lineHeight:1.5}}>
-                {view==="terms"
-                  ? "How each economy changed from the day they took office to the day they left."
-                  : `Every president at the same month in office as the current one, ranked against all ${bench?.admins.length ?? 10} since Nixon. Live from FRED.`}
-              </p>
               {/* The lens switch — the whole merge in one control. */}
               <div role="tablist" aria-label="Compare by" style={{display:"inline-flex",background:"#EFEAE2",borderRadius:99,padding:3,gap:2,maxWidth:"100%"}}>
                 {([["terms","Whole terms"],["month",`Same point in office${bench?` · month ${bench.currentMonth}`:""}`]] as const).map(([k,l])=>(
