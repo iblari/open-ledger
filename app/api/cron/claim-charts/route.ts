@@ -17,7 +17,7 @@ export async function GET(req: Request) {
   rep.fixed.push(...rep2.fixed); rep.failed.push(...rep2.failed);
   if (rep.fixed.length || rep.failed.length) console.log("[claim-charts] repair", JSON.stringify(rep));
   const mapped = await backfillClaimSeries(20).catch(e => { console.error("[claim-series]", (e as Error).message); return 0; });
-  const n = await backfillClaimCharts(rep.fixed.length ? 2 : 4).catch(e => { console.error("[claim-charts]", (e as Error).message); return 0; });
+  const n = await backfillClaimCharts(rep.fixed.length ? 3 : 6).catch(e => { console.error("[claim-charts]", (e as Error).message); return 0; });
   if (n) console.log(`[claim-charts] built ${n}`);
   return NextResponse.json({ ok: true, built: n, mapped, repair: rep });
 }

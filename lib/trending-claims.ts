@@ -88,7 +88,7 @@ export async function getTrendingClaims(): Promise<TrendingClaim[]> {
   const parse = <T,>(r: string | null | undefined): T | null => { try { return r ? JSON.parse(r) as T : null; } catch { return null; } };
   return items.map((i, k) => ({
     ...i, explanation: i.explanation?.slice(0, 400),
-    chart: i.metricKey ? null : parse<ClaimChart>(raws[k]),
+    chart: parse<ClaimChart>(raws[k]),
     series: parse<ClaimSeries>(raws[items.length + k]),
   }));
 }
@@ -99,7 +99,12 @@ export async function backfillClaimSeries(max = 8): Promise<number> {
   const items = await listTrendingClaims();
   if (!items.length) return 0;
   const have = await kvGet(items.map(i => SERIES_KEY(i.key)));
-  const todo = items.filter((_, k) => !have[k]).slice(0, max);
+  const { CATALOG_VERSION } = await import("./claim-series");
+  const stale = (raw: string | null | undefined) => {
+    if (!raw) return true;
+    try { const m = JSON.parse(raw) as ClaimSeries; return !m.series && (m.cv ?? 1) < CATALOG_VERSION; } catch { return true; }
+  };
+  const todo = items.filter((_, k) => stale(have[k])).slice(0, max);
   const res = await Promise.allSettled(todo.map(i => getClaimSeries(i)));
   return res.filter(r => r.status === "fulfilled" && r.value).length;
 }
@@ -107,7 +112,10 @@ export async function backfillClaimSeries(max = 8): Promise<number> {
 /** Cron: build charts for the newest web-checked claims that lack one. */
 export async function backfillClaimCharts(max = 4): Promise<number> {
   const { getClaimChart } = await import("./claim-chart");
-  const items = (await listTrendingClaims()).filter(i => !i.metricKey);
+  // Claims with an official series don't need source extraction.
+  const all = await listTrendingClaims();
+  const maps = await kvGet(all.map(i => SERIES_KEY(i.key)));
+  const items = all.filter((_, k) => { try { return !(maps[k] && (JSON.parse(maps[k]!) as ClaimSeries).series); } catch { return true; } });
   if (!items.length) return 0;
   const have = await kvGet(items.map(i => CHART_KEY(i.key)));
   const todo = items.filter((_, k) => !have[k]).slice(0, max);

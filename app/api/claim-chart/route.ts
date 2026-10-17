@@ -10,7 +10,7 @@ export const maxDuration = 60;
 export async function GET(req: Request) {
   const key = new URL(req.url).searchParams.get("key") || "";
   try {
-    const c = (await listTrendingClaims()).find(x => x.key === key && !x.metricKey);
+    const c = (await listTrendingClaims()).find(x => x.key === key);
     if (!c) return NextResponse.json({ error: "not found" }, { status: 404 });
     const chart = await getClaimChart(c);
     return NextResponse.json({ chart }, { headers: { "Cache-Control": "public, s-maxage=3600" } });

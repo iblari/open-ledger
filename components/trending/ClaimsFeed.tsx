@@ -7,6 +7,7 @@ import type { ClaimChart } from "@/lib/claim-chart";
 import type { ClaimSeries } from "@/lib/claim-series";
 import type { SeriesData } from "@/lib/series";
 import ProChart from "./ProChart";
+import EvidenceChart from "./EvidenceChart";
 import ShareClaimButton from "@/components/ShareClaimButton";
 
 /**
@@ -216,9 +217,20 @@ function SeriesChart({ c, color, fallback, onEmpty }: { c: TrendingClaim; color:
     return () => { alive = false; };
   }, [seen, map]);
 
-  const loading = map === undefined || (map?.series && data === undefined);
+  // No official series → the evidence chart from the cited sources.
+  const [ev, setEv] = useState<ClaimChart | null | undefined>(c.chart ?? undefined);
+  const needEv = seen && map !== undefined && !map?.series;
+  useEffect(() => {
+    if (!needEv || ev !== undefined) return;
+    let alive = true;
+    fetch(`/api/claim-chart?key=${c.key}&v=6`).then(r => r.json()).then(d => { if (alive) setEv(d?.chart ?? null); }).catch(() => alive && setEv(null));
+    return () => { alive = false; };
+  }, [needEv, ev, c.key]);
+  const evOk = !!ev && ((ev.data ? 1 : 0) + (ev.data && ev.said ? 1 : 0) + (ev.context?.length || 0) >= 2 || ev.points.length >= 3);
+
+  const loading = map === undefined || (map?.series ? data === undefined : ev === undefined);
   // No interactive chart possible → the card is dropped from the feed.
-  const empty = !loading && !(map?.series && data);
+  const empty = !loading && !(map?.series && data) && !evOk;
   useEffect(() => { if (empty) onEmpty?.(); }, [empty, onEmpty]);
   return (
     <div ref={ref} style={{ margin: "8px 0 4px" }}>
@@ -227,6 +239,8 @@ function SeriesChart({ c, color, fallback, onEmpty }: { c: TrendingClaim; color:
       ) : map?.series && data ? (
         <ProChart data={data} said={map.said ?? c.claimedValue ?? null} saidChange={saidChangeOf(c)} saidLine={map.saidCountry} claimDate={c.date} since={map.since} terms={map.terms} tone={color}
           repeats={c.repeats} watchHref={`/live?v=${c.videoId}${c.videoTime != null ? `&t=${Math.max(0, Math.floor(c.videoTime))}` : ""}`} />
+      ) : evOk ? (
+        <EvidenceChart chart={ev!} tone={color} claimDate={c.date} watchHref={`/live?v=${c.videoId}${c.videoTime != null ? `&t=${Math.max(0, Math.floor(c.videoTime))}` : ""}`} />
       ) : fallback}
     </div>
   );

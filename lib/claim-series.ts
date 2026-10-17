@@ -11,6 +11,7 @@ import { CATALOG, CATALOG_BY_ID } from "./series";
  */
 export interface ClaimSeries {
   v: 1;
+  cv?: number;                     // catalog version the mapping was made against
   series: string | null;           // catalog id, null = nothing fits
   countries: string[];             // ISO3, World Bank series only
   said: number | null;             // claimed value IN THE SERIES' UNIT, else null
@@ -23,6 +24,8 @@ export interface ClaimForSeries { key: string; quote: string; rating: string; ac
 
 const MODEL = "claude-haiku-4-5-20251001";
 export const SERIES_KEY = (k: string) => `claim-series:v3:${k}`;
+/** Bump when the catalog grows: claims that found no series get another look. */
+export const CATALOG_VERSION = 2;
 
 const catalogText = CATALOG.map(s => `${s.id} — ${s.label} [${s.unit}] — fits: ${s.about}`).join("\n");
 
@@ -68,13 +71,19 @@ export async function mapClaimToSeries(c: ClaimForSeries): Promise<ClaimSeries |
     saidCountry: def?.wb ? iso(p.saidCountry) : null,
     since: typeof p.since === "string" && /^\d{4}-\d{2}-\d{2}$/.test(p.since) ? p.since : null,
     terms: !!p.terms,
+    cv: CATALOG_VERSION,
     at: new Date().toISOString(),
   };
 }
 
 export async function getClaimSeries(c: ClaimForSeries, build = true): Promise<ClaimSeries | null> {
   const [hit] = await kvGet([SERIES_KEY(c.key)]);
-  if (hit) { try { return JSON.parse(hit) as ClaimSeries; } catch { /* rebuild */ } }
+  if (hit) {
+    try {
+      const m = JSON.parse(hit) as ClaimSeries;
+      if (m.series || (m.cv ?? 1) >= CATALOG_VERSION || !build) return m;
+    } catch { /* rebuild */ }
+  }
   if (!build) return null;
   const s = await mapClaimToSeries(c);
   if (s) await kvSetMany([[SERIES_KEY(c.key), JSON.stringify(s), 0]]).catch(() => {});

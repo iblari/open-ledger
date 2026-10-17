@@ -15,9 +15,10 @@ export interface SeriesDef {
   id: string;            // catalog key
   label: string;         // "US inflation (CPI, year over year)"
   unit: string;          // "%", "$", "$/gal", "K jobs", "deaths", "index", "$B"
-  source: "FRED" | "CDC" | "World Bank";
+  source: "FRED" | "CDC" | "World Bank" | "FBI";
   fred?: { id: string; freq?: "m" | "w" | "q" | "a"; agg?: "avg" | "eop" | "sum" };
   cdc?: { indicator: string };
+  fbi?: { offense: string };
   wb?: { indicator: string };
   transform: Transform;
   scale?: number;        // multiply after transform (e.g. 1/1000 for $M → $B)
@@ -87,6 +88,11 @@ export const CATALOG: SeriesDef[] = [
   F("dow", "Dow Jones Industrial Average", "index", { id: "DJIA", freq: "w", agg: "eop" }, "level", "the Dow", { decimals: 0 }),
   F("fed_funds", "Federal funds rate", "%", { id: "FEDFUNDS" }, "level", "interest rates, the Fed, rate cuts", { decimals: 2 }),
   F("treasury_10y", "10-year Treasury yield", "%", { id: "DGS10", freq: "w", agg: "avg" }, "level", "bond yields, 10-year, borrowing costs", { decimals: 2 }),
+  F("oil_gas_output", "US oil & gas extraction output (industrial production index)", "index", { id: "IPG211S" }, "level", "US oil and gas production, record production, drilling", { decimals: 1 }),
+  F("heavy_trucks", "US heavy truck sales (annual rate)", "K", { id: "HTRUCKSSAAR" }, "level", "heavy truck sales / shipments / manufacturing", { scale: 1000, decimals: 0 }),
+  F("fdi_inflows", "Foreign direct investment into the US (annual rate)", "$B", { id: "ROWFDIQ027S", freq: "q" }, "level", "foreign investment coming into the US, 'trillions invested in our country'", { scale: 0.001, decimals: 0 }),
+  F("median_income", "US real median household income", "$", { id: "MEHOINUSA672N", freq: "a" }, "level", "median household income, record incomes", { decimals: 0 }),
+  F("poverty", "US poverty rate (Census, all ages)", "%", { id: "PPAAUS00000A156NCEN", freq: "a" }, "level", "poverty rate, record low poverty", { decimals: 1 }),
   F("bitcoin", "Bitcoin price", "$", { id: "CBBTCUSD", freq: "w", agg: "eop" }, "level", "bitcoin, crypto", { decimals: 0 }),
   F("dollar", "US dollar index (broad)", "index", { id: "DTWEXBGS", freq: "w", agg: "avg" }, "level", "strength of the dollar", { decimals: 1 }),
   // Government & trade
@@ -96,6 +102,10 @@ export const CATALOG: SeriesDef[] = [
   F("customs_duties", "US customs duties (tariff revenue), annual rate", "$B", { id: "B235RC1Q027SBEA", freq: "q" }, "level", "tariff revenue, money taken in from tariffs", { decimals: 0 }),
   F("imports", "US imports of goods & services", "$B", { id: "IMPGS", freq: "q" }, "level", "imports", { decimals: 0 }),
   F("exports", "US exports of goods & services", "$B", { id: "EXPGS", freq: "q" }, "level", "exports, record exports", { decimals: 0 }),
+  // Crime (FBI, rolling 12 months, per 100,000 people)
+  { id: "murder_rate", label: "US murder rate, per 100,000 (rolling 12 months)", unit: "per 100K", source: "FBI", fbi: { offense: "homicide" }, transform: "sum12", decimals: 1, url: "https://cde.ucr.cjis.gov/", about: "murder / homicide rate, 'lowest murder rate in X years'" },
+  { id: "violent_crime_rate", label: "US violent crime rate, per 100,000 (rolling 12 months)", unit: "per 100K", source: "FBI", fbi: { offense: "violent-crime" }, transform: "sum12", decimals: 0, url: "https://cde.ucr.cjis.gov/", about: "violent crime, 'largest drop in violent crime', crime is down (national)" },
+  { id: "property_crime_rate", label: "US property crime rate, per 100,000 (rolling 12 months)", unit: "per 100K", source: "FBI", fbi: { offense: "property-crime" }, transform: "sum12", decimals: 0, url: "https://cde.ucr.cjis.gov/", about: "property crime, burglary, theft (national)" },
   // Health & safety
   { id: "overdose_all", label: "US drug overdose deaths, 12 months ending", unit: "deaths", source: "CDC", cdc: { indicator: "Number of Drug Overdose Deaths" }, transform: "level", decimals: 0, url: "https://www.cdc.gov/nchs/nvss/vsrr/drug-overdose-data.htm", about: "drug overdose deaths" },
   { id: "overdose_fentanyl", label: "US fentanyl (synthetic opioid) deaths, 12 months ending", unit: "deaths", source: "CDC", cdc: { indicator: "Synthetic opioids, excl. methadone (T40.4)" }, transform: "level", decimals: 0, url: "https://www.cdc.gov/nchs/nvss/vsrr/drug-overdose-data.htm", about: "fentanyl deaths, synthetic opioids" },
@@ -133,6 +143,19 @@ async function fred(def: SeriesDef, opts: { asOf?: string; start?: string } = {}
   if (!r.ok) throw new Error(`FRED ${f.id} ${r.status}`);
   const j = await r.json() as { observations?: { date: string; value: string }[] };
   return (j.observations || []).map(o => ({ d: o.date, v: parseFloat(o.value) })).filter(o => Number.isFinite(o.v));
+}
+
+/** FBI Crime Data Explorer: national monthly rates per 100,000. The newest
+ *  months are incomplete (agencies report late), so they are dropped. */
+async function fbi(def: SeriesDef): Promise<{ d: string; v: number }[]> {
+  const key = process.env.FBI_API_KEY || process.env.DATA_GOV_API_KEY || "DEMO_KEY";
+  const r = await fetch(`https://api.usa.gov/crime/fbi/cde/summarized/national/${def.fbi!.offense}?from=01-1985&to=12-2030&type=rates&API_KEY=${key}`, { signal: AbortSignal.timeout(20_000) });
+  if (!r.ok) throw new Error(`FBI ${r.status}`);
+  const j = await r.json() as { offenses?: { rates?: Record<string, Record<string, number | null>> } };
+  const d = j.offenses?.rates?.["United States Offenses"] || {};
+  const cutoff = Date.now() - 75 * 864e5;
+  return Object.entries(d).filter(([, v]) => v != null).map(([k, v]) => ({ d: `${k.slice(3)}-${k.slice(0, 2)}-01`, v: v as number }))
+    .filter(p => Date.parse(p.d) < cutoff).sort((a, b) => a.d.localeCompare(b.d));
 }
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -230,6 +253,8 @@ export async function getSeries(id: string, countries: string[] = []): Promise<S
   if (def.source === "FRED") {
     const per = freq === "w" ? 52 : freq === "q" ? 4 : freq === "a" ? 1 : 12;
     lines = [{ key: id, name: def.label, points: transform(await fred(def), def.transform, per, def.scale) }];
+  } else if (def.source === "FBI") {
+    lines = [{ key: id, name: def.label, points: transform(await fbi(def), "sum12", 12, 1) }];
   } else if (def.source === "CDC") {
     lines = [{ key: id, name: def.label, points: await cdc(def) }];
   } else {

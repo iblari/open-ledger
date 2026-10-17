@@ -29,6 +29,10 @@ export interface ClaimChart {
   said: { value: number; label: string } | null;
   data: { value: number; label: string; src: number; span: string } | null;
   points: ChartPoint[];       // time-ordered, oldest first; [] when < 2 verified
+  /** Other verified figures in the same unit: the parts that make up the
+   *  data figure, or comparisons that give it scale (a previous record,
+   *  another country, a target). */
+  context?: { label: string; value: number; src: number; span: string; kind: "part" | "compare" }[];
   sources: { title: string; url: string }[];   // src 0 = our finding
   dropped: number;            // proposals that failed verification
   rejected?: { value: number; src: number; span: string }[];
@@ -40,7 +44,7 @@ export interface ClaimForChart {
 }
 
 const MODEL = "claude-haiku-4-5-20251001";
-export const CHART_KEY = (k: string) => `claim-chart:v5:${k}`;
+export const CHART_KEY = (k: string) => `claim-chart:v6:${k}`;
 
 /* ── Source text ───────────────────────────────────────────────────── */
 
@@ -129,19 +133,21 @@ export async function buildClaimChart(c: ClaimForChart): Promise<ClaimChart | nu
     ` "unit":"% | $ | deaths | jobs | people | … (the unit of the values)",\n` +
     ` "said":{"value":number,"label":"short, e.g. 'Said: −22%'"} or null,\n` +
     ` "data":{"value":number,"label":"short, e.g. 'Data: −36.5%'","src":n,"span":"exact text"} or null,\n` +
-    ` "points":[{"label":"time label, e.g. '2023' or 'Q1 2026'","value":number,"src":n,"span":"exact text"}]}\n` +
+    ` "points":[{"label":"time label, e.g. '2023' or 'Q1 2026'","value":number,"src":n,"span":"exact text"}],\n` +
+    ` "context":[{"label":"short name, e.g. 'Previous record (2019)' or 'Construction'","value":number,"src":n,"span":"exact text","kind":"part"|"compare"}]}\n` +
     `Rules:\n` +
     `- "said" is the number the speaker claimed. "said" and "data" must be the SAME measure in the SAME unit (both a % share, both a count, both $). If the sources have no figure for the same measure, set "data" to null — never compare different things (e.g. a % of crime vs a number of people).\n` +
     `- Signs: decreases are negative for BOTH said and data ("84% reduction" → -84, "down 41.5%" → -41.5).\n` +
     `- "data" is the figure the verdict rests on — the official / primary figure for the same thing, not the most extreme estimate.\n` +
     `- "points": 2–6 values of ONE measure at DIFFERENT dates (e.g. annual deaths 2022, 2023, 2024), oldest first. Every point must be the same measure, same definition (never mix monthly and annual rates, or levels and changes), and each label must be a date or period ("2023", "Q1 2026", "Aug 2026"). Parts, categories or estimates from different groups are NOT points. If the sources don't give such a series, return [].\n` +
+    `- "context": up to 5 OTHER figures in the SAME unit as "data" that help a reader judge it: "part" = a component that makes up the data figure (e.g. $100B construction + $20B contingency); "compare" = a comparable figure (previous record, the figure for another year/country/company, a stated target, the total it belongs to). Only figures written in the sources. [] if none.\n` +
     `- Every "span" must be copied EXACTLY, character for character, from source [src], and must contain the number (e.g. "76,282"). Never compute or round a value that isn't written.\n` +
     `- If the claim has no number to chart, return {"metric":"","unit":"","said":null,"data":null,"points":[]}.\n` +
     `JSON only.`;
   const r = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
-    body: JSON.stringify({ model: MODEL, max_tokens: 900, temperature: 0, system,
+    body: JSON.stringify({ model: MODEL, max_tokens: 1300, temperature: 0, system,
       messages: [{ role: "user", content: `Claim: "${c.quote}"\nVerdict: ${c.rating}${c.claimedValue != null ? `\nClaimed value: ${c.claimedValue}` : ""}\n\n${body}` }] }),
     signal: AbortSignal.timeout(40_000),
   });
@@ -155,6 +161,7 @@ export async function buildClaimChart(c: ClaimForChart): Promise<ClaimChart | nu
     said?: { value?: number; label?: string } | null;
     data?: { value?: number; label?: string; src?: number; span?: string } | null;
     points?: { label?: string; value?: number; src?: number; span?: string }[];
+    context?: { label?: string; value?: number; src?: number; span?: string; kind?: string }[];
   };
 
   let dropped = 0;
@@ -208,9 +215,20 @@ export async function buildClaimChart(c: ClaimForChart): Promise<ClaimChart | nu
   const distinct = new Set(pts.map(x => period(x.label))).size === pts.length;
   const uniq = dated && distinct ? [...pts].sort((a, b) => sortKey(a.label) - sortKey(b.label)) : [];
   if (pts.length && !uniq.length) dropped += pts.length;
+  const context: NonNullable<ClaimChart["context"]> = [];
+  for (const q of (p.context || []).slice(0, 6)) {
+    if (typeof q.value !== "number" || !q.label) continue;
+    if (data && Math.abs(q.value - data.value) < 1e-9) continue;     // the data figure again
+    if (verified(q.value, String(q.span || ""), Number(q.src), texts, String(p.unit || "")))
+      context.push({ label: String(q.label).slice(0, 48), value: q.value, src: Number(q.src), span: String(q.span), kind: q.kind === "part" ? "part" : "compare" });
+    else reject(q);
+  }
+  // Parts must not add up to more than the whole they belong to.
+  const parts = context.filter(x => x.kind === "part");
+  if (data && parts.length && parts.reduce((a, x) => a + Math.abs(x.value), 0) > Math.abs(data.value) * 1.02) parts.forEach(x => { x.kind = "compare"; });
   return {
     v: 1, metric: String(p.metric || ""), unit: String(p.unit || ""),
-    said, data, points: uniq.length >= 2 ? uniq.slice(0, 6) : [],
+    said, data, points: uniq.length >= 2 ? uniq.slice(0, 6) : [], context,
     sources, dropped, rejected, at: new Date().toISOString(),
   };
 }
