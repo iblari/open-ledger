@@ -35,8 +35,8 @@ export default function ShareClaimButton({ path, quote, verdict, variant = "dark
       }}
       aria-label="Share this fact-check"
       style={small ? {
-        fontSize: 11.5, fontWeight: 600, color: "#CFC7BD", background: "transparent",
-        border: "1px solid #3A322B", borderRadius: 6, padding: iconOnly ? "6px 8px" : "5px 9px", cursor: "pointer", lineHeight: 1,
+        fontSize: 11.5, fontWeight: 600, color: light ? "#5F5850" : "#CFC7BD", background: "transparent",
+        border: `1px solid ${light ? "#E2DED6" : "#3A322B"}`, borderRadius: 6, padding: iconOnly ? "6px 8px" : "5px 9px", cursor: "pointer", lineHeight: 1,
       } : {
         fontSize: 14, fontWeight: 600, borderRadius: 8, padding: "11px 18px", cursor: "pointer",
         background: light ? "#14110E" : "#F5F1EC", color: light ? "#F8F5F0" : "#14110E", border: "none",

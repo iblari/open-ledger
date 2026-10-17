@@ -4,6 +4,8 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { scaleLinear, scaleTime } from "d3-scale";
 import { line as d3line, area as d3area, curveMonotoneX } from "d3-shape";
 import type { SeriesData } from "@/lib/series";
+import { fmtVal } from "@/lib/chart-format";
+export { fmtVal };
 
 /**
  * The claim chart: the official series behind a verdict, with what was said
@@ -40,15 +42,6 @@ function dateLabel(ms: number, freq: SeriesData["freq"]): string {
   if (freq === "w") return `${MON[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()}`;
   return `${MON[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 }
-export function fmtVal(v: number, unit: string, dec: number): string {
-  const n = Math.abs(v) >= 1000 ? Math.round(v).toLocaleString("en-US") : v.toFixed(dec);
-  if (unit === "%") return `${v.toFixed(dec)}%`;
-  if (unit === "$") return `${v < 0 ? "-" : ""}$${Math.abs(v) >= 1000 ? Math.round(Math.abs(v)).toLocaleString("en-US") : Math.abs(v).toFixed(dec)}`;
-  if (unit.startsWith("$/")) return `$${v.toFixed(dec)}${unit.slice(1)}`;
-  if (unit === "$B" || unit === "$T") return `${v < 0 ? "-" : ""}$${Math.abs(v) >= 1000 ? Math.round(Math.abs(v)).toLocaleString("en-US") : Math.abs(v).toFixed(dec)}${unit.slice(1)}`;
-  if (unit === "index") return n;
-  return `${n} ${unit}`;
-}
 function fmtDiff(d: number, unit: string, dec: number): string {
   const a = Math.abs(d);
   if (unit === "%") return `${a.toFixed(dec)} pts`;
@@ -64,6 +57,8 @@ export interface ProChartProps {
   terms?: boolean;
   tone: string;                  // verdict colour
   saidChange?: number | null;    // a claimed % change ("plunged 22%") — drawn on the yearly-change view
+  repeats?: { date: string; videoId: string; t?: number; rating: string }[];   // same claim, other broadcasts
+  watchHref?: string;            // the moment it was said
 }
 
 /** Year-over-year % change of a line (periods per year by frequency). */
@@ -91,7 +86,35 @@ function plausible(said: number | null, vals: number[], unit = ""): number | nul
 }
 
 export default function ProChart(props: ProChartProps) {
-  const { data: raw, saidLine, saidChange } = props;
+  const { saidLine, saidChange, repeats = [], watchHref } = props;
+  // "+ Compare": a related same-unit series, or the US next to other countries.
+  const [cmp, setCmp] = useState<SeriesData | null>(null);
+  const [cmpOn, setCmpOn] = useState(false);
+  const [cmpBusy, setCmpBusy] = useState(false);
+  const base = props.data;
+  const wbNoUS = base.source === "World Bank" && !base.lines.some(l => l.key === "USA");
+  const toggleCmp = () => {
+    if (cmpOn) { setCmpOn(false); return; }
+    if (cmp) { setCmpOn(true); return; }
+    const url = wbNoUS ? `/api/series?id=${base.id}&c=${[...base.lines.map(l => l.key), "USA"].join(",")}` : base.related ? `/api/series?id=${base.related.id}` : null;
+    if (!url) return;
+    setCmpBusy(true);
+    fetch(url).then(r => r.json()).then(d => { if (d && !d.error) { setCmp(d); setCmpOn(true); } }).catch(() => {}).finally(() => setCmpBusy(false));
+  };
+  const raw: SeriesData = useMemo(() => {
+    if (!cmpOn || !cmp) return base;
+    if (wbNoUS) return { ...base, lines: cmp.lines };
+    return { ...base, lines: [...base.lines, { key: "cmp", name: cmp.label, points: cmp.lines[0].points }] };
+  }, [base, cmp, cmpOn, wbNoUS]);
+  // The figure as PUBLISHED when the claim was made (FRED/ALFRED), to show
+  // revisions since — sometimes the speaker had the number right at the time.
+  const [asOf, setAsOf] = useState<{ d: string; v: number } | null>(null);
+  useEffect(() => {
+    if (base.source !== "FRED") return;
+    let alive = true;
+    fetch(`/api/series?id=${base.id}&asof=${props.claimDate.slice(0, 10)}`).then(r => r.json()).then(d => { if (alive && d?.asOf) setAsOf(d.asOf); }).catch(() => {});
+    return () => { alive = false; };
+  }, [base.id, base.source, props.claimDate]);
   // Level vs yearly-change view (non-rate series only). A claimed % change
   // opens on the change view, where it can be compared like for like.
   const canYoy = raw.unit !== "%" && raw.freq !== "a";
@@ -127,8 +150,8 @@ export default function ProChart(props: ProChartProps) {
   const [drawn, setDrawn] = useState(false);
   useEffect(() => { setDrawn(false); const id = requestAnimationFrame(() => setDrawn(true)); return () => cancelAnimationFrame(id); }, [range, W, view]);
 
-  const multi = data.lines.length > 1;
-  const color = (i: number) => (multi ? LINE_COLORS[i % LINE_COLORS.length] : tone);
+  const multi = data.lines.filter(l => l.key !== "cmp").length > 1;
+  const color = (i: number) => (data.lines[i]?.key === "cmp" ? "#4A6E8A" : multi ? LINE_COLORS[i % LINE_COLORS.length] : tone);
   const allMax = Math.max(...data.lines.flatMap(l => l.points.map(p => t(p.d))));
   const x0 = range >= 99 ? Math.min(...data.lines.flatMap(l => l.points.map(p => t(p.d)))) : Math.min(allMax, claimMs) - range * 365.25 * 864e5;
   const x1 = Math.max(allMax, claimMs);
@@ -170,6 +193,58 @@ export default function ProChart(props: ProChartProps) {
     const ps = lines[0].pts.filter(p => p.ms >= t(b.from) && p.ms < t(b.to));
     return ps.length ? { ...b, avg: ps.reduce((s, p) => s + p.v, 0) / ps.length } : null;
   }).filter((b): b is NonNullable<typeof b> => !!b) : [];
+
+  // ── When was the claim last TRUE? Over the whole history, mark readings
+  // within a small tolerance of what was said, or where the line crossed it.
+  const fullMain = (data.lines.find(l => l.key === saidL.key) || data.lines[0]).points.map(p => ({ ms: t(p.d), v: p.v }));
+  const tol = said != null ? Math.max(Math.abs(said) * 0.03, data.unit === "%" ? 0.1 : 0) : 0;
+  const trueIdx: boolean[] = said == null ? [] : fullMain.map((p, i) => Math.abs(p.v - said) <= tol
+    || (i > 0 && Math.sign(fullMain[i - 1].v - said) !== Math.sign(p.v - said)));
+  const trueSegs: [number, number][] = [];
+  if (said != null) {
+    let a: number | null = null;
+    fullMain.forEach((p, i) => {
+      if (trueIdx[i] && a == null) a = i;
+      if ((!trueIdx[i] || i === fullMain.length - 1) && a != null) { const b = trueIdx[i] ? i : i - 1; trueSegs.push([fullMain[a].ms - 15 * 864e5, fullMain[b].ms + 15 * 864e5]); a = null; }
+    });
+  }
+  const trueBefore = said != null ? fullMain.filter((p, i) => trueIdx[i] && p.ms <= claimMs + 3 * 864e5) : [];
+  const lastTrue = trueBefore.length ? trueBefore[trueBefore.length - 1] : null;
+  const trueNow = !!(lastTrue && atClaim && lastTrue.ms === atClaim.ms);
+  const firstYear = fullMain.length ? new Date(fullMain[0].ms).getUTCFullYear() : null;
+
+  // ── Rank: where the reading at the claim sits in all of history.
+  const rank = atClaim && fullMain.length > 24 ? fullMain.filter(p => p.v < atClaim.v).length / fullMain.length : null;
+
+  // ── Year-on-year change of the reading (level view, non-rate series).
+  const yearAgo = atClaim ? fullMain.filter(p => p.ms <= atClaim.ms - 360 * 864e5).slice(-1)[0] : null;
+
+  // ── Revisions: the value published then vs the same period now.
+  const revisedNow = asOf && view === "level" ? fullMain.find(p => Math.abs(p.ms - t(asOf.d)) < 2 * 864e5) : null;
+  const revised = asOf && revisedNow && Math.abs(revisedNow.v - asOf.v) >= Math.pow(10, -dec) * 0.6 ? revisedNow : null;
+
+  // ── Recessions (US series), shaded.
+  const recs = (raw.recessions || []).map(([a, b]) => [Math.max(t(a), x0), Math.min(t(b), x1)] as const).filter(([a, b]) => b > a);
+
+  // ── Repeat trail: each other time the claim was made, on the line.
+  const trail = repeats.map(r => ({ ...r, ms: t(r.date) })).filter(r => r.ms >= x0 && r.ms <= x1 + 864e5);
+
+  // ── Plain-English caption, computed (never generated).
+  const caption = (() => {
+    if (!atClaim) return "";
+    const parts: string[] = [];
+    const when = atClaim.ms <= claimMs + 3 * 864e5 ? "when this was said" : "most recently";
+    parts.push(`${raw.label.split(" (")[0].replace(/ — .*/, "")} was ${fv(atClaim.v)} ${when}`);
+    if (said != null && gap != null) parts[0] += close ? ", in line with the claim" : `, ${fmtDiff(gap, data.unit, dec)} ${gap > 0 ? "above" : "below"} the claimed ${fv(said)}`;
+    if (view === "level" && yearAgo && data.unit !== "%" && yearAgo.v) {
+      const ch = (atClaim.v / yearAgo.v - 1) * 100;
+      parts.push(`${ch >= 0 ? "up" : "down"} ${Math.abs(ch).toFixed(1)}% from a year earlier`);
+    } else if (yearAgo && data.unit === "%") {
+      const ch = atClaim.v - yearAgo.v;
+      parts.push(`${ch >= 0 ? "up" : "down"} ${Math.abs(ch).toFixed(dec)} pts from a year earlier`);
+    }
+    return parts.join(", ") + ".";
+  })();
 
   // Hover: nearest point per visible line.
   const nearest = (l: typeof lines[number], ms: number) => {
@@ -218,6 +293,28 @@ export default function ProChart(props: ProChartProps) {
               </span>
             )}
           </div>
+          {hoverMs == null && caption && (
+            <div style={{ fontSize: 13, color: C.sub, marginTop: 4, lineHeight: 1.45, maxWidth: 560 }}>{caption}</div>
+          )}
+          {hoverMs == null && (said != null || rank != null || revised || (asOf && view === "level")) && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
+              {said != null && (
+                <span style={{ fontSize: 12, fontWeight: 600, color: trueNow ? C.gapOk : "#5E7A3A", background: trueNow ? "#E3F1EE" : "#EEF3E3", padding: "3px 8px", borderRadius: 6 }}>
+                  {trueNow ? "True at the time" : lastTrue ? `Last true: ${dateLabel(lastTrue.ms, data.freq)}` : `Not true at any point since ${firstYear}`}
+                </span>
+              )}
+              {rank != null && (
+                <span style={{ fontSize: 12, fontWeight: 600, color: C.sub, background: "#F1ECE4", padding: "3px 8px", borderRadius: 6 }}>
+                  {rank >= 0.5 ? `Higher than ${Math.round(rank * 100)}%` : `Lower than ${Math.round((1 - rank) * 100)}%`} of readings since {firstYear}
+                </span>
+              )}
+              {asOf && view === "level" && (
+                <span title="The figure as first published, before later revisions (ALFRED)" style={{ fontSize: 12, fontWeight: 600, color: revised ? "#8A5A00" : C.sub, background: revised ? "#FBF1DC" : "#F1ECE4", padding: "3px 8px", borderRadius: 6 }}>
+                  Published then: {fv(asOf.v)} ({dateLabel(t(asOf.d), data.freq)}){revised ? ` · since revised to ${fv(revised.v)}` : " · unrevised"}
+                </span>
+              )}
+            </div>
+          )}
           {atSince && latest && hoverMs == null && (
             <div style={{ fontSize: 12.5, color: C.sub, marginTop: 2 }}>
               Since {dateLabel(t(since!), data.freq === "a" ? "a" : "m")}: <b style={{ fontFamily: MONO, fontWeight: 500, color: C.ink }}>{fv(atSince.v)} → {fv(latest.v)}</b>{" "}
@@ -274,6 +371,18 @@ export default function ProChart(props: ProChartProps) {
           </g>
         ))}
 
+        {/* recessions */}
+        {!multi && recs.map(([a, b], i) => (
+          <g key={`r${i}`}>
+            <rect x={x(a)} y={M.t} width={Math.max(2, x(b) - x(a))} height={H - M.t - M.b} fill="#8C8479" opacity={0.13} />
+            {x(b) - x(a) > 30 && <text x={x(a) + 3} y={H - M.b - 6} fontSize={9.5} fontWeight={700} fill={C.mute} letterSpacing=".05em">RECESSION</text>}
+          </g>
+        ))}
+        {/* when the claim was true */}
+        {trueSegs.map(([a, b], i) => b >= x0 && a <= x1 ? (
+          <rect key={`t${i}`} x={x(Math.max(a, x0))} y={M.t} width={Math.max(2, x(Math.min(b, x1)) - x(Math.max(a, x0)))} height={H - M.t - M.b} fill="#5E9A3A" opacity={0.16} />
+        ) : null)}
+
         {/* grid */}
         {yTicks.map(v => (
           <g key={v}>
@@ -290,6 +399,20 @@ export default function ProChart(props: ProChartProps) {
             {x(a.b) - x(a.a) > 60 && <text x={x(a.b) - 4} y={y(a.avg) - 5} textAnchor="end" fontSize={10.5} fontWeight={600} fill={a.party === "D" ? "#4A6E8A" : "#9A5A50"} stroke="#fff" strokeWidth={3} paintOrder="stroke">avg {fv(a.avg)}</text>}
           </g>
         ))}
+
+        {/* reference lines */}
+        {view === "level" && raw.ref && raw.ref.v >= y.domain()[0] && raw.ref.v <= y.domain()[1] && (
+          <g>
+            <line x1={M.l} x2={W - M.r} y1={y(raw.ref.v)} y2={y(raw.ref.v)} stroke="#0E7477" strokeWidth={1.2} strokeDasharray="1 4" strokeLinecap="round" />
+            <text x={W - M.r - 4} y={y(raw.ref.v) + 13} textAnchor="end" fontSize={10.5} fontWeight={600} fill="#0E7477" stroke="#fff" strokeWidth={3} paintOrder="stroke">{raw.ref.label}</text>
+          </g>
+        )}
+        {view === "level" && raw.prepandemic && x0 <= t(raw.prepandemic.d) && raw.prepandemic.v >= y.domain()[0] && raw.prepandemic.v <= y.domain()[1] && (
+          <g>
+            <line x1={x(t(raw.prepandemic.d))} x2={W - M.r} y1={y(raw.prepandemic.v)} y2={y(raw.prepandemic.v)} stroke="#6B4FA0" strokeWidth={1.2} strokeDasharray="1 4" strokeLinecap="round" />
+            <text x={W - M.r - 4} y={y(raw.prepandemic.v) - 5} textAnchor="end" fontSize={10.5} fontWeight={600} fill="#6B4FA0" stroke="#fff" strokeWidth={3} paintOrder="stroke">pre-pandemic {fv(raw.prepandemic.v)}</text>
+          </g>
+        )}
 
         {/* series */}
         <g clipPath={`url(#clip-${uid})`}>
@@ -320,11 +443,31 @@ export default function ProChart(props: ProChartProps) {
           </g>
         )}
 
+        {/* repeat trail: the same claim said on other days */}
+        {trail.map((r, i) => {
+          const p = nearest(saidL, r.ms);
+          return (
+            <a key={i} href={`/live?v=${r.videoId}${r.t != null ? `&t=${Math.floor(r.t)}` : ""}`} onPointerDown={e => e.stopPropagation()}>
+              <title>{`Said again ${dateLabel(r.ms, "w")} — watch`}</title>
+              <line x1={x(p.ms)} x2={x(p.ms)} y1={y(p.v) - 14} y2={y(p.v) - 4} stroke={tone} strokeWidth={1.5} />
+              <circle cx={x(p.ms)} cy={y(p.v) - 17} r={4} fill="#fff" stroke={tone} strokeWidth={2} style={{ cursor: "pointer" }} />
+            </a>
+          );
+        })}
+
         {/* claim marker + gap */}
         {atClaim && (
           <g>
             <line x1={claimX} x2={claimX} y1={M.t} y2={H - M.b} stroke={C.ink} strokeOpacity={0.35} />
-            <text x={claimX - 4} y={M.t - 6} textAnchor="end" fontSize={10.5} fontWeight={700} fill={C.ink} letterSpacing=".04em">CLAIM</text>
+            {watchHref ? (
+              <a href={watchHref} onPointerDown={e => e.stopPropagation()}>
+                <title>Watch the moment it was said</title>
+                <rect x={claimX - 64} y={M.t - 20} width={62} height={17} rx={8.5} fill={C.ink} />
+                <text x={claimX - 33} y={M.t - 8} textAnchor="middle" fontSize={10.5} fontWeight={700} fill="#fff" letterSpacing=".04em" style={{ cursor: "pointer" }}>▶ CLAIM</text>
+              </a>
+            ) : (
+              <text x={claimX - 4} y={M.t - 6} textAnchor="end" fontSize={10.5} fontWeight={700} fill={C.ink} letterSpacing=".04em">CLAIM</text>
+            )}
             {sayY != null && gap != null && !close && Math.abs(sayY - y(atClaim.v)) >= 22 && (
               <g>
                 <line x1={x(atClaim.ms)} x2={x(atClaim.ms)} y1={sayY} y2={y(atClaim.v)} stroke={C.gapBad} strokeWidth={3} strokeOpacity={0.35} />
@@ -354,6 +497,27 @@ export default function ProChart(props: ProChartProps) {
             <span style={{ width: 10, height: 3, borderRadius: 2, background: l.color }} />{l.name}
           </button>
         ))}
+        {(base.related || wbNoUS) && (
+          <button type="button" onClick={toggleCmp} disabled={cmpBusy} style={{ display: "inline-flex", alignItems: "center", gap: 5, border: `1px solid ${cmpOn ? "#4A6E8A" : C.rule}`, background: cmpOn ? "#E4ECF2" : "#fff", borderRadius: 99, padding: "3px 10px", cursor: "pointer", fontFamily: SANS, fontSize: 12, fontWeight: 600, color: "#4A6E8A" }}>
+            {cmpBusy ? "Loading…" : cmpOn ? "✓ " : "+ Compare: "}{!cmpBusy && (wbNoUS ? "United States" : base.related!.label.replace(/^US /, ""))}
+          </button>
+        )}
+        {cmpOn && !wbNoUS && (
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, color: C.sub }}>
+            <span style={{ width: 12, height: 3, borderRadius: 2, background: tone }} />{base.label.replace(/^US /, "")}
+            <span style={{ width: 12, height: 3, borderRadius: 2, background: "#4A6E8A", marginLeft: 6 }} />{cmp?.label.replace(/^US /, "")}
+          </span>
+        )}
+        {trail.length > 0 && (
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, color: C.sub }}>
+            <span style={{ width: 8, height: 8, borderRadius: 5, border: `2px solid ${tone}` }} />said {trail.length + 1} times — tap a dot to watch
+          </span>
+        )}
+        {said != null && trueSegs.length > 0 && (
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, color: C.sub }}>
+            <span style={{ width: 10, height: 10, background: "#5E9A3A", opacity: 0.35, borderRadius: 2 }} />when the claim held
+          </span>
+        )}
         <span style={{ marginLeft: multi ? "auto" : 0 }}>
           {data.label} · <a href={data.url} target="_blank" rel="noopener noreferrer" style={{ color: "#0E7477", textDecoration: "none" }}>{data.source} ↗</a>
           {!phone && " · drag or use ← → to read"}

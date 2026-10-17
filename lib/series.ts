@@ -26,6 +26,21 @@ export interface SeriesDef {
   about: string;         // one line for the model: what claims this fits
 }
 
+/** Same-unit series worth overlaying ("+ Compare"). */
+export const RELATED: Record<string, string> = {
+  cpi_yoy: "wages_yoy", wages_yoy: "cpi_yoy", core_cpi_yoy: "cpi_yoy", pce_yoy: "cpi_yoy", food_yoy: "cpi_yoy",
+  rent_yoy: "cpi_yoy", home_price_yoy: "cpi_yoy", gas: "diesel", diesel: "gas", oil_wti: "oil_brent", oil_brent: "oil_wti",
+  fed_funds: "treasury_10y", treasury_10y: "mortgage", mortgage: "treasury_10y", payrolls: "private_jobs", private_jobs: "payrolls",
+  mfg_jobs: "construction_jobs", construction_jobs: "mfg_jobs", overdose_fentanyl: "overdose_all", overdose_all: "overdose_fentanyl",
+  nasdaq: "sp500", dow: "sp500",
+};
+/** Reference lines that give a number meaning. */
+const REFS: Record<string, { v: number; label: string }> = {
+  cpi_yoy: { v: 2, label: "Fed target 2%" }, core_cpi_yoy: { v: 2, label: "Fed target 2%" }, pce_yoy: { v: 2, label: "Fed target 2%" },
+};
+/** Level series where "back to the pre-pandemic level" is a meaningful yardstick. */
+const PREPANDEMIC = new Set(["payrolls", "private_jobs", "mfg_jobs", "construction_jobs", "gas", "unemployment", "lfpr", "job_openings", "mortgage", "jobless_claims"]);
+
 const F = (id: string, label: string, unit: string, fred: SeriesDef["fred"], transform: Transform, about: string, extra: Partial<SeriesDef> = {}): SeriesDef =>
   ({ id, label, unit, source: "FRED", fred, transform, about, url: `https://fred.stlouisfed.org/series/${fred!.id}`, ...extra });
 
@@ -97,16 +112,22 @@ export interface SeriesData {
   freq: "w" | "m" | "q" | "a";
   lines: SeriesLine[];
   fetchedAt: string;
+  recessions?: [string, string][];          // NBER recessions (start, end) — US series
+  ref?: { v: number; label: string } | null;
+  prepandemic?: { d: string; v: number } | null;
+  related?: { id: string; label: string } | null;
 }
 
 /* ── Fetchers ──────────────────────────────────────────────────────── */
 
-async function fred(def: SeriesDef): Promise<{ d: string; v: number }[]> {
+async function fred(def: SeriesDef, opts: { asOf?: string; start?: string } = {}): Promise<{ d: string; v: number }[]> {
   const key = process.env.FRED_API_KEY;
   if (!key || !def.fred) return [];
   const f = def.fred;
   const freq = f.freq || "m";
-  const q = new URLSearchParams({ series_id: f.id, api_key: key, file_type: "json", observation_start: "1990-01-01" });
+  const q = new URLSearchParams({ series_id: f.id, api_key: key, file_type: "json", observation_start: opts.start || "1990-01-01" });
+  // ALFRED: the series exactly as it was published on that day.
+  if (opts.asOf) { q.set("realtime_start", opts.asOf); q.set("realtime_end", opts.asOf); }
   if (f.agg || f.freq) { q.set("frequency", freq); q.set("aggregation_method", f.agg || "avg"); }
   const r = await fetch(`https://api.stlouisfed.org/fred/series/observations?${q}`, { signal: AbortSignal.timeout(15_000) });
   if (!r.ok) throw new Error(`FRED ${f.id} ${r.status}`);
@@ -159,12 +180,46 @@ function transform(pts: { d: string; v: number }[], t: Transform, per: number, s
   return out;
 }
 
+/** NBER recession periods, from FRED's USREC (monthly 0/1). Cached a week. */
+async function recessions(): Promise<[string, string][]> {
+  try {
+    const [hit] = await kvGet(["series:usrec:v1"]);
+    if (hit) return JSON.parse(hit);
+  } catch { /* refetch */ }
+  const pts = await fred({ id: "usrec", label: "", unit: "", source: "FRED", fred: { id: "USREC" }, transform: "level", url: "", about: "" }).catch(() => []);
+  const out: [string, string][] = [];
+  let start: string | null = null;
+  for (const p of pts) {
+    if (p.v === 1 && !start) start = p.d;
+    if (p.v === 0 && start) { out.push([start, p.d]); start = null; }
+  }
+  if (start) out.push([start, pts[pts.length - 1].d]);
+  if (pts.length) await kvSetMany([["series:usrec:v1", JSON.stringify(out), 7 * 86400]]).catch(() => {});
+  return out;
+}
+
+/** The value as it was PUBLISHED on a given day (before later revisions),
+ *  for the latest observation available then. FRED series only. */
+export async function getSeriesAsOf(id: string, asOf: string): Promise<{ d: string; v: number } | null> {
+  const def = CATALOG_BY_ID.get(id);
+  if (!def?.fred || !/^\d{4}-\d{2}-\d{2}$/.test(asOf)) return null;
+  const ck = `series:asof:v1:${id}:${asOf}`;
+  try { const [hit] = await kvGet([ck]); if (hit) return JSON.parse(hit); } catch { /* refetch */ }
+  const freq = def.fred.freq || "m";
+  const per = freq === "w" ? 52 : freq === "q" ? 4 : freq === "a" ? 1 : 12;
+  const start = new Date(Date.parse(asOf) - 3 * 365 * 864e5).toISOString().slice(0, 10);
+  const pts = transform(await fred(def, { asOf, start }), def.transform, per, def.scale);
+  const last = pts[pts.length - 1] ?? null;
+  if (last) await kvSetMany([[ck, JSON.stringify(last), 0]]).catch(() => {});
+  return last;
+}
+
 /** One series (several lines for country comparisons). Cached 6 hours. */
 export async function getSeries(id: string, countries: string[] = []): Promise<SeriesData | null> {
   const def = CATALOG_BY_ID.get(id);
   if (!def) return null;
   const cc = def.wb ? countries.map(c => c.toUpperCase()).filter(c => /^[A-Z]{3}$/.test(c)).slice(0, 6).sort() : [];
-  const ck = `series:v1:${id}${cc.length ? ":" + cc.join(",") : ""}`;
+  const ck = `series:v2:${id}${cc.length ? ":" + cc.join(",") : ""}`;
   try {
     const [hit] = await kvGet([ck]);
     if (hit) { const s = JSON.parse(hit) as SeriesData; if (Date.now() - Date.parse(s.fetchedAt) < 6 * 3600_000) return s; }
@@ -181,9 +236,16 @@ export async function getSeries(id: string, countries: string[] = []): Promise<S
     lines = await worldBank(def, cc.length ? cc : ["USA"]);
   }
   if (!lines.length || !lines.some(l => l.points.length > 2)) return null;
+  const main = lines[0].points;
+  const pre = PREPANDEMIC.has(id) ? main.filter(p => p.d <= "2020-02-29").slice(-1)[0] ?? null : null;
+  const rel = RELATED[id] ? CATALOG_BY_ID.get(RELATED[id]) : undefined;
   const out: SeriesData = {
     id, label: def.label, unit: def.unit, source: def.source, url: def.url, decimals: def.decimals ?? 1,
     freq, lines, fetchedAt: new Date().toISOString(),
+    recessions: def.wb ? [] : await recessions(),
+    ref: REFS[id] ?? null,
+    prepandemic: pre,
+    related: rel ? { id: rel.id, label: rel.label } : null,
   };
   await kvSetMany([[ck, JSON.stringify(out), 7 * 86400]]).catch(() => {});
   return out;

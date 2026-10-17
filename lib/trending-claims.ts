@@ -3,6 +3,7 @@ import {
   speakerFromTitle, kvGet, kvSetMany, type LiveClaim,
 } from "./live-kv";
 import { claimHash, claimPath } from "./claim-link";
+import { claimRelation } from "./repeat-claims";
 import { CHART_KEY, type ClaimChart, type ClaimForChart } from "./claim-chart";
 import { SERIES_KEY, type ClaimSeries } from "./claim-series";
 
@@ -16,10 +17,12 @@ export interface TrendingClaim extends ClaimForChart {
   metricKey?: string | null; groundValue?: number | null;
   chart?: ClaimChart | null;
   series?: ClaimSeries | null;
+  /** Other broadcasts where the same claim was made (for the chart's repeat trail). */
+  repeats?: { date: string; videoId: string; t?: number; rating: string }[];
 }
 
 export const TRENDING_RATINGS = new Set(["TRUE", "MOSTLY TRUE", "FALSE"]);
-const FEED_KEY = "trending-claims:v1";
+const FEED_KEY = "trending-claims:v2";
 const FEED_TTL_MS = 3 * 60_000;
 const MAX = 160;
 
@@ -64,6 +67,16 @@ export async function listTrendingClaims(): Promise<TrendingClaim[]> {
   const items = [...out.values()]
     .sort((a, b) => b.date.localeCompare(a.date) || (b.videoTime ?? 0) - (a.videoTime ?? 0))
     .slice(0, MAX);
+  // Repeat trail: the same claim in other broadcasts (same rule as /c pages).
+  for (const it of items) {
+    const reps: NonNullable<TrendingClaim["repeats"]> = [];
+    for (const e of ledger) {
+      if (e.videoId === it.videoId) continue;
+      const hit = e.claims.find(c => c.quote && claimRelation(it.quote, c.quote).rel === "same");
+      if (hit) reps.push({ date: e.startedAt, videoId: e.videoId, t: hit.videoTime, rating: (hit.rating || "").toUpperCase() });
+    }
+    if (reps.length) it.repeats = reps.sort((a, b) => a.date.localeCompare(b.date)).slice(-12);
+  }
   await kvSetMany([[FEED_KEY, JSON.stringify({ at: new Date().toISOString(), items }), 3600]]).catch(() => {});
   return items;
 }

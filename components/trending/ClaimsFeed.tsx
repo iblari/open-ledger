@@ -7,6 +7,7 @@ import type { ClaimChart } from "@/lib/claim-chart";
 import type { ClaimSeries } from "@/lib/claim-series";
 import type { SeriesData } from "@/lib/series";
 import ProChart from "./ProChart";
+import ShareClaimButton from "@/components/ShareClaimButton";
 
 /**
  * Trending tab: every True / Mostly true / False claim, newest first, each
@@ -221,7 +222,8 @@ function SeriesChart({ c, color, fallback }: { c: TrendingClaim; color: string; 
       {loading ? (
         <div className="tc-skel" style={{ height: 250, background: "#F3EFE8", borderRadius: 10 }} />
       ) : map?.series && data ? (
-        <ProChart data={data} said={map.said ?? c.claimedValue ?? null} saidChange={saidChangeOf(c)} saidLine={map.saidCountry} claimDate={c.date} since={map.since} terms={map.terms} tone={color} />
+        <ProChart data={data} said={map.said ?? c.claimedValue ?? null} saidChange={saidChangeOf(c)} saidLine={map.saidCountry} claimDate={c.date} since={map.since} terms={map.terms} tone={color}
+          repeats={c.repeats} watchHref={`/live?v=${c.videoId}${c.videoTime != null ? `&t=${Math.max(0, Math.floor(c.videoTime))}` : ""}`} />
       ) : fallback}
     </div>
   );
@@ -238,7 +240,8 @@ function Card({ c, bench }: { c: TrendingClaim; bench: Bench | null }) {
         <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color, background: isTrue(c.rating) ? C.trueBg : C.falseBg, padding: "3px 8px", borderRadius: 5 }}>{label}</span>
         {c.live && <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: ".08em", color: "#fff", background: C.false, padding: "3px 7px", borderRadius: 5 }}>LIVE</span>}
         <span>{[c.speaker, day(c.date), stamp(c.videoTime)].filter(Boolean).join(" · ")}</span>
-        <a href={watch} style={{ marginLeft: "auto", color: C.true, fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}>
+        <span style={{ marginLeft: "auto" }}><ShareClaimButton small variant="light" path={c.path} quote={c.quote} verdict={label} /></span>
+        <a href={watch} style={{ color: C.true, fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}>
           <svg width="9" height="9" viewBox="0 0 10 10" aria-hidden><path d="M2 1l7 4-7 4z" fill="currentColor" /></svg>Watch
         </a>
       </div>
