@@ -292,10 +292,6 @@ export default function ClaimsFeed() {
   return (
     <div style={{ maxWidth: 880, margin: "0 auto", padding: "22px 16px 64px" }}>
       <style>{`@keyframes tcPulse{0%,100%{opacity:1}50%{opacity:.45}}.tc-skel{animation:tcPulse 1.2s ease-in-out infinite}`}</style>
-      <h1 style={{ fontFamily: SERIF, fontWeight: 500, fontSize: 30, margin: "0 0 4px", color: C.ink, letterSpacing: "-0.01em" }}>Every checked claim, charted</h1>
-      <p style={{ fontFamily: SANS, fontSize: 14, color: C.sub, margin: "0 0 16px", lineHeight: 1.5 }}>
-        True and false statements from live broadcasts, newest first, each charted against the official data. Updates as broadcasts happen.
-      </p>
       <div role="tablist" style={{ display: "flex", gap: 6, marginBottom: 14 }}>
         {([["all", "All"], ["false", "False"], ["true", "True"]] as const).map(([k, l]) => (
           <button key={k} type="button" role="tab" aria-selected={f === k} onClick={() => { setF(k); setN(20); }} style={{
