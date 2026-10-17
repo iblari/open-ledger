@@ -1002,7 +1002,7 @@ function PrinciplesSection({ mob, med }: { mob: boolean; med: boolean }) {
   ];
 
   return (
-    <section id="method" style={{ padding: mob ? "48px 0" : "72px 0 56px" }}>
+    <section id="method" style={{ padding: mob ? "48px 0" : "48px 0 56px" }}>
       <div style={{ maxWidth: 1280, margin: "0 auto", padding: mob ? "0 20px" : "0 32px" }}>
         <div style={{ display: "grid", gridTemplateColumns: med ? "1fr" : "1fr 1.4fr", gap: med ? 16 : 64, marginBottom: 40, alignItems: "end" }}>
           <div>
@@ -1084,7 +1084,7 @@ function SourcesSection({ mob, med }: { mob: boolean; med: boolean }) {
   const sources = SOURCES;
 
   return (
-    <section id="sources" style={{ padding: mob ? "48px 0" : "56px 0 96px" }}>
+    <section id="sources" style={{ padding: mob ? "48px 0" : "56px 0 24px" }}>
       <div style={{ maxWidth: 1280, margin: "0 auto", padding: mob ? "0 20px" : "0 32px" }}>
         <div style={{ display: "grid", gridTemplateColumns: med ? "1fr" : "1fr 1.4fr", gap: med ? 16 : 64, marginBottom: 40, alignItems: "end" }}>
           <div>
