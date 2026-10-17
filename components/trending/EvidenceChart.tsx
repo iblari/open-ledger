@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { scaleLinear } from "d3-scale";
 import type { ClaimChart } from "@/lib/claim-chart";
 import type { SeriesData } from "@/lib/series";
 import ProChart from "./ProChart";
@@ -74,7 +75,9 @@ export default function EvidenceChart({ chart, tone, claimDate, watchHref }: { c
   }, [chart, unit]);
 
   if (!rows.length) return null;
-  const lo = Math.min(0, ...vals), hi = Math.max(0, ...vals);
+  // Round axis ends (0–100%, not 0–99%).
+  const nice = scaleLinear().domain([Math.min(0, ...vals), Math.max(0, ...vals)]).nice(4).domain();
+  const lo = nice[0], hi = nice[1];
   const lmin = allPos ? Math.pow(10, Math.floor(Math.log10(Math.min(...vals)))) : 1;
   const lmax = allPos ? Math.pow(10, Math.ceil(Math.log10(Math.max(...vals)))) : 1;
   // Position (0–100%) of a value on the axis.
@@ -82,7 +85,7 @@ export default function EvidenceChart({ chart, tone, claimDate, watchHref }: { c
   const zero = log && allPos ? 0 : pos(0);
   const ticks = log && allPos
     ? Array.from({ length: Math.round(Math.log10(lmax / lmin)) + 1 }, (_, i) => lmin * Math.pow(10, i))
-    : [0, 0.25, 0.5, 0.75, 1].map(f => lo + (hi - lo) * f);
+    : scaleLinear().domain([lo, hi]).ticks(4);
 
   // Headline comparison.
   const s = chart.said?.value, d = chart.data?.value;
