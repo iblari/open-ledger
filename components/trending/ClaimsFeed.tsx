@@ -8,6 +8,7 @@ import type { ClaimSeries } from "@/lib/claim-series";
 import type { SeriesData } from "@/lib/series";
 import ProChart from "./ProChart";
 import EvidenceChart from "./EvidenceChart";
+import { saneContext } from "@/lib/chart-format";
 import ShareClaimButton from "@/components/ShareClaimButton";
 
 /**
@@ -226,7 +227,7 @@ function SeriesChart({ c, color, fallback, onEmpty }: { c: TrendingClaim; color:
     fetch(`/api/claim-chart?key=${c.key}&v=6`).then(r => r.json()).then(d => { if (alive) setEv(d?.chart ?? null); }).catch(() => alive && setEv(null));
     return () => { alive = false; };
   }, [needEv, ev, c.key]);
-  const evOk = !!ev && ((ev.data ? 1 : 0) + (ev.data && ev.said ? 1 : 0) + (ev.context?.length || 0) >= 2 || ev.points.length >= 3);
+  const evOk = !!ev && ((ev.data ? 1 : 0) + (ev.data && ev.said ? 1 : 0) + saneContext(ev.context, ev.data?.value, ev.said?.value).length >= 2 || ev.points.length >= 3);
 
   const loading = map === undefined || (map?.series ? data === undefined : ev === undefined);
   // No interactive chart possible → the card is dropped from the feed.

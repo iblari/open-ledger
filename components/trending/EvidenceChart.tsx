@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { ClaimChart } from "@/lib/claim-chart";
 import type { SeriesData } from "@/lib/series";
 import ProChart from "./ProChart";
+import { saneContext } from "@/lib/chart-format";
 
 /**
  * Evidence chart — for claims about a single figure (a pledge, a count, a
@@ -43,10 +44,11 @@ export default function EvidenceChart({ chart, tone, claimDate, watchHref }: { c
   const unit = chart.unit;
   const rows: Row[] = useMemo(() => {
     const out: Row[] = [];
-    const parts = (chart.context || []).filter(x => x.kind === "part");
+    const ctx = saneContext(chart.context, chart.data?.value, chart.said?.value);
+    const parts = ctx.filter(x => x.kind === "part");
     if (chart.said) out.push({ key: "said", label: "Said", value: chart.said.value, kind: "said" });
     if (chart.data) out.push({ key: "data", label: "Data", value: chart.data.value, kind: "data", src: chart.data.src, span: chart.data.span, parts: parts.length ? parts : undefined });
-    for (const [i, x] of (chart.context || []).filter(x => x.kind === "compare" || !chart.data).entries())
+    for (const [i, x] of ctx.filter(x => x.kind === "compare" || !chart.data).entries())
       out.push({ key: `c${i}`, label: x.label, value: x.value, kind: "compare", src: x.src, span: x.span });
     return out;
   }, [chart]);

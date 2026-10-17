@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { getTrendingClaims } from "@/lib/trending-claims";
 import type { ClaimChart } from "@/lib/claim-chart";
+import { saneContext } from "@/lib/chart-format";
 
 /** An evidence chart needs at least two verified bars, or a dated series. */
 function chartable(c?: ClaimChart | null): boolean {
   if (!c) return false;
-  const bars = (c.data ? 1 : 0) + (c.data && c.said ? 1 : 0) + (c.context?.length || 0);
+  const bars = (c.data ? 1 : 0) + (c.data && c.said ? 1 : 0) + saneContext(c.context, c.data?.value, c.said?.value).length;
   return bars >= 2 || c.points.length >= 3;
 }
 
