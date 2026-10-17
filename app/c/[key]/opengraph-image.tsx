@@ -6,6 +6,7 @@ import { markSvg } from "@/lib/cheetah-mark";
 import { kvGet } from "@/lib/live-kv";
 import { SERIES_KEY, type ClaimSeries } from "@/lib/claim-series";
 import { getSeries } from "@/lib/series";
+import { listTrendingClaims } from "@/lib/trending-claims";
 import { fmtVal } from "@/lib/chart-format";
 
 /**
@@ -81,7 +82,9 @@ export default async function Image({ params }: { params: Promise<{ key: string 
       const pts = line.points.map(p => ({ ms: Date.parse(p.d + "T12:00:00Z"), v: p.v })).filter(p => p.ms >= from);
       const atClaim = pts.filter(p => p.ms <= claimMs + 3 * 864e5).slice(-1)[0] ?? pts[pts.length - 1];
       const vals = pts.map(p => p.v);
-      const said = map!.said;
+      // Same fallback as the page: the checker's extracted value when the
+      // series mapping didn't restate it.
+      const said = map!.said ?? (await listTrendingClaims().catch(() => [])).find(x => x.key === c.key)?.claimedValue ?? null;
       const mn0 = Math.min(...vals), mx0 = Math.max(...vals);
       const ok = said != null && !(mn0 >= 0 && said < 0) && Math.abs(said) <= Math.max(Math.abs(mn0), Math.abs(mx0)) * (sd.unit === "%" ? 12 : 4) + 1 && !(mn0 > 0 && said < Math.min(Math.abs(mn0), Math.abs(mx0)) * 0.2);
       const all = ok ? vals.concat([said!]) : vals;

@@ -64,7 +64,7 @@ export async function mapClaimToSeries(c: ClaimForSeries): Promise<ClaimSeries |
     v: 1,
     series: def ? def.id : null,
     countries: def?.wb && !countries.length ? ["USA"] : countries,
-    said: def && typeof p.said === "number" && Number.isFinite(p.said) ? p.said : null,
+    said: def && typeof p.said === "number" && Number.isFinite(p.said) ? p.said : def && c.claimedValue != null && Number.isFinite(c.claimedValue) ? c.claimedValue : null,
     saidCountry: def?.wb ? iso(p.saidCountry) : null,
     since: typeof p.since === "string" && /^\d{4}-\d{2}-\d{2}$/.test(p.since) ? p.since : null,
     terms: !!p.terms,
