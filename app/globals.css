@@ -205,3 +205,26 @@
 html.vu-immersive, html.vu-immersive body { background: #0f0d0b; }
 html.vu-immersive body { min-height: calc(100lvh + 120px); }
 @keyframes vuNudge { 0%,100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, -5px); } }
+
+/* ── Wordmark "mouth shut" on load ────────────────────────────────────
+   After the page opens, "Vote Unbiased" closes like a mouth (top and
+   bottom lips meet in the middle), then folds away so the nav slides in
+   next to the cheetah. Runs once per page load; reduced motion skips
+   straight to the end state. */
+@keyframes vuMouth {
+  0%   { clip-path: inset(0 0 0 0); max-width: 260px; margin-left: 0; opacity: 1; }
+  45%  { clip-path: inset(47% 0 47% 0); max-width: 260px; margin-left: 0; opacity: 1; }
+  58%  { clip-path: inset(50% 0 50% 0); max-width: 260px; margin-left: 0; opacity: 0.9; }
+  100% { clip-path: inset(50% 0 50% 0); max-width: 0; margin-left: -10px; opacity: 0; }
+}
+.vu-wordmark {
+  display: inline-block;
+  overflow: hidden;
+  white-space: nowrap;
+  vertical-align: middle;
+  max-width: 260px;
+  animation: vuMouth 1.05s cubic-bezier(.65, 0, .25, 1) 0.9s forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .vu-wordmark { animation-duration: 0.01s; animation-delay: 0s; }
+}

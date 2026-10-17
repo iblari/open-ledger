@@ -505,7 +505,7 @@ function SceneLive({ t }: { t: number }) {
           display: "flex", alignItems: "center", justifyContent: "center",
         }}>
           <div style={{ width: 1408, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <Brand />
+            <Brand animate={false} />
             <div style={{ display: "flex", gap: 20, fontFamily: SANS, fontSize: 13, alignItems: "center" }}>
               <span style={{ color: T.sub, fontWeight: 500 }}>Data</span>
               <span style={{ color: T.sub, fontWeight: 500 }}>Scenarios</span>

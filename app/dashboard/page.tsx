@@ -1318,7 +1318,7 @@ function App(){
             )}
             <CheetahMark height={mob ? 20 : 26} ink={EC.ink} accent={EC.accent} />
             {(
-              <span style={{whiteSpace:"nowrap"}}>
+              <span className="vu-wordmark" style={{whiteSpace:"nowrap"}}>
                 Vote <em style={{fontStyle:"italic",color:EC.accent,fontWeight:500}}>Unbiased</em>
               </span>
             )}

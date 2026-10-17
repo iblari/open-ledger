@@ -65,7 +65,7 @@ export default async function ClaimPage({ params }: { params: Promise<{ key: str
       <header style={{ maxWidth: 720, margin: "0 auto", padding: "18px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <Link href="/" style={{ display: "flex", alignItems: "center", gap: 10, color: "#14110E", textDecoration: "none" }}>
           <CheetahMark height={18} />
-          <span style={{ fontFamily: SERIF, fontSize: 19 }}>Vote <em style={{ color: "#B8372D" }}>Unbiased</em></span>
+          <span className="vu-wordmark" style={{ fontFamily: SERIF, fontSize: 19 }}>Vote <em style={{ color: "#B8372D" }}>Unbiased</em></span>
         </Link>
         <Link href="/live" style={{ fontSize: 13, fontWeight: 600, color: "#14110E", textDecoration: "none", border: "1px solid #E2DED6", borderRadius: 6, padding: "7px 12px", background: "#fff" }}>Live fact-checks</Link>
       </header>

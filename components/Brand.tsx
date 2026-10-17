@@ -18,7 +18,8 @@ export default function Brand({
   mob = false,
   tone = "light",
   href = "/",
-}: { mob?: boolean; tone?: "light" | "dark"; href?: string }) {
+  animate = true,
+}: { mob?: boolean; tone?: "light" | "dark"; href?: string; animate?: boolean }) {
   const SERIF = "'Newsreader',Georgia,serif";
   const ink = tone === "dark" ? "#F2EEE9" : "#1a1a1a";
   const disc = tone === "dark" ? "#F2EEE9" : "#1a1a1a";
@@ -33,7 +34,7 @@ export default function Brand({
       letterSpacing: "-0.015em", color: ink,
     }}>
       <CheetahMark height={mob ? 22 : 26} ink={disc} accent={tone === "dark" ? "#E0493A" : "#b8372d"} />
-      <span style={{ whiteSpace: "nowrap" }}>
+      <span className={animate ? "vu-wordmark" : undefined} style={{ whiteSpace: "nowrap" }}>
         Vote <em style={{ fontStyle: "italic", color: accent, fontWeight: 500 }}>Unbiased</em>
       </span>
     </Link>

@@ -152,7 +152,7 @@ function Nav({ mob, dark = false, overlay = false }: { mob: boolean; dark?: bool
         {/* Brand */}
         <div style={{ display: "flex", alignItems: "center", gap: 12, fontFamily: SERIF, flexShrink: 0, whiteSpace: "nowrap", fontSize: 20, fontWeight: 600, letterSpacing: "-0.015em" }}>
           <CheetahMark height={mob ? 22 : 26} ink={ink} accent={dark ? "#E0493A" : C.accent} />
-          <span style={{ color: ink, transition: "color .25s ease" }}>Vote <em style={{ fontStyle: "italic", color: dark ? "#E0493A" : C.accent, fontWeight: 500 }}>Unbiased</em></span>
+          <span className="vu-wordmark" style={{ color: ink, transition: "color .25s ease" }}>Vote <em style={{ fontStyle: "italic", color: dark ? "#E0493A" : C.accent, fontWeight: 500 }}>Unbiased</em></span>
         </div>
 
         {/* Links — desktop only */}
