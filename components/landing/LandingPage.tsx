@@ -1650,6 +1650,67 @@ function TrendingStrip({ cards, desktop = false }: { cards: TrendCard[]; desktop
   );
 }
 
+/** Phone: the original swipeable card strip (the lead + list layout is desktop only). */
+function TrendingStripPhone({ cards, desktop = false, cols = 5 }: { cards: TrendCard[]; desktop?: boolean; cols?: number }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [idx, setIdx] = useState(0);
+  if (!cards.length) return null;
+  const onScroll = () => {
+    const el = ref.current; if (!el) return;
+    const w = (el.firstElementChild as HTMLElement | null)?.offsetWidth || 1;
+    setIdx(Math.min(cards.length - 1, Math.round(el.scrollLeft / (w + 10))));
+  };
+  return (
+    <section aria-labelledby="trend-h" style={{ marginTop: desktop ? 0 : 18 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: desktop ? 0 : "0 20px", marginBottom: desktop ? 14 : 8 }}>
+        <h2 id="trend-h" style={{ fontFamily: SERIF, fontSize: desktop ? 26 : 18, fontWeight: 500, margin: 0, letterSpacing: "-0.01em", display: "flex", alignItems: "center", gap: 6 }}>
+          Trending
+          <svg aria-hidden width={desktop ? 26 : 19} height={desktop ? 26 : 19} viewBox="0 0 24 24" fill="none" stroke={C.accent} strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" style={{ flex: "none" }}>
+            <path d="M3 17l6-6 4 4 8-8" /><path d="M14 7h7v7" />
+          </svg>
+        </h2>
+        <span style={{ fontSize: 9.5, color: C.mute, textTransform: "uppercase", letterSpacing: "0.06em", display: "flex", alignItems: "center", gap: 6 }}>
+          updates daily
+          <span style={{ background: C.accent, color: "#fff", fontWeight: 700, fontSize: 8.5, padding: "2px 5px", borderRadius: 3, letterSpacing: "0.05em" }}>NEW</span>
+        </span>
+      </div>
+      <div ref={ref} onScroll={desktop ? undefined : onScroll} className="vu-chips" style={desktop ? {
+        display: "grid", gridTemplateColumns: `repeat(${Math.min(cols, cards.length)}, minmax(0, 1fr))`, gap: 14,
+      } : {
+        display: "flex", gap: 10, overflowX: "auto", scrollSnapType: "x mandatory",
+        padding: "0 20px 2px", scrollPaddingLeft: 20, scrollbarWidth: "none",
+      }}>
+        {cards.map(c => {
+          const col = TONE[c.tone];
+          return (
+            <Link key={c.id} href={c.href} style={{
+              flex: desktop ? undefined : "0 0 76%", scrollSnapAlign: "start", textDecoration: "none", color: C.ink,
+              background: "#fff", border: `1px solid ${C.rule}`, borderTop: `3px solid ${col}`,
+              borderRadius: 6, padding: desktop ? "15px 16px 15px" : "11px 13px 12px", display: "flex", flexDirection: "column", gap: desktop ? 10 : 7, minHeight: desktop ? 150 : 128,
+            }}>
+              <span style={{ fontSize: 9.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: col }}>
+                {c.kicker} <span style={{ color: C.mute, fontWeight: 500 }}>· {c.dateLabel}</span>
+              </span>
+              <span style={{ fontFamily: SERIF, fontSize: desktop ? 17 : 15.5, lineHeight: 1.25, letterSpacing: "-0.005em", flex: 1 }}>{c.headline}</span>
+              <span style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                <span style={{ fontSize: 10.5, fontWeight: 700, color: col, background: col + "14", padding: "3px 7px", borderRadius: 99, whiteSpace: "nowrap" }}>{c.badge}</span>
+                <span style={{ fontSize: 10.5, color: C.mute, whiteSpace: "nowrap" }}>{["Fact-checks", "Broadcasts", "Agenda", "Named on air"].includes(c.kicker) ? "Live ledger" : "FRED"} →</span>
+              </span>
+            </Link>
+          );
+        })}
+      </div>
+      {!desktop && cards.length > 1 && (
+        <div aria-hidden style={{ display: "flex", justifyContent: "center", gap: 5, marginTop: 9 }}>
+          {cards.map((c, i) => (
+            <span key={c.id} style={{ width: i === idx ? 14 : 5, height: 5, borderRadius: 99, background: i === idx ? C.ink : C.rule, transition: "width .2s" }} />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 /* ── Phone hero headline that rotates through what the site is. All lines
    sit stacked in one grid cell, so the box is always as tall as the longest
    and nothing below it moves. The h1 text stays the first line for search
@@ -1805,7 +1866,7 @@ function MobileLanding({ liveTrends = [] }: { liveTrends?: TrendCard[] }) {
         </div>
       </div>
 
-      <TrendingStrip cards={trending} />
+      <TrendingStripPhone cards={trending} />
 
       {/* The metric chart panel lived here. Removed on phones to keep the
           first screen simple: headline, Trending, then Live. The full
