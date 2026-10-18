@@ -1531,13 +1531,13 @@ const TONE: Record<TrendCard["tone"], string> = { good: "#1f7a6d", bad: "#c2410c
 /** Lead story + ranked list. The lead is the newest trend that has a line
  *  to draw (else the newest); the other four are numbered beside it on
  *  desktop and below it on phones. */
-function Spark({ data, color, h = 64 }: { data: number[]; color: string; h?: number }) {
+function Spark({ data, color, h = 64, fill = false }: { data: number[]; color: string; h?: number; fill?: boolean }) {
   const W = 300, mn = Math.min(...data), mx = Math.max(...data), r = mx - mn || 1;
   const pts = data.map((v, i) => [(i / (data.length - 1)) * W, h - 4 - ((v - mn) / r) * (h - 10)] as const);
   const d = pts.map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
   const last = pts[pts.length - 1];
   return (
-    <svg viewBox={`0 0 ${W} ${h}`} width="100%" height={h} preserveAspectRatio="none" aria-hidden style={{ display: "block", overflow: "visible" }}>
+    <svg viewBox={`0 0 ${W} ${h}`} width="100%" height={fill ? "100%" : h} preserveAspectRatio="none" aria-hidden style={{ display: "block", overflow: "visible", ...(fill ? { position: "absolute", inset: 0 } : {}) }}>
       <path d={`${d} L${W},${h} L0,${h} Z`} fill={color} opacity={0.1} />
       <path d={d} fill="none" stroke={color} strokeWidth={2.5} strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
       <circle cx={last[0]} cy={last[1]} r={4} fill={color} stroke="#fff" strokeWidth={1.5} />
@@ -1586,7 +1586,12 @@ function TrendingStrip({ cards, desktop = false }: { cards: TrendCard[]; desktop
             {lead.kicker} <span style={{ color: C.mute, fontWeight: 500 }}>· {lead.dateLabel}</span>
           </span>
           <span style={{ fontFamily: SERIF, fontSize: desktop ? 28 : 21, lineHeight: 1.18, letterSpacing: "-0.015em" }}>{lead.headline}</span>
-          {lead.spark && lead.spark.length >= 6 && <div style={{ marginTop: "auto", paddingTop: 6 }}><Spark data={lead.spark} color={lc} h={desktop ? 84 : 60} /></div>}
+          {/* The line fills whatever height the card has (desktop: as tall as the list). */}
+          {lead.spark && lead.spark.length >= 6 && (
+            <div style={{ position: "relative", flex: 1, minHeight: desktop ? 110 : 64, margin: "6px 0 2px" }}>
+              <Spark data={lead.spark} color={lc} h={120} fill />
+            </div>
+          )}
           <span style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: lead.spark ? 2 : "auto" }}>
             {pill(lead)}
             <span style={{ fontSize: 12, color: C.mute, whiteSpace: "nowrap" }}>{isLive(lead.kicker) ? "Live ledger" : "FRED"} →</span>
@@ -1599,7 +1604,7 @@ function TrendingStrip({ cards, desktop = false }: { cards: TrendCard[]; desktop
             return (
               <li key={c.id} style={{ borderTop: i || !desktop ? `1px solid ${C.rule}` : "none" }}>
                 <Link href={c.href} className="vu-trend-row" style={{
-                  textDecoration: "none", color: C.ink, display: "grid", gridTemplateColumns: "30px minmax(0, 1fr) auto", gap: 12,
+                  textDecoration: "none", color: C.ink, display: "grid", gridTemplateColumns: desktop ? "30px minmax(0, 1fr) auto" : "26px minmax(0, 1fr)", gap: desktop ? 12 : 10,
                   alignItems: "start", padding: desktop ? "14px 4px" : "12px 2px",
                 }}>
                   <span style={{ fontFamily: SERIF, fontSize: desktop ? 24 : 20, color: C.accent, lineHeight: 1, fontStyle: "italic" }}>{i + 2}</span>
@@ -1608,8 +1613,9 @@ function TrendingStrip({ cards, desktop = false }: { cards: TrendCard[]; desktop
                       {c.kicker} <span style={{ color: C.mute, fontWeight: 500 }}>· {c.dateLabel}</span>
                     </span>
                     <span style={{ display: "block", fontFamily: SERIF, fontSize: desktop ? 17.5 : 16, lineHeight: 1.28, marginTop: 4 }}>{c.headline}</span>
+                    {!desktop && <span style={{ display: "inline-block", marginTop: 7 }}>{pill(c)}</span>}
                   </span>
-                  <span style={{ paddingTop: 2 }}>{pill(c)}</span>
+                  {desktop && <span style={{ paddingTop: 2 }}>{pill(c)}</span>}
                 </Link>
               </li>
             );
