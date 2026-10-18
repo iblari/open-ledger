@@ -1536,12 +1536,16 @@ function Spark({ data, color, h = 64, fill = false }: { data: number[]; color: s
   const pts = data.map((v, i) => [(i / (data.length - 1)) * W, h - 4 - ((v - mn) / r) * (h - 10)] as const);
   const d = pts.map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
   const last = pts[pts.length - 1];
+  // The end dot is HTML, not SVG: the stretched viewBox would squash it into an oval.
+  const dot = <span style={{ position: "absolute", left: `${(last[0] / W) * 100}%`, top: `${(last[1] / h) * 100}%`, width: 10, height: 10, marginLeft: -5, marginTop: -5, borderRadius: "50%", background: color, border: "2px solid #fff" }} />;
   return (
+    <>
+    {dot}
     <svg viewBox={`0 0 ${W} ${h}`} width="100%" height={fill ? "100%" : h} preserveAspectRatio="none" aria-hidden style={{ display: "block", overflow: "visible", ...(fill ? { position: "absolute", inset: 0 } : {}) }}>
       <path d={`${d} L${W},${h} L0,${h} Z`} fill={color} opacity={0.1} />
       <path d={d} fill="none" stroke={color} strokeWidth={2.5} strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-      <circle cx={last[0]} cy={last[1]} r={4} fill={color} stroke="#fff" strokeWidth={1.5} />
     </svg>
+    </>
   );
 }
 const isLive = (k: string) => ["Fact-checks", "Broadcasts", "Agenda", "Named on air"].includes(k);
