@@ -60,6 +60,7 @@ export interface ProChartProps {
   repeats?: { date: string; videoId: string; t?: number; rating: string }[];   // same claim, other broadcasts
   watchHref?: string;            // the moment it was said
   fullRange?: boolean;           // start on "Max" (short series from cited sources)
+  compact?: boolean;             // phone list view: reading + chart only
 }
 
 /** Year-over-year % change of a line (periods per year by frequency). */
@@ -134,7 +135,8 @@ export default function ProChart(props: ProChartProps) {
     ro.observe(el); return () => ro.disconnect();
   }, []);
   const phone = W < 520;
-  const H = phone ? 230 : 280;
+  const compact = !!props.compact;
+  const H = compact ? 150 : phone ? 230 : 280;
   const M = { l: phone ? 40 : 52, r: phone ? 10 : 16, t: 28, b: 26 };
 
   // Default range: enough to see the claim in context.
@@ -285,7 +287,7 @@ export default function ProChart(props: ProChartProps) {
             {hoverMs != null ? dateLabel(hoverMs, data.freq) : atClaim && atClaim.ms <= claimMs + 864e5 ? `When it was said · ${dateLabel(atClaim.ms, data.freq)}` : `Latest · ${latest ? dateLabel(latest.ms, data.freq) : ""}`}
           </div>
           <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
-            {headMain?.p && <span style={{ fontFamily: MONO, fontSize: phone ? 24 : 28, fontWeight: 500, color: C.ink, letterSpacing: "-0.02em" }}>{fv(headMain.p.v)}</span>}
+            {headMain?.p && <span style={{ fontFamily: MONO, fontSize: compact ? 20 : phone ? 24 : 28, fontWeight: 500, color: C.ink, letterSpacing: "-0.02em" }}>{fv(headMain.p.v)}</span>}
             {multi && headVals.filter(h => h !== headMain && h.p).map(h => (
               <span key={h.l.key} style={{ fontFamily: MONO, fontSize: 14, color: h.l.color }}>{h.l.name.split(",")[0]} {fv(h.p!.v)}</span>
             ))}
@@ -295,10 +297,10 @@ export default function ProChart(props: ProChartProps) {
               </span>
             )}
           </div>
-          {hoverMs == null && caption && (
+          {!compact && hoverMs == null && caption && (
             <div style={{ fontSize: 13, color: C.sub, marginTop: 4, lineHeight: 1.45, maxWidth: 560 }}>{caption}</div>
           )}
-          {hoverMs == null && (said != null || rank != null || revised || (asOf && view === "level")) && (
+          {!compact && hoverMs == null && (said != null || rank != null || revised || (asOf && view === "level")) && (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
               {said != null && (
                 <span style={{ fontSize: 12, fontWeight: 600, color: trueNow ? C.gapOk : "#5E7A3A", background: trueNow ? "#E3F1EE" : "#EEF3E3", padding: "3px 8px", borderRadius: 6 }}>
@@ -317,14 +319,14 @@ export default function ProChart(props: ProChartProps) {
               )}
             </div>
           )}
-          {atSince && latest && hoverMs == null && (
+          {!compact && atSince && latest && hoverMs == null && (
             <div style={{ fontSize: 12.5, color: C.sub, marginTop: 2 }}>
               Since {dateLabel(t(since!), data.freq === "a" ? "a" : "m")}: <b style={{ fontFamily: MONO, fontWeight: 500, color: C.ink }}>{fv(atSince.v)} → {fv(latest.v)}</b>{" "}
               ({latest.v >= atSince.v ? "+" : "−"}{fmtDiff(latest.v - atSince.v, data.unit, dec)}{data.unit !== "%" && atSince.v ? `, ${latest.v >= atSince.v ? "+" : "−"}${Math.abs((latest.v / atSince.v - 1) * 100).toFixed(1)}%` : ""})
             </div>
           )}
         </div>
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        {!compact && <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
         {canYoy && (
           <div role="tablist" aria-label="View" style={{ display: "flex", background: "#F1ECE4", borderRadius: 99, padding: 2 }}>
             {([["level", "Level"], ["yoy", "Yearly change"]] as const).map(([k, l]) => (
@@ -343,7 +345,7 @@ export default function ProChart(props: ProChartProps) {
             }}>{l}</button>
           ))}
         </div>
-        </div>
+        </div>}
       </div>
 
       {/* Chart */}
@@ -492,7 +494,7 @@ export default function ProChart(props: ProChartProps) {
       </svg>
 
       {/* legend / source */}
-      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, marginTop: 6, fontSize: 11.5, color: C.mute }}>
+      {!compact && <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, marginTop: 6, fontSize: 11.5, color: C.mute }}>
         {multi && lines.map(l => (
           <button key={l.key} type="button" onClick={() => setHidden(h => { const n = new Set(h); if (n.has(l.key)) n.delete(l.key); else if (n.size < lines.length - 1) n.add(l.key); return n; })}
             style={{ display: "inline-flex", alignItems: "center", gap: 5, border: `1px solid ${C.rule}`, background: hidden.has(l.key) ? "transparent" : "#fff", borderRadius: 99, padding: "3px 9px", cursor: "pointer", fontFamily: SANS, fontSize: 12, color: hidden.has(l.key) ? C.mute : C.ink, textDecoration: hidden.has(l.key) ? "line-through" : "none" }}>
@@ -524,7 +526,7 @@ export default function ProChart(props: ProChartProps) {
           {data.label} · <a href={data.url} target="_blank" rel="noopener noreferrer" style={{ color: "#0E7477", textDecoration: "none" }}>{data.source} ↗</a>
           {!phone && " · drag or use ← → to read"}
         </span>
-      </div>
+      </div>}
     </div>
   );
 }

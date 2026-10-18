@@ -7,6 +7,7 @@ import type { ClaimChart } from "@/lib/claim-chart";
 import type { ClaimSeries } from "@/lib/claim-series";
 import type { SeriesData } from "@/lib/series";
 import ProChart from "./ProChart";
+import { useIsMobileViewport } from "@/lib/viewport";
 import InlinePlayer from "./InlinePlayer";
 import ShareClaimButton from "@/components/ShareClaimButton";
 
@@ -193,7 +194,7 @@ function saidChangeOf(c: TrendingClaim): number | null {
 
 /** The official series for this claim (mapped once, server-side), drawn
  *  with ProChart; falls back to the source-figure chart when nothing fits. */
-function SeriesChart({ c, color, fallback, onEmpty }: { c: TrendingClaim; color: string; fallback: React.ReactNode; onEmpty?: () => void }) {
+function SeriesChart({ c, color, fallback, onEmpty, compact }: { c: TrendingClaim; color: string; fallback: React.ReactNode; onEmpty?: () => void; compact?: boolean }) {
   const [map, setMap] = useState<ClaimSeries | null | undefined>(c.series ?? undefined);
   const [data, setData] = useState<SeriesData | null | undefined>(undefined);
   const ref = useRef<HTMLDivElement>(null);
@@ -224,9 +225,9 @@ function SeriesChart({ c, color, fallback, onEmpty }: { c: TrendingClaim; color:
   return (
     <div ref={ref} style={{ margin: "8px 0 4px" }}>
       {loading ? (
-        <div className="tc-skel" style={{ height: 250, background: "#F3EFE8", borderRadius: 10 }} />
+        <div className="tc-skel" style={{ height: compact ? 190 : 250, background: "#F3EFE8", borderRadius: 10 }} />
       ) : map?.series && data ? (
-        <ProChart data={data} said={map.said ?? c.claimedValue ?? null} saidChange={saidChangeOf(c)} saidLine={map.saidCountry} claimDate={c.date} since={map.since} terms={map.terms} tone={color}
+        <ProChart compact={compact} data={data} said={map.said ?? c.claimedValue ?? null} saidChange={saidChangeOf(c)} saidLine={map.saidCountry} claimDate={c.date} since={map.since} terms={map.terms} tone={color}
           repeats={c.repeats} watchHref={`/live?v=${c.videoId}${c.videoTime != null ? `&t=${Math.max(0, Math.floor(c.videoTime))}` : ""}`} />
       ) : fallback}
     </div>
@@ -242,13 +243,18 @@ function Card({ c, bench, onEmpty }: { c: TrendingClaim; bench: Bench | null; on
   const canEmbed = /^[A-Za-z0-9_-]{11}$/.test(c.videoId) && (c.embedStart != null || c.videoTime != null);
   const start = Math.max(0, Math.floor((c.embedStart ?? c.videoTime ?? 0) - 3));
   const srcs = (c.sources || []).filter(s => s.url).slice(0, 3);
+  // Phones: a short card (quote + chart) so several fit on screen; "Details"
+  // opens the full card.
+  const phone = useIsMobileViewport(640);
+  const [open, setOpen] = useState(false);
+  const compact = phone && !open && !playing;
   return (
-    <article style={{ background: C.card, border: `1px solid ${C.rule}`, borderRadius: 12, padding: "14px 16px", breakInside: "avoid", marginBottom: 12 }}>
+    <article style={{ background: C.card, border: `1px solid ${C.rule}`, borderRadius: 12, padding: compact ? "11px 13px" : "14px 16px", breakInside: "avoid", marginBottom: 12 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: SANS, fontSize: 12, color: C.mute, flexWrap: "wrap" }}>
         <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color, background: isTrue(c.rating) ? C.trueBg : C.falseBg, padding: "3px 8px", borderRadius: 5 }}>{label}</span>
         {c.live && <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: ".08em", color: "#fff", background: C.false, padding: "3px 7px", borderRadius: 5 }}>LIVE</span>}
         <span>{[c.speaker, day(c.date), stamp(c.videoTime)].filter(Boolean).join(" · ")}</span>
-        <span style={{ marginLeft: "auto" }}><ShareClaimButton small variant="light" path={c.path} quote={c.quote} verdict={label} /></span>
+        <span style={{ marginLeft: "auto" }}><ShareClaimButton small iconOnly={phone} variant="light" path={c.path} quote={c.quote} verdict={label} /></span>
         {canEmbed ? (
           <button type="button" onClick={() => setPlaying(p => !p)} aria-expanded={playing} style={{ all: "unset", cursor: "pointer", color: C.true, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 4 }}>
             {playing
@@ -279,12 +285,18 @@ function Card({ c, bench, onEmpty }: { c: TrendingClaim; bench: Bench | null; on
         </div>
       ) : (
         <a href={c.path} style={{ textDecoration: "none", color: C.ink }}>
-          <p style={{ fontFamily: SERIF, fontSize: 19, lineHeight: 1.3, margin: "10px 0 8px", fontWeight: 500 }}>&ldquo;{c.quote}&rdquo;</p>
+          <p style={{ fontFamily: SERIF, fontSize: compact ? 16.5 : 19, lineHeight: 1.3, margin: compact ? "8px 0 6px" : "10px 0 8px", fontWeight: 500,
+            ...(compact ? { display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as const, overflow: "hidden" } : {}) }}>&ldquo;{c.quote}&rdquo;</p>
         </a>
       )}
-      <SeriesChart c={c} color={color} onEmpty={onEmpty} fallback={c.metricKey ? <MetricChart c={c} bench={bench} color={color} /> : <WebChart c={c} color={color} />} />
-      {c.actual && !(playing && canEmbed) && <p style={{ fontFamily: SANS, fontSize: 13.5, lineHeight: 1.5, color: C.sub, margin: "8px 0 0" }}>{c.actual}</p>}
-      {srcs.length > 0 && (
+      <SeriesChart compact={compact} c={c} color={color} onEmpty={onEmpty} fallback={c.metricKey ? <MetricChart c={c} bench={bench} color={color} /> : <WebChart c={c} color={color} />} />
+      {compact && (
+        <button type="button" onClick={() => setOpen(true)} style={{ all: "unset", cursor: "pointer", marginTop: 6, fontFamily: SANS, fontSize: 12.5, fontWeight: 600, color: C.true }}>
+          Details, sources and range ▾
+        </button>
+      )}
+      {!compact && c.actual && !(playing && canEmbed) && <p style={{ fontFamily: SANS, fontSize: 13.5, lineHeight: 1.5, color: C.sub, margin: "8px 0 0" }}>{c.actual}</p>}
+      {!compact && srcs.length > 0 && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
           {srcs.map(s => (
             <a key={s.url} href={s.url} target="_blank" rel="noopener noreferrer" style={{ fontFamily: SANS, fontSize: 11.5, color: C.true, border: `1px solid ${C.rule}`, borderRadius: 6, padding: "3px 8px", textDecoration: "none", whiteSpace: "nowrap", maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis" }}>{host(s.url)} ↗</a>
