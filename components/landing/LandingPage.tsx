@@ -1521,69 +1521,101 @@ function DesktopTrending({ liveTrends, med }: { liveTrends: TrendCard[]; med: bo
     return () => { alive = false; };
   }, []);
   const cols = med ? 3 : 5;
-  const cards = useMemo(() => mergeTrends(bench, liveTrends, cols), [bench, liveTrends, cols]);
+  const cards = useMemo(() => mergeTrends(bench, liveTrends, 5), [bench, liveTrends]);
   // Hold the row's height while FRED loads so the page below doesn't jump.
-  if (!cards.length) return <div style={{ minHeight: 200 }} />;
-  return <TrendingStrip cards={cards} desktop cols={cols} />;
+  if (!cards.length) return <div style={{ minHeight: 320 }} />;
+  return <TrendingStrip cards={cards} desktop={!med || true} cols={cols} />;
 }
 
 const TONE: Record<TrendCard["tone"], string> = { good: "#1f7a6d", bad: "#c2410c", neutral: "#b8372d" };
-function TrendingStrip({ cards, desktop = false, cols = 5 }: { cards: TrendCard[]; desktop?: boolean; cols?: number }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [idx, setIdx] = useState(0);
+/** Lead story + ranked list. The lead is the newest trend that has a line
+ *  to draw (else the newest); the other four are numbered beside it on
+ *  desktop and below it on phones. */
+function Spark({ data, color, h = 64 }: { data: number[]; color: string; h?: number }) {
+  const W = 300, mn = Math.min(...data), mx = Math.max(...data), r = mx - mn || 1;
+  const pts = data.map((v, i) => [(i / (data.length - 1)) * W, h - 4 - ((v - mn) / r) * (h - 10)] as const);
+  const d = pts.map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
+  const last = pts[pts.length - 1];
+  return (
+    <svg viewBox={`0 0 ${W} ${h}`} width="100%" height={h} preserveAspectRatio="none" aria-hidden style={{ display: "block", overflow: "visible" }}>
+      <path d={`${d} L${W},${h} L0,${h} Z`} fill={color} opacity={0.1} />
+      <path d={d} fill="none" stroke={color} strokeWidth={2.5} strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+      <circle cx={last[0]} cy={last[1]} r={4} fill={color} stroke="#fff" strokeWidth={1.5} />
+    </svg>
+  );
+}
+const isLive = (k: string) => ["Fact-checks", "Broadcasts", "Agenda", "Named on air"].includes(k);
+function relDay(iso: string): string {
+  const days = Math.floor((Date.now() - Date.parse(iso)) / 864e5);
+  if (days <= 0) return "today";
+  if (days === 1) return "yesterday";
+  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "America/New_York" });
+}
+function TrendingStrip({ cards, desktop = false }: { cards: TrendCard[]; desktop?: boolean; cols?: number }) {
   if (!cards.length) return null;
-  const onScroll = () => {
-    const el = ref.current; if (!el) return;
-    const w = (el.firstElementChild as HTMLElement | null)?.offsetWidth || 1;
-    setIdx(Math.min(cards.length - 1, Math.round(el.scrollLeft / (w + 10))));
+  const leadIdx = Math.max(0, cards.slice(0, 2).findIndex(c => c.spark && c.spark.length >= 6));
+  const lead = cards[leadIdx];
+  const rest = cards.filter((_, i) => i !== leadIdx).slice(0, 4);
+  const newest = cards.reduce((a, c) => (c.date > a ? c.date : a), cards[0].date);
+  const lc = TONE[lead.tone];
+  const pill = (c: TrendCard) => {
+    const col = TONE[c.tone];
+    return <span style={{ fontSize: 11, fontWeight: 600, color: col, background: col + "16", padding: "3px 9px", borderRadius: 99, whiteSpace: "nowrap" }}>{c.badge}</span>;
   };
   return (
-    <section aria-labelledby="trend-h" style={{ marginTop: desktop ? 0 : 18 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: desktop ? 0 : "0 20px", marginBottom: desktop ? 14 : 8 }}>
-        <h2 id="trend-h" style={{ fontFamily: SERIF, fontSize: desktop ? 26 : 18, fontWeight: 500, margin: 0, letterSpacing: "-0.01em", display: "flex", alignItems: "center", gap: 6 }}>
+    <section aria-labelledby="trend-h" style={{ margin: desktop ? "0" : "22px 20px 0" }}>
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, marginBottom: desktop ? 16 : 12 }}>
+        <h2 id="trend-h" style={{ fontFamily: SERIF, fontSize: desktop ? 30 : 22, fontWeight: 500, margin: 0, letterSpacing: "-0.015em", display: "flex", alignItems: "center", gap: 8 }}>
           Trending
-          <svg aria-hidden width={desktop ? 26 : 19} height={desktop ? 26 : 19} viewBox="0 0 24 24" fill="none" stroke={C.accent} strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" style={{ flex: "none" }}>
+          <svg aria-hidden width={desktop ? 26 : 20} height={desktop ? 26 : 20} viewBox="0 0 24 24" fill="none" stroke={C.accent} strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" style={{ flex: "none" }}>
             <path d="M3 17l6-6 4 4 8-8" /><path d="M14 7h7v7" />
           </svg>
         </h2>
-        <span style={{ fontSize: 9.5, color: C.mute, textTransform: "uppercase", letterSpacing: "0.06em", display: "flex", alignItems: "center", gap: 6 }}>
-          updates daily
-          <span style={{ background: C.accent, color: "#fff", fontWeight: 700, fontSize: 8.5, padding: "2px 5px", borderRadius: 3, letterSpacing: "0.05em" }}>NEW</span>
+        <span style={{ fontSize: 12, color: C.mute, display: "inline-flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
+          <span style={{ width: 7, height: 7, borderRadius: "50%", background: C.accent, animation: "pulse 2s infinite" }} />
+          Live · updated {relDay(newest)}
         </span>
       </div>
-      <div ref={ref} onScroll={desktop ? undefined : onScroll} className="vu-chips" style={desktop ? {
-        display: "grid", gridTemplateColumns: `repeat(${Math.min(cols, cards.length)}, minmax(0, 1fr))`, gap: 14,
-      } : {
-        display: "flex", gap: 10, overflowX: "auto", scrollSnapType: "x mandatory",
-        padding: "0 20px 2px", scrollPaddingLeft: 20, scrollbarWidth: "none",
-      }}>
-        {cards.map(c => {
-          const col = TONE[c.tone];
-          return (
-            <Link key={c.id} href={c.href} style={{
-              flex: desktop ? undefined : "0 0 76%", scrollSnapAlign: "start", textDecoration: "none", color: C.ink,
-              background: "#fff", border: `1px solid ${C.rule}`, borderTop: `3px solid ${col}`,
-              borderRadius: 6, padding: desktop ? "15px 16px 15px" : "11px 13px 12px", display: "flex", flexDirection: "column", gap: desktop ? 10 : 7, minHeight: desktop ? 150 : 128,
-            }}>
-              <span style={{ fontSize: 9.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: col }}>
-                {c.kicker} <span style={{ color: C.mute, fontWeight: 500 }}>· {c.dateLabel}</span>
-              </span>
-              <span style={{ fontFamily: SERIF, fontSize: desktop ? 17 : 15.5, lineHeight: 1.25, letterSpacing: "-0.005em", flex: 1 }}>{c.headline}</span>
-              <span style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                <span style={{ fontSize: 10.5, fontWeight: 700, color: col, background: col + "14", padding: "3px 7px", borderRadius: 99, whiteSpace: "nowrap" }}>{c.badge}</span>
-                <span style={{ fontSize: 10.5, color: C.mute, whiteSpace: "nowrap" }}>{["Fact-checks", "Broadcasts", "Agenda", "Named on air"].includes(c.kicker) ? "Live ledger" : "FRED"} →</span>
-              </span>
-            </Link>
-          );
-        })}
+      <div style={{ display: "grid", gridTemplateColumns: desktop ? "minmax(0, 1.1fr) minmax(0, 1fr)" : "1fr", gap: desktop ? 28 : 6, alignItems: "stretch" }}>
+        {/* lead */}
+        <Link href={lead.href} className="vu-trend-lead" style={{
+          textDecoration: "none", color: C.ink, background: "#fff", border: `1px solid ${C.rule}`, borderRadius: 14,
+          padding: desktop ? "22px 24px 18px" : "16px 16px 14px", display: "flex", flexDirection: "column", gap: 10,
+        }}>
+          <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: lc }}>
+            {lead.kicker} <span style={{ color: C.mute, fontWeight: 500 }}>· {lead.dateLabel}</span>
+          </span>
+          <span style={{ fontFamily: SERIF, fontSize: desktop ? 28 : 21, lineHeight: 1.18, letterSpacing: "-0.015em" }}>{lead.headline}</span>
+          {lead.spark && lead.spark.length >= 6 && <div style={{ marginTop: "auto", paddingTop: 6 }}><Spark data={lead.spark} color={lc} h={desktop ? 84 : 60} /></div>}
+          <span style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: lead.spark ? 2 : "auto" }}>
+            {pill(lead)}
+            <span style={{ fontSize: 12, color: C.mute, whiteSpace: "nowrap" }}>{isLive(lead.kicker) ? "Live ledger" : "FRED"} →</span>
+          </span>
+        </Link>
+        {/* ranked list */}
+        <ol style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column" }}>
+          {rest.map((c, i) => {
+            const col = TONE[c.tone];
+            return (
+              <li key={c.id} style={{ borderTop: i || !desktop ? `1px solid ${C.rule}` : "none" }}>
+                <Link href={c.href} className="vu-trend-row" style={{
+                  textDecoration: "none", color: C.ink, display: "grid", gridTemplateColumns: "30px minmax(0, 1fr) auto", gap: 12,
+                  alignItems: "start", padding: desktop ? "14px 4px" : "12px 2px",
+                }}>
+                  <span style={{ fontFamily: SERIF, fontSize: desktop ? 24 : 20, color: C.accent, lineHeight: 1, fontStyle: "italic" }}>{i + 2}</span>
+                  <span style={{ minWidth: 0 }}>
+                    <span style={{ display: "block", fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: col }}>
+                      {c.kicker} <span style={{ color: C.mute, fontWeight: 500 }}>· {c.dateLabel}</span>
+                    </span>
+                    <span style={{ display: "block", fontFamily: SERIF, fontSize: desktop ? 17.5 : 16, lineHeight: 1.28, marginTop: 4 }}>{c.headline}</span>
+                  </span>
+                  <span style={{ paddingTop: 2 }}>{pill(c)}</span>
+                </Link>
+              </li>
+            );
+          })}
+        </ol>
       </div>
-      {!desktop && cards.length > 1 && (
-        <div aria-hidden style={{ display: "flex", justifyContent: "center", gap: 5, marginTop: 9 }}>
-          {cards.map((c, i) => (
-            <span key={c.id} style={{ width: i === idx ? 14 : 5, height: 5, borderRadius: 99, background: i === idx ? C.ink : C.rule, transition: "width .2s" }} />
-          ))}
-        </div>
-      )}
     </section>
   );
 }
@@ -1917,7 +1949,7 @@ export default function LandingPage({ liveTrends = [] }: { liveTrends?: TrendCar
       <DarkHero med={med} />
       {/* Room before the dark band: a hard colour cut only reads as
           deliberate when the section before it has space to finish. */}
-      <Tile mob={mob} style={{ paddingBottom: mob ? 56 : 40 }}>
+      <Tile mob={mob} style={{ paddingTop: mob ? 0 : 44, paddingBottom: mob ? 56 : 52 }}>
         <div style={{ maxWidth: 1280, margin: "0 auto", padding: mob ? "0 20px" : "0 32px" }}>
           <DesktopTrending liveTrends={liveTrends} med={med} />
         </div>

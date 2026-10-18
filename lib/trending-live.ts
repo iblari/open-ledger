@@ -79,6 +79,7 @@ async function compute(): Promise<TrendCard[]> {
         date: asOf, dateLabel: fmtDay(asOf),
         href: "/live#radar-h",
         score: 4 + Math.min(top.z, 12) / 2,
+        spark: top.weekly,
       });
     }
     // Names said on air for the first time, newest first.
@@ -107,6 +108,6 @@ async function compute(): Promise<TrendCard[]> {
 
 export const liveTrending = unstable_cache(
   async () => { try { return await compute(); } catch { return []; } },
-  ["trending-live-v3"],
+  ["trending-live-v4"],
   { revalidate: 600 },
 );

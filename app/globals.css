@@ -229,3 +229,9 @@ html.vu-immersive body { min-height: calc(100lvh + 120px); }
 @media (prefers-reduced-motion: reduce) {
   .vu-wordmark { animation-duration: 0.01s; animation-delay: 0s; }
 }
+
+/* Homepage Trending: lead card + ranked rows */
+.vu-trend-lead { transition: border-color .15s ease, box-shadow .15s ease; }
+.vu-trend-lead:hover { border-color: #CFC7BB; box-shadow: 0 6px 18px rgba(20, 17, 14, .06); }
+.vu-trend-row { border-radius: 8px; transition: background .15s ease; }
+.vu-trend-row:hover { background: rgba(255, 255, 255, .7); }
