@@ -136,8 +136,8 @@ export default function ProChart(props: ProChartProps) {
   }, []);
   const phone = W < 520;
   const compact = !!props.compact;
-  const H = compact ? 150 : phone ? 230 : 280;
-  const M = { l: phone ? 40 : 52, r: phone ? 10 : 16, t: 28, b: 26 };
+  const H = compact ? 118 : phone ? 230 : 280;
+  const M = { l: phone ? 36 : 52, r: phone ? 10 : 16, t: compact ? 22 : 28, b: compact ? 20 : 26 };
 
   // Default range: enough to see the claim in context.
   const claimMs = t(claimDate);
@@ -167,7 +167,7 @@ export default function ProChart(props: ProChartProps) {
   const lo = Math.min(...vals), hi = Math.max(...vals);
   const y = scaleLinear().domain([Math.min(lo, lo >= 0 && hi > 0 && lo / hi < 0.35 ? 0 : lo), hi]).nice(5).range([H - M.b, M.t]);
   const x = scaleTime().domain([x0, x1]).range([M.l, W - M.r]);
-  const yTicks = y.ticks(phone ? 4 : 5);
+  const yTicks = y.ticks(compact ? 3 : phone ? 4 : 5);
   const xTicks = x.ticks(phone ? 4 : 6);
   const xFmt = (d: Date) => (range <= 1 && data.freq !== "a" ? `${MON[d.getUTCMonth()]}${d.getUTCMonth() === 0 ? " " + d.getUTCFullYear() : ""}` : String(d.getUTCFullYear()));
   const dec = data.decimals;
@@ -281,13 +281,14 @@ export default function ProChart(props: ProChartProps) {
   return (
     <div ref={box} style={{ fontFamily: SANS, userSelect: "none" }}>
       {/* Reading */}
-      <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 6 }}>
+      <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: compact ? 0 : 6 }}>
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".08em", textTransform: "uppercase", color: C.mute }}>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".08em", textTransform: "uppercase", color: C.mute, display: compact ? "none" : "block" }}>
             {hoverMs != null ? dateLabel(hoverMs, data.freq) : atClaim && atClaim.ms <= claimMs + 864e5 ? `When it was said · ${dateLabel(atClaim.ms, data.freq)}` : `Latest · ${latest ? dateLabel(latest.ms, data.freq) : ""}`}
           </div>
           <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
-            {headMain?.p && <span style={{ fontFamily: MONO, fontSize: compact ? 20 : phone ? 24 : 28, fontWeight: 500, color: C.ink, letterSpacing: "-0.02em" }}>{fv(headMain.p.v)}</span>}
+            {compact && <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: C.mute }}>{dateLabel(hoverMs ?? (atClaim?.ms ?? latest?.ms ?? 0), data.freq)}</span>}
+            {headMain?.p && <span style={{ fontFamily: MONO, fontSize: compact ? 17 : phone ? 24 : 28, fontWeight: 500, color: C.ink, letterSpacing: "-0.02em" }}>{fv(headMain.p.v)}</span>}
             {multi && headVals.filter(h => h !== headMain && h.p).map(h => (
               <span key={h.l.key} style={{ fontFamily: MONO, fontSize: 14, color: h.l.color }}>{h.l.name.split(",")[0]} {fv(h.p!.v)}</span>
             ))}

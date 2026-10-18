@@ -223,9 +223,9 @@ function SeriesChart({ c, color, fallback, onEmpty, compact }: { c: TrendingClai
   const empty = !loading && !(map?.series && data);
   useEffect(() => { if (empty) onEmpty?.(); }, [empty, onEmpty]);
   return (
-    <div ref={ref} style={{ margin: "8px 0 4px" }}>
+    <div ref={ref} style={{ margin: compact ? "4px 0 0" : "8px 0 4px" }}>
       {loading ? (
-        <div className="tc-skel" style={{ height: compact ? 190 : 250, background: "#F3EFE8", borderRadius: 10 }} />
+        <div className="tc-skel" style={{ height: compact ? 140 : 250, background: "#F3EFE8", borderRadius: 10 }} />
       ) : map?.series && data ? (
         <ProChart compact={compact} data={data} said={map.said ?? c.claimedValue ?? null} saidChange={saidChangeOf(c)} saidLine={map.saidCountry} claimDate={c.date} since={map.since} terms={map.terms} tone={color}
           repeats={c.repeats} watchHref={`/live?v=${c.videoId}${c.videoTime != null ? `&t=${Math.max(0, Math.floor(c.videoTime))}` : ""}`} />
@@ -250,10 +250,10 @@ function Card({ c, bench, onEmpty }: { c: TrendingClaim; bench: Bench | null; on
   const compact = phone && !open && !playing;
   return (
     <article style={{ background: C.card, border: `1px solid ${C.rule}`, borderRadius: 12, padding: compact ? "11px 13px" : "14px 16px", breakInside: "avoid", marginBottom: 12 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: SANS, fontSize: 12, color: C.mute, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: SANS, fontSize: 12, color: C.mute, flexWrap: phone ? "nowrap" : "wrap", minWidth: 0 }}>
         <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color, background: isTrue(c.rating) ? C.trueBg : C.falseBg, padding: "3px 8px", borderRadius: 5 }}>{label}</span>
         {c.live && <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: ".08em", color: "#fff", background: C.false, padding: "3px 7px", borderRadius: 5 }}>LIVE</span>}
-        <span>{[c.speaker, day(c.date), stamp(c.videoTime)].filter(Boolean).join(" · ")}</span>
+        <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{[phone ? c.speaker?.split(" ").slice(-1)[0] : c.speaker, day(c.date), phone ? null : stamp(c.videoTime)].filter(Boolean).join(" · ")}</span>
         <span style={{ marginLeft: "auto" }}><ShareClaimButton small iconOnly={phone} variant="light" path={c.path} quote={c.quote} verdict={label} /></span>
         {canEmbed ? (
           <button type="button" onClick={() => setPlaying(p => !p)} aria-expanded={playing} style={{ all: "unset", cursor: "pointer", color: C.true, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 4 }}>
@@ -291,8 +291,8 @@ function Card({ c, bench, onEmpty }: { c: TrendingClaim; bench: Bench | null; on
       )}
       <SeriesChart compact={compact} c={c} color={color} onEmpty={onEmpty} fallback={c.metricKey ? <MetricChart c={c} bench={bench} color={color} /> : <WebChart c={c} color={color} />} />
       {compact && (
-        <button type="button" onClick={() => setOpen(true)} style={{ all: "unset", cursor: "pointer", marginTop: 6, fontFamily: SANS, fontSize: 12.5, fontWeight: 600, color: C.true }}>
-          Details, sources and range ▾
+        <button type="button" onClick={() => setOpen(true)} style={{ all: "unset", cursor: "pointer", marginTop: 2, fontFamily: SANS, fontSize: 12, fontWeight: 600, color: C.true }}>
+          More ▾
         </button>
       )}
       {!compact && c.actual && !(playing && canEmbed) && <p style={{ fontFamily: SANS, fontSize: 13.5, lineHeight: 1.5, color: C.sub, margin: "8px 0 0" }}>{c.actual}</p>}
