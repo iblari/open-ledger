@@ -2,7 +2,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useIsMobileViewport, useViewportWidth } from "@/lib/viewport";
 import CheetahMark from "@/components/CheetahMark";
-import { liveAnnual, dataSignals, type Bench, type TrendCard } from "@/lib/bench-lens";
+import { liveAnnual, dataSignals, fmtBench, type Bench, type TrendCard } from "@/lib/bench-lens";
 import {
   BarChart, Bar, Cell as RechartsCell, LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
@@ -1531,21 +1531,40 @@ const TONE: Record<TrendCard["tone"], string> = { good: "#1f7a6d", bad: "#c2410c
 /** Lead story + ranked list. The lead is the newest trend that has a line
  *  to draw (else the newest); the other four are numbered beside it on
  *  desktop and below it on phones. */
-function Spark({ data, color, h = 64, fill = false }: { data: number[]; color: string; h?: number; fill?: boolean }) {
+function Spark({ data, color, h = 64, fill = false, labels, fmt }: { data: number[]; color: string; h?: number; fill?: boolean; labels?: string[]; fmt?: (v: number) => string }) {
+  const [hi, setHi] = useState<number | null>(null);
   const W = 300, mn = Math.min(...data), mx = Math.max(...data), r = mx - mn || 1;
   const pts = data.map((v, i) => [(i / (data.length - 1)) * W, h - 4 - ((v - mn) / r) * (h - 10)] as const);
   const d = pts.map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
-  const last = pts[pts.length - 1];
-  // The end dot is HTML, not SVG: the stretched viewBox would squash it into an oval.
-  const dot = <span style={{ position: "absolute", left: `${(last[0] / W) * 100}%`, top: `${(last[1] / h) * 100}%`, width: 10, height: 10, marginLeft: -5, marginTop: -5, borderRadius: "50%", background: color, border: "2px solid #fff" }} />;
+  const k = hi ?? data.length - 1;
+  const [px, py] = pts[k];
+  const pick = (e: React.PointerEvent<HTMLDivElement>) => {
+    const b = e.currentTarget.getBoundingClientRect();
+    setHi(Math.max(0, Math.min(data.length - 1, Math.round(((e.clientX - b.left) / b.width) * (data.length - 1)))));
+  };
+  const val = fmt ? fmt(data[k]) : String(+data[k].toFixed(2));
   return (
-    <>
-    {dot}
-    <svg viewBox={`0 0 ${W} ${h}`} width="100%" height={fill ? "100%" : h} preserveAspectRatio="none" aria-hidden style={{ display: "block", overflow: "visible", ...(fill ? { position: "absolute", inset: 0 } : {}) }}>
-      <path d={`${d} L${W},${h} L0,${h} Z`} fill={color} opacity={0.1} />
-      <path d={d} fill="none" stroke={color} strokeWidth={2.5} strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-    </svg>
-    </>
+    // Hover (or drag on touch) to read any point; the dot and label follow.
+    <div onPointerMove={pick} onPointerDown={pick} onPointerLeave={() => setHi(null)}
+      onClick={e => { e.preventDefault(); e.stopPropagation(); }}
+      style={{ position: fill ? "absolute" : "relative", inset: fill ? 0 : undefined, height: fill ? undefined : h, touchAction: "pan-y", cursor: "crosshair" }}>
+      <svg viewBox={`0 0 ${W} ${h}`} width="100%" height="100%" preserveAspectRatio="none" aria-hidden style={{ display: "block", overflow: "visible", position: "absolute", inset: 0 }}>
+        <path d={`${d} L${W},${h} L0,${h} Z`} fill={color} opacity={0.1} />
+        <path d={d} fill="none" stroke={color} strokeWidth={2.5} strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+      </svg>
+      {/* guide + dot are HTML so the stretched viewBox can't squash them */}
+      {hi != null && <span style={{ position: "absolute", left: `${(px / W) * 100}%`, top: 0, bottom: 0, width: 1, background: "rgba(20,17,14,.25)" }} />}
+      <span style={{ position: "absolute", left: `${(px / W) * 100}%`, top: `${(py / h) * 100}%`, width: 10, height: 10, marginLeft: -5, marginTop: -5, borderRadius: "50%", background: color, border: "2px solid #fff", pointerEvents: "none" }} />
+      {(hi != null || labels) && (
+        <span style={{
+          position: "absolute", top: -6, left: `${(px / W) * 100}%`, transform: `translateX(${px / W > 0.75 ? "-100%" : px / W < 0.25 ? "0" : "-50%"})`,
+          background: "#14110E", color: "#fff", borderRadius: 6, padding: "4px 8px", fontSize: 11.5, fontWeight: 600, whiteSpace: "nowrap", pointerEvents: "none",
+          opacity: hi != null ? 1 : 0, transition: "opacity .12s",
+        }}>
+          {labels?.[k] ? `${labels[k]} · ` : ""}{val}
+        </span>
+      )}
+    </div>
   );
 }
 const isLive = (k: string) => ["Fact-checks", "Broadcasts", "Agenda", "Named on air"].includes(k);
@@ -1593,7 +1612,8 @@ function TrendingStrip({ cards, desktop = false }: { cards: TrendCard[]; desktop
           {/* The line fills whatever height the card has (desktop: as tall as the list). */}
           {lead.spark && lead.spark.length >= 6 && (
             <div style={{ position: "relative", flex: 1, minHeight: desktop ? 110 : 64, margin: "6px 0 2px" }}>
-              <Spark data={lead.spark} color={lc} h={120} fill />
+              <Spark data={lead.spark} color={lc} h={120} fill labels={lead.sparkLabels}
+                fmt={v => lead.sparkUnit === "per 10k words" ? `${v.toFixed(1)} per 10k words` : fmtBench(v, lead.sparkUnit || "")} />
             </div>
           )}
           <span style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: lead.spark ? 2 : "auto" }}>

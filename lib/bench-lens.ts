@@ -280,6 +280,9 @@ export interface TrendCard {
   score: number;
   /** Recent values for a small trend line (oldest first), when there is one. */
   spark?: number[];
+  /** A label per spark point ("Sep 2026") and how to print a value. */
+  sparkLabels?: string[];
+  sparkUnit?: string;
 }
 
 const INAUG: Record<string, [number, number]> = {
@@ -455,7 +458,10 @@ export function dataSignals(bench: Bench | null): TrendCard[] {
   for (const c of best.values()) {
     const key = c.href.match(/metric=([a-z_]+)/)?.[1];
     const m = key ? bench.metrics[key] : undefined;
-    if (m) { const sp = monthlySeries(m).slice(-24).map(p => p.v); if (sp.length >= 6) c.spark = sp; }
+    if (m) {
+      const ser = monthlySeries(m).slice(-24);
+      if (ser.length >= 6) { c.spark = ser.map(p => p.v); c.sparkLabels = ser.map(p => p.label); c.sparkUnit = m.unit; }
+    }
   }
   return [...best.values()].sort((a, b) => b.score - a.score);
 }

@@ -80,6 +80,8 @@ async function compute(): Promise<TrendCard[]> {
         href: "/live#radar-h",
         score: 4 + Math.min(top.z, 12) / 2,
         spark: top.weekly,
+        sparkLabels: rad.weeks.map(w => `Week of ${fmtDay(w)}`),
+        sparkUnit: "per 10k words",
       });
     }
     // Names said on air for the first time, newest first.
@@ -108,6 +110,6 @@ async function compute(): Promise<TrendCard[]> {
 
 export const liveTrending = unstable_cache(
   async () => { try { return await compute(); } catch { return []; } },
-  ["trending-live-v4"],
+  ["trending-live-v5"],
   { revalidate: 600 },
 );
