@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-12T21:31:05.070Z",
+  "generatedAt": "2026-10-19T18:57:10.898Z",
   "series": [
     {
       "id": "frontier_training_compute",
@@ -251,13 +251,13 @@
         },
         {
           "t": "2026-07-01",
-          "v": 27,
+          "v": 26.97,
           "label": "GPT-6 Astra · OpenAI"
         }
       ],
       "latest": {
         "t": "2026-07-01",
-        "v": 27,
+        "v": 26.97,
         "label": "GPT-6 Astra · OpenAI"
       },
       "first": {
@@ -265,7 +265,7 @@
         "v": 19.38,
         "label": "MSRA (C, PReLU) · Microsoft Research"
       },
-      "score": 60.4,
+      "score": 60.5,
       "yoy": 0.3,
       "changeUnit": "oom",
       "changeWindowDays": 365,
@@ -3027,7 +3027,7 @@
         "t": "2000-01-01",
         "v": 227235
       },
-      "score": 32.2,
+      "score": 29,
       "yoy": 0.4,
       "changeUnit": "percent",
       "changeWindowDays": 365,
@@ -3035,7 +3035,9 @@
         "t": "2025-08-01",
         "v": 277668
       },
-      "confidenceNotes": []
+      "confidenceNotes": [
+        "no update in 3 months"
+      ]
     }
   ],
   "failures": []
