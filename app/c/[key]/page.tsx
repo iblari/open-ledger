@@ -36,7 +36,9 @@ export async function generateMetadata({ params }: { params: Promise<{ key: stri
     title: `${title} · Vote Unbiased`,
     description,
     alternates: { canonical: url },
-    openGraph: { title, description, url, siteName: "Vote Unbiased", type: "article" },
+    // This claim's own clip (falls back to the branded loop until rendered).
+    openGraph: { title, description, url, siteName: "Vote Unbiased", type: "article",
+      videos: [{ url: `https://voteunbiased.org/og/v/${c.key}.mp4`, secureUrl: `https://voteunbiased.org/og/v/${c.key}.mp4`, type: "video/mp4", width: 1200, height: 628 }] },
     twitter: { card: "summary_large_image", title, description },
   };
 }

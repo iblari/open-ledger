@@ -60,6 +60,9 @@ export const metadata: Metadata = {
     siteName: 'Vote Unbiased',
     locale: 'en_US',
     type: 'website',
+    // Branded loop (re-rendered daily with live numbers): iMessage, Slack,
+    // Discord and Telegram play it inline in the link preview.
+    videos: [{ url: 'https://voteunbiased.org/og/v/brand.mp4', secureUrl: 'https://voteunbiased.org/og/v/brand.mp4', type: 'video/mp4', width: 1200, height: 628 }],
   },
   twitter: {
     card: 'summary_large_image',
