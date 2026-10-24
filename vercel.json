@@ -12,5 +12,10 @@
       "path": "/api/cron/claim-charts",
       "schedule": "*/3 * * * *"
     }
-  ]
+  ],
+  "git": {
+    "deploymentEnabled": {
+      "og-media": false
+    }
+  }
 }
