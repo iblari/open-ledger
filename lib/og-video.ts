@@ -79,7 +79,10 @@ export async function clipData(c: TrendingClaim): Promise<ClipData | null> {
   if (!m?.series) return null;
   const sd = await getSeries(m.series, m.countries).catch(() => null);
   if (!sd) return null;
-  const geo = chartGeo(sd, m.said ?? c.claimedValue ?? null, c.date, m.saidCountry);
+  // Claims about the past ("inherited the worst inflation", "since he took
+  // office") aren't "said X today vs actual Y today": no said line or gap.
+  const historical = m.terms || !!m.since;
+  const geo = chartGeo(sd, historical ? null : (m.said ?? c.claimedValue ?? null), c.date, m.saidCountry);
   if (!geo) return null;
   return { key: c.key, quote: c.quote, speaker: c.speaker, date: c.date, rating: c.rating, geo };
 }
