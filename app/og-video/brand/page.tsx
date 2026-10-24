@@ -64,9 +64,9 @@ export default async function Brand() {
             <span className="k" style={{ color: "#E0493A" }}>Live</span>
             <span className="k">· {hero.speaker || "On air"} · {fmtDay(hero.date)} {fmtTime(hero.date)} ET</span>
           </div>
-          <div style={{ position: "absolute", left: 60, right: 60, top: 180, height: 110, display: "flex", alignItems: "center", gap: 6 }}>
-            {Array.from({ length: 22 }, (_, i) => (
-              <span key={i} style={{ flex: 1, height: "100%", background: ["#3A332C", "#4A413A", "#5A4F46"][i % 3], animation: `ogwv ${0.45 + (i % 5) * 0.06}s ${(i % 4) * 0.08}s infinite` }} />
+          <div style={{ position: "absolute", left: 60, right: 60, top: 180, height: 110, display: "flex", alignItems: "center", gap: 7 }}>
+            {Array.from({ length: 64 }, (_, i) => (
+              <span key={i} style={{ flex: 1, height: "100%", borderRadius: 3, background: ["#3A332C", "#4A413A", "#5A4F46"][i % 3], animation: `ogwv ${0.42 + ((i * 7) % 9) * 0.05}s ${((i * 3) % 7) * 0.07}s infinite` }} />
             ))}
           </div>
           <div className="sf A" style={{ position: "absolute", left: 60, right: 60, top: 360, fontSize: 46, lineHeight: 1.25, animationName: "cap" }}>
@@ -125,7 +125,8 @@ export default async function Brand() {
         </svg>
         <div className="A" style={{ position: "absolute", left: 168, top: 120, width: 864, height: 400, fontSize: 21, animationName: "lb" }}>
           {sig.map((s, i) => s.label && (
-            <div key={i} style={{ position: "absolute", right: 0, top: `${(i / 7) * 100 - 1}%` }}>
+            // Beside the end of its own bar (stripe i sits at y=STRIPES[i] in a 20–100 viewBox, 5 px per unit).
+            <div key={i} style={{ position: "absolute", left: widths[i] * 864 + 18, top: (STRIPES[i] - 20) * 5 - 6, whiteSpace: "nowrap" }}>
               {s.label} <b className={s.hot && i === 0 ? "r" : undefined} style={{ fontWeight: 700 }}>{s.value}</b> <span className="m">· {s.note}</span>
             </div>
           ))}

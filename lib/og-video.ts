@@ -112,11 +112,17 @@ export interface BrandData { hero: ClipData | null; signals: Signal[]; at: strin
 export async function brandData(): Promise<BrandData> {
   const claims = await getTrendingClaims().catch(() => [] as TrendingClaim[]);
   // The hero: the newest FALSE claim whose number can be drawn against its series.
-  let hero: ClipData | null = null;
-  for (const c of claims.filter(x => x.rating === "FALSE" && x.series?.series)) {
+  // Prefer a monthly/weekly US series where the claim sits on the same
+  // scale as the line (a 301% claim against a 40% line flattens the chart).
+  let hero: ClipData | null = null, fallback: ClipData | null = null;
+  for (const c of claims.filter(x => x.rating === "FALSE" && x.series?.series).slice(0, 25)) {
     const d = await clipData(c);
-    if (d && d.geo.said && d.geo.gap) { hero = d; break; }
+    if (!d || !d.geo.said || !d.geo.gap || d.geo.saidY == null) continue;
+    const onScale = d.geo.saidY > 60 && d.geo.saidY < 280 && !c.series!.series!.startsWith("wb_");
+    if (onScale) { hero = d; break; }
+    fallback = fallback ?? d;
   }
+  hero = hero ?? fallback;
   const radar = await getRadar().catch(() => null);
   const top = radar?.themes.filter(th => th.market && (th.status === "rising" || th.status === "new")).sort((a, b) => b.z - a.z)[0];
   const sigs: (Signal | null)[] = [
