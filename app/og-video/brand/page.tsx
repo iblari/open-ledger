@@ -48,7 +48,7 @@ export default async function Brand() {
   // Caption: the claim with the claimed number boxed.
   const q = hero?.quote || "";
   // Box the claimed figure: the longest number in the quote ("$22,000,000,000,000", not "20").
-  const num = g?.said ? (q.match(/[$]?\d[\d.,]*\s?%?/g) || []).sort((a, b) => b.replace(/\D/g, "").length - a.replace(/\D/g, "").length)[0] ?? null : null;
+  const num = g?.said ? (q.match(/[$]?\d[\d.,]*\s?%?/g) || []).sort((a, b) => (b.replace(/\D/g, "").length + (b.includes("%") || b.includes("$") ? 0.5 : 0)) - (a.replace(/\D/g, "").length + (a.includes("%") || a.includes("$") ? 0.5 : 0)))[0]?.replace(/[,.]$/, "") ?? null : null;
   const [pre, post] = num ? [q.slice(0, q.indexOf(num)), q.slice(q.indexOf(num) + num.length)] : [q, ""];
   const widths = [0.66, 0.58, 0.5, 0.44, 0.38, 0.32, 0.26];
   const sig = [...signals]; while (sig.length < 7) sig.push({ label: "", value: "", note: "", hot: false });
@@ -70,7 +70,7 @@ export default async function Brand() {
               <span key={i} style={{ flex: 1, height: "100%", borderRadius: 3, background: ["#3A332C", "#4A413A", "#5A4F46"][i % 3], animation: `ogwv ${0.42 + ((i * 7) % 9) * 0.05}s ${((i * 3) % 7) * 0.07}s infinite` }} />
             ))}
           </div>
-          <div className="sf A" style={{ position: "absolute", left: 60, right: 60, top: 360, fontSize: 46, lineHeight: 1.25, animationName: "cap" }}>
+          <div className="sf A" style={{ position: "absolute", left: 60, right: 60, top: 350, padding: "12px 8px", fontSize: 46, lineHeight: 1.3, animationName: "cap" }}>
             “{pre}{num && (
               <span style={{ position: "relative", display: "inline-block", padding: "0 6px" }}>{num}
                 <span className="A" style={{ position: "absolute", inset: "-6px -4px", border: "4px solid #E0493A", borderRadius: 8, animationName: "hit" }} />
