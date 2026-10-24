@@ -44,7 +44,7 @@ async function render(browser, url, file, seconds) {
   console.log(`rendered ${path.basename(file)} (${(fs.statSync(file).size / 1024).toFixed(0)} KB)`);
 }
 
-const browser = await chromium.launch();
+const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined, args: ["--no-sandbox"] });
 let ok = 0, failed = 0;
 // The brand loop: re-rendered every run (its numbers are live).
 try { await render(browser, `${SITE}/og-video/brand`, path.join(OUT, "v", "brand.mp4"), 14); ok++; } catch (e) { failed++; console.error("brand:", e.message); }

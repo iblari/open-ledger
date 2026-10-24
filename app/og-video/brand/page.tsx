@@ -47,9 +47,10 @@ export default async function Brand() {
   const g = hero?.geo;
   // Caption: the claim with the claimed number boxed.
   const q = hero?.quote || "";
-  const num = g?.said ? q.match(/[$]?\d[\d.,]*\s?%?/)?.[0] : null;
+  // Box the claimed figure: the longest number in the quote ("$22,000,000,000,000", not "20").
+  const num = g?.said ? (q.match(/[$]?\d[\d.,]*\s?%?/g) || []).sort((a, b) => b.replace(/\D/g, "").length - a.replace(/\D/g, "").length)[0] ?? null : null;
   const [pre, post] = num ? [q.slice(0, q.indexOf(num)), q.slice(q.indexOf(num) + num.length)] : [q, ""];
-  const widths = [0.86, 0.71, 0.62, 0.5, 0.41, 0.33, 0.24];
+  const widths = [0.66, 0.58, 0.5, 0.44, 0.38, 0.32, 0.26];
   const sig = [...signals]; while (sig.length < 7) sig.push({ label: "", value: "", note: "", hot: false });
 
   return (

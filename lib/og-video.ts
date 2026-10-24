@@ -118,6 +118,7 @@ export async function brandData(): Promise<BrandData> {
   for (const c of claims.filter(x => x.rating === "FALSE" && x.series?.series).slice(0, 25)) {
     const d = await clipData(c);
     if (!d || !d.geo.said || !d.geo.gap || d.geo.saidY == null) continue;
+    if (/\.\.\.|…/.test(d.quote) || d.quote.length > 110) { fallback = fallback ?? d; continue; }   // halting or long quotes read badly
     // Level series where "said X, actually Y" reads cleanly at a glance.
     const HERO_OK = ["cpi_yoy", "core_cpi_yoy", "pce_yoy", "gas", "diesel", "unemployment", "mortgage", "treasury_10y", "fed_funds", "approval", "murder_rate", "eggs", "debt", "oil_wti"];
     const onScale = d.geo.saidY > 60 && d.geo.saidY < 280 && HERO_OK.includes(c.series!.series!);
@@ -128,7 +129,7 @@ export async function brandData(): Promise<BrandData> {
   const radar = await getRadar().catch(() => null);
   const top = radar?.themes.filter(th => th.market && (th.status === "rising" || th.status === "new")).sort((a, b) => b.z - a.z)[0];
   const sigs: (Signal | null)[] = [
-    top ? { label: `${top.label} talk`, value: top.baseRate > 0 ? `↑ ${(top.recentRate / top.baseRate).toFixed(1)}×` : "new", note: "on air, 14 days", hot: true } : null,
+    top ? { label: top.label, value: top.baseRate > 0 ? `↑ ${(top.recentRate / top.baseRate).toFixed(1)}×` : "new", note: "said on air", hot: true } : null,
     ...(await Promise.all([
       latest("treasury_10y", "10-yr Treasury"),
       latest("cpi_yoy", "Inflation"),
