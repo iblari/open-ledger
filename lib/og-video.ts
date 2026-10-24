@@ -118,9 +118,11 @@ export async function brandData(): Promise<BrandData> {
   for (const c of claims.filter(x => x.rating === "FALSE" && x.series?.series).slice(0, 25)) {
     const d = await clipData(c);
     if (!d || !d.geo.said || !d.geo.gap || d.geo.saidY == null) continue;
-    const onScale = d.geo.saidY > 60 && d.geo.saidY < 280 && !c.series!.series!.startsWith("wb_");
+    // Level series where "said X, actually Y" reads cleanly at a glance.
+    const HERO_OK = ["cpi_yoy", "core_cpi_yoy", "pce_yoy", "gas", "diesel", "unemployment", "mortgage", "treasury_10y", "fed_funds", "approval", "murder_rate", "eggs", "debt", "oil_wti"];
+    const onScale = d.geo.saidY > 60 && d.geo.saidY < 280 && HERO_OK.includes(c.series!.series!);
     if (onScale) { hero = d; break; }
-    fallback = fallback ?? d;
+    if (!c.series!.series!.startsWith("wb_") && !["fdi_inflows", "factory_construction"].includes(c.series!.series!)) fallback = fallback ?? d;
   }
   hero = hero ?? fallback;
   const radar = await getRadar().catch(() => null);

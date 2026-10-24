@@ -110,7 +110,7 @@ export default async function Brand() {
       {/* 3 · signals → cheetah */}
       <div className="sc A" style={{ animationName: "S3" }}>
         <div className="k A" style={{ position: "absolute", left: 60, top: 46, animationName: "lb" }}>Live signals · right now</div>
-        <svg viewBox="0 20 240 80" style={{ position: "absolute", left: 168, top: 120, width: 864, height: 400, overflow: "visible" }}>
+        <svg viewBox="0 20 240 80" style={{ position: "absolute", left: 168, top: 170, width: 864, height: 288, overflow: "visible" }}>
           <defs><clipPath id="ogc">{STRIPES.map(y => <rect key={y} x="0" y={y} width="240" height="7" />)}</clipPath></defs>
           <g className="A" style={{ animationName: "barO" }}>
             {STRIPES.map((y, i) => (
@@ -123,10 +123,10 @@ export default async function Brand() {
             <path className="A" d={CHEETAH_EYE} fill="#E0493A" style={{ transformOrigin: "216px 38px", animationName: "eye" }} />
           </g>
         </svg>
-        <div className="A" style={{ position: "absolute", left: 168, top: 120, width: 864, height: 400, fontSize: 21, animationName: "lb" }}>
+        <div className="A" style={{ position: "absolute", left: 168, top: 170, width: 864, height: 288, fontSize: 21, animationName: "lb" }}>
           {sig.map((s, i) => s.label && (
-            // Beside the end of its own bar (stripe i sits at y=STRIPES[i] in a 20–100 viewBox, 5 px per unit).
-            <div key={i} style={{ position: "absolute", left: widths[i] * 864 + 18, top: (STRIPES[i] - 20) * 5 - 6, whiteSpace: "nowrap" }}>
+            // Beside the end of its own bar (stripe i sits at y=STRIPES[i] in a 20–100 viewBox, 3.6 px per unit).
+            <div key={i} style={{ position: "absolute", left: widths[i] * 864 + 18, top: (STRIPES[i] - 20) * 3.6 - 3, whiteSpace: "nowrap", lineHeight: "26px" }}>
               {s.label} <b className={s.hot && i === 0 ? "r" : undefined} style={{ fontWeight: 700 }}>{s.value}</b> <span className="m">· {s.note}</span>
             </div>
           ))}
