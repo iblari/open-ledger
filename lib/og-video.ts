@@ -115,7 +115,9 @@ export async function brandData(): Promise<BrandData> {
   // Prefer a monthly/weekly US series where the claim sits on the same
   // scale as the line (a 301% claim against a 40% line flattens the chart).
   let hero: ClipData | null = null, fallback: ClipData | null = null;
-  for (const c of claims.filter(x => x.rating === "FALSE" && x.series?.series).slice(0, 25)) {
+  // Claims about the present only: "said X, it's actually Y" is wrong framing
+  // for claims comparing presidents or measuring from a past date.
+  for (const c of claims.filter(x => x.rating === "FALSE" && x.series?.series && !x.series.terms && !x.series.since).slice(0, 30)) {
     const d = await clipData(c);
     if (!d || !d.geo.said || !d.geo.gap || d.geo.saidY == null) continue;
     if (/\.\.\.|…/.test(d.quote) || d.quote.length > 110) { fallback = fallback ?? d; continue; }   // halting or long quotes read badly
