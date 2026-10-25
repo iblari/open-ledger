@@ -70,7 +70,7 @@ export async function shipBuild(reqId: number): Promise<TeamMessage | null> {
   const b = await getBuild(reqId);
   if (b?.status === "shipped") return null;
   if (!b || b.status !== "ready" || !b.pr) return post("claude", `#${reqId} isn't ready to ship yet.`, "build", reqId);
-  const r = await gh(`/pulls/${b.pr}/merge`, { method: "PUT", body: JSON.stringify({ merge_method: "squash", commit_title: `Team room #${reqId}: ${(b.summary || "").split("\n")[0].slice(0, 60)} (#${b.pr})` }) });
+  const r = await gh(`/pulls/${b.pr}/merge`, { method: "PUT", body: JSON.stringify({ merge_method: "squash", commit_title: `Team room #${reqId} (#${b.pr})` }) });
   if (!r.ok) {
     const msg = ((await r.json().catch(() => ({}))) as { message?: string }).message || String(r.status);
     return post("claude", `Merging #${reqId} failed: ${msg}. The preview is still there; I'll sort it out.`, "build", reqId);
