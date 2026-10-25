@@ -103,8 +103,13 @@ const MULTI_YEAR = /\b(in|over|during|across|within)\s+(the\s+(last|past|first)\
  *    later year than the series has → no chart (the card would show 2025's
  *    42% while the finding says 89.8% now).
  */
+/** US-wide trade series can't answer a claim about one trading partner. */
+const US_TRADE = new Set(["trade_balance", "imports", "exports", "customs_duties"]);
+const PARTNER = /\b(canada|canadian|mexico|mexican|china|chinese|japan|japanese|germany|german|european union|\beu\b|india|indian|vietnam|korea|korean|taiwan|britain|british|united kingdom|\buk\b|brazil|switzerland|swiss|ireland|italy|france|french)\b/i;
+
 export function cleanMapping<T extends ClaimSeries | null | undefined>(m: T, c: { quote: string; actual?: string; explanation?: string; date?: string }): T {
   if (!m || !m.series) return m;
+  if (US_TRADE.has(m.series) && PARTNER.test(c.quote)) return { ...m, series: null } as T;
   if (FLOW.has(m.series) && MULTI_YEAR.test(c.quote)) return { ...m, series: null } as T;
   if (m.series.startsWith("wb_")) {
     const text = `${c.actual || ""} ${c.explanation || ""}`;

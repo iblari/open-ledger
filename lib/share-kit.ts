@@ -17,12 +17,14 @@ import { topicOf } from "./claim-topics";
 import { loadTopicTags } from "./topic-tags";
 import { kvGet, kvSetMany } from "./live-kv";
 import { getMediaManifest, metricClipName } from "./og-media";
+import { excerpt, firstNumber } from "./quote-fit";
+import { getReleaseCalendar, type CalendarItem } from "./release-calendar";
 
 const SITE = "https://voteunbiased.org";
 const TCO = 23;            // X counts every link as 23 characters
 const MAX_POST = 280;
 export const utm = (campaign: string) => `utm_source=x&utm_medium=social&utm_campaign=${campaign}`;
-const withUtm = (url: string, campaign: string) => `${url}${url.includes("?") ? "&" : "?"}${utm(campaign)}`;
+const withUtm = (url: string, campaign: string, content?: string) => `${url}${url.includes("?") ? "&" : "?"}${utm(campaign)}${content ? `&utm_content=${content}` : ""}`;
 const RATING_LABEL: Record<string, string> = { FALSE: "False", TRUE: "True", "MOSTLY TRUE": "Mostly true", "MOSTLY FALSE": "Mostly false" };
 const clip = (s: string, n: number) => (s.length > n ? s.slice(0, Math.max(1, n - 1)).replace(/\s+\S*$/, "").replace(/[,;:\s]+$/, "") + "…" : s);
 const squash = (s: string) => s.replace(/\s+/g, " ").trim();
@@ -54,17 +56,34 @@ function sourceOf(actual: string, sources: { title: string; url: string }[], ser
   try { return sources[0] ? new URL(sources[0].url).hostname.replace(/^www\./, "") : "official data"; } catch { return "official data"; }
 }
 
-/** Sam's format, fitted to 280 (links count as 23). */
-function claimCaption(quote: string, data: string, source: string, link: string, tag: string | null): string {
+/** Cut a finding at a clause boundary to fit, ending cleanly (no "…"). */
+function fitClause(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max);
+  const at = Math.max(cut.lastIndexOf("; "), cut.lastIndexOf(", "), cut.lastIndexOf(" — "), cut.lastIndexOf(" ("));
+  if (at > 40) return cut.slice(0, at).replace(/[,;:(\s]+$/, "");
+  return excerpt(text, max).text;
+}
+
+/** Sam's format, fitted to 280 (links count as 23), with no sentence cut off:
+ *    Claim: "…" <the data> (<source>). <link> #Topic */
+function claimCaption(quote: string, data: string, source: string, link: string, tag: string | null): { caption: string; quote: string; data: string } {
   const src = data.includes(source) ? "" : ` (${source})`;
   const tail = ` ${link}${tag ? ` ${tag}` : ""}`;
   const fixed = `Claim: "" ${src}.`.length + 1 + TCO + (tag ? tag.length + 1 : 0);
-  let room = MAX_POST - fixed;
-  const qs = squash(quote);
-  const d = clip(data, Math.max(80, room - Math.min(qs.length, 110)));
-  room -= d.length;
-  const q = clip(qs, Math.max(40, room));
-  return `Claim: "${q}" ${d}${src}${/[….!?]$/.test(d + src) ? "" : "."}${tail}`;
+  const room = MAX_POST - fixed;
+  // The quote gets up to ~110 characters as complete sentences; the data line gets the rest.
+  const q = excerpt(squash(quote), Math.min(110, Math.max(50, room - Math.min(data.length, 120)))).text;
+  const d = fitClause(data, room - q.length);
+  const end = /[….!?]$/.test(d + src) ? "" : ".";
+  return { caption: `Claim: "${q}" ${d}${src}${end}${tail}`, quote: q, data: d };
+}
+
+/** One line, numbers first: "Said: 301%. Data: 68.9% (IMF)." */
+function hookFor(quote: string, data: string, source: string, ratingLabel: string): string {
+  const said = firstNumber(quote), got = firstNumber(data);
+  if (said && got && said !== got) return `Said: ${said}. Data: ${got}${data.includes(source) ? "" : ` (${source})`}.`;
+  return `${ratingLabel}: ${fitClause(data, 90)}.`.replace(/\.\.$/, ".");
 }
 
 /* ── first-seen bookkeeping (stable timestamps for ?updated_since) ─────── */
@@ -91,6 +110,8 @@ export interface KitClaim {
   topic: string; hashtag: string | null;
   link: string; image: string; video: string | null; watch: string;
   caption: string;
+  /** One line, numbers first, to lead a post. */
+  hook: string;
   firstSeenAt: string;
 }
 export interface KitMetric {
@@ -99,6 +120,9 @@ export interface KitMetric {
   dataLine: string; source: string; hashtag: string | null;
   link: string; dashboardLink: string | null; image: string; video: string | null;
   caption: string;
+  hook: string;
+  /** Next scheduled release of this metric, if known. */
+  nextRelease: string | null;
   /** When this observation first appeared on the site (the release-day trigger). */
   dataUpdatedAt: string;
   releasedLast24h: boolean;
@@ -108,6 +132,8 @@ export interface ShareKit {
   updatedSince: string | null;
   brand: { video: string; tagline: string; url: string };
   rules: string[];
+  /** Upcoming official releases (CPI, jobs, PPI, GDP, gas) for pre-scheduling. */
+  calendar: CalendarItem[];
   claims: KitClaim[];
   metrics: KitMetric[];
   onAir: { theme: string; change: string; url: string } | null;
@@ -115,7 +141,7 @@ export interface ShareKit {
 
 export async function buildShareKit(opts: { updatedSince?: string | null } = {}): Promise<ShareKit> {
   const now = new Date().toISOString();
-  const [claimsAll, manifest, seenRaw] = await Promise.all([getTrendingClaims().catch(() => []), getMediaManifest(), loadSeen(), loadTopicTags()]);
+  const [claimsAll, manifest, seenRaw, , calendar] = await Promise.all([getTrendingClaims().catch(() => []), getMediaManifest(), loadSeen(), loadTopicTags(), getReleaseCalendar().catch(() => [] as CalendarItem[])]);
   const seen: Seen = seenRaw ?? {};
   // First run: date everything by its own date, so the backlog isn't "new".
   const bootstrap = seenRaw != null && !seen._init;
@@ -131,12 +157,14 @@ export async function buildShareKit(opts: { updatedSince?: string | null } = {})
     .slice(0, 60)
     .map(c => {
       const page = `${SITE}${c.path}`;
-      const link = withUtm(page, "claim");
+      const id = `claim:${c.key}`;
+      const link = withUtm(page, "claim", id);
       const dataLine = dataLineOf(c.actual || "");
       const source = sourceOf(c.actual || "", c.sources || [], c.series?.series);
       const topic = topicOf(c.quote);
       const hashtag = HASHTAG[topic] ?? null;
-      const id = `claim:${c.key}`;
+      const cap = claimCaption(c.quote, dataLine, source, link, hashtag);
+      const label = RATING_LABEL[c.rating] || c.rating;
       return {
         id, type: "claim" as const, key: c.key,
         claimText: squash(c.quote), speaker: c.speaker || null, event: c.title, saidAt: c.date,
@@ -145,7 +173,8 @@ export async function buildShareKit(opts: { updatedSince?: string | null } = {})
         link, image: `${page}/opengraph-image`,
         video: manifest[c.key] ? `${SITE}/og/v/${c.key}.mp4` : null,
         watch: `${SITE}/live?v=${c.videoId}${c.videoTime != null ? `&t=${Math.max(0, Math.floor(c.videoTime))}` : ""}`,
-        caption: claimCaption(c.quote, dataLine, source, link, hashtag),
+        caption: cap.caption,
+        hook: hookFor(cap.quote, dataLine, source, label),
         firstSeenAt: firstSeen(id, c.date),
       };
     });
@@ -158,7 +187,7 @@ export async function buildShareKit(opts: { updatedSince?: string | null } = {})
     const obs = pts[pts.length - 1].d;
     const name = shortName(mid);
     const dash = dashboardMetricFor(mid);
-    const link = withUtm(`${SITE}/s/${mid}`, "metric");
+    const link = withUtm(`${SITE}/s/${mid}`, "metric", `metric:${mid}:${obs}`);
     const change = c.change ? c.change.replace(/^▲ /, "up ").replace(/^▼ /, "down ") : null;
     const dataLine = `${name}: ${c.value} (${c.valueDate})${change ? `, ${change}` : ""}`;
     const hashtag = METRIC_TAG[mid] ?? null;
@@ -173,6 +202,8 @@ export async function buildShareKit(opts: { updatedSince?: string | null } = {})
       image: `${SITE}/og/m/${mid}.png?d=${obs}`,
       video: manifest[clipName]?.date === obs ? `${SITE}/og/v/${clipName}.mp4?d=${obs}` : null,
       caption: `${dataLine}. Source: ${source}. ${link}${hashtag ? ` ${hashtag}` : ""}`,
+      hook: `${name}: ${c.value}${change ? `, ${change}` : ""}.`,
+      nextRelease: calendar.find(r => r.metrics.includes(mid))?.datetime ?? null,
       dataUpdatedAt: updated,
       releasedLast24h: Date.now() - Date.parse(updated) < 864e5,
     };
@@ -194,8 +225,9 @@ export async function buildShareKit(opts: { updatedSince?: string | null } = {})
       "Use the site's rating exactly (True / Mostly true / False). Never upgrade or soften it.",
       "Always link the exact claim or chart page; the preview card carries the chart and the rating.",
       "X caches a link's card for about a week; to refresh a card, add &v=2 to the link.",
-      "Links carry UTM tags (utm_source=x, utm_medium=social) so visits from posts are counted.",
+      "Links carry UTM tags (utm_source=x, utm_medium=social, utm_content=<item id>) so visits per post are counted: GET /api/traffic?since=YYYY-MM-DD with your team key.",
     ],
+    calendar,
     claims: since != null ? claims.filter(c => Date.parse(c.firstSeenAt) > since) : claims,
     metrics: since != null ? metrics.filter(m => Date.parse(m.dataUpdatedAt) > since) : metrics,
     onAir: top ? { theme: top.label, change: top.baseRate > 0 ? `${(top.recentRate / top.baseRate).toFixed(1)}× more talk in 14 days` : "new in the last 14 days", url: withUtm(`${SITE}/live#radar-h`, "radar") } : null,
