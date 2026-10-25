@@ -17,7 +17,7 @@ import { topicOf } from "./claim-topics";
 import { loadTopicTags } from "./topic-tags";
 import { kvGet, kvSetMany } from "./live-kv";
 import { getMediaManifest, metricClipName } from "./og-media";
-import { excerpt, firstNumber } from "./quote-fit";
+import { excerpt } from "./quote-fit";
 import { getReleaseCalendar, type CalendarItem } from "./release-calendar";
 
 const SITE = "https://voteunbiased.org";
@@ -62,29 +62,59 @@ function fitClause(text: string, max: number): string {
   const cut = text.slice(0, max);
   const at = Math.max(cut.lastIndexOf("; "), cut.lastIndexOf(", "), cut.lastIndexOf(" — "), cut.lastIndexOf(" ("));
   if (at > 40) return cut.slice(0, at).replace(/[,;:(\s]+$/, "");
-  return excerpt(text, max).text;
+  // No clause break: end on a whole word, dropping a dangling connector ("…tied to fraud targeting" → "…tied to fraud").
+  let w = cut.replace(/\s+\S*$/, "");
+  while (/\s(to|of|for|in|on|at|by|with|and|or|the|a|an|from|that|which|as|than|targeting|including|per)$/i.test(w)) w = w.replace(/\s+\S+$/, "");
+  return w.replace(/[,;:(\s]+$/, "");
 }
 
 /** Sam's format, fitted to 280 (links count as 23), with no sentence cut off:
  *    Claim: "…" <the data> (<source>). <link> #Topic */
+/** The source to credit after the data line: none when the line already names one. */
+function creditFor(data: string, fallback: string): string | null {
+  if (AGENCIES.test(data) || /\b(reports?|reported|according to|per|announced|statistical|central bank|census|bureau|ministry|department|office)\b/i.test(data)) return null;
+  return fallback;
+}
+
 function claimCaption(quote: string, data: string, source: string, link: string, tag: string | null): { caption: string; quote: string; data: string } {
-  const src = data.includes(source) ? "" : ` (${source})`;
+  const credit = creditFor(data, source);
+  const src = credit ? ` (${credit})` : "";
   const tail = ` ${link}${tag ? ` ${tag}` : ""}`;
   const fixed = `Claim: "" ${src}.`.length + 1 + TCO + (tag ? tag.length + 1 : 0);
   const room = MAX_POST - fixed;
-  // The quote gets up to ~110 characters as complete sentences; the data line gets the rest.
-  const q = excerpt(squash(quote), Math.min(110, Math.max(50, room - Math.min(data.length, 120)))).text;
-  const d = fitClause(data, room - q.length);
+  // The data line first (complete, at most ~170), then the quote gets all the room left:
+  // whole if it fits, else its sentence with the number, else a clause ending in "…" (an omission mark).
+  const qs = squash(quote);
+  const d = fitClause(data, Math.max(80, Math.min(170, room - Math.min(qs.length, 60))));
+  const q = excerpt(qs, Math.max(40, room - d.length)).text;
   const end = /[….!?]$/.test(d + src) ? "" : ".";
   return { caption: `Claim: "${q}" ${d}${src}${end}${tail}`, quote: q, data: d };
 }
 
 /** One line, numbers first: "Said: 301%. Data: 68.9% (IMF)." */
-function hookFor(quote: string, data: string, source: string, ratingLabel: string): string {
-  const said = firstNumber(quote), got = firstNumber(data);
-  if (said && got && said !== got) return `Said: ${said}. Data: ${got}${data.includes(source) ? "" : ` (${source})`}.`;
-  return `${ratingLabel}: ${fitClause(data, 90)}.`.replace(/\.\.$/, ".");
+function hookFor(quote: string, data: string, source: string | null, ratingLabel: string): string {
+  const said = numbers(quote)[0];
+  if (said) {
+    const unit = unitOf(said);
+    const got = numbers(data).find(n => unitOf(n) === unit) ?? (unit === "" ? numbers(data)[0] : undefined);
+    if (got && got !== said) return `Said: ${said}. Data: ${got}${source ? ` (${source})` : ""}.`;
+  }
+  return `${ratingLabel}: ${fitClause(data, 110)}.`;
 }
+/** Numbers as written, minus bare years, with long digit strings made readable (90,000,000,000 → 90B). */
+function numbers(s: string): string[] {
+  const out: string[] = [];
+  const re = /[$]?\d[\d,]*(?:\.\d+)?\s?(?:%|percent\b|(?:k|m|b|t)\b|thousand\b|million\b|billion\b|trillion\b|points?\b|pts\b)?/gi;
+  for (const m of s.match(re) || []) {
+    let t = m.trim().replace(/\s?percent$/i, "%").replace(/,$/, "");
+    if (/^(19|20)\d\d$/.test(t)) continue;
+    const plain = t.replace(/[$,]/g, "");
+    if (/^\d{7,}$/.test(plain)) { const v = Number(plain); t = (t.startsWith("$") ? "$" : "") + (v >= 1e12 ? `${+(v / 1e12).toFixed(1)}T` : v >= 1e9 ? `${+(v / 1e9).toFixed(1)}B` : `${+(v / 1e6).toFixed(1)}M`); }
+    out.push(t);
+  }
+  return out;
+}
+const unitOf = (n: string) => /%/.test(n) ? "%" : /^\$|[BMT]$|billion|million|trillion/i.test(n) ? "$" : /point|pts/i.test(n) ? "pts" : "";
 
 /* ── first-seen bookkeeping (stable timestamps for ?updated_since) ─────── */
 
@@ -174,7 +204,7 @@ export async function buildShareKit(opts: { updatedSince?: string | null } = {})
         video: manifest[c.key] ? `${SITE}/og/v/${c.key}.mp4` : null,
         watch: `${SITE}/live?v=${c.videoId}${c.videoTime != null ? `&t=${Math.max(0, Math.floor(c.videoTime))}` : ""}`,
         caption: cap.caption,
-        hook: hookFor(cap.quote, dataLine, source, label),
+        hook: hookFor(cap.quote, dataLine, creditFor(dataLine, source) ?? (dataLine.match(AGENCIES)?.[1] || null), label),
         firstSeenAt: firstSeen(id, c.date),
       };
     });
