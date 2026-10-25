@@ -35,7 +35,8 @@ Every item has a stable `id`. Use it to skip anything already posted.
 | `image` | The 1200×630 card (PNG) |
 | `video` | 8-second 16:9 MP4, or `null` until rendered. Only claims charted against an official series get one; use `image` otherwise. |
 | `watch` | The moment in the broadcast |
-| `caption` | Draft in Sam's format, fitted to 280 characters: `Claim: "…" <data> (<source>). <link> #Topic` |
+| `caption` | Draft in Sam's format, fitted to 280 characters with the link counted as 23: `Claim: "…" <data> (<source>). <link> #Topic`. The data line is never cut mid-sentence. A long quote is trimmed to its sentence with the number; if that's still too long, "…" marks the omission. |
+| `hook` | One line, numbers first. `Said: 301%. Data: 68.9% (IMF).` appears only when the two numbers are clearly the same kind and differ; otherwise it's the rating plus the finding. |
 | `firstSeenAt` | When the site first published it |
 
 ### `metrics[]`
@@ -52,6 +53,8 @@ Every item has a stable `id`. Use it to skip anything already posted.
 | `video` | 8-second MP4 of the chart animating in. It is `null` until the clip for the current number has rendered (within about an hour of a release). It never points to a clip with an old number. |
 | `dataUpdatedAt` | When this reading first appeared on the site |
 | `releasedLast24h` | The release-day trigger |
+| `hook` | For example "US inflation: 3.7%, up 0.7 pts vs a year earlier." |
+| `nextRelease` | When the next official update is due (ISO time, ET offset) |
 
 Sam's metric ids:
 
@@ -64,6 +67,28 @@ Sam's metric ids:
 | Unemployment | `unemployment` |
 | Debt | `debt` |
 | PPI | `ppi_yoy`, `ppi_mom` |
+
+### `calendar[]`: upcoming releases
+
+`calendar[]` lists the next official releases, for pre-scheduling: CPI, jobs, PPI and GDP (from the BLS and BEA schedules via FRED), plus weekly gas prices (EIA, Mondays). Each entry has:
+
+- `name` and `agency`;
+- `date`, `timeET` and `datetime`;
+- `metrics` and `links`;
+- `daysAway`.
+
+The same list is at `GET /api/release-calendar`.
+
+### Traffic: `GET /api/traffic?since=YYYY-MM-DD`
+
+Send your team key (`Authorization: Bearer …` or `?key=`). The response gives visits:
+
+- per post: `byPost[].id` matches the feed's `id`, through `utm_content` on every link;
+- per page;
+- per source and campaign;
+- per day, with `fromX`.
+
+Only real browsers are counted, not link-preview bots, and each page counts once per visitor session.
 
 ### Other fields
 
@@ -95,7 +120,7 @@ A human version with copy buttons is at **https://voteunbiased.org/share**.
 2. Use the site's rating exactly. Never upgrade or soften it.
 3. Always link the exact claim or chart page.
 4. X caches a card for about a week. To force a fresh card, add `&v=2` to the link.
-5. Keep the UTM tags (`utm_source=x&utm_medium=social`) so visits from posts are measured.
+5. Keep the UTM tags (`utm_source=x&utm_medium=social&utm_content=<id>`). They're how visits per post get counted in `/api/traffic`.
 
 ## Asking for more
 
