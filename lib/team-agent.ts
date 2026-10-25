@@ -21,6 +21,7 @@ const MAX_BOT_RUN = 10;
 export const TYPING_KEY = (m: Member) => `team:typing:${m}`;
 export const WEBHOOK_KEY = "team:webhook:sam";
 export const WEBHOOK_SECRET_KEY = "team:webhook:sam:secret";
+export const WEBHOOK_HEADERS_KEY = "team:webhook:sam:headers";
 
 async function liveNumbers(): Promise<string> {
   const ids = ["cpi_yoy", "core_cpi_yoy", "ppi_yoy", "gas", "payrolls_chg", "unemployment", "debt"];
@@ -114,7 +115,9 @@ export async function claudeRespond(trigger: TeamMessage): Promise<void> {
 /** Tell Sam's bot about a new message from Ib or Claude, if Sam registered a webhook. */
 export async function pingSam(msg: TeamMessage): Promise<void> {
   if (msg.from === "sam") return;
-  const [url, secret] = await kvGet([WEBHOOK_KEY, WEBHOOK_SECRET_KEY]).catch(() => [null, null]);
+  const [url, secret, hdrs] = await kvGet([WEBHOOK_KEY, WEBHOOK_SECRET_KEY, WEBHOOK_HEADERS_KEY]).catch(() => [null, null, null]);
+  let extra: Record<string, string> = {};
+  try { extra = hdrs ? JSON.parse(hdrs) : {}; } catch {}
   if (!url) return;
   const body = JSON.stringify({
       event: "team.message",
@@ -127,8 +130,9 @@ export async function pingSam(msg: TeamMessage): Promise<void> {
   const sig = secret ? createHmac("sha256", secret).update(body).digest("hex") : null;
   await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...(sig ? { "X-VU-Signature": `sha256=${sig}` } : {}) },
+    headers: { "Content-Type": "application/json", ...(sig ? { "X-VU-Signature": `sha256=${sig}` } : {}), ...extra },
     body,
     signal: AbortSignal.timeout(8000),
-  }).catch(() => {});
+  }).then(async r => { await teamFlagSet("team:webhook:sam:last", JSON.stringify({ at: new Date().toISOString(), status: r.status, body: (await r.text().catch(() => "")).slice(0, 300) }), 0); })
+    .catch(async e => { await teamFlagSet("team:webhook:sam:last", JSON.stringify({ at: new Date().toISOString(), error: (e as Error).message }), 0); });
 }
