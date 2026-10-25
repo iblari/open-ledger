@@ -66,8 +66,14 @@ export function buildOgChart(sd: SeriesData, opts: { lineKey?: string | null; an
   let change: string | null = null;
   if (prev) {
     const d = at.v - prev.v;
-    const mag = sd.unit === "%" ? `${Math.abs(d).toFixed(sd.decimals)} pts` : prev.v ? `${Math.abs((at.v / prev.v - 1) * 100).toFixed(1)}%` : fmtVal(Math.abs(d), sd.unit, sd.decimals);
-    change = Math.abs(d) < 1e-9 ? "unchanged from a year earlier" : `${d > 0 ? "▲" : "▼"} ${mag} vs a year earlier`;
+    // A % change of a change (jobs added, rolling deficit) means nothing:
+    // show last year's reading instead.
+    if (sd.unit !== "%" && (sd.transform === "diff" || sd.transform === "sum12" || prev.v <= 0 || at.v <= 0)) {
+      change = `a year earlier: ${fmtVal(prev.v, sd.unit, sd.decimals)}`;
+    } else {
+      const mag = sd.unit === "%" ? `${Math.abs(d).toFixed(sd.decimals)} pts` : `${Math.abs((at.v / prev.v - 1) * 100).toFixed(1)}%`;
+      change = Math.abs(d) < 1e-9 ? "unchanged from a year earlier" : `${d > 0 ? "▲" : "▼"} ${mag} vs a year earlier`;
+    }
   }
   return {
     W, H, path, area: `${path} L${X(at.ms).toFixed(1)},${H} L0,${H} Z`,

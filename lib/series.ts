@@ -139,6 +139,7 @@ export interface SeriesData {
   ref?: { v: number; label: string } | null;
   prepandemic?: { d: string; v: number } | null;
   related?: { id: string; label: string } | null;
+  transform?: Transform;
 }
 
 /* ── Fetchers ──────────────────────────────────────────────────────── */
@@ -309,7 +310,7 @@ export async function getSeries(id: string, countries: string[] = []): Promise<S
   const def = CATALOG_BY_ID.get(id);
   if (!def) return null;
   const cc = def.wb ? countries.map(c => c.toUpperCase()).filter(c => /^[A-Z]{3}$/.test(c)).slice(0, 6).sort() : [];
-  const ck = `series:v3:${id}${cc.length ? ":" + cc.join(",") : ""}`;
+  const ck = `series:v4:${id}${cc.length ? ":" + cc.join(",") : ""}`;
   try {
     const [hit] = await kvGet([ck]);
     if (hit) { const s = JSON.parse(hit) as SeriesData; if (Date.now() - Date.parse(s.fetchedAt) < 6 * 3600_000) return s; }
@@ -342,6 +343,7 @@ export async function getSeries(id: string, countries: string[] = []): Promise<S
     ref: REFS[id] ?? null,
     prepandemic: pre,
     related: rel ? { id: rel.id, label: rel.label } : null,
+    transform: def.transform,
   };
   await kvSetMany([[ck, JSON.stringify(out), 7 * 86400]]).catch(() => {});
   return out;

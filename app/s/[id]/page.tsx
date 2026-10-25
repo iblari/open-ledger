@@ -29,7 +29,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   if (!r) return { title: "Chart · Vote Unbiased" };
   const name = shortName(r.id);
   const title = r.c ? `${name}: ${r.c.value} (${r.c.valueDate})` : name;
-  const description = r.c?.change ? `${r.c.change.replace(/^▲ /, "Up ").replace(/^▼ /, "Down ")}. Official ${r.sd.source} data, charted.` : `Official ${r.sd.source} data, charted.`;
+  const description = r.c?.change ? `${r.c.change.replace(/^▲ /, "Up ").replace(/^▼ /, "Down ").replace(/^a year/, "A year")}. Official ${r.sd.source} data, charted.` : `Official ${r.sd.source} data, charted.`;
   const image = { url: `https://voteunbiased.org/og/m/${r.id}.png`, width: 1200, height: 630, alt: `${name} — chart` };
   return {
     title: `${title} · Vote Unbiased`, description,

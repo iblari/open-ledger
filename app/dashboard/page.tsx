@@ -19,7 +19,7 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
   const name = shortName(id);
   const title = c ? `${name}: ${c.value} (${c.valueDate})` : name;
   const description = c
-    ? `${c.change ? c.change.replace(/^▲ /, "Up ").replace(/^▼ /, "Down ") + ". " : ""}Five years of official ${sd!.source} data, and how every president compares.`
+    ? `${c.change ? c.change.replace(/^▲ /, "Up ").replace(/^▼ /, "Down ").replace(/^a year/, "A year") + ". " : ""}Five years of official ${sd!.source} data, and how every president compares.`
     : "Official data, charted. How every president compares.";
   const image = { url: `https://voteunbiased.org/og/m/${metric!.toLowerCase()}.png`, width: 1200, height: 630, alt: `${name} — chart of the last five years` };
   return {
