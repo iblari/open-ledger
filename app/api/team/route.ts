@@ -21,7 +21,7 @@ export async function GET(req: Request) {
   const flags = await kvGet(who.map(TYPING_KEY)).catch(() => []);
   const typing = who.filter((_, i) => flags[i]);
   const thread = await readThread(since);
-  const builds = await getBuilds(thread.requests.filter(r => r.status === "approved").map(r => r.id));
+  const builds = await getBuilds(thread.requests.map(r => r.id));
   return NextResponse.json({ me, members: MEMBERS, typing, builds, ...thread }, { headers: H });
 }
 
