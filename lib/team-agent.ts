@@ -42,6 +42,12 @@ The team talks in one plain-English chat room:
 
 How you talk: short, warm, direct, like a sharp teammate in a work chat. Plain English, numbers first. Usually 1–5 sentences. No headings. Use names. Don't repeat what was just said. Ask one clear question when something is unclear. Never invent numbers; use the live numbers below or say you'll check.
 
+Honesty rules (strict):
+- Only state facts that are in the chat, the live numbers below, or general knowledge about the site. Never claim to see someone else's systems ("I can see your API works"), and never invent dates, deadlines, numbers or decisions.
+- Never speak for Ib or decide for Ib. If something needs Ib's call (targets, dates, priorities, spending), ask Ib.
+- Never say you are building, fixing or shipping something unless its request number is in "Approved requests" (given with the chat). For unapproved ideas say "if Ib approves, I'll build it". For approved ones say it's queued for your next build session.
+- Don't repeat a request that's already pending; refer to its number.
+
 What you can and can't do from this chat:
 - You CAN answer questions, explain data and how the site works, suggest post ideas and captions for Sam, and plan work.
 - You CANNOT change the site from this chat. Code changes happen in your build sessions.
@@ -91,24 +97,41 @@ async function callClaude(system: string, user: string): Promise<{ reply: string
   return null;
 }
 
-/** Called after a message from Ib or Sam lands. */
+const LOCK = "team:lock:claude";
+const AGAIN = "team:again:claude";
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+
+/** Called after a message from Ib or Sam lands. Waits a moment so a burst
+ *  (Sam often sends two in a row) gets one reply, and never runs twice at
+ *  once; anything that arrives mid-reply gets answered right after. */
 export async function claudeRespond(trigger: TeamMessage): Promise<void> {
   if (trigger.from === "claude") return;
-  // One reply per trigger, even if two requests race.
-  if (!(await claimOnce(`team:replied:${trigger.id}`, 3600))) return;
-  const { messages } = await readThread(0);
-  // Only answer the newest message; a burst gets one combined reply.
-  if (messages[messages.length - 1]?.id !== trigger.id) return;
-  let run = 0;
-  for (let i = messages.length - 1; i >= 0 && messages[i].from !== "ib"; i--) run++;
-  if (run >= MAX_BOT_RUN) return;
-  await teamFlagSet(TYPING_KEY("claude"), "1", 90);
-  try {
-    const out = await callClaude(SYSTEM(await liveNumbers()), `The chat so far:\n\n${transcript(messages)}\n\nWrite Claude's next message.`);
-    if (out?.reply) await pingSam(await post("claude", out.reply));
-    if (out?.request) await pingSam(await post("claude", out.request, "request"));
-  } finally {
-    await teamFlagDel(TYPING_KEY("claude"));
+  await sleep(4000);
+  for (let round = 0; round < 3; round++) {
+    if (!(await claimOnce(LOCK, 75))) { await teamFlagSet(AGAIN, "1", 120); return; }
+    let posted = false;
+    try {
+      await teamFlagDel(AGAIN);
+      const { messages } = await readThread(0);
+      const last = messages[messages.length - 1];
+      if (!last || last.from === "claude") return;
+      if (!(await claimOnce(`team:replied:${last.id}`, 3600))) return;
+      let run = 0;
+      for (let i = messages.length - 1; i >= 0 && messages[i].from !== "ib"; i--) run++;
+      if (run >= MAX_BOT_RUN) return;
+      await teamFlagSet(TYPING_KEY("claude"), "1", 90);
+      const approved = messages.filter(m => m.kind === "request" && messages.some(x => x.kind === "approve" && x.ref === m.id)).map(m => `#${m.id}`);
+      const out = await callClaude(SYSTEM(await liveNumbers()), `Approved requests so far: ${approved.join(", ") || "none"}.\n\nThe chat so far:\n\n${transcript(messages)}\n\nWrite Claude's next message, responding to everything since Claude last spoke.`);
+      if (out?.reply) { await pingSam(await post("claude", out.reply)); posted = true; }
+      if (out?.request) { await pingSam(await post("claude", out.request, "request")); posted = true; }
+    } finally {
+      await teamFlagDel(TYPING_KEY("claude"));
+      await teamFlagDel(LOCK);
+    }
+    // Something arrived while we were writing: answer it too.
+    const [again] = await kvGet([AGAIN]).catch(() => [null]);
+    if (!again || !posted) return;
+    await sleep(1500);
   }
 }
 
