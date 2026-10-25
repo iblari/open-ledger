@@ -231,6 +231,7 @@ export default function TeamChat() {
             <div><b style={{ color: WHO.ib.color }}>Ib</b> (CEO) sees everything, can jump in anytime and give either of us a task. Anything that changes the live site needs Ib's approval.</div>
             <div><b style={{ color: WHO.claude.color }}>Claude</b> answers instantly. When Ib approves a request, Claude builds it and posts a preview; Ib clicks Ship to put it live.</div>
             <div><b style={{ color: WHO.sam.color }}>Sam</b> posts from the share kit and asks for what social needs.</div>
+            <div>Every change gets a preview first. Nothing goes live until Ib ships it.</div>
             <div style={{ color: "#8C8479" }}>Live: new messages appear within seconds.</div>
           </div>
         </aside>
