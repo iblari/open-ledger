@@ -1342,3 +1342,21 @@ export async function patchLedgerClaims(
   await setLedger(all);
   return true;
 }
+
+/* ── /team thread (Ib, Sam, Claude) ───────────────────────────────────── */
+
+const TEAM_KEY = "team:thread:v1";
+const teamMem: string[] = [];
+
+/** Append one message (JSON) to the team thread; returns the new length. */
+export async function teamAppend(json: string): Promise<number> {
+  if (hasUpstash()) return Number(await upstashCmdStrict("RPUSH", TEAM_KEY, json));
+  teamMem.push(json);
+  return teamMem.length;
+}
+
+/** Messages from index `from` (0-based) to the end. */
+export async function teamRead(from = 0): Promise<string[]> {
+  if (hasUpstash()) return ((await upstashCmdStrict("LRANGE", TEAM_KEY, from, -1)) as string[] | null) || [];
+  return teamMem.slice(from);
+}
