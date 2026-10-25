@@ -10,7 +10,8 @@ export const runtime = "nodejs";
 const RAW = "https://raw.githubusercontent.com/iblari/open-ledger/og-media/v/";
 
 async function load(name: string): Promise<ArrayBuffer | null> {
-  const r = await fetch(RAW + name, { next: { revalidate: 3600 } });
+  // Metric clips change when new data lands; claim clips don't.
+  const r = await fetch(RAW + name, { next: { revalidate: name.startsWith("m-") ? 300 : 3600 } });
   return r.ok ? r.arrayBuffer() : null;
 }
 
@@ -18,11 +19,12 @@ export async function GET(req: Request, { params }: { params: Promise<{ file: st
   const { file } = await params;
   if (!/^[a-z0-9_-]{1,40}\.mp4$/i.test(file)) return new Response("not found", { status: 404 });
   const buf = (await load(file)) ?? (file !== "brand.mp4" ? await load("brand.mp4") : null);
+  const short = file.startsWith("m-");
   if (!buf) return new Response("not found", { status: 404 });
   const size = buf.byteLength;
   const base = {
     "Content-Type": "video/mp4", "Accept-Ranges": "bytes",
-    "Cache-Control": "public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400",
+    "Cache-Control": short ? "public, max-age=300, s-maxage=300" : "public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400",
   };
   const m = (req.headers.get("range") || "").match(/bytes=(\d*)-(\d*)/);
   if (m) {
