@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getSeries } from "@/lib/series";
 import { buildOgChart } from "@/lib/og-chart";
-import { shortName } from "@/lib/metric-share";
+import { shortName, sourceLabel } from "@/lib/metric-share";
 import { VIDEO_METRICS } from "@/lib/og-media";
 import { OgFrame, STRIPES, CHEETAH_BODY, CHEETAH_EYE } from "@/components/og/OgFrame";
 
@@ -39,7 +39,7 @@ export default async function MetricClip({ params }: { params: Promise<{ id: str
       <div className="A" style={{ position: "absolute", left: 64, right: 64, top: 44, animationName: "t1" }}>
         <div style={{ display: "flex", justifyContent: "space-between" }}>
           <span className="k"><span className="r">●</span> Official data · latest {c.valueDate}</span>
-          <span className="k">{sd.source}</span>
+          <span className="k">{sourceLabel(id, sd.source)}</span>
         </div>
         <div className="sf" style={{ fontSize: 44, marginTop: 18, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{shortName(id)}</div>
       </div>

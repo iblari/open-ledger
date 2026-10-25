@@ -39,3 +39,11 @@ export function dashboardMetricFor(id: string): string | null {
 /** Series Sam's share kit offers by default. */
 export const SHARE_METRICS = ["cpi_yoy", "cpi_mom", "core_cpi_yoy", "ppi_yoy", "ppi_mom", "gas", "unemployment", "payrolls_chg", "debt", "deficit_12m",
   "treasury_10y", "mortgage", "fed_funds", "sp500", "approval", "border_sw", "murder_rate", "oil_wti", "consumer_sentiment", "real_wages"];
+
+/** Who publishes each metric (FRED redistributes it). */
+const PUBLISHER: Record<string, string> = {
+  cpi_yoy: "BLS", cpi_mom: "BLS", core_cpi_yoy: "BLS", ppi_yoy: "BLS", ppi_mom: "BLS", unemployment: "BLS", payrolls_chg: "BLS",
+  real_wages: "BLS", mfg_jobs: "BLS", gas: "EIA", oil_wti: "EIA", debt: "US Treasury", deficit_12m: "US Treasury",
+  fed_funds: "Federal Reserve", treasury_10y: "Federal Reserve", gdp_growth: "BEA", retail_sales: "Census Bureau", mortgage: "Freddie Mac",
+};
+export const sourceLabel = (id: string, src: string) => (PUBLISHER[id] && src === "FRED" ? `${PUBLISHER[id]} via FRED` : src);

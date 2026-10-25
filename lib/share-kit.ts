@@ -11,7 +11,7 @@
 import { getTrendingClaims, TRENDING_RATINGS } from "./trending-claims";
 import { getSeries, CATALOG_BY_ID } from "./series";
 import { buildOgChart } from "./og-chart";
-import { shortName, dashboardMetricFor, SHARE_METRICS } from "./metric-share";
+import { shortName, dashboardMetricFor, SHARE_METRICS, sourceLabel } from "./metric-share";
 import { getRadar } from "./agenda-radar";
 import { topicOf } from "./claim-topics";
 import { loadTopicTags } from "./topic-tags";
@@ -60,22 +60,24 @@ function claimCaption(quote: string, data: string, source: string, link: string,
   const tail = ` ${link}${tag ? ` ${tag}` : ""}`;
   const fixed = `Claim: "" ${src}.`.length + 1 + TCO + (tag ? tag.length + 1 : 0);
   let room = MAX_POST - fixed;
-  const d = clip(data, Math.min(data.length, Math.max(90, room - 60)));
+  const qs = squash(quote);
+  const d = clip(data, Math.max(80, room - Math.min(qs.length, 110)));
   room -= d.length;
-  const q = clip(squash(quote), Math.max(40, room));
-  return `Claim: "${q}" ${d}${src}.${tail}`;
+  const q = clip(qs, Math.max(40, room));
+  return `Claim: "${q}" ${d}${src}${/[….!?]$/.test(d + src) ? "" : "."}${tail}`;
 }
 
 /* ── first-seen bookkeeping (stable timestamps for ?updated_since) ─────── */
 
-const SEEN_KEY = "sharekit:seen:v1";
+const SEEN_KEY = "sharekit:seen:v2";
 type Seen = Record<string, string>;
 async function loadSeen(): Promise<Seen | null> {
   try { const [raw] = await kvGet([SEEN_KEY]); return raw ? (JSON.parse(raw) as Seen) : {}; } catch { return null; }
 }
 async function saveSeen(seen: Seen): Promise<void> {
   const cut = Date.now() - 180 * 864e5;
-  for (const [k, v] of Object.entries(seen)) if (k !== "_init" && Date.parse(v) < cut) delete seen[k];
+  // Only claims age out; a metric's current reading can be months old (debt).
+  for (const [k, v] of Object.entries(seen)) if (k.startsWith("claim:") && Date.parse(v) < cut) delete seen[k];
   await kvSetMany([[SEEN_KEY, JSON.stringify(seen), 0]]).catch(() => {});
 }
 
@@ -160,16 +162,17 @@ export async function buildShareKit(opts: { updatedSince?: string | null } = {})
     const change = c.change ? c.change.replace(/^▲ /, "up ").replace(/^▼ /, "down ") : null;
     const dataLine = `${name}: ${c.value} (${c.valueDate})${change ? `, ${change}` : ""}`;
     const hashtag = METRIC_TAG[mid] ?? null;
+    const source = sourceLabel(mid, sd.source);
     const clipName = metricClipName(mid);
     const updated = firstSeen(`metric:${mid}:${obs}`, obs + "T12:00:00.000Z");
     const m: KitMetric = {
       id: `metric:${mid}:${obs}`, type: "metric", metric: mid, name,
       value: c.value, observationDate: obs, observationLabel: c.valueDate, change,
-      dataLine, source: sd.source, hashtag,
+      dataLine, source, hashtag,
       link, dashboardLink: dash ? withUtm(`${SITE}/dashboard?view=month&metric=${dash}`, "metric") : null,
       image: `${SITE}/og/m/${mid}.png?d=${obs}`,
       video: manifest[clipName]?.date === obs ? `${SITE}/og/v/${clipName}.mp4?d=${obs}` : null,
-      caption: `${dataLine}. Source: ${sd.source}. ${link}${hashtag ? ` ${hashtag}` : ""}`,
+      caption: `${dataLine}. Source: ${source}. ${link}${hashtag ? ` ${hashtag}` : ""}`,
       dataUpdatedAt: updated,
       releasedLast24h: Date.now() - Date.parse(updated) < 864e5,
     };

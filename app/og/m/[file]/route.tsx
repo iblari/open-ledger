@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
 import { getSeries } from "@/lib/series";
 import { buildOgChart, OgChartSvg, OgBrand, ogFonts, fit, OG_SIZE } from "@/lib/og-chart";
-import { shareSeriesFor } from "@/lib/metric-share";
+import { shareSeriesFor, sourceLabel } from "@/lib/metric-share";
 
 /**
  * GET /og/m/{metric}.png — the share card for a dashboard metric: the
@@ -27,7 +27,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ file: s
             <div style={{ width: 13, height: 13, borderRadius: 7, background: "#E0493A" }} />
             OFFICIAL DATA · LATEST {c.valueDate.toUpperCase()}
           </div>
-          <div>{sd.source.toUpperCase()}</div>
+          <div>{sourceLabel(id, sd.source).toUpperCase()}</div>
         </div>
         <div style={{ display: "flex", marginTop: 22, fontFamily: "Serif", fontSize: 46, lineHeight: 1.1, maxWidth: 1072 }}>{fit(sd.label, 70)}</div>
         <div style={{ display: "flex", alignItems: "baseline", gap: 26, marginTop: 10 }}>
