@@ -1,7 +1,8 @@
 import { ImageResponse } from "next/og";
 import { getSharedClaim } from "@/lib/claim-lookup";
 import { hashFromKey } from "@/lib/claim-link";
-import { toOutcome, VERDICT_LABEL } from "@/lib/live-design";
+import { toOutcome, ratingLabel } from "@/lib/live-design";
+import { excerpt } from "@/lib/quote-fit";
 import { markSvg } from "@/lib/cheetah-mark";
 import { kvGet } from "@/lib/live-kv";
 import { SERIES_KEY, cleanMapping, type ClaimSeries } from "@/lib/claim-series";
@@ -62,8 +63,8 @@ export default async function Image({ params }: { params: Promise<{ key: string 
   const v = toOutcome(c.rating);
   const col = STAMP[v];
   const q0 = c.quote.trim();
-  const quote = fit(q0.charAt(0).toUpperCase() + q0.slice(1), 130);
-  const qSize = quote.length > 95 ? 50 : quote.length > 60 ? 58 : 66;
+  const label = ratingLabel(c.rating);
+  const longStamp = label.length > 6;
   const date = new Date(c.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "America/New_York" }).toUpperCase();
   const times = r.repeats.length + 1;
 
@@ -83,6 +84,12 @@ export default async function Image({ params }: { params: Promise<{ key: string 
       chart = buildOgChart(sd, { lineKey: map.saidCountry, anchor: c.date, said });
     }
   } catch { chart = null; }
+  // Quote: whole if it fits, else the sentence with the number; at most 3 lines
+  // beside a chart, 4 without, so nothing below it gets overlapped.
+  const qMax = chart ? 100 : 140;
+  const qx = excerpt(q0.charAt(0).toUpperCase() + q0.slice(1), qMax).text;
+  const quote = qx.charAt(0).toUpperCase() + qx.slice(1);
+  const qSize = chart ? (quote.length > 70 ? 40 : 46) : (quote.length > 95 ? 48 : quote.length > 60 ? 56 : 64);
   // Who said it — or, when the title names nobody (or several people), the event.
   const who = c.speaker || `From “${fit(decodeEntities(c.title), 64)}”`;
 
@@ -97,18 +104,18 @@ export default async function Image({ params }: { params: Promise<{ key: string 
           <div>{date}</div>
         </div>
 
-        <div style={{ display: "flex", marginTop: chart ? 24 : 34, fontFamily: "Serif", fontSize: chart ? Math.min(qSize, 46) : qSize, lineHeight: 1.12, maxWidth: 760 }}>
+        <div style={{ display: "flex", flexShrink: 0, marginTop: chart ? 24 : 34, fontFamily: "Serif", fontSize: qSize, lineHeight: 1.12, maxWidth: longStamp ? 700 : 760 }}>
           “{quote}”
         </div>
-        <div style={{ display: "flex", marginTop: 18, fontSize: 24, color: "#A39D93" }}>
+        <div style={{ display: "flex", flexShrink: 0, marginTop: 16, fontSize: 24, color: "#A39D93", maxWidth: longStamp ? 700 : 760 }}>
           {[who, times > 1 ? `said in ${times} broadcasts` : null].filter(Boolean).join(" · ")}
         </div>
 
         <div style={{
-          position: "absolute", right: 64, top: 190, display: "flex",
-          border: `6px solid ${col}`, color: col, borderRadius: 14, padding: "10px 26px",
-          fontSize: 54, letterSpacing: 4, transform: "rotate(-7deg)", fontWeight: 500,
-        }}>{VERDICT_LABEL[v]}</div>
+          position: "absolute", right: 56, top: longStamp ? 120 : 190, display: "flex",
+          border: `6px solid ${col}`, color: col, borderRadius: 14, padding: longStamp ? "8px 20px" : "10px 26px",
+          fontSize: longStamp ? 40 : 54, letterSpacing: longStamp ? 3 : 4, transform: "rotate(-7deg)", fontWeight: 500,
+        }}>{label}</div>
 
         {chart && (
           <div style={{ marginTop: "auto", display: "flex", gap: 36, alignItems: "flex-end" }}>

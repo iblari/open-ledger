@@ -5,7 +5,7 @@ import CheetahMark from "@/components/CheetahMark";
 import ShareClaimButton from "@/components/ShareClaimButton";
 import { getSharedClaim } from "@/lib/claim-lookup";
 import { hashFromKey, claimPath } from "@/lib/claim-link";
-import { toOutcome, VERDICT_COLOR, VERDICT_LABEL } from "@/lib/live-design";
+import { toOutcome, VERDICT_COLOR, VERDICT_LABEL, ratingLabel } from "@/lib/live-design";
 import { SERIF, SANS } from "@/lib/design-tokens";
 
 /**
@@ -26,7 +26,7 @@ export async function generateMetadata({ params }: { params: Promise<{ key: stri
   const r = await getSharedClaim(hashFromKey(key));
   if (!r) return { title: "Fact-check · Vote Unbiased" };
   const c = r.claim;
-  const label = VERDICT_LABEL[toOutcome(c.rating)];
+  const label = ratingLabel(c.rating);
   const verdict = label.charAt(0) + label.slice(1).toLowerCase();
   const short = c.quote.length > 90 ? c.quote.slice(0, 87).replace(/\s+\S*$/, "") + "…" : c.quote;
   const title = `${verdict}: “${short}”`;
@@ -81,7 +81,7 @@ export default async function ClaimPage({ params }: { params: Promise<{ key: str
         </h1>
         <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           <span style={{ background: color, color: "#fff", fontWeight: 700, fontSize: 14, letterSpacing: "0.08em", padding: "6px 12px", borderRadius: 6 }}>
-            {VERDICT_LABEL[v]}
+            {ratingLabel(c.rating)}
           </span>
           {times > 1 && <span style={{ fontSize: 14, color: "#5F5850" }}>Said in {times} broadcasts</span>}
         </div>
@@ -108,7 +108,7 @@ export default async function ClaimPage({ params }: { params: Promise<{ key: str
         )}
 
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 24 }}>
-          <ShareClaimButton path={path} quote={c.quote} verdict={VERDICT_LABEL[v]} variant="light" />
+          <ShareClaimButton path={path} quote={c.quote} verdict={ratingLabel(c.rating)} variant="light" />
           <Link href={`/live?v=${encodeURIComponent(c.videoId)}`} style={{
             fontSize: 14, fontWeight: 600, color: "#14110E", textDecoration: "none",
             border: "1px solid #D9D3C8", background: "#fff", borderRadius: 8, padding: "11px 16px",

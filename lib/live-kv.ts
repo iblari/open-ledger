@@ -1370,3 +1370,25 @@ export async function teamFlagDel(key: string): Promise<void> {
   if (hasUpstash()) { await upstashCmd("DEL", key); return; }
   mem.delete(key);
 }
+
+/** Counters for /api/hit (visits by page and by post). One hash per day. */
+export async function kvHincrMany(key: string, fields: string[], ttlSec: number): Promise<void> {
+  if (!fields.length) return;
+  if (hasUpstash()) {
+    for (const f of fields) await upstashCmd("HINCRBY", key, f, 1);
+    await upstashCmd("EXPIRE", key, ttlSec);
+    return;
+  }
+  const cur = JSON.parse(mem.get(key) || "{}") as Record<string, number>;
+  for (const f of fields) cur[f] = (cur[f] || 0) + 1;
+  mem.set(key, JSON.stringify(cur));
+}
+export async function kvHgetall(key: string): Promise<Record<string, number>> {
+  if (hasUpstash()) {
+    const arr = ((await upstashCmd("HGETALL", key)) as string[] | null) || [];
+    const out: Record<string, number> = {};
+    for (let i = 0; i < arr.length; i += 2) out[arr[i]] = Number(arr[i + 1]) || 0;
+    return out;
+  }
+  return JSON.parse(mem.get(key) || "{}");
+}

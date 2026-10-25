@@ -85,3 +85,9 @@ export function toOutcome(rating: string): Verdict {
   if (r === "UNCONFIRMED") return "unconfirmed";
   return "unverifiable";
 }
+
+/** The published rating as a stamp label: keeps "MOSTLY TRUE" (toOutcome folds it into TRUE for colour). */
+export function ratingLabel(rating: string): string {
+  const r = (rating || "").toUpperCase();
+  return r === "MOSTLY TRUE" ? "MOSTLY TRUE" : VERDICT_LABEL[toOutcome(r)];
+}
