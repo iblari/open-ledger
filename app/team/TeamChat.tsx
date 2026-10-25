@@ -178,7 +178,7 @@ export default function TeamChat() {
             <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
               <textarea value={draft} onChange={e => setDraft(e.target.value)} rows={2}
                 onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); } }}
-                placeholder={me === "ib" ? "Message Claude and Sam… (start with @Claude or @Sam to direct one)" : me === "claude" ? "Message Ib and Sam…" : "Message Ib and Claude…"}
+                placeholder={me === "ib" ? "Message Claude and Sam…" : me === "claude" ? "Message Ib and Sam…" : "Message Ib and Claude…"}
                 style={{ flex: 1, resize: "vertical", minHeight: 48, maxHeight: 240, padding: "12px 14px", borderRadius: 12, border: "1px solid #D8D2C8", fontSize: 16, fontFamily: "inherit", background: "#fff" }} />
               <button onClick={submit} disabled={busy || !draft.trim()} style={{ padding: "13px 18px", borderRadius: 12, border: 0, background: draft.trim() ? "#14110E" : "#BDB6AB", color: "#fff", fontWeight: 600, fontSize: 15, cursor: "pointer" }}>Send</button>
             </div>
