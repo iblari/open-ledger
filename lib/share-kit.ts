@@ -100,7 +100,9 @@ function hookFor(quote: string, data: string, source: string | null, ratingLabel
   if (said) {
     const got = numbers(data).find(n => unitOf(n) === unitOf(said));
     const a = valueOf(said), b = got ? valueOf(got) : NaN;
-    if (got && Number.isFinite(a) && Number.isFinite(b) && Math.abs(a - b) > Math.max(Math.abs(a), Math.abs(b)) * 0.02) {
+    // Same order of magnitude too: "$42M total" vs "$187.94 per person" are different quantities.
+    const ratio = a && b ? Math.max(a, b) / Math.min(a, b) : Infinity;
+    if (got && Number.isFinite(a) && Number.isFinite(b) && ratio < 10 && Math.abs(a - b) > Math.max(Math.abs(a), Math.abs(b)) * 0.02) {
       return `Said: ${said}. Data: ${got}${source ? ` (${source})` : ""}.`;
     }
   }
@@ -109,7 +111,7 @@ function hookFor(quote: string, data: string, source: string | null, ratingLabel
 /** Numbers as written, minus bare years, with long digit strings made readable (90,000,000,000 → 90B). */
 function numbers(s: string): string[] {
   const out: string[] = [];
-  const re = /[$]?\d[\d,]*(?:\.\d+)?\s?(?:%|percent\b|(?:k|m|b|t)\b|thousand\b|million\b|billion\b|trillion\b|points?\b|pts\b)?/gi;
+  const re = /[$]?\d[\d,]*(?:\.\d+)?(?:\s?[-–]\s?\d[\d,]*(?:\.\d+)?)?\s?(?:%|percent\b|(?:k|m|b|t)\b|thousand\b|million\b|billion\b|trillion\b|points?\b|pts\b)?/gi;
   for (const m of s.match(re) || []) {
     let t = m.trim().replace(/\s?percent$/i, "%").replace(/,$/, "");
     if (/^(19|20)\d\d$/.test(t)) continue;
