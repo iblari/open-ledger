@@ -25,7 +25,7 @@ export interface ClaimForSeries { key: string; quote: string; rating: string; ac
 const MODEL = "claude-haiku-4-5-20251001";
 export const SERIES_KEY = (k: string) => `claim-series:v3:${k}`;
 /** Bump when the catalog grows: claims that found no series get another look. */
-export const CATALOG_VERSION = 3;
+export const CATALOG_VERSION = 4;
 
 const catalogText = CATALOG.map(s => `${s.id} — ${s.label} [${s.unit}] — fits: ${s.about}`).join("\n");
 
@@ -81,11 +81,37 @@ export async function getClaimSeries(c: ClaimForSeries, build = true): Promise<C
   if (hit) {
     try {
       const m = JSON.parse(hit) as ClaimSeries;
-      if (m.series || (m.cv ?? 1) >= CATALOG_VERSION || !build) return m;
+      if (m.series || (m.cv ?? 1) >= CATALOG_VERSION || !build) return cleanMapping(m, c);
     } catch { /* rebuild */ }
   }
   if (!build) return null;
   const s = await mapClaimToSeries(c);
   if (s) await kvSetMany([[SERIES_KEY(c.key), JSON.stringify(s), 0]]).catch(() => {});
-  return s;
+  return cleanMapping(s, c);
+}
+
+/** Annual-rate or monthly-flow series: a multi-year total, pledge or
+ *  cumulative figure can't be compared with one year of them. */
+const FLOW = new Set(["fdi_inflows", "deficit_12m", "customs_duties", "retail_sales", "trade_balance", "factory_construction", "imports", "exports"]);
+const MULTI_YEAR = /\b(in|over|during|across|within)\s+(the\s+(last|past|first)\s+)?(two|three|four|five|six|seven|eight|nine|ten|\d+)\s+years\b|\bsince\s+(19|20)\d\d\b|\b(total|cumulative|combined|pledge[sd]?|commit(?:ted|ment)s?|promised)\b/i;
+
+/**
+ * Last checks on a mapping before it is drawn (cards, Trending, videos):
+ *  - a flow series against a multi-year / pledged total → no chart
+ *    ("$500B in four years" vs one year of FDI);
+ *  - a World Bank annual series when the fact-check cites a figure for a
+ *    later year than the series has → no chart (the card would show 2025's
+ *    42% while the finding says 89.8% now).
+ */
+export function cleanMapping<T extends ClaimSeries | null | undefined>(m: T, c: { quote: string; actual?: string; explanation?: string; date?: string }): T {
+  if (!m || !m.series) return m;
+  if (FLOW.has(m.series) && MULTI_YEAR.test(c.quote)) return { ...m, series: null } as T;
+  if (m.series.startsWith("wb_")) {
+    const text = `${c.actual || ""} ${c.explanation || ""}`;
+    const claimYear = c.date ? new Date(c.date).getUTCFullYear() : new Date().getUTCFullYear();
+    // World Bank annual data lags a year or more; a finding that cites the
+    // claim's own year is working from newer numbers than we can chart.
+    if (new RegExp(`\\b${claimYear}\\b`).test(text)) return { ...m, series: null } as T;
+  }
+  return m;
 }

@@ -1,4 +1,5 @@
 import { kvGet, kvSetMany } from "./live-kv";
+import { periodTransform } from "./period-math";
 
 /**
  * Real time series for claim charts — official data only.
@@ -31,7 +32,7 @@ export interface SeriesDef {
 
 /** Same-unit series worth overlaying ("+ Compare"). */
 export const RELATED: Record<string, string> = {
-  cpi_yoy: "wages_yoy", wages_yoy: "cpi_yoy", core_cpi_yoy: "cpi_yoy", pce_yoy: "cpi_yoy", food_yoy: "cpi_yoy",
+  cpi_yoy: "wages_yoy", wages_yoy: "cpi_yoy", ppi_yoy: "cpi_yoy", ppi_mom: "cpi_mom", core_cpi_yoy: "cpi_yoy", pce_yoy: "cpi_yoy", food_yoy: "cpi_yoy",
   rent_yoy: "cpi_yoy", home_price_yoy: "cpi_yoy", gas: "diesel", diesel: "gas", oil_wti: "oil_brent", oil_brent: "oil_wti",
   fed_funds: "treasury_10y", treasury_10y: "mortgage", mortgage: "treasury_10y", payrolls: "private_jobs", private_jobs: "payrolls",
   mfg_jobs: "construction_jobs", construction_jobs: "mfg_jobs", overdose_fentanyl: "overdose_all", overdose_all: "overdose_fentanyl",
@@ -51,6 +52,8 @@ export const CATALOG: SeriesDef[] = [
   // Prices
   F("cpi_yoy", "US inflation (CPI, year over year)", "%", { id: "CPIAUCSL" }, "yoy", "headline US inflation rate, 'inflation is X%'", { decimals: 1 }),
   F("cpi_mom", "US inflation, month over month (CPI)", "%", { id: "CPIAUCSL" }, "mom", "monthly US price change, 'prices rose X% last month'", { decimals: 1 }),
+  F("ppi_yoy", "US wholesale prices (PPI final demand, year over year)", "%", { id: "PPIFIS" }, "yoy", "wholesale / producer prices, PPI", { decimals: 1 }),
+  F("ppi_mom", "US wholesale prices, month over month (PPI final demand)", "%", { id: "PPIFIS" }, "mom", "monthly wholesale / producer price change", { decimals: 1 }),
   F("core_cpi_yoy", "US core inflation (ex food & energy, YoY)", "%", { id: "CPILFESL" }, "yoy", "core inflation", { decimals: 1 }),
   F("pce_yoy", "US PCE inflation (Fed's target measure, YoY)", "%", { id: "PCEPI" }, "yoy", "PCE inflation, the Fed's 2% target", { decimals: 1 }),
   F("gas", "US regular gasoline, average price", "$/gal", { id: "GASREGW", freq: "w" }, "level", "gas / gasoline prices per gallon", { decimals: 2 }),
@@ -262,17 +265,9 @@ async function worldBank(def: SeriesDef, countries: string[]): Promise<SeriesLin
   return iso.map(c => by.get(c)).filter((l): l is SeriesLine => !!l).map(l => ({ ...l, points: l.points.sort((a, b) => a.d.localeCompare(b.d)) }));
 }
 
-function transform(pts: { d: string; v: number }[], t: Transform, per: number, scale = 1): { d: string; v: number }[] {
-  const out: { d: string; v: number }[] = [];
-  for (let i = 0; i < pts.length; i++) {
-    let v: number | null = pts[i].v;
-    if (t === "yoy") v = i >= per && pts[i - per].v ? (pts[i].v / pts[i - per].v - 1) * 100 : null;
-    else if (t === "mom") v = i >= 1 && pts[i - 1].v ? (pts[i].v / pts[i - 1].v - 1) * 100 : null;
-    else if (t === "diff") v = i >= 1 ? pts[i].v - pts[i - 1].v : null;
-    else if (t === "sum12") v = i >= 11 ? pts.slice(i - 11, i + 1).reduce((s, p) => s + p.v, 0) : null;
-    if (v != null && Number.isFinite(v)) out.push({ d: pts[i].d, v: v * scale });
-  }
-  return out;
+/** Period math by date (lib/period-math) — never by array position. */
+function transform(pts: { d: string; v: number }[], t: Transform, freq: "w" | "m" | "q" | "a", scale = 1): { d: string; v: number }[] {
+  return periodTransform(pts, t, freq, scale);
 }
 
 /** NBER recession periods, from FRED's USREC (monthly 0/1). Cached a week. */
@@ -298,12 +293,12 @@ async function recessions(): Promise<[string, string][]> {
 export async function getSeriesAsOf(id: string, asOf: string): Promise<{ d: string; v: number } | null> {
   const def = CATALOG_BY_ID.get(id);
   if (!def?.fred || !/^\d{4}-\d{2}-\d{2}$/.test(asOf)) return null;
-  const ck = `series:asof:v1:${id}:${asOf}`;
+  const ck = `series:asof:v2:${id}:${asOf}`;
   try { const [hit] = await kvGet([ck]); if (hit) return JSON.parse(hit); } catch { /* refetch */ }
   const freq = def.fred.freq || "m";
   const per = freq === "w" ? 52 : freq === "q" ? 4 : freq === "a" ? 1 : 12;
   const start = new Date(Date.parse(asOf) - 3 * 365 * 864e5).toISOString().slice(0, 10);
-  const pts = transform(await fred(def, { asOf, start }), def.transform, per, def.scale);
+  const pts = transform(await fred(def, { asOf, start }), def.transform, freq as "w" | "m" | "q" | "a", def.scale);
   const last = pts[pts.length - 1] ?? null;
   if (last) await kvSetMany([[ck, JSON.stringify(last), 0]]).catch(() => {});
   return last;
@@ -314,7 +309,7 @@ export async function getSeries(id: string, countries: string[] = []): Promise<S
   const def = CATALOG_BY_ID.get(id);
   if (!def) return null;
   const cc = def.wb ? countries.map(c => c.toUpperCase()).filter(c => /^[A-Z]{3}$/.test(c)).slice(0, 6).sort() : [];
-  const ck = `series:v2:${id}${cc.length ? ":" + cc.join(",") : ""}`;
+  const ck = `series:v3:${id}${cc.length ? ":" + cc.join(",") : ""}`;
   try {
     const [hit] = await kvGet([ck]);
     if (hit) { const s = JSON.parse(hit) as SeriesData; if (Date.now() - Date.parse(s.fetchedAt) < 6 * 3600_000) return s; }
@@ -324,13 +319,13 @@ export async function getSeries(id: string, countries: string[] = []): Promise<S
   let lines: SeriesLine[] = [];
   if (def.source === "FRED") {
     const per = freq === "w" ? 52 : freq === "q" ? 4 : freq === "a" ? 1 : 12;
-    lines = [{ key: id, name: def.label, points: transform(await fred(def), def.transform, per, def.scale) }];
+    lines = [{ key: id, name: def.label, points: transform(await fred(def), def.transform, freq, def.scale) }];
   } else if (def.source === "CBP") {
     lines = [{ key: id, name: def.label, points: await cbp(def) }];
   } else if (def.source === "Ballotpedia") {
     lines = [{ key: id, name: def.label, points: await ballotpedia(def) }];
   } else if (def.source === "FBI") {
-    lines = [{ key: id, name: def.label, points: transform(await fbi(def), "sum12", 12, 1) }];
+    lines = [{ key: id, name: def.label, points: transform(await fbi(def), "sum12", "m", 1) }];
   } else if (def.source === "CDC") {
     lines = [{ key: id, name: def.label, points: await cdc(def) }];
   } else {
