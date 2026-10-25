@@ -109,7 +109,8 @@ const PARTNER = /\b(canada|canadian|mexico|mexican|china|chinese|japan|japanese|
 
 export function cleanMapping<T extends ClaimSeries | null | undefined>(m: T, c: { quote: string; actual?: string; explanation?: string; date?: string }): T {
   if (!m || !m.series) return m;
-  if (US_TRADE.has(m.series) && PARTNER.test(c.quote)) return { ...m, series: null } as T;
+  // The partner may only be named in the finding ("Statistics Canada reports Canada's surplus with the US…").
+  if (US_TRADE.has(m.series) && (PARTNER.test(c.quote) || PARTNER.test(`${c.actual || ""}`.slice(0, 200)))) return { ...m, series: null } as T;
   if (FLOW.has(m.series) && MULTI_YEAR.test(c.quote)) return { ...m, series: null } as T;
   if (m.series.startsWith("wb_")) {
     const text = `${c.actual || ""} ${c.explanation || ""}`;
