@@ -93,11 +93,16 @@ function claimCaption(quote: string, data: string, source: string, link: string,
 
 /** One line, numbers first: "Said: 301%. Data: 68.9% (IMF)." */
 function hookFor(quote: string, data: string, source: string | null, ratingLabel: string): string {
-  const said = numbers(quote)[0];
+  // Only when both numbers are unmistakably the same kind (%, $, points) and really differ:
+  // a wrong pairing ("over 60" as an age vs "3 complaints") would be a factual error in public.
+  const saidAll = numbers(quote).filter(n => unitOf(n));
+  const said = saidAll.length === 1 ? saidAll[0] : null;
   if (said) {
-    const unit = unitOf(said);
-    const got = numbers(data).find(n => unitOf(n) === unit) ?? (unit === "" ? numbers(data)[0] : undefined);
-    if (got && got !== said) return `Said: ${said}. Data: ${got}${source ? ` (${source})` : ""}.`;
+    const got = numbers(data).find(n => unitOf(n) === unitOf(said));
+    const a = valueOf(said), b = got ? valueOf(got) : NaN;
+    if (got && Number.isFinite(a) && Number.isFinite(b) && Math.abs(a - b) > Math.max(Math.abs(a), Math.abs(b)) * 0.02) {
+      return `Said: ${said}. Data: ${got}${source ? ` (${source})` : ""}.`;
+    }
   }
   return `${ratingLabel}: ${fitClause(data, 110)}.`;
 }
@@ -113,6 +118,12 @@ function numbers(s: string): string[] {
     out.push(t);
   }
   return out;
+}
+function valueOf(n: string): number {
+  const m = n.replace(/[$,%\s]/g, "").match(/^(\d+(?:\.\d+)?)(k|m|b|t|thousand|million|billion|trillion)?/i);
+  if (!m) return NaN;
+  const mult: Record<string, number> = { k: 1e3, thousand: 1e3, m: 1e6, million: 1e6, b: 1e9, billion: 1e9, t: 1e12, trillion: 1e12 };
+  return parseFloat(m[1]) * (m[2] ? mult[m[2].toLowerCase()] : 1);
 }
 const unitOf = (n: string) => /%/.test(n) ? "%" : /^\$|[BMT]$|billion|million|trillion/i.test(n) ? "$" : /point|pts/i.test(n) ? "pts" : "";
 
