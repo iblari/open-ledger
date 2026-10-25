@@ -5,6 +5,7 @@ import { scaleLinear, scaleTime } from "d3-scale";
 import { line as d3line, area as d3area, curveMonotoneX } from "d3-shape";
 import type { SeriesData } from "@/lib/series";
 import { fmtVal } from "@/lib/chart-format";
+import { yoy } from "@/lib/period-math";
 export { fmtVal };
 
 /**
@@ -61,14 +62,15 @@ export interface ProChartProps {
   watchHref?: string;            // the moment it was said
   fullRange?: boolean;           // start on "Max" (short series from cited sources)
   compact?: boolean;             // phone list view: reading + chart only
+  noClaim?: boolean;             // a plain series page: no claim marker, "Latest" reading
 }
 
-/** Year-over-year % change of a line (periods per year by frequency). */
+/** Year-over-year % change of each line, matched by date (lib/period-math) —
+ *  a missing month (Oct 2025 CPI) gives a gap, not a shifted comparison. */
 function yoyLines(d: SeriesData): SeriesData {
-  const per = d.freq === "w" ? 52 : d.freq === "q" ? 4 : d.freq === "a" ? 1 : 12;
   return {
     ...d, unit: "%", decimals: 1, label: `${d.label} — change vs a year earlier`,
-    lines: d.lines.map(l => ({ ...l, points: l.points.flatMap((p, i) => i >= per && l.points[i - per].v ? [{ d: p.d, v: (p.v / l.points[i - per].v - 1) * 100 }] : []) })),
+    lines: d.lines.map(l => ({ ...l, points: yoy(l.points, d.freq) })),
   };
 }
 
@@ -220,7 +222,8 @@ export default function ProChart(props: ProChartProps) {
   const rank = atClaim && fullMain.length > 24 ? fullMain.filter(p => p.v < atClaim.v).length / fullMain.length : null;
 
   // ── Year-on-year change of the reading (level view, non-rate series).
-  const yearAgo = atClaim ? fullMain.filter(p => p.ms <= atClaim.ms - 360 * 864e5).slice(-1)[0] : null;
+  // The same period a year earlier, or nothing (never the nearest neighbour of a missing month).
+  const yearAgo = atClaim ? fullMain.find(p => Math.abs(p.ms - (atClaim.ms - 365.25 * 864e5)) <= (data.freq === "w" ? 4 : data.freq === "a" ? 40 : 16) * 864e5) ?? null : null;
 
   // ── Revisions: the value published then vs the same period now.
   const revisedNow = asOf && view === "level" ? fullMain.find(p => Math.abs(p.ms - t(asOf.d)) < 2 * 864e5) : null;
@@ -236,7 +239,7 @@ export default function ProChart(props: ProChartProps) {
   const caption = (() => {
     if (!atClaim) return "";
     const parts: string[] = [];
-    const when = atClaim.ms <= claimMs + 864e5 ? "when this was said" : "most recently";
+    const when = !props.noClaim && atClaim.ms <= claimMs + 864e5 ? "when this was said" : "most recently";
     const name = raw.label.split(" (")[0].replace(/ — .*/, "");
     parts.push(view === "yoy" ? `The yearly change in ${name.replace(/^US /, "US ").toLowerCase()} was ${fv(atClaim.v)} ${when}` : `${name} was ${fv(atClaim.v)} ${when}`);
     if (said != null && gap != null) parts[0] += close ? ", in line with the claim" : `, ${fmtDiff(gap, data.unit, dec)} ${gap > 0 ? "above" : "below"} the claimed ${fv(said)}`;
@@ -284,7 +287,7 @@ export default function ProChart(props: ProChartProps) {
       <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: compact ? 0 : 6 }}>
         <div style={{ minWidth: 0 }}>
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".08em", textTransform: "uppercase", color: C.mute, display: compact ? "none" : "block" }}>
-            {hoverMs != null ? dateLabel(hoverMs, data.freq) : atClaim && atClaim.ms <= claimMs + 864e5 ? `When it was said · ${dateLabel(atClaim.ms, data.freq)}` : `Latest · ${latest ? dateLabel(latest.ms, data.freq) : ""}`}
+            {hoverMs != null ? dateLabel(hoverMs, data.freq) : !props.noClaim && atClaim && atClaim.ms <= claimMs + 864e5 ? `When it was said · ${dateLabel(atClaim.ms, data.freq)}` : `Latest · ${latest ? dateLabel(latest.ms, data.freq) : ""}`}
           </div>
           <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
             {compact && <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: C.mute }}>{dateLabel(hoverMs ?? (atClaim?.ms ?? latest?.ms ?? 0), data.freq)}</span>}
@@ -461,7 +464,7 @@ export default function ProChart(props: ProChartProps) {
         })}
 
         {/* claim marker + gap */}
-        {atClaim && (
+        {atClaim && !props.noClaim && (
           <g>
             <line x1={claimX} x2={claimX} y1={M.t} y2={H - M.b} stroke={C.ink} strokeOpacity={0.35} />
             {watchHref ? (

@@ -6,7 +6,7 @@ import { normalizeQuote } from "./align";
 import { claimHash, claimPath } from "./claim-link";
 import { claimRelation } from "./repeat-claims";
 import { CHART_KEY, type ClaimChart, type ClaimForChart } from "./claim-chart";
-import { SERIES_KEY, type ClaimSeries } from "./claim-series";
+import { SERIES_KEY, cleanMapping, type ClaimSeries } from "./claim-series";
 
 /**
  * The Trending tab's feed: every True / Mostly true / False claim, newest
@@ -102,7 +102,7 @@ export async function getTrendingClaims(): Promise<TrendingClaim[]> {
   return items.map((i, k) => ({
     ...i, explanation: i.explanation?.slice(0, 400),
     chart: parse<ClaimChart>(raws[k]),
-    series: parse<ClaimSeries>(raws[items.length + k]),
+    series: cleanMapping(parse<ClaimSeries>(raws[items.length + k]), i),
   }));
 }
 

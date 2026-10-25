@@ -11,7 +11,7 @@ on:
         required: false
         default: "40"
   schedule:
-    - cron: "17 */4 * * *"   # every 4 hours
+    - cron: "17 * * * *"   # hourly: metric clips follow data releases the same hour
 
 permissions:
   contents: write
