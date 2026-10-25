@@ -2,7 +2,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 type Member = "ib" | "sam" | "claude";
-type Kind = "message" | "request" | "approve" | "decline";
+type Kind = "message" | "request" | "approve" | "decline" | "build" | "ship" | "reject";
+interface Build { request: number; status: "queued" | "building" | "ready" | "failed" | "shipped" | "rejected"; preview?: string; prUrl?: string }
 interface Msg { id: number; from: Member; text: string; at: string; kind: Kind; ref?: number }
 interface Req { id: number; from: Member; text: string; at: string; status: "pending" | "approved" | "declined" }
 
@@ -40,6 +41,7 @@ export default function TeamChat() {
   const [busy, setBusy] = useState(false);
   const [keyInput, setKeyInput] = useState("");
   const [typing, setTyping] = useState<Member[]>([]);
+  const [builds, setBuilds] = useState<Record<number, Build>>({});
   const endRef = useRef<HTMLDivElement>(null);
   const lastId = useRef(0);
 
@@ -47,7 +49,7 @@ export default function TeamChat() {
     const r = await fetch(`/api/team`, { headers: { Authorization: `Bearer ${k}` }, cache: "no-store" });
     if (r.status === 401) { store.set(null); setKey(null); setMe(null); setErr("That key didn't work."); return; }
     const d = await r.json();
-    setMe(d.me); setMsgs(d.messages); setReqs(d.requests); setTyping(d.typing || []); setErr("");
+    setMe(d.me); setMsgs(d.messages); setReqs(d.requests); setTyping(d.typing || []); setBuilds(d.builds || {}); setErr("");
   }, []);
 
   useEffect(() => { const k = store.get(); if (k) setKey(k); }, []);
@@ -149,6 +151,13 @@ export default function TeamChat() {
           <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 16, padding: "18px 0" }}>
             {msgs.length === 0 && <div style={{ color: "#8C8479", fontSize: 14 }}>No messages yet. Say hello.</div>}
             {msgs.map(m => {
+              if (m.kind === "ship" || m.kind === "reject") {
+                return (
+                  <div key={m.id} style={{ alignSelf: "center", fontSize: 13, color: m.kind === "ship" ? "#1E7A5A" : "#A33A2E", background: "#fff", border: "1px solid #E2DED6", borderRadius: 999, padding: "6px 14px" }}>
+                    {m.kind === "ship" ? "🚀 Ib shipped" : "✕ Ib rejected"} #{m.ref} · {time(m.at)}
+                  </div>
+                );
+              }
               if (m.kind === "approve" || m.kind === "decline") {
                 const ref = m.ref ? byId.get(m.ref) : null;
                 return (
@@ -169,6 +178,22 @@ export default function TeamChat() {
                     }}>
                       {m.kind === "request" && <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: ".08em", textTransform: "uppercase", color: st === "approved" ? "#1E7A5A" : st === "declined" ? "#A33A2E" : "#8C6A2A", marginBottom: 4 }}>{st === "approved" ? "Approved" : st === "declined" ? "Declined" : "Asking Ib to approve"}</div>}
                       <Linked text={m.text} />
+                      {m.kind === "build" && m.ref && (() => {
+                        const b = builds[m.ref];
+                        const latest = [...msgs].reverse().find(x => x.kind === "build" && x.ref === m.ref)?.id === m.id;
+                        if (!b || !latest) return null;
+                        const label: Record<Build["status"], [string, string]> = { queued: ["Starting build", "#8C6A2A"], building: ["Building…", "#8C6A2A"], ready: ["Ready for Ib", "#2F6FB0"], failed: ["Build failed", "#A33A2E"], shipped: ["Live", "#1E7A5A"], rejected: ["Rejected", "#A33A2E"] };
+                        return (
+                          <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                            <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: ".08em", textTransform: "uppercase", color: label[b.status][1] }}>{label[b.status][0]}</span>
+                            {b.preview && b.status === "ready" && <a href={b.preview} target="_blank" rel="noreferrer" style={{ fontSize: 13.5, padding: "7px 12px", borderRadius: 9, border: "1px solid #D8D2C8", background: "#fff", color: "#14110E", textDecoration: "none" }}>Open preview ↗</a>}
+                            {me === "ib" && b.status === "ready" && <>
+                              <button disabled={busy} onClick={() => send({ kind: "ship", ref: m.ref, text: "" })} style={{ padding: "8px 16px", borderRadius: 9, border: 0, background: "#1E7A5A", color: "#fff", fontWeight: 600, cursor: "pointer" }}>Ship it</button>
+                              <button disabled={busy} onClick={() => send({ kind: "reject", ref: m.ref, text: "" })} style={{ padding: "8px 16px", borderRadius: 9, border: "1px solid #D8D2C8", background: "#fff", fontWeight: 600, cursor: "pointer" }}>Reject</button>
+                            </>}
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>
@@ -204,7 +229,7 @@ export default function TeamChat() {
           <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 13.5, color: "#5F5850", lineHeight: 1.5 }}>
             <div style={{ fontSize: 12, letterSpacing: ".14em", textTransform: "uppercase", color: "#8C8479" }}>How it works</div>
             <div><b style={{ color: WHO.ib.color }}>Ib</b> (CEO) sees everything, can jump in anytime and give either of us a task. Anything that changes the live site needs Ib's approval.</div>
-            <div><b style={{ color: WHO.claude.color }}>Claude</b> answers instantly, and builds approved changes.</div>
+            <div><b style={{ color: WHO.claude.color }}>Claude</b> answers instantly. When Ib approves a request, Claude builds it and posts a preview; Ib clicks Ship to put it live.</div>
             <div><b style={{ color: WHO.sam.color }}>Sam</b> posts from the share kit and asks for what social needs.</div>
             <div style={{ color: "#8C8479" }}>Live: new messages appear within seconds.</div>
           </div>

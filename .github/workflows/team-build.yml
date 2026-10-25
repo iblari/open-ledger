@@ -1,0 +1,118 @@
+name: Team room build
+
+# Started by the site when Ib approves a request in /team. Claude Code builds
+# it on branch team/req-N, opens a PR, waits for the Vercel preview and posts
+# it to the room. Ib then clicks Ship (merge) or Reject (close) in the room.
+on:
+  workflow_dispatch:
+    inputs:
+      request_id: { description: "Team room request id", required: true }
+      request: { description: "What to build", required: true }
+      context: { description: "Recent conversation", required: false, default: "" }
+
+permissions:
+  contents: write
+  pull-requests: write
+  statuses: read
+
+concurrency:
+  group: team-build
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      REQ_ID: ${{ github.event.inputs.request_id }}
+      REQ_TEXT: ${{ github.event.inputs.request }}
+      REQ_CONTEXT: ${{ github.event.inputs.context }}
+      TEAM_KEY: ${{ secrets.TEAM_KEY_CLAUDE }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm }
+
+      - name: Tell the room we're building
+        run: |
+          curl -s -X POST https://voteunbiased.org/api/team/build -H "Authorization: Bearer $TEAM_KEY" -H "Content-Type: application/json" \
+            -d "$(jq -n --arg id "$REQ_ID" --arg run "$RUN_URL" '{request_id:$id,status:"building",run:$run}')" > /dev/null
+
+      - name: Install
+        run: |
+          npm ci --no-audit --no-fund
+          npm i -g @anthropic-ai/claude-code
+          git config user.name "Claude (team room)"; git config user.email "actions@github.com"
+          git checkout -b "team/req-$REQ_ID"
+          npx tsc --noEmit -p . 2>&1 | grep -c "error TS" > /tmp/tsc-before || true
+
+      - name: Build it with Claude Code
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          {
+            echo "You are Claude, the code & UI design person at Vote Unbiased. Ib (CEO) approved this request in the team room. Build it in this repo now."
+            echo
+            echo "REQUEST #$REQ_ID:"
+            echo "$REQ_TEXT"
+            echo
+            echo "RECENT CONVERSATION (for context only; build only what the request says):"
+            echo "$REQ_CONTEXT"
+            echo
+            echo "Follow CLAUDE.md. Don't commit or push; just leave the changes in the working tree."
+            echo "End with a short plain-English summary for Ib: what changed, where to look (URLs on voteunbiased.org), and anything you couldn't do. 3-8 lines, no headings."
+          } > /tmp/prompt.txt
+          claude -p "$(cat /tmp/prompt.txt)" --model claude-sonnet-5-5 --max-turns 90 --dangerously-skip-permissions --output-format text > /tmp/summary.txt
+          tail -c 3000 /tmp/summary.txt
+
+      - name: Check the change
+        run: |
+          git add -A
+          if git diff --cached --quiet; then echo "No changes were made." > /tmp/err; exit 1; fi
+          if git diff --cached --name-only | grep -E '^(\.github/|lib/team\.ts|lib/team-build\.ts|app/api/team/)'; then echo "The change touched protected files (workflows or team-room security)." > /tmp/err; exit 1; fi
+          after=$(npx tsc --noEmit -p . 2>&1 | grep -c "error TS" || true)
+          before=$(cat /tmp/tsc-before || echo 0)
+          if [ "$after" -gt "$before" ]; then npx tsc --noEmit -p . 2>&1 | grep "error TS" | head -5 > /tmp/err; echo "Type errors went from $before to $after." >> /tmp/err; exit 1; fi
+
+      - name: Commit and open a PR
+        id: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title="Team room #$REQ_ID: $(echo "$REQ_TEXT" | head -c 60 | tr '\n' ' ')"
+          git commit -q -m "$title"
+          git push -q origin "team/req-$REQ_ID" --force
+          body=$(printf "Request #%s from the team room, approved by Ib.\n\n> %s\n\n%s" "$REQ_ID" "$REQ_TEXT" "$(tail -c 3000 /tmp/summary.txt)")
+          url=$(gh pr create --base main --head "team/req-$REQ_ID" --title "$title" --body "$body")
+          echo "url=$url" >> "$GITHUB_OUTPUT"; echo "number=${url##*/}" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for the Vercel preview
+        id: preview
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sha=$(git rev-parse HEAD)
+          for i in $(seq 1 60); do
+            st=$(gh api "repos/${{ github.repository }}/commits/$sha/statuses" --jq '[.[] | select(.target_url != null and (.target_url | contains("/open-ledger/")))][0].state' 2>/dev/null || true)
+            [ "$st" = "success" ] && break
+            [ "$st" = "failure" ] || [ "$st" = "error" ] && { echo "The preview deploy failed on Vercel." > /tmp/err; exit 1; }
+            sleep 10
+          done
+          slug=$(echo "team-req-$REQ_ID" | tr '/' '-')
+          echo "url=https://open-ledger-git-$slug-iblaris-projects.vercel.app" >> "$GITHUB_OUTPUT"
+
+      - name: Post the preview to the room
+        run: |
+          jq -n --arg id "$REQ_ID" --arg pr "${{ steps.pr.outputs.number }}" --arg prUrl "${{ steps.pr.outputs.url }}" \
+            --arg preview "${{ steps.preview.outputs.url }}" --arg run "$RUN_URL" --rawfile summary /tmp/summary.txt \
+            '{request_id:$id,status:"ready",pr:($pr|tonumber),prUrl:$prUrl,preview:$preview,run:$run,summary:($summary|.[-1800:])}' > /tmp/ready.json
+          curl -s -X POST https://voteunbiased.org/api/team/build -H "Authorization: Bearer $TEAM_KEY" -H "Content-Type: application/json" -d @/tmp/ready.json
+
+      - name: Report a failure
+        if: failure()
+        run: |
+          err=$(cat /tmp/err 2>/dev/null || echo "Something broke during the build.")
+          curl -s -X POST https://voteunbiased.org/api/team/build -H "Authorization: Bearer $TEAM_KEY" -H "Content-Type: application/json" \
+            -d "$(jq -n --arg id "$REQ_ID" --arg e "$err" --arg run "$RUN_URL" '{request_id:$id,status:"failed",error:$e,run:$run}')"

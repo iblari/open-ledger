@@ -33,7 +33,8 @@ export function keyFrom(req: Request): string | null {
   return new URL(req.url).searchParams.get("key");
 }
 
-export type Kind = "message" | "request" | "approve" | "decline";
+export type Kind = "message" | "request" | "approve" | "decline" | "build" | "ship" | "reject";
+const IB_ONLY: Kind[] = ["approve", "decline", "ship", "reject"];
 export interface TeamMessage {
   id: number; from: Member; text: string; at: string;
   kind: Kind; ref?: number;
@@ -51,8 +52,9 @@ export async function readThread(since = 0): Promise<{ messages: TeamMessage[]; 
 
 export async function post(from: Member, text: string, kind: Kind = "message", ref?: number): Promise<TeamMessage> {
   const clean = text.replace(/\r/g, "").trim().slice(0, 4000);
-  if (!clean && kind !== "approve" && kind !== "decline") throw new Error("empty message");
-  if ((kind === "approve" || kind === "decline") && from !== "ib") throw new Error("only Ib approves");
+  if (!clean && !IB_ONLY.includes(kind)) throw new Error("empty message");
+  if (IB_ONLY.includes(kind) && from !== "ib") throw new Error("only Ib approves, ships or rejects");
+  if (kind === "build" && from !== "claude") throw new Error("only Claude posts builds");
   // A link opened twice (GET posting) shouldn't post twice.
   const recent = (await readThread(0)).messages.slice(-20);
   const dupe = recent.find(m => m.from === from && m.text === clean && m.kind === kind && m.ref === ref && Date.now() - Date.parse(m.at) < 10 * 60_000);
