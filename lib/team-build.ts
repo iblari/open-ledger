@@ -5,7 +5,7 @@
  *   workflow reports back with a Vercel preview → Ib clicks Ship (merge,
  *   live in ~2 min) or Reject (close the PR). Nothing goes live without Ib.
  */
-import { kvGet, kvSetMany } from "./live-kv";
+import { kvGet, kvSetMany, claimOnce } from "./live-kv";
 import { post, readThread, type TeamMessage } from "./team";
 
 const REPO = "iblari/open-ledger";
@@ -40,6 +40,7 @@ async function gh(path: string, init: RequestInit = {}): Promise<Response> {
 
 /** Ib approved request `reqId`: start the build. */
 export async function startBuild(reqId: number): Promise<void> {
+  if (!(await claimOnce(`team:starting:${reqId}`, 300))) return;
   const { messages } = await readThread(0);
   const req = messages.find(m => m.id === reqId && m.kind === "request");
   if (!req) return;
@@ -64,7 +65,10 @@ export async function startBuild(reqId: number): Promise<void> {
 
 /** Ib clicked Ship on request `reqId`: merge its PR. */
 export async function shipBuild(reqId: number): Promise<TeamMessage | null> {
+  // A double click (or two devices) must merge once and say nothing twice.
+  if (!(await claimOnce(`team:shipping:${reqId}`, 120))) return null;
   const b = await getBuild(reqId);
+  if (b?.status === "shipped") return null;
   if (!b || b.status !== "ready" || !b.pr) return post("claude", `#${reqId} isn't ready to ship yet.`, "build", reqId);
   const r = await gh(`/pulls/${b.pr}/merge`, { method: "PUT", body: JSON.stringify({ merge_method: "squash", commit_title: `Team room #${reqId}: ${(b.summary || "").split("\n")[0].slice(0, 60)} (#${b.pr})` }) });
   if (!r.ok) {
