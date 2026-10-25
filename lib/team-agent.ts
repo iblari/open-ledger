@@ -7,6 +7,7 @@
  * requests into approval requests for Ib. Code changes themselves are built
  * in Claude's build sessions after Ib approves. It says so honestly.
  */
+import { createHmac } from "node:crypto";
 import { readThread, post, MEMBERS, type TeamMessage, type Member } from "./team";
 import { kvGet, teamFlagSet, teamFlagDel, claimOnce } from "./live-kv";
 import { getSeries } from "./series";
@@ -19,6 +20,7 @@ const MODELS = ["claude-sonnet-4-5", "claude-haiku-4-5-20251001"];
 const MAX_BOT_RUN = 10;
 export const TYPING_KEY = (m: Member) => `team:typing:${m}`;
 export const WEBHOOK_KEY = "team:webhook:sam";
+export const WEBHOOK_SECRET_KEY = "team:webhook:sam:secret";
 
 async function liveNumbers(): Promise<string> {
   const ids = ["cpi_yoy", "core_cpi_yoy", "ppi_yoy", "gas", "payrolls_chg", "unemployment", "debt"];
@@ -112,17 +114,21 @@ export async function claudeRespond(trigger: TeamMessage): Promise<void> {
 /** Tell Sam's bot about a new message from Ib or Claude, if Sam registered a webhook. */
 export async function pingSam(msg: TeamMessage): Promise<void> {
   if (msg.from === "sam") return;
-  const [url] = await kvGet([WEBHOOK_KEY]).catch(() => [null]);
+  const [url, secret] = await kvGet([WEBHOOK_KEY, WEBHOOK_SECRET_KEY]).catch(() => [null, null]);
   if (!url) return;
-  await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
+  const body = JSON.stringify({
       event: "team.message",
       message: { id: msg.id, from: MEMBERS[msg.from].name, kind: msg.kind, text: msg.text, at: msg.at },
       thread: `${SITE}/api/team`,
       reply: `POST ${SITE}/api/team with your key, JSON {"text": "..."} (or open ${SITE}/api/team/say?key=YOUR_KEY&text=...)`,
-    }),
+  });
+  // HMAC-SHA256 of the raw body with the secret Sam registered, so Sam's
+  // listener can reject anything that didn't come from the site.
+  const sig = secret ? createHmac("sha256", secret).update(body).digest("hex") : null;
+  await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...(sig ? { "X-VU-Signature": `sha256=${sig}` } : {}) },
+    body,
     signal: AbortSignal.timeout(8000),
   }).catch(() => {});
 }
