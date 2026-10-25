@@ -15,9 +15,21 @@ import { buildOgChart } from "./og-chart";
 import { shortName } from "./metric-share";
 
 const SITE = "https://voteunbiased.org";
-const MODELS = ["claude-sonnet-4-5", "claude-haiku-4-5-20251001"];
+// Chat replies are short, so a fast, cheap model is plenty. Building uses a stronger one (team-build.yml).
+const MODELS = ["claude-haiku-4-5-20251001", "claude-sonnet-4-5"];
 /** Bots stop after this many messages in a row without Ib, so Claude and Sam can't loop forever. */
-const MAX_BOT_RUN = 10;
+const MAX_BOT_RUN = 4;
+
+/** Sam messages that need no answer: acknowledgements, resends, status chatter. Skipped without a model call. */
+const NO_REPLY = /^(ok(ay)?|got it|agreed|thanks?|thank you|sounds good|perfect|will do|on it|noted|great|ignore (my|that) last|sorry,? (that|my) last)\b/i;
+function needsReply(m: TeamMessage): boolean {
+  if (m.from === "ib") return true;
+  const t = m.text.trim();
+  if (NO_REPLY.test(t) && !/\?/.test(t)) return false;
+  // Sam talking only to Ib (and not to Claude) doesn't need Claude.
+  if (/^ib[,:]/i.test(t) && !/claude/i.test(t) && !/\?/.test(t)) return false;
+  return /claude|\?|can you|could you|please|need|request|build|fix|add|change|broken|bug/i.test(t);
+}
 export const TYPING_KEY = (m: Member) => `team:typing:${m}`;
 export const WEBHOOK_KEY = "team:webhook:sam";
 export const WEBHOOK_SECRET_KEY = "team:webhook:sam:secret";
@@ -40,7 +52,7 @@ The team talks in one plain-English chat room:
 - Sam: social media manager, a Grok bot. Posts to X from the share kit feed (${SITE}/api/share-kit; human view ${SITE}/share).
 - You: Claude, code & UI design.
 
-How you talk: short, warm, direct, like a sharp teammate in a work chat. Plain English, numbers first. Usually 1–5 sentences. No headings. Use names. Don't repeat what was just said. Ask one clear question when something is unclear. Never invent numbers; use the live numbers below or say you'll check.
+How you talk: short, warm, direct, like a sharp teammate in a work chat. Plain English, numbers first. Usually 1–3 sentences. Don't acknowledge acknowledgements, and don't restate plans back to people; reply only when you add something (an answer, a number, a decision needed, a request). If nothing is needed, return {"reply": null, "request": null}. No headings. Use names. Don't repeat what was just said. Ask one clear question when something is unclear. Never invent numbers; use the live numbers below or say you'll check.
 
 Honesty rules (strict):
 - Only state facts that are in the chat, the live numbers below, or general knowledge about the site. Never claim to see someone else's systems ("I can see your API works"), and never invent dates, deadlines, numbers or decisions.
@@ -67,7 +79,7 @@ Useful links: claim pages ${SITE}/c/<key>, chart pages ${SITE}/s/<series> (e.g. 
 Reply with JSON only: {"reply": "your chat message", "request": "a concrete change for Ib to approve, or null"}. Use {"reply": null, "request": null} only when nothing needs saying (e.g. a plain "thanks" or a message clearly meant only for Sam that you have nothing to add to).`;
 
 function transcript(msgs: TeamMessage[]): string {
-  return msgs.slice(-40).map(m => {
+  return msgs.slice(-20).map(m => {
     const who = MEMBERS[m.from].name;
     if (m.kind === "approve" || m.kind === "decline") return `[#${m.id}] ${who} ${m.kind === "approve" ? "APPROVED" : "DECLINED"} request #${m.ref}`;
     return `[#${m.id}] ${who}${m.kind === "request" ? " (approval request)" : ""}: ${m.text}`;
@@ -81,7 +93,7 @@ async function callClaude(system: string, user: string): Promise<{ reply: string
     const r = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
-      body: JSON.stringify({ model, max_tokens: 900, system, messages: [{ role: "user", content: user }] }),
+      body: JSON.stringify({ model, max_tokens: 500, system, messages: [{ role: "user", content: user }] }),
       signal: AbortSignal.timeout(45_000),
     }).catch(() => null);
     if (!r || !r.ok) continue;
@@ -114,7 +126,7 @@ export async function claudeRespond(trigger: TeamMessage): Promise<void> {
       await teamFlagDel(AGAIN);
       const { messages } = await readThread(0);
       const last = messages[messages.length - 1];
-      if (!last || last.from === "claude") return;
+      if (!last || last.from === "claude" || !needsReply(last)) return;
       if (!(await claimOnce(`team:replied:${last.id}`, 3600))) return;
       let run = 0;
       for (let i = messages.length - 1; i >= 0 && messages[i].from !== "ib"; i--) run++;
@@ -138,6 +150,12 @@ export async function claudeRespond(trigger: TeamMessage): Promise<void> {
 /** Tell Sam's bot about a new message from Ib or Claude, if Sam registered a webhook. */
 export async function pingSam(msg: TeamMessage): Promise<void> {
   if (msg.from === "sam") return;
+  // Each ping wakes Sam's routine (it costs money), so only ping when Sam has something to act on:
+  // anything from Ib, Claude messages that address Sam, and shipped work.
+  if (msg.from === "claude" && msg.id !== 0) {
+    const forSam = /\bsam\b/i.test(msg.text) || (msg.kind === "build" && /^Shipped/.test(msg.text));
+    if (!forSam || msg.kind === "request") return;
+  }
   const [url, secret, hdrs] = await kvGet([WEBHOOK_KEY, WEBHOOK_SECRET_KEY, WEBHOOK_HEADERS_KEY]).catch(() => [null, null, null]);
   let extra: Record<string, string> = {};
   try { extra = hdrs ? JSON.parse(hdrs) : {}; } catch {}

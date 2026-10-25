@@ -22,7 +22,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 30
     env:
       REQ_ID: ${{ github.event.inputs.request_id }}
       REQ_TEXT: ${{ github.event.inputs.request }}
@@ -64,7 +64,7 @@ jobs:
             echo "Follow CLAUDE.md. Leave your changes in the working tree; the workflow commits them, opens the PR and posts a Vercel preview for Ib, so don't mention commits or pushing."
             echo "End with a short plain-English summary for Ib: what changed, and the page paths to check on the preview (e.g. /team, /s/gas). Mention anything you couldn't do. 3-8 lines, no headings."
           } > /tmp/prompt.txt
-          claude -p "$(cat /tmp/prompt.txt)" --model claude-sonnet-5-5 --max-turns 90 --dangerously-skip-permissions --output-format text > /tmp/summary.txt
+          claude -p "$(cat /tmp/prompt.txt)" --model claude-sonnet-5-5 --max-turns 45 --dangerously-skip-permissions --output-format text > /tmp/summary.txt
           tail -c 3000 /tmp/summary.txt
 
       - name: Check the change
