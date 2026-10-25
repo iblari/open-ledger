@@ -1360,3 +1360,13 @@ export async function teamRead(from = 0): Promise<string[]> {
   if (hasUpstash()) return ((await upstashCmdStrict("LRANGE", TEAM_KEY, from, -1)) as string[] | null) || [];
   return teamMem.slice(from);
 }
+
+/** Small helpers for the team room (typing flags, Sam's webhook). */
+export async function teamFlagSet(key: string, value: string, ttlSec: number): Promise<void> {
+  if (hasUpstash()) { await upstashCmd("SET", key, value, ...(ttlSec ? ["EX", ttlSec] : [])); return; }
+  mem.set(key, value);
+}
+export async function teamFlagDel(key: string): Promise<void> {
+  if (hasUpstash()) { await upstashCmd("DEL", key); return; }
+  mem.delete(key);
+}

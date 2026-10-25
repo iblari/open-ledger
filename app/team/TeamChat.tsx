@@ -39,6 +39,7 @@ export default function TeamChat() {
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const [keyInput, setKeyInput] = useState("");
+  const [typing, setTyping] = useState<Member[]>([]);
   const endRef = useRef<HTMLDivElement>(null);
   const lastId = useRef(0);
 
@@ -46,14 +47,14 @@ export default function TeamChat() {
     const r = await fetch(`/api/team`, { headers: { Authorization: `Bearer ${k}` }, cache: "no-store" });
     if (r.status === 401) { store.set(null); setKey(null); setMe(null); setErr("That key didn't work."); return; }
     const d = await r.json();
-    setMe(d.me); setMsgs(d.messages); setReqs(d.requests); setErr("");
+    setMe(d.me); setMsgs(d.messages); setReqs(d.requests); setTyping(d.typing || []); setErr("");
   }, []);
 
   useEffect(() => { const k = store.get(); if (k) setKey(k); }, []);
   useEffect(() => {
     if (!key) return;
     load(key);
-    const t = setInterval(() => load(key), 15_000);
+    const t = setInterval(() => { if (!document.hidden) load(key); }, 2500);
     return () => clearInterval(t);
   }, [key, load]);
   useEffect(() => {
@@ -68,6 +69,7 @@ export default function TeamChat() {
     setBusy(false);
     if (!r.ok) { setErr((await r.json().catch(() => ({}))).error || "Couldn't send."); return; }
     await load(key);
+    setTimeout(() => load(key), 800);
   };
   const submit = async () => {
     const text = draft.trim();
@@ -122,6 +124,8 @@ export default function TeamChat() {
         .team-wrap{max-width:1400px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:28px;padding:24px 24px 0}
         .team-side{position:sticky;top:20px;align-self:start;display:flex;flex-direction:column;gap:22px}
         .team-top-approvals{display:none}
+        @keyframes teamdots{0%,100%{opacity:.2}50%{opacity:1}}
+        .team-dots{animation:teamdots 1.2s infinite}
         @media (max-width: 860px){
           .team-wrap{grid-template-columns:1fr;padding:14px 12px 0;gap:12px}
           .team-side{display:none}
@@ -170,6 +174,11 @@ export default function TeamChat() {
                 </div>
               );
             })}
+            {typing.map(m => (
+              <div key={m} style={{ display: "flex", gap: 12, alignItems: "center", color: "#8C8479", fontSize: 14 }}>
+                <Avatar m={m} size={28} /> <span><b style={{ color: WHO[m].color }}>{WHO[m].name}</b> is typing<span className="team-dots">…</span></span>
+              </div>
+            ))}
             <div ref={endRef} />
           </div>
 
@@ -195,9 +204,9 @@ export default function TeamChat() {
           <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 13.5, color: "#5F5850", lineHeight: 1.5 }}>
             <div style={{ fontSize: 12, letterSpacing: ".14em", textTransform: "uppercase", color: "#8C8479" }}>How it works</div>
             <div><b style={{ color: WHO.ib.color }}>Ib</b> (CEO) sees everything, can jump in anytime and give either of us a task. Anything that changes the live site needs Ib's approval.</div>
-            <div><b style={{ color: WHO.claude.color }}>Claude</b> checks in every hour, answers, and ships approved work.</div>
+            <div><b style={{ color: WHO.claude.color }}>Claude</b> answers instantly, and builds approved changes.</div>
             <div><b style={{ color: WHO.sam.color }}>Sam</b> posts from the share kit and asks for what social needs.</div>
-            <div style={{ color: "#8C8479" }}>Updates every 15 seconds.</div>
+            <div style={{ color: "#8C8479" }}>Live: new messages appear within seconds.</div>
           </div>
         </aside>
       </div>
