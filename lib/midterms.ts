@@ -21,7 +21,7 @@ export interface Candidate {
   fec: { id: string; raised: number; cash: number; indiv: number; small: number; self: number; through: string } | null;
   record: { chamber: "Senate" | "House"; unity: number | null; unityVotes: number; missedPct: number | null; bioguide: string; key: Record<string, string | null> } | null;
   site: string | null; siteStatus: "ok" | "unreadable" | "none";
-  positions: Partial<Record<Topic, { quote: string; url: string }>>;
+  positions: Partial<Record<Topic, { quote: string; url: string; src?: "official" }>>;
 }
 export interface Race { id: string; state: string; st: string; office: "senate" | "governor"; special: boolean; incumbent: string | null; candidates: Candidate[] }
 export interface KeyVote { bill: string; title: string; desc: string; rolls: Record<string, string | null> }
@@ -49,9 +49,10 @@ export function rollUrl(chamber: "Senate" | "House", roll: string | null | undef
   return `https://voteview.com/rollcall/R${chamber === "Senate" ? "S" : "H"}119${roll.padStart(4, "0")}`;
 }
 
+/** Calendar days until election day, counted in Eastern time. */
 export function daysToElection(now = new Date()): number {
-  const d = Date.parse(ELECTION_DAY + "T12:00:00-05:00") - now.getTime();
-  return Math.max(0, Math.ceil(d / 864e5));
+  const today = now.toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+  return Math.max(0, Math.round((Date.parse(ELECTION_DAY) - Date.parse(today)) / 864e5));
 }
 
 export const money = (n: number) => n >= 1e6 ? `$${(n / 1e6).toFixed(n >= 1e8 ? 0 : 1)}M` : n >= 1e3 ? `$${Math.round(n / 1e3)}K` : `$${Math.round(n)}`;

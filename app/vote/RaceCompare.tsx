@@ -94,7 +94,7 @@ export default function RaceCompare({ race, fc }: { race: Race; fc: FC }) {
                     const v = c.record?.key?.[k.bill];
                     const url = c.record ? rollUrl(c.record.chamber, k.rolls[c.record.chamber]) : null;
                     if (!c.record) return cell(c.name, dash);
-                    const col = v === "Yes" ? C.improveStrong : v === "No" ? C.declineStrong : C.mute;
+                    const col = v === "Yes" || v === "No" ? C.ink : C.mute;
                     return cell(c.name, url ? <a href={url} style={{ color: col, fontWeight: 700, textDecoration: "none" }}>{v ?? "Not in office"}</a> : <span style={{ color: col }}>{v ?? "Not in office"}</span>);
                   })}
                 </Row>
@@ -114,7 +114,7 @@ export default function RaceCompare({ race, fc }: { race: Race; fc: FC }) {
             <Row key={t} label={MID.topics[t]}>
               {mains.map(c => {
                 const p = c.positions[t];
-                if (p) return cell(c.name, <><div style={{ fontFamily: SERIF, fontSize: 15, lineHeight: 1.45 }}>“{p.quote}”</div><a href={p.url} style={{ fontSize: 11.5, color: C.mute }}>{host(p.url)} ↗</a></>);
+                if (p) return cell(c.name, <><div style={{ fontFamily: SERIF, fontSize: 15, lineHeight: 1.45 }}>“{p.quote}”</div><a href={p.url} style={{ fontSize: 11.5, color: C.mute }}>{host(p.url)}{p.src === "official" ? " · official congressional site" : ""} ↗</a></>);
                 const why = c.siteStatus === "ok" ? "Not addressed on their campaign site" : c.siteStatus === "unreadable" ? "We couldn't read their campaign site" : "No campaign site found";
                 return cell(c.name, <span style={{ color: C.mute, fontSize: 13 }}>{why}{c.site && c.siteStatus !== "ok" ? <> · <a href={c.site} style={{ color: C.mute }}>visit ↗</a></> : null}</span>);
               })}
