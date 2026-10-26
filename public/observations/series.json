@@ -1,6 +1,138 @@
 {
-  "generatedAt": "2026-10-19T18:57:10.898Z",
+  "generatedAt": "2026-10-26T18:59:20.212Z",
   "series": [
+    {
+      "id": "ai_business_adoption",
+      "topic": "ai",
+      "label": "Businesses using AI",
+      "unit": "%",
+      "cadence": "biweekly",
+      "geography": "national",
+      "source": {
+        "id": "census_btos",
+        "name": "U.S. Census Bureau, Business Trends and Outlook Survey",
+        "url": "https://www.census.gov/programs-surveys/btos.html",
+        "licence": "public-domain",
+        "note": "Share of businesses reporting AI use in the last two weeks. Sample ~1.2M firms."
+      },
+      "points": [
+        {
+          "t": "2025-11-17",
+          "v": 17.3
+        },
+        {
+          "t": "2025-12-01",
+          "v": 17.2
+        },
+        {
+          "t": "2025-12-15",
+          "v": 17.8
+        },
+        {
+          "t": "2025-12-29",
+          "v": 17.7
+        },
+        {
+          "t": "2026-01-12",
+          "v": 18.2
+        },
+        {
+          "t": "2026-01-26",
+          "v": 18.9
+        },
+        {
+          "t": "2026-02-09",
+          "v": 17.5
+        },
+        {
+          "t": "2026-02-23",
+          "v": 18.2
+        },
+        {
+          "t": "2026-03-09",
+          "v": 18.9
+        },
+        {
+          "t": "2026-03-23",
+          "v": 19.1
+        },
+        {
+          "t": "2026-04-06",
+          "v": 19.8
+        },
+        {
+          "t": "2026-04-20",
+          "v": 19.8
+        },
+        {
+          "t": "2026-05-04",
+          "v": 19.5
+        },
+        {
+          "t": "2026-05-18",
+          "v": 20.6
+        },
+        {
+          "t": "2026-06-01",
+          "v": 20.6
+        },
+        {
+          "t": "2026-06-15",
+          "v": 20.6
+        },
+        {
+          "t": "2026-06-29",
+          "v": 21.7
+        },
+        {
+          "t": "2026-07-13",
+          "v": 21.5
+        },
+        {
+          "t": "2026-07-27",
+          "v": 21.8
+        },
+        {
+          "t": "2026-08-10",
+          "v": 22.4
+        },
+        {
+          "t": "2026-08-24",
+          "v": 23.2
+        },
+        {
+          "t": "2026-09-07",
+          "v": 23.8
+        },
+        {
+          "t": "2026-09-21",
+          "v": 23.8
+        },
+        {
+          "t": "2026-10-05",
+          "v": 24.6
+        }
+      ],
+      "latest": {
+        "t": "2026-10-05",
+        "v": 24.6
+      },
+      "first": {
+        "t": "2025-11-17",
+        "v": 17.3
+      },
+      "score": 60.6,
+      "yoy": 47.8,
+      "changeUnit": "percent",
+      "changeWindowDays": 322,
+      "comparedWith": {
+        "t": "2025-11-17",
+        "v": 17.3
+      },
+      "confidenceNotes": [
+        "series shorter than a year"
+      ]
+    },
     {
       "id": "frontier_training_compute",
       "topic": "ai",
@@ -274,134 +406,6 @@
         "v": 26.7
       },
       "confidenceNotes": []
-    },
-    {
-      "id": "ai_business_adoption",
-      "topic": "ai",
-      "label": "Businesses using AI",
-      "unit": "%",
-      "cadence": "biweekly",
-      "geography": "national",
-      "source": {
-        "id": "census_btos",
-        "name": "U.S. Census Bureau, Business Trends and Outlook Survey",
-        "url": "https://www.census.gov/programs-surveys/btos.html",
-        "licence": "public-domain",
-        "note": "Share of businesses reporting AI use in the last two weeks. Sample ~1.2M firms."
-      },
-      "points": [
-        {
-          "t": "2025-11-17",
-          "v": 17.3
-        },
-        {
-          "t": "2025-12-01",
-          "v": 17.2
-        },
-        {
-          "t": "2025-12-15",
-          "v": 17.8
-        },
-        {
-          "t": "2025-12-29",
-          "v": 17.7
-        },
-        {
-          "t": "2026-01-12",
-          "v": 18.2
-        },
-        {
-          "t": "2026-01-26",
-          "v": 18.9
-        },
-        {
-          "t": "2026-02-09",
-          "v": 17.5
-        },
-        {
-          "t": "2026-02-23",
-          "v": 18.2
-        },
-        {
-          "t": "2026-03-09",
-          "v": 18.9
-        },
-        {
-          "t": "2026-03-23",
-          "v": 19.1
-        },
-        {
-          "t": "2026-04-06",
-          "v": 19.8
-        },
-        {
-          "t": "2026-04-20",
-          "v": 19.8
-        },
-        {
-          "t": "2026-05-04",
-          "v": 19.5
-        },
-        {
-          "t": "2026-05-18",
-          "v": 20.6
-        },
-        {
-          "t": "2026-06-01",
-          "v": 20.6
-        },
-        {
-          "t": "2026-06-15",
-          "v": 20.6
-        },
-        {
-          "t": "2026-06-29",
-          "v": 21.7
-        },
-        {
-          "t": "2026-07-13",
-          "v": 21.5
-        },
-        {
-          "t": "2026-07-27",
-          "v": 21.8
-        },
-        {
-          "t": "2026-08-10",
-          "v": 22.4
-        },
-        {
-          "t": "2026-08-24",
-          "v": 23.2
-        },
-        {
-          "t": "2026-09-07",
-          "v": 23.8
-        },
-        {
-          "t": "2026-09-21",
-          "v": 23.8
-        }
-      ],
-      "latest": {
-        "t": "2026-09-21",
-        "v": 23.8
-      },
-      "first": {
-        "t": "2025-11-17",
-        "v": 17.3
-      },
-      "score": 58.6,
-      "yoy": 44.5,
-      "changeUnit": "percent",
-      "changeWindowDays": 308,
-      "comparedWith": {
-        "t": "2025-11-17",
-        "v": 17.3
-      },
-      "confidenceNotes": [
-        "series shorter than a year"
-      ]
     },
     {
       "id": "ecommerce_share",
