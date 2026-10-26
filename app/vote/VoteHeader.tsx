@@ -10,8 +10,8 @@ export default function VoteHeader() {
           <CheetahMark height={22} ink={C.ink} accent={C.accent} />
           <span className="vu-wordmark">Vote <em style={{ fontStyle: "italic", color: C.accent, fontWeight: 500 }}>Unbiased</em></span>
         </Link>
-        <div style={{ display: "flex", gap: 16, fontSize: 13, fontWeight: 600 }}>
-          <Link href="/vote" style={{ color: C.ink, textDecoration: "none" }}>2026 ballot</Link>
+        <div style={{ display: "flex", gap: 14, fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
+          <Link href="/vote" style={{ color: C.ink, textDecoration: "none" }}>Ballot</Link>
           <Link href="/trending" style={{ color: C.sub, textDecoration: "none" }}>Trending</Link>
           <Link href="/live" style={{ color: C.accent, textDecoration: "none" }}>Live</Link>
         </div>

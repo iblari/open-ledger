@@ -24,6 +24,7 @@ export async function generateMetadata({ params }: { params: Promise<{ st: strin
   return { title: `${title} · Vote Unbiased`, description, alternates: { canonical: url },
     openGraph: { title, description, url, siteName: "Vote Unbiased", type: "website" },
     twitter: { card: "summary_large_image", title, description } };
+  // og:image comes from ./opengraph-image.tsx
 }
 
 export default async function StateBallot({ params }: { params: Promise<{ st: string }> }) {
@@ -42,6 +43,7 @@ export default async function StateBallot({ params }: { params: Promise<{ st: st
         .vc-c{padding:12px 16px;border-top:1px solid ${C.rule};border-left:1px solid ${C.rule};font-size:14.5px;line-height:1.45;min-width:0}
         .vc-head{border-top:none;padding-top:16px;padding-bottom:14px}
         .vc-sec{grid-column:1/-1;padding:16px 16px 6px;font-size:11.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:${C.accent};border-top:1px solid ${C.rule};background:#fff}
+        .vc-q{font-size:15px}
         .vc-note{grid-column:1/-1;padding:12px 16px;border-top:1px solid ${C.rule};font-size:13.5px;color:${C.sub}}
         @media (max-width: 720px){
           .vc-grid{grid-template-columns:repeat(var(--n),minmax(150px,1fr));min-width:calc(var(--n) * 150px)}
@@ -52,6 +54,7 @@ export default async function StateBallot({ params }: { params: Promise<{ st: st
           .vc-c:not(.vc-c + .vc-c){border-left:none}
           .vc-head.vc-c{padding-top:14px;border-top:none}
           .vc-sec{padding:14px 14px 4px}
+          .vc-q{font-size:13.5px}
         }
       `}</style>
       <VoteHeader />

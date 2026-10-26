@@ -85,7 +85,7 @@ export default function RaceCompare({ race, fc }: { race: Race; fc: FC }) {
               <Row label="Votes with own party" sub={<>On votes where most Democrats and most Republicans disagreed · <a href="https://voteview.com" style={{ color: C.mute }}>Voteview</a>, 2025–26</>}>
                 {mains.map(c => cell(c.name, c.record?.unity != null ? (
                   <><b style={{ fontSize: 17 }}>{c.record.unity.toFixed(0)}%</b><div style={{ fontSize: 11.5, color: C.mute }}>of {c.record.unityVotes} {c.record.chamber} votes</div></>
-                ) : <span style={{ color: C.mute, fontSize: 13 }}>Not in Congress</span>))}
+                ) : <span style={{ color: C.mute, fontSize: 13 }}>Not in the current Congress</span>))}
               </Row>
               <Row label="Missed votes">{mains.map(c => cell(c.name, c.record?.missedPct != null ? `${c.record.missedPct.toFixed(1)}%` : dash))}</Row>
               {MID.keyVotes.map(k => (
@@ -114,7 +114,7 @@ export default function RaceCompare({ race, fc }: { race: Race; fc: FC }) {
             <Row key={t} label={MID.topics[t]}>
               {mains.map(c => {
                 const p = c.positions[t];
-                if (p) return cell(c.name, <><div style={{ fontFamily: SERIF, fontSize: 15, lineHeight: 1.45 }}>“{p.quote}”</div><a href={p.url} style={{ fontSize: 11.5, color: C.mute }}>{host(p.url)}{p.src === "official" ? " · official congressional site" : ""} ↗</a></>);
+                if (p) return cell(c.name, <><div className="vc-q" style={{ fontFamily: SERIF, lineHeight: 1.45 }}>“{p.quote}”</div><a href={p.url} style={{ fontSize: 11.5, color: C.mute }}>{host(p.url)}{p.src === "official" ? " · official congressional site" : ""} ↗</a></>);
                 const why = c.siteStatus === "ok" ? "Not addressed on their campaign site" : c.siteStatus === "unreadable" ? "We couldn't read their campaign site" : "No campaign site found";
                 return cell(c.name, <span style={{ color: C.mute, fontSize: 13 }}>{why}{c.site && c.siteStatus !== "ok" ? <> · <a href={c.site} style={{ color: C.mute }}>visit ↗</a></> : null}</span>);
               })}
