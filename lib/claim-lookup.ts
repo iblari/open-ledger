@@ -5,6 +5,7 @@ import {
 } from "./live-kv";
 import { claimHash, claimPath, normQuote } from "./claim-link";
 import { claimRelation } from "./repeat-claims";
+import { fixClaim } from "./claim-fixes";
 
 export interface SharedClaim {
   key: string;
@@ -34,10 +35,11 @@ async function find(hash: string): Promise<{ claim: SharedClaim; ledger: LedgerE
 
   if (state?.status === "live" && state.videoId) {
     const live = await getLiveClaims().catch(() => []);
-    for (const c of live) {
-      if (claimHash(state.videoId, c.quote) !== hash) continue;
+    for (const raw of live) {
+      const c = fixClaim(state.videoId, raw);
+      if (claimHash(state.videoId, c.quote) !== hash && claimHash(state.videoId, raw.quote) !== hash) continue;
       return { ledger, claim: {
-        key: hash, videoId: state.videoId, quote: c.quote, rating: c.rating, actual: c.actual,
+        key: claimHash(state.videoId, c.quote), videoId: state.videoId, quote: c.quote, rating: c.rating, actual: c.actual,
         explanation: c.explanation, sources: c.sources || [], videoTime: c.videoTime,
         title: state.title, speaker: speakerFromTitle(state.title), date: state.startedAt, live: true,
       } };
@@ -45,24 +47,26 @@ async function find(hash: string): Promise<{ claim: SharedClaim; ledger: LedgerE
   }
 
   const recent = await getRecentBroadcasts().catch(() => []);
-  for (const b of recent) for (const c of b.claims) {
-    if (claimHash(b.videoId, c.quote) !== hash) continue;
+  for (const b of recent) for (const raw of b.claims) {
+    const c = fixClaim(b.videoId, raw);
+    if (claimHash(b.videoId, c.quote) !== hash && claimHash(b.videoId, raw.quote) !== hash) continue;
     return { ledger, claim: {
-      key: hash, videoId: b.videoId, quote: c.quote, rating: c.rating, actual: c.actual,
+      key: claimHash(b.videoId, c.quote), videoId: b.videoId, quote: c.quote, rating: c.rating, actual: c.actual,
       explanation: c.explanation, sources: c.sources || [], videoTime: c.videoTime,
       title: b.title, speaker: speakerFromTitle(b.title), date: b.startedAt, live: b.videoId === onAir,
     } };
   }
 
-  for (const e of ledger) for (const c of e.claims) {
-    if (claimHash(e.videoId, c.quote) !== hash) continue;
+  for (const e of ledger) for (const raw of e.claims) {
+    const c = fixClaim(e.videoId, raw);
+    if (claimHash(e.videoId, c.quote) !== hash && claimHash(e.videoId, raw.quote) !== hash) continue;
     // The ledger keeps no written explanation; the permanent full record does.
     let explanation: string | undefined;
     const full = await getFullBroadcast(e.videoId).catch(() => null);
-    const fc = full?.claims.find(x => normQuote(x.quote) === normQuote(c.quote));
-    if (fc) explanation = fc.explanation;
+    const fc = full?.claims.find(x => normQuote(x.quote) === normQuote(raw.quote));
+    if (fc) explanation = fixClaim(e.videoId, fc).explanation;
     return { ledger, claim: {
-      key: hash, videoId: e.videoId, quote: c.quote, rating: c.rating, actual: c.actual || "",
+      key: claimHash(e.videoId, c.quote), videoId: e.videoId, quote: c.quote, rating: c.rating, actual: c.actual || "",
       explanation, sources: c.sources || [], videoTime: c.videoTime,
       title: e.title, speaker: e.speaker, date: e.startedAt, live: e.videoId === onAir,
     } };
