@@ -5,6 +5,7 @@ import {
 import { normalizeQuote } from "./align";
 import { claimHash, claimPath } from "./claim-link";
 import { claimRelation } from "./repeat-claims";
+import { fixClaim } from "./claim-fixes";
 import { CHART_KEY, type ClaimChart, type ClaimForChart } from "./claim-chart";
 import { SERIES_KEY, cleanMapping, type ClaimSeries } from "./claim-series";
 
@@ -29,7 +30,8 @@ const FEED_KEY = "trending-claims:v3";
 const FEED_TTL_MS = 3 * 60_000;
 const MAX = 160;
 
-function pick(c: LiveClaim, b: { videoId: string; title: string; startedAt: string }, live: boolean, speaker?: string | null): TrendingClaim {
+function pick(raw: LiveClaim, b: { videoId: string; title: string; startedAt: string }, live: boolean, speaker?: string | null): TrendingClaim {
+  const c = fixClaim(b.videoId, raw);
   return {
     key: claimHash(b.videoId, c.quote), path: claimPath(b.videoId, c.quote),
     quote: c.quote, rating: (c.rating || "").toUpperCase(), actual: c.actual || "", explanation: c.explanation,
