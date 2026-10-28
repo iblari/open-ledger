@@ -64,6 +64,7 @@ function Lead({ s }: { s: Story }) {
           );
         })}
       </div>
+      <div className="nw-swipe" style={{ display: "none", fontSize: 11, color: C.mute, marginTop: 4 }}>Swipe for each side →</div>
       <div style={{ fontSize: 12.5, color: C.sub, marginTop: 8 }}>
         <Link href={`/news/${s.slug}`} style={{ color: C.ink, fontWeight: 600 }}>Full coverage from all {s.outlets} outlets →</Link>
       </div>
@@ -159,7 +160,7 @@ export default async function NewsPage({ searchParams }: { searchParams: Promise
 
   const rail = (
     <aside className="nw-rail" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      {view !== "blindspots" && <BlindspotRail stories={all} />}
+      {view !== "blindspots" && <BlindspotRail stories={all.filter(s => s !== lead)} />}
       {claims.length > 0 && (
         <div style={{ background: "#fff", border: `1px solid ${C.rule}`, borderRadius: 12, padding: "13px 15px" }}>
           <div style={{ ...K, color: "#B45309" }}>Checked claims</div>
@@ -191,8 +192,11 @@ export default async function NewsPage({ searchParams }: { searchParams: Promise
         .nw-two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px}
         @media (max-width:900px){.nw-grid{grid-template-columns:minmax(0,1fr)}.nw-rail{order:2}}
         @media (max-width:640px){
-          .nw-sides{display:flex!important;overflow-x:auto;scroll-snap-type:x mandatory;margin:7px -20px 0;padding:0 20px 4px;scrollbar-width:none}
+          .nw-sides{display:flex!important;overflow-x:auto;scroll-snap-type:x mandatory;margin:7px -20px 0;padding:0 0 4px;scrollbar-width:none;scroll-padding-left:20px}
           .nw-sides>*{flex:0 0 78%;scroll-snap-align:start}
+          .nw-sides>*:first-child{margin-left:20px}
+          .nw-sides>*:last-child{margin-right:20px}
+          .nw-swipe{display:block!important}
           .nw-two{grid-template-columns:minmax(0,1fr)}
           .nw-row{grid-template-columns:minmax(0,1fr) 60px!important}
           .nw-n{display:none}
