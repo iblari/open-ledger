@@ -162,3 +162,29 @@ export async function getLocalAnnual(metric: string, code: string): Promise<Loca
     url: fredUrl(localId), points, latest,
   };
 }
+
+/* ── Same point in office: your region across the current term ─────── */
+
+export interface LocalTerm { metric: string; place: string; unit: string; source: string; url: string; points: { month: number; v: number }[]; latest: { month: number; label: string; local: number; us: number } | null }
+/** Month m of the term starting in January of `startYear` (month 0 = January),
+ *  regional figure on the same basis as the benchmark: gas = monthly average
+ *  price, inflation = 12-month % change (not seasonally adjusted). */
+export async function getLocalTerm(metric: string, code: string, startYear: number): Promise<LocalTerm | null> {
+  const st = STATE_BY_CODE.get(code);
+  if (!st || !LOCAL_BENCH.has(metric)) return null;
+  const isGas = metric === "gas";
+  const localId = isGas ? PADD_MONTHLY[st.padd] : `CUUR${CPI_REGION[st.cpi].code}SA0`;
+  const usId = isGas ? "GASREGCOVM" : "CPIAUCNS";
+  const [a, b] = await Promise.all([fredSeries(localId), fredSeries(usId)]);
+  const la = isGas ? a : yoy(a, "m"), lb = new Map((isGas ? b : yoy(b, "m")).map(p => [p.d, p.v]));
+  const idx = (d: string) => (+d.slice(0, 4) - startYear) * 12 + (+d.slice(5, 7) - 1);
+  const points = la.filter(p => idx(p.d) >= 0 && idx(p.d) <= 47).map(p => ({ month: idx(p.d), v: +p.v.toFixed(isGas ? 2 : 1) }));
+  const last = [...la].reverse().find(p => lb.has(p.d) && idx(p.d) >= 0);
+  return {
+    metric, unit: isGas ? "$" : "%",
+    place: isGas ? PADD[st.padd].name : `${CPI_REGION[st.cpi].name} region`,
+    source: isGas ? "EIA retail regular gasoline, monthly" : "BLS CPI-U, not seasonally adjusted, 12-month change",
+    url: fredUrl(localId), points,
+    latest: last ? { month: idx(last.d), label: monthLabel(last.d), local: +last.v.toFixed(isGas ? 2 : 1), us: +lb.get(last.d)!.toFixed(isGas ? 2 : 1) } : null,
+  };
+}
