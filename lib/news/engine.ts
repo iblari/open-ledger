@@ -208,7 +208,7 @@ const TOPICS: [string, RegExp][] = [
   ["Immigration", /\b(immigra|border|deport|asylum|migrant|ice\b)/i],
   ["Crime", /\b(crime|murder|shooting|police|homicide)\b/i],
 ];
-export const slugify = (s: string) => s.toLowerCase().replace(/['’]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").split("-").slice(0, 10).join("-");
+export const slugify = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/['’]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").split("-").slice(0, 10).join("-");
 
 export function buildStories(groups: Article[][], all: Article[], offs: Record<string, Official>): Story[] {
   const stories: Story[] = [];

@@ -30,7 +30,7 @@ function StoryCard({ s }: { s: Story }) {
     <Link href={`/news/${s.slug}`} style={{ display: "block", background: "#fff", border: `1px solid ${C.rule}`, borderRadius: 12, padding: "14px 16px", textDecoration: "none", color: C.ink }}>
       <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", fontWeight: 600 }}>
         {n ? <span style={{ color: "#0E7477", background: "#E6F1EF", borderRadius: 999, padding: "2px 8px" }}>Data release</span>
-          : s.blindspot ? <span style={{ color: "#4D3E8F", background: "#EEECF6", borderRadius: 999, padding: "2px 8px" }}>Blindspot · mostly {s.blindspot === "left" ? "right" : "left"}-leaning coverage</span>
+          : s.blindspot ? <span style={{ color: "#4D3E8F", background: "#EEECF6", borderRadius: 999, padding: "2px 8px" }}>Blindspot · mostly {s.blindspot === "left" ? "right" : "left"}-leaning</span>
           : <span style={{ color: C.mute }}>{s.topic}</span>}
         <span style={{ color: C.mute, fontWeight: 500, textTransform: "none", letterSpacing: 0 }}>{ago(s.lastSeen)}</span>
       </div>
@@ -89,7 +89,7 @@ export default async function NewsPage({ searchParams }: { searchParams: Promise
                 <div style={{ fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", fontWeight: 600, color: "#B45309" }}>Claim · {it.c.speaker || "Broadcast"} <span style={{ color: C.mute, fontWeight: 500, textTransform: "none", letterSpacing: 0 }}>{ago(it.c.date)}</span></div>
                 <div style={{ fontFamily: SERIF, fontSize: 18, lineHeight: 1.3, margin: "7px 0 8px" }}>“{it.c.quote.length > 140 ? it.c.quote.slice(0, 137).replace(/\s+\S*$/, "") + "…" : it.c.quote}”</div>
                 <div style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 12.5, color: C.sub }}>
-                  <span style={{ background: VERDICT_COLOR[toOutcome(it.c.rating)], color: "#fff", fontWeight: 700, fontSize: 10.5, letterSpacing: "0.06em", padding: "2px 7px", borderRadius: 4 }}>{ratingLabel(it.c.rating)}</span>
+                  <span style={{ background: VERDICT_COLOR[toOutcome(it.c.rating)], color: "#fff", fontWeight: 700, fontSize: 10.5, letterSpacing: "0.06em", padding: "2px 7px", borderRadius: 4, whiteSpace: "nowrap", flex: "none" }}>{ratingLabel(it.c.rating)}</span>
                   <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.c.actual}</span>
                 </div>
               </Link>
