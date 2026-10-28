@@ -1,7 +1,7 @@
 import { unstable_cache } from "next/cache";
 import {
   getLedgerHealed, getLiveState, getLiveClaims, getRecentBroadcasts, getFullBroadcast,
-  speakerFromTitle, type LedgerEntry,
+  speakerFromTitle, type LedgerEntry, type Consistency,
 } from "./live-kv";
 import { claimHash, claimPath, normQuote } from "./claim-link";
 import { claimRelation } from "./repeat-claims";
@@ -19,6 +19,7 @@ export interface SharedClaim {
   speaker: string | null;
   date: string;          // ISO of the broadcast
   live: boolean;         // the broadcast is on air right now
+  consistency?: Consistency;
 }
 export interface Repeat { path: string; date: string; rating: string; title: string; same: boolean }
 
@@ -39,7 +40,7 @@ async function find(hash: string): Promise<{ claim: SharedClaim; ledger: LedgerE
       return { ledger, claim: {
         key: hash, videoId: state.videoId, quote: c.quote, rating: c.rating, actual: c.actual,
         explanation: c.explanation, sources: c.sources || [], videoTime: c.videoTime,
-        title: state.title, speaker: speakerFromTitle(state.title), date: state.startedAt, live: true,
+        title: state.title, speaker: speakerFromTitle(state.title), date: state.startedAt, live: true, consistency: c.consistency,
       } };
     }
   }
@@ -50,21 +51,23 @@ async function find(hash: string): Promise<{ claim: SharedClaim; ledger: LedgerE
     return { ledger, claim: {
       key: hash, videoId: b.videoId, quote: c.quote, rating: c.rating, actual: c.actual,
       explanation: c.explanation, sources: c.sources || [], videoTime: c.videoTime,
-      title: b.title, speaker: speakerFromTitle(b.title), date: b.startedAt, live: b.videoId === onAir,
+      title: b.title, speaker: speakerFromTitle(b.title), date: b.startedAt, live: b.videoId === onAir, consistency: c.consistency,
     } };
   }
 
   for (const e of ledger) for (const c of e.claims) {
     if (claimHash(e.videoId, c.quote) !== hash) continue;
     // The ledger keeps no written explanation; the permanent full record does.
-    let explanation: string | undefined;
-    const full = await getFullBroadcast(e.videoId).catch(() => null);
-    const fc = full?.claims.find(x => normQuote(x.quote) === normQuote(c.quote));
-    if (fc) explanation = fc.explanation;
+    let explanation: string | undefined = (c as { explanation?: string }).explanation;
+    if (!explanation) {
+      const full = await getFullBroadcast(e.videoId).catch(() => null);
+      const fc = full?.claims.find(x => normQuote(x.quote) === normQuote(c.quote));
+      if (fc) explanation = fc.explanation;
+    }
     return { ledger, claim: {
       key: hash, videoId: e.videoId, quote: c.quote, rating: c.rating, actual: c.actual || "",
       explanation, sources: c.sources || [], videoTime: c.videoTime,
-      title: e.title, speaker: e.speaker, date: e.startedAt, live: e.videoId === onAir,
+      title: e.title, speaker: e.speaker, date: e.startedAt, live: e.videoId === onAir, consistency: c.consistency,
     } };
   }
   return null;
@@ -92,7 +95,7 @@ export const getSharedClaim = (hash: string) => unstable_cache(
       return { claim: r.claim, repeats: repeatsOf(r.claim, r.ledger) };
     } catch { return null; }
   },
-  ["shared-claim-v1", hash],
+  ["shared-claim-v2", hash],
   // Short: during a broadcast the "live now" band and the verdict (a claim
   // can move from CHECKING to a result) must not stick for long.
   { revalidate: 120 },

@@ -107,6 +107,14 @@ export default async function ClaimPage({ params }: { params: Promise<{ key: str
           </span>
           {times > 1 && <span style={{ fontSize: 14, color: "#5F5850" }}>Said in {times} broadcasts</span>}
         </div>
+        {c.consistency && (
+          <p data-nosnippet style={{ fontSize: 13, color: "#5F5850", lineHeight: 1.55, margin: "10px 0 0", maxWidth: 620 }}>
+            {c.consistency.note}{" "}
+            {c.consistency.kind === "reconciled" && c.consistency.prevRating && c.consistency.prevRating !== c.rating && <>This check was first rated {ratingLabel(c.consistency.prevRating).toLowerCase()}. </>}
+            {c.consistency.from && c.consistency.from !== path && <Link href={c.consistency.from} style={{ color: "#5F5850" }}>{c.consistency.kind === "carried" ? "See the earlier check" : "See the check it's based on"}</Link>}
+            {c.consistency.from && c.consistency.from !== path ? " · " : ""}<Link href="/methodology#consistency" style={{ color: "#5F5850" }}>How we keep verdicts consistent</Link>
+          </p>
+        )}
 
         {c.actual && (
           <section style={{ background: "#fff", border: "1px solid #E2DED6", borderLeft: `4px solid ${color}`, borderRadius: 8, padding: "16px 18px", marginTop: 22 }}>

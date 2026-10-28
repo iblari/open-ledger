@@ -219,3 +219,17 @@ export function findRepeats(all: RepeatOccurrence[]): {
     b.occurrences.length - a.occurrences.length || b.days.length - a.days.length);
   return { clusters, drift };
 }
+
+
+/**
+ * Stricter than claimRelation "same": the two quotes make the same factual
+ * assertion in substantially the same words, so one verdict must fit both.
+ * A shared figure alone isn't enough here ("25 million came in" and "25
+ * million poured in from prisons" share a figure but not a verdict).
+ */
+export function sameAssertion(a: string, b: string): boolean {
+  if (claimRelation(a, b).rel !== "same") return false;
+  const ca = contentWords(a), cb = contentWords(b);
+  if (ca.size < 3 || cb.size < 3) return false;
+  return containment(ca, cb) >= 0.6 && jaccard(ca, cb) >= 0.35;
+}

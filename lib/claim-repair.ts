@@ -1,4 +1,4 @@
-import { getFullBroadcast, getRecentBroadcasts, setRecentBroadcasts, saveFullBroadcasts, recordInLedger, getReplayableOne, patchLedgerClaims, kvGet, kvSetMany, type LiveClaim } from "./live-kv";
+import { getVerdictOverlay, setVerdictOverlay, getFullBroadcast, getRecentBroadcasts, setRecentBroadcasts, saveFullBroadcasts, recordInLedger, getReplayableOne, patchLedgerClaims, kvGet, kvSetMany, type LiveClaim } from "./live-kv";
 import { verifyClaimOnWeb } from "./web-verify";
 import { contextBefore } from "./live-verify";
 import { normQuote, claimHash } from "./claim-link";
@@ -18,6 +18,7 @@ const DONE = (tag: string, v: string, q: string) => `repair:${tag}:${claimHash(v
 
 export async function recheckClaims(tag: string, targets: RepairTarget[], max = 4): Promise<{ fixed: string[]; failed: string[] }> {
   const fixed: string[] = [], failed: string[] = [];
+  const fixedHashes: string[] = [];
   const done = await kvGet(targets.map(t => DONE(tag, t.videoId, t.startsWith)));
   const todo = targets.filter((_, i) => !done[i]).slice(0, max);
   if (!todo.length) return { fixed, failed };
@@ -56,6 +57,7 @@ export async function recheckClaims(tag: string, targets: RepairTarget[], max = 
       const r = recent.find(b => b.videoId === videoId)?.claims.find(x => normQuote(x.quote) === normQuote(c.quote));
       if (r) Object.assign(r, patch);
       changed = true;
+      fixedHashes.push(claimHash(videoId, c.quote));
       fixed.push(`${t.startsWith} → ${v.rating}`);
       await kvSetMany([
         [DONE(tag, videoId, t.startsWith), new Date().toISOString(), 0],
@@ -77,6 +79,13 @@ export async function recheckClaims(tag: string, targets: RepairTarget[], max = 
       if (recent.some(b => b.videoId === videoId)) await setRecentBroadcasts(recent);
       await recordInLedger(full);
     }
+  }
+  // A fresh re-check supersedes any reconciled verdict laid over the claim.
+  if (fixed.length) {
+    const ov = { ...(await getVerdictOverlay(true).catch(() => ({}))) } as Record<string, unknown>;
+    let dropped = 0;
+    for (const h of fixedHashes) if (ov[h]) { delete ov[h]; dropped++; }
+    if (dropped) await setVerdictOverlay(ov as Awaited<ReturnType<typeof getVerdictOverlay>>).catch(() => {});
   }
   if (fixed.length) await kvSetMany([["trending-claims:v3", "", 1]]).catch(() => {});
   return { fixed, failed };

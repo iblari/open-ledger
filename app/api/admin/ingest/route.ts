@@ -5,6 +5,7 @@ import {
   type LiveClaim,
 } from "@/lib/live-kv";
 import { extractAndVerifyClaims } from "@/lib/fact-check";
+import { carryOverVerdicts } from "@/lib/verdict-consistency";
 import { extractPromises } from "@/lib/promise-extract";
 import { getPromises, setPromises, getLiveState, getLiveTranscript } from "@/lib/live-kv";
 import { announceOnce } from "@/lib/live-announce";
@@ -142,6 +143,8 @@ export async function POST(req: Request) {
     // before publication. "Unverifiable" must mean nobody can settle it —
     // not that it was missing from our tables. Bounded to 3 per chunk so a
     // slow search can never stall coverage.
+    // Same claim, same data → same verdict (and no search spent on it).
+    try { await carryOverVerdicts(claims, (await getLiveState().catch(() => null))?.videoId ?? null); } catch { /* fresh checks */ }
     try {
       await upgradeUnverifiable(claims, 8, text);
     } catch (e) {
