@@ -370,17 +370,14 @@ function autoInsight(args: {
   // ── Phrase the standing vs prior admins ──
   // Lower rank = better when lowerBetter (1st of 10 unemployment = best).
   const adverbBetter = md.lowerBetter ? "lower" : "higher";
-  const performWord  = md.lowerBetter
-    ? (rank <= total / 3 ? "tighter" : rank >= 2 * total / 3 ? "looser" : "in line with")
-    : (rank <= total / 3 ? "stronger" : rank >= 2 * total / 3 ? "weaker" : "in line with");
 
   // Top/bottom quartile + middle wording.
   let rankPhrase: string;
   if (rank <= 3) {
-    rankPhrase = `the ${ordinal(rank)}-${performWord === "in line with" ? "ranked" : performWord} of ${total} modern administrations at month ${atMonth}`;
+    rankPhrase = `the ${rank === 1 ? "best" : `${ordinal(rank)}-best`} of ${total} modern administrations at month ${atMonth}`;
   } else if (rank >= total - 2) {
     const fromBottom = total - rank + 1;
-    rankPhrase = `${ordinal(fromBottom)}-${md.lowerBetter ? "weakest" : "weakest"} of ${total} at month ${atMonth}`;
+    rankPhrase = `${fromBottom === 1 ? "the weakest" : `${ordinal(fromBottom)}-weakest`} of ${total} at month ${atMonth}`;
   } else {
     rankPhrase = `roughly mid-pack: ${ordinal(rank)} of ${total} at month ${atMonth}`;
   }

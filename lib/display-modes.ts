@@ -120,6 +120,9 @@ export function computeHeatmap(
       }
       const end = pts[pts.length - 1].v;
       const endYear = pts[pts.length - 1].y;
+      // A single year with nothing before it (a series that starts in the
+      // last year of a term) has no change to show.
+      if (endYear === startYear) continue;
       const years = Math.max(endYear - startYear, 1);
 
       const pctChange = ((end - start) / Math.abs(start || 1)) * 100;
@@ -229,7 +232,8 @@ export const METRIC_DISPLAY_DASHBOARD: Record<string, MetricDisplay> = {
   inflation:     { perMetricUnit: "pct_avg",      dollarAware: false, pctAvgTarget: 2, pctAvgRange: 4 },
   gas:           { perMetricUnit: "pct_yr",       dollarAware: true  },
   wages:         { perMetricUnit: "pct_avg",      dollarAware: false }, // defaults: target=0, range=2 (positive real wage growth = improved)
-  median_income: { perMetricUnit: "pct_yr",       dollarAware: true  },
+  // Already inflation-adjusted by Census: deflating again would double-count.
+  median_income: { perMetricUnit: "pct_yr",       dollarAware: false },
   poverty:       { perMetricUnit: "pp",           dollarAware: false },
   inequality:    { perMetricUnit: "pp",           dollarAware: false },
   consumer_conf: { perMetricUnit: "pp",           dollarAware: false },
@@ -241,7 +245,8 @@ export const METRIC_DISPLAY_DASHBOARD: Record<string, MetricDisplay> = {
   ten_year:      { perMetricUnit: "pp",           dollarAware: false },
   five_year:     { perMetricUnit: "pp",           dollarAware: false },
   yield_curve:   { perMetricUnit: "pp",           dollarAware: false },
-  purchasing:    { perMetricUnit: "pp",           dollarAware: false },
+  // % change per year in what a dollar buys (pp of a dollar value read as "−0.0").
+  purchasing:    { perMetricUnit: "pct_yr",       dollarAware: false },
   core_cpi:      { perMetricUnit: "pct_avg",      dollarAware: false, pctAvgTarget: 2, pctAvgRange: 4 },
   mortgage:      { perMetricUnit: "pp",           dollarAware: false },
   housing_starts:{ perMetricUnit: "pct_yr",       dollarAware: false },
@@ -340,8 +345,10 @@ export function formatDisplayedChange(
       // For dollar units the sign goes OUTSIDE the dollar sign: -$40B not $-40B.
       const absVal = Math.abs(value);
       const dollarSign = value < 0 ? "−" : "+"; // U+2212 minus, looks better than ASCII hyphen
-      if (u === "M")  return `${dollarSign}${absVal.toFixed(1)}M/yr avg`;
-      if (u === "B")  return `${dollarSign}$${Math.round(absVal)}B/yr avg`;
+      // "avg" is implied by the column; values over $1T read as T so the
+      // cell stays one line with eleven presidents side by side.
+      if (u === "M")  return `${dollarSign}${absVal.toFixed(1)}M/yr`;
+      if (u === "B")  return absVal >= 1000 ? `${dollarSign}$${(absVal / 1000).toFixed(1)}T/yr` : `${dollarSign}$${Math.round(absVal)}B/yr`;
       if (u === "%")  return `${sign}${value.toFixed(1)}%/yr avg`;
       return `${sign}${value.toFixed(2)}/yr avg`;
     }
