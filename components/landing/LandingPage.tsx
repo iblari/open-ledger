@@ -8,6 +8,7 @@ import {
   Tooltip, ResponsiveContainer,
 } from "recharts";
 import Link from "next/link";
+import LocationPicker from "@/components/local/LocationPicker";
 import { METRIC_COUNT, ADMIN_COUNT } from "@/lib/seo-catalog";
 
 // Design tokens + per-metric display helpers — shared with the dashboard.
@@ -166,6 +167,7 @@ function Nav({ mob, dark = false, overlay = false }: { mob: boolean; dark?: bool
 
         {/* CTA */}
         <div style={{ marginLeft: "auto", display: "flex", gap: 10, alignItems: "center" }}>
+          <LocationPicker tone={dark ? "dark" : "light"} />
           {/* Both viewports go to the broadcast. This used to send mobile to
               Live Benchmark on the theory that a short "Live" label reads as
               'live data, not a video player' — but the pill carries a pulsing

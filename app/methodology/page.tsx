@@ -42,6 +42,17 @@ export default function Methodology() {
         <h2 style={h2}>Live fact-checks</h2>
         <p style={p}>During live broadcasts, every checkable claim with a number or a verifiable fact is compared with the official figure on record. Verdicts: <b>True</b> (matches the record), <b>Mostly true</b> (right in substance, off in a detail), <b>Misleading</b> (accurate number, wrong impression or missing context), <b>False</b> (contradicted by the record). Claims that can't yet be settled, such as forecasts, are labelled and left out of the "matched the data" score, which is true ÷ (true + misleading + false).</p>
         <p style={p}>Repeated claims are grouped across broadcasts, so each fact-check shows how many times a line has been said. Every claim has its own page with sources: see <Link href="/broadcasts" style={{ color: C.sub }}>fact-checked broadcasts</Link>.</p>
+        <p style={p}>When a line is repeated, its claim page shows a timeline of every time it was said. Each point keeps the verdict it was given at the time and shows the figure that had been published on that day (from the ALFRED archive), before later revisions. The timeline doesn't re-judge anything. Verdicts on the same line can differ between dates: sometimes because new data came out, sometimes because the wording or the evidence a check found was different.</p>
+        <h2 id="localize" style={h2}>Localizing the data</h2>
+        <p style={p}>Readers can pick a state and whether they rent or own. The site then adds the official figure for their area next to the national one, wherever one exists. This is context only. Claims are about national figures, so verdicts always use the national number. The setting is stored in a cookie on the reader's device. We never infer location from an IP address.</p>
+        <p style={p}>Official data isn't published at state level for everything, so we use the smallest area that exists and say which one:</p>
+        <ul style={{ ...p, paddingLeft: 20 }}>
+          <li><b>Prices (inflation, rent, owners' equivalent rent):</b> BLS publishes CPI for 4 Census regions, not for states. We show the region the state belongs to: all items since 1967, rent since 1978, owners' equivalent rent since 1983 (12-month changes). Region and US figures both use the not-seasonally-adjusted series, the basis BLS uses for its 12-month change, so the US figure here can differ by about 0.1 point from the seasonally adjusted one used in the benchmarks.</li>
+          <li><b>Gas:</b> EIA weekly and monthly retail prices for regular gasoline in 5 regions (PADDs), since 1992.</li>
+          <li><b>Wages:</b> BLS average hourly earnings of private-sector workers, by state, since 2007 (12-month change). This is a true state figure.</li>
+          <li><b>Home prices (owners):</b> the FHFA all-transactions house price index by state, quarterly, against the FHFA US index.</li>
+        </ul>
+        <p style={p}>Renters see the rent component of CPI; owners see owners' equivalent rent (the BLS estimate of what owning a home would cost as rent, not a cash payment) and state home prices. We don't build a blended "personal inflation" number, because that would need weights we would have to choose.</p>
         <h2 style={h2}>Corrections</h2>
         <p style={p}>Official data is revised. When a revision changes a figure we show the latest published value and, where it matters, the value as first published.</p>
       </main>

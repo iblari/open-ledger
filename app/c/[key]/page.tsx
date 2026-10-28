@@ -11,6 +11,12 @@ import JsonLd from "@/components/seo/JsonLd";
 import CopyCitation from "@/components/seo/CopyCitation";
 import { claimReviewLd } from "@/lib/claim-review";
 import { broadcastSlug } from "@/lib/broadcast-pages";
+import { getClaimTimeline } from "@/lib/claim-timeline";
+import { getClaimSeries } from "@/lib/claim-series";
+import { localTopic } from "@/lib/local-shared";
+import ClaimTimeline from "@/components/ClaimTimeline";
+import LocalLine from "@/components/local/LocalLine";
+import LocationPicker from "@/components/local/LocationPicker";
 
 /**
  * /c/[key] — one fact-check, on its own page.
@@ -57,6 +63,11 @@ export default async function ClaimPage({ params }: { params: Promise<{ key: str
   const color = VERDICT_COLOR[v];
   const times = repeats.length + 1;
   const path = claimPath(c.videoId, c.quote);
+  const [timeline, mapping] = await Promise.all([
+    getClaimTimeline(c, repeats).catch(() => null),
+    getClaimSeries({ key: c.key, quote: c.quote, rating: c.rating, actual: c.actual, explanation: c.explanation, date: c.date }, false).catch(() => null),
+  ]);
+  const topic = localTopic(mapping?.series, c.quote);
 
   const url = `https://voteunbiased.org${path}`;
   const citation = `📊 Fact check: “${c.quote.length > 140 ? c.quote.slice(0, 137).replace(/\s+\S*$/, "") + "…" : c.quote}”${c.speaker ? ` (${c.speaker})` : ""} — ${ratingLabel(c.rating)}. ${c.actual ? `The data: ${c.actual.slice(0, 200)}` : ""} Sources: ${url}`;
@@ -77,7 +88,10 @@ export default async function ClaimPage({ params }: { params: Promise<{ key: str
           <CheetahMark height={18} />
           <span className="vu-wordmark" style={{ fontFamily: SERIF, fontSize: 19 }}>Vote <em style={{ color: "#B8372D" }}>Unbiased</em></span>
         </Link>
-        <Link href="/live" style={{ fontSize: 13, fontWeight: 600, color: "#14110E", textDecoration: "none", border: "1px solid #E2DED6", borderRadius: 6, padding: "7px 12px", background: "#fff" }}>Live fact-checks</Link>
+        <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <LocationPicker />
+          <Link href="/live" style={{ fontSize: 13, fontWeight: 600, color: "#14110E", textDecoration: "none", border: "1px solid #E2DED6", borderRadius: 6, padding: "7px 12px", background: "#fff", whiteSpace: "nowrap" }}>Live fact-checks</Link>
+        </span>
       </header>
 
       <main style={{ maxWidth: 720, margin: "0 auto", padding: "8px 20px 60px" }}>
@@ -101,6 +115,7 @@ export default async function ClaimPage({ params }: { params: Promise<{ key: str
             {c.explanation && c.explanation !== c.actual && (
               <p style={{ fontSize: 14.5, lineHeight: 1.6, color: "#3D3833", margin: "12px 0 0" }}>{c.explanation}</p>
             )}
+            <LocalLine topic={topic} />
           </section>
         )}
 
@@ -125,26 +140,7 @@ export default async function ClaimPage({ params }: { params: Promise<{ key: str
         </div>
         <div style={{ fontSize: 12.5, color: "#8C8479", marginTop: 10 }}>From: {c.live ? c.title : <Link href={`/broadcasts/${broadcastSlug(c)}`} style={{ color: "#8C8479" }}>{c.title}</Link>}</div>
 
-        {repeats.length > 0 && (
-          <section style={{ marginTop: 34 }}>
-            <h2 style={{ fontFamily: SERIF, fontWeight: 500, fontSize: 21, margin: "0 0 10px" }}>Every time it was said</h2>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {[{ path, date: c.date, rating: c.rating, title: c.title, same: true, here: true }, ...repeats.map(x => ({ ...x, here: false }))]
-                .sort((a, b) => a.date.localeCompare(b.date))
-                .map(x => {
-                  const o = toOutcome(x.rating);
-                  const row = (
-                    <span style={{ display: "flex", alignItems: "center", gap: 10, background: x.here ? "#FFFEFC" : "#fff", border: `1px solid ${x.here ? "#14110E" : "#E2DED6"}`, borderRadius: 8, padding: "9px 12px", fontSize: 13.5, color: "#14110E" }}>
-                      <span style={{ width: 92, flex: "none", color: "#6F675E" }}>{fmtDate(x.date)}</span>
-                      <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{x.title}</span>
-                      <span style={{ flex: "none", fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", color: VERDICT_COLOR[o] }}>{VERDICT_LABEL[o]}</span>
-                    </span>
-                  );
-                  return x.here ? <div key={x.path}>{row}</div> : <Link key={x.path} href={x.path} style={{ textDecoration: "none" }}>{row}</Link>;
-                })}
-            </div>
-          </section>
-        )}
+        {timeline && <ClaimTimeline t={timeline} />}
 
         <p style={{ fontSize: 12.5, color: "#8C8479", lineHeight: 1.6, marginTop: 36, borderTop: "1px solid #E2DED6", paddingTop: 14 }}>
           Vote Unbiased checks what officials say against government data — BLS, BEA, Census, Treasury, the Fed — with sources cited.

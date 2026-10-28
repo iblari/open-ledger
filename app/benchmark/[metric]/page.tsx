@@ -11,6 +11,7 @@ import Methodology from "@/components/seo/Methodology";
 import JsonLd from "@/components/seo/JsonLd";
 import CopyCitation from "@/components/seo/CopyCitation";
 import EmbedButton from "@/components/seo/EmbedButton";
+import LocalBench from "@/components/local/LocalBench";
 
 export const revalidate = 3600;
 export function generateStaticParams() { return METRICS.map(m => ({ metric: m.slug })); }
@@ -80,6 +81,7 @@ export default async function BenchmarkPage({ params }: { params: Promise<{ metr
         {m && t ? (
           <>
             <div style={{ background: "#fff", border: `1px solid ${C.rule}`, borderRadius: 12, padding: "16px 18px" }}><BenchChart m={m} metricKey={info.key} /></div>
+            {(info.key === "inflation" || info.key === "gas") && <LocalBench metric={info.key} month={t.month} admins={ADMINS.map(a => ({ id: a.id, name: a.name }))} />}
             <h2 style={{ fontFamily: SERIF, fontWeight: 500, fontSize: 22, margin: "26px 0 10px" }}>Every administration at month {t.month + 1}</h2>
             <RankTableView info={info} m={m} t={t} />
           </>

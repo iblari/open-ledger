@@ -1,6 +1,7 @@
 import Link from "next/link";
 import CheetahMark from "@/components/CheetahMark";
 import { C, SERIF } from "@/lib/design-tokens";
+import LocationPicker from "@/components/local/LocationPicker";
 
 /** Shared header for the indexable data and fact-check pages. */
 export default function SeoHeader() {
@@ -12,12 +13,13 @@ export default function SeoHeader() {
           <CheetahMark height={22} ink={C.ink} accent={C.accent} />
           <span className="vu-wordmark">Vote <em style={{ fontStyle: "italic", color: C.accent, fontWeight: 500 }}>Unbiased</em></span>
         </Link>
-        <nav data-nosnippet style={{ display: "flex", gap: 14, fontSize: 13, fontWeight: 600, whiteSpace: "nowrap", overflowX: "auto" }}>
+        <nav data-nosnippet style={{ marginLeft: "auto", display: "flex", gap: 14, fontSize: 13, fontWeight: 600, whiteSpace: "nowrap", overflowX: "auto" }}>
           <Link href="/benchmark" style={l}>Benchmarks</Link>
           <Link href="/broadcasts" style={l}>Fact-checks</Link>
           <Link href="/vote" style={l}>Ballot</Link>
           <Link href="/live" style={{ ...l, color: C.accent }}>Live</Link>
         </nav>
+        <LocationPicker />
       </div>
     </div>
   );
