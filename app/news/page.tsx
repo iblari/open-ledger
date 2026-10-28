@@ -218,7 +218,7 @@ export default async function NewsPage({ searchParams }: { searchParams: Promise
         }
       `}</style>
       <NewsChrome active="news" />
-      <main style={{ maxWidth: 1240, margin: "0 auto", padding: "14px 20px 60px" }}>
+      <main style={{ maxWidth: 1240, margin: "0 auto", padding: view === "claims" ? "14px 20px 0" : "14px 20px 60px" }}>
         <div data-nosnippet style={{ display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap", borderBottom: `1px solid ${C.rule}`, paddingBottom: 8, marginBottom: 18 }}>
           {VIEWS.map(([k, l]) => <Link key={k} href={k === "top" ? "/news" : `/news?view=${k}`} style={tabLink(view === k && !topic)}>{l}</Link>)}
           <details style={{ position: "relative" }}>
@@ -230,7 +230,7 @@ export default async function NewsPage({ searchParams }: { searchParams: Promise
           {feed && <span style={{ marginLeft: "auto", fontSize: 12, color: C.mute }}>Updated {ago(feed.at)}</span>}
         </div>
 
-        {view === "claims" ? null : (
+        {view === "claims" ? <ClaimsFeed embedded /> : (
           <>
             {view === "blindspots" && <p style={{ fontSize: 14, color: C.sub, margin: "0 0 16px", maxWidth: 760 }}>Stories one side's outlets largely skipped: they covered it at a quarter of the other side's rate or less. <Link href="/methodology#news" style={{ color: C.sub }}>How it's measured</Link></p>}
             {topic && <h1 style={{ ...H, fontSize: 30, margin: "0 0 14px" }}>{topic}</h1>}
@@ -264,7 +264,6 @@ export default async function NewsPage({ searchParams }: { searchParams: Promise
           </>
         )}
       </main>
-      {view === "claims" && <div style={{ marginTop: -40 }}><ClaimsFeed /></div>}
       {view !== "claims" && (
         <p style={{ maxWidth: 1240, margin: "-30px auto 40px", padding: "0 20px", fontSize: 12, color: C.mute, lineHeight: 1.6 }}>
           We link to each outlet's own article and show only headlines, plus one photo per story from an outlet's own feed (credited; a center-rated outlet's photo is used first). Left / center / right comes from published research on each outlet's audience (Robertson et al., 2018), not our judgment.
