@@ -57,11 +57,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
       <div style={{ display: "flex", flexDirection: "column", gap: 18, marginTop: "auto", marginBottom: 30 }}>
         {rows.map(x => (
           <div key={x.l} style={{ display: "flex", alignItems: "center", gap: 22 }}>
-            <div style={{ display: "flex", width: 290, fontSize: 25, color: "#D8D2C8" }}>{NAME[x.l]}</div>
-            <div style={{ display: "flex", width: 520, height: 26, borderRadius: 6, background: "#2A2520" }}>
-              <div style={{ display: "flex", width: Math.max(x.n ? 10 : 0, Math.round((x.r / maxR) * 520)), height: 26, borderRadius: 6, background: BAR[x.l] }} />
+            <div style={{ display: "flex", width: 280, flexShrink: 0, fontSize: 25, color: "#D8D2C8" }}>{NAME[x.l]}</div>
+            <div style={{ display: "flex", width: 440, flexShrink: 0, height: 26, borderRadius: 6, background: "#2A2520" }}>
+              <div style={{ display: "flex", width: Math.max(x.n ? 10 : 0, Math.round((x.r / maxR) * 440)), height: 26, borderRadius: 6, background: BAR[x.l] }} />
             </div>
-            <div style={{ display: "flex", fontSize: 27, color: "#F4F0EA" }}>{`${x.n} of ${x.of} read · ${Math.round(x.r * 100)}%`}</div>
+            <div style={{ display: "flex", flexShrink: 0, width: 308, justifyContent: "flex-end", whiteSpace: "nowrap", fontSize: 27, color: "#F4F0EA" }}>{`${x.n} of ${x.of} read · ${Math.round(x.r * 100)}%`}</div>
           </div>
         ))}
       </div>
