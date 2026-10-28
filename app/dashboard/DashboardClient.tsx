@@ -916,8 +916,8 @@ function DashHeatCell({
         zIndex: hov ? 10 : 1,
       }}
     >
-      <span style={{ fontFamily: ESERIF, fontSize: 16, fontWeight: 600, lineHeight: 1.05, letterSpacing: "-0.01em" }}>{headline}</span>
-      <span style={{ fontSize: 10, opacity: 0.78, lineHeight: 1.1, letterSpacing: "0.02em", fontFamily: ESANS, marginTop: 1, fontWeight: 500 }}>
+      <span style={{ fontFamily: ESERIF, fontSize: String(headline).length > 8 ? 13.5 : 16, fontWeight: 600, lineHeight: 1.05, letterSpacing: "-0.01em", whiteSpace: "nowrap" }}>{headline}</span>
+      <span style={{ fontSize: 10, opacity: 0.78, lineHeight: 1.1, letterSpacing: "0.02em", fontFamily: ESANS, marginTop: 1, fontWeight: 500, whiteSpace: "nowrap", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis" }}>
         {fmt(c.start, mx.u)} → {fmt(c.end, mx.u)}
       </span>
 
