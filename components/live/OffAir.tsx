@@ -15,6 +15,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import LocationPicker from "@/components/local/LocationPicker";
 import { useIsMobileViewport } from "@/lib/viewport";
 import type { HomeArchiveItem, HomeScheduleItem, TopicTally } from "@/lib/live-home";
 import AgendaRadar from "./AgendaRadar";
@@ -583,6 +584,7 @@ export default function OffAir({
               }}>←</Link>
               <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#E0493A", animation: "pulse 2s infinite" }} />
               LIVE NOW<span className="oa-sub">&nbsp;· FACT-CHECKING IN PROGRESS</span>
+              <span style={{ marginLeft: "auto", letterSpacing: 0 }}><LocationPicker tone="dark" /></span>
             </div>
             <div className="oa-row1" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 20, flexWrap: "wrap", marginTop: 12 }}>
               <h1 className="oa-h1" style={{ fontFamily: SERIF, fontWeight: 600, fontSize: "clamp(24px, 3.4vw, 38px)", lineHeight: 1.08, letterSpacing: "-0.02em", margin: 0, flex: "1 1 420px", minWidth: 0 }}>
@@ -611,6 +613,7 @@ export default function OffAir({
             }}>←</Link>
             <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#6B645C" }} />
             OFF AIR{next ? <> · NEXT UP {fmtWhen(next.startsAt).toUpperCase()}</> : null}
+            <span style={{ marginLeft: "auto", letterSpacing: 0 }}><LocationPicker tone="dark" /></span>
           </div>
           <div className="oa-row1" style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 20, flexWrap: "wrap", marginTop: 12 }}>
             <div style={{ minWidth: 0, flex: "1 1 420px" }}>

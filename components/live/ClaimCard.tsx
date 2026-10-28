@@ -18,6 +18,8 @@
 import { useState } from "react";
 import { L, F, VERDICT_COLOR, VERDICT_LABEL, type Verdict } from "@/lib/live-design";
 import ShareClaimButton from "@/components/ShareClaimButton";
+import LocalLine from "@/components/local/LocalLine";
+import { localTopic } from "@/lib/local-shared";
 
 export interface LiveClaimView {
   id: string;
@@ -237,6 +239,9 @@ export default function ClaimCard({
           </div>
         </div>
       )}
+
+      {/* Local context for readers who set a location (never part of the verdict). */}
+      {!checking && (!dense || roomy) && <LocalLine topic={localTopic(null, claim.quote)} tone="dark" size="sm" />}
 
       {/* expanded analysis — inline, so the video and feed stay put */}
       {open && !checking && (
