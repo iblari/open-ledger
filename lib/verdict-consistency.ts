@@ -194,10 +194,10 @@ export { PLAN_KEY, LOG_KEY };
  * Review every inconsistent group (dry run stores a plan; apply writes the
  * overlay). Bounded per call; groups already decided are skipped.
  */
-export async function reconcile(opts: { apply: boolean; limit?: number }): Promise<{ groups: number; decided: number; changed: number; plan: ReconcileGroup[] }> {
+export async function reconcile(opts: { apply: boolean; limit?: number; reset?: boolean; only?: string[]; drop?: Record<string, number[]> }): Promise<{ groups: number; decided: number; changed: number; plan: ReconcileGroup[] }> {
   const { kvGet, kvSetMany } = await import("./live-kv");
   const [planRaw] = await kvGet([PLAN_KEY]);
-  const prior: Record<string, ReconcileGroup> = planRaw ? JSON.parse(planRaw) : {};
+  const prior: Record<string, ReconcileGroup> = planRaw && !opts.reset ? JSON.parse(planRaw) : {};
   const groups = await findInconsistent();
   const ledger = await getLedgerHealed();
   const occAll = occurrences(ledger);
@@ -210,7 +210,9 @@ export async function reconcile(opts: { apply: boolean; limit?: number }): Promi
     try { g.decision = await adjudicate(g, g.occ.map(o => lookup(o.path))); }
     catch (e) { g.error = (e as Error).message; }
   }));
-  const plan: Record<string, ReconcileGroup> = { ...prior };
+  // The plan holds only groups that are still inconsistent (or were applied).
+  const plan: Record<string, ReconcileGroup> = {};
+  for (const [k, g] of Object.entries(prior)) if ((g as ReconcileGroup & { applied?: string }).applied) plan[k] = g;
   for (const g of groups) if (g.decision) plan[g.key] = g;
   await kvSetMany([[PLAN_KEY, JSON.stringify(plan), 0]]);
 
@@ -219,9 +221,15 @@ export async function reconcile(opts: { apply: boolean; limit?: number }): Promi
     const ov = { ...(await getVerdictOverlay(true)) };
     const log: { at: string; path: string; from: string; to: string; group: number; reason: string }[] = JSON.parse((await kvGet([LOG_KEY]))[0] || "[]");
     const now = new Date().toISOString();
-    for (const g of Object.values(plan)) {
+    for (const g of Object.values(plan) as (ReconcileGroup & { applied?: string })[]) {
       const d = g.decision;
-      if (!d || d.basis < 0 || !DECISIVE.has(d.rating)) continue;
+      if (!d || d.basis < 0 || !DECISIVE.has(d.rating) || g.applied) continue;
+      // A human review step: only listed groups, minus any members struck out.
+      if (opts.only && !opts.only.includes(g.key)) continue;
+      const struck = new Set(opts.drop?.[g.key] || []);
+      d.members = d.members.filter(i => !struck.has(i));
+      if (d.members.length < 2 || struck.has(d.basis)) continue;
+      g.applied = now;
       const basis = g.occ.find(o => o.id === d.basis)!;
       const basisOcc = lookup(basis.path);
       for (const id of d.members) {
@@ -244,7 +252,7 @@ export async function reconcile(opts: { apply: boolean; limit?: number }): Promi
       }
     }
     await setVerdictOverlay(ov);
-    await kvSetMany([[LOG_KEY, JSON.stringify(log.slice(-2000)), 0], ["trending-claims:v3", "", 1]]);
+    await kvSetMany([[LOG_KEY, JSON.stringify(log.slice(-2000)), 0], [PLAN_KEY, JSON.stringify(plan), 0], ["trending-claims:v3", "", 1]]);
   }
   const list = Object.values(plan);
   return { groups: groups.length, decided: list.filter(g => g.decision).length, changed, plan: list };
