@@ -75,7 +75,7 @@ export function CoverageBar({ coverage, size = "md" }: { coverage: Record<Lean, 
           <span className="lb-full">{`${LEAN_LABEL[k]} ${sh[k]}%`}</span><span className="lb-short">{`${sh[k]}%`}</span>
         </div>
       ))}
-      <style>{`.lb-seg{container-type:inline-size}.lb-short{display:none}@container (max-width:${k_full(z.f)}px){.lb-full{display:none}.lb-short{display:inline}}`}</style>
+      <style>{`.lb-seg{container-type:inline-size}.lb-seg .lb-short{display:none}.lb-seg .lb-full{display:inline}@container (max-width:${k_full(14)}px){.lb-seg .lb-full{display:none}.lb-seg .lb-short{display:inline}}`}</style>
     </div>
   );
 }
