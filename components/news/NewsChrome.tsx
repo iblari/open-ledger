@@ -36,21 +36,41 @@ export function NewsChrome({ active = "news" }: { active?: "news" | "data" | "li
   );
 }
 
-/* Lean colours: neutral tones, not party red/blue. */
-export const LEAN_COLOR: Record<Lean, string> = { left: "#5B6C8F", center: "#B9B3AA", right: "#A0785A", unrated: "#E2DED6" };
+/* Lean colours: blue / white / red, as on the coverage bar. */
+export const LEAN_COLOR: Record<Lean, string> = { left: "#2C4A86", center: "#D9D5CE", right: "#7B2D26", unrated: "#E2DED6" };
+export const LEAN_TEXT: Record<Lean, string> = { left: "#2C4A86", center: "#6b655c", right: "#7B2D26", unrated: "#8a8378" };
 export const LEAN_LABEL: Record<Lean, string> = { left: "Left", center: "Center", right: "Right", unrated: "Not rated" };
 
-export function CoverageBar({ coverage, height = 8, labels = false }: { coverage: Record<Lean, number>; height?: number; labels?: boolean }) {
-  const rated = coverage.left + coverage.center + coverage.right;
+/** Whole-number shares of the rated outlets covering a story, summing to 100. */
+export function leanShares(coverage: Record<Lean, number>) {
+  const ks = ["left", "center", "right"] as const;
+  const rated = ks.reduce((n, k) => n + coverage[k], 0);
   if (!rated) return null;
+  const raw = ks.map(k => (coverage[k] / rated) * 100), out = raw.map(Math.floor);
+  let rest = 100 - out.reduce((a, b) => a + b, 0);
+  for (const i of raw.map((v, i) => [v - Math.floor(v), i]).sort((a, b) => b[0] - a[0]).map(x => x[1])) { if (rest-- <= 0) break; if (coverage[ks[i]] > 0) out[i]++; else rest++; }
+  return { left: out[0], center: out[1], right: out[2] };
+}
+
+const BAR_SIZE = { lg: { h: 30, f: 14, full: 16 }, md: { h: 24, f: 12.5, full: 22 }, sm: { h: 20, f: 11.5, full: 30 } } as const;
+
+/**
+ * Coverage bar: the share of the rated outlets covering a story that lean
+ * left, center and right. Labels always shown; short segments show just the %.
+ */
+export function CoverageBar({ coverage, size = "md" }: { coverage: Record<Lean, number>; size?: keyof typeof BAR_SIZE; height?: number; labels?: boolean }) {
+  const sh = leanShares(coverage);
+  if (!sh) return null;
+  const z = BAR_SIZE[size];
   const parts = (["left", "center", "right"] as const).filter(k => coverage[k] > 0);
   return (
-    <div role="img" aria-label={`Covered by ${coverage.left} left-leaning, ${coverage.center} center and ${coverage.right} right-leaning outlets`}
-      style={{ display: "flex", height, borderRadius: height / 2, overflow: "hidden", width: "100%", background: "#EFEBE4" }}>
+    <div role="img" aria-label={`Of the outlets covering it: ${sh.left}% lean left (${coverage.left}), ${sh.center}% center (${coverage.center}), ${sh.right}% lean right (${coverage.right})`}
+      title={`${coverage.left} left-leaning · ${coverage.center} center · ${coverage.right} right-leaning outlets`}
+      style={{ display: "flex", height: z.h, borderRadius: 4, overflow: "hidden", width: "100%", border: "1px solid #CFC9BF", background: "#fff", boxSizing: "border-box" }}>
       {parts.map(k => (
-        <div key={k} style={{ width: `${(coverage[k] / rated) * 100}%`, background: LEAN_COLOR[k], color: k === "center" ? "#3d3833" : "#fff",
-          fontSize: 11, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", whiteSpace: "nowrap", overflow: "hidden" }}>
-          {labels ? `${LEAN_LABEL[k]} ${Math.round((coverage[k] / rated) * 100)}%` : null}
+        <div key={k} style={{ flex: `${sh[k]} 1 0`, minWidth: size === "lg" ? 46 : 38, background: k === "center" ? "#fff" : LEAN_COLOR[k], color: k === "center" ? "#14110E" : "#fff",
+          fontSize: z.f, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", whiteSpace: "nowrap", overflow: "hidden", padding: "0 4px" }}>
+          {sh[k] >= z.full ? `${LEAN_LABEL[k]} ${sh[k]}%` : `${sh[k]}%`}
         </div>
       ))}
     </div>
