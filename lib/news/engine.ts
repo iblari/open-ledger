@@ -30,6 +30,8 @@ export interface Story {
   blindspot: "left" | "right" | null;              // the side that MISSED it
   topic: string;
   numbers?: StoryNumbers | null;
+  /** Each side's most typical headline (for "how each side headlined it"). */
+  sides?: Partial<Record<"left" | "center" | "right", StoryArticle>>;
   score: number;
 }
 
@@ -237,6 +239,11 @@ export function buildStories(groups: Article[][], all: Article[], offs: Record<s
     const plain = (t: string) => !/\b(live|watch|opinion|analysis|podcast|newsletter)\b|^[^:]{0,25}:/i.test(t);
     const typical = g.slice(0, 5).map(a => arts.find(x => x.link === a.link)!).filter(Boolean);
     const pickTitle = typical.find(a => a.lean === "center" && plain(a.title)) || typical.find(a => plain(a.title)) || typical[0] || arts[0];
+    const sides: Story["sides"] = {};
+    for (const a of g) {
+      const sa = arts.find(x => x.link === a.link)!;
+      if (sa && sa.lean !== "unrated" && !sides[sa.lean] && plain(sa.title)) sides[sa.lean] = sa;
+    }
     const first = arts[0];
     const id = hash(first.link);
     const allText = arts.map(a => a.title).join(" ");
@@ -246,7 +253,7 @@ export function buildStories(groups: Article[][], all: Article[], offs: Record<s
     const ageH = (Date.now() - Date.parse(lastSeen)) / 3600_000;
     stories.push({
       id, slug: `${slugify(pickTitle.title)}-${id}`, title: pickTitle.title,
-      firstSeen: first.published, lastSeen, articles: arts, outlets: byOutlet.size, coverage, rate, blindspot, topic, numbers,
+      firstSeen: first.published, lastSeen, articles: arts, outlets: byOutlet.size, coverage, rate, blindspot, topic, numbers, sides,
       score: byOutlet.size * Math.exp(-ageH / 18),
     });
   }
