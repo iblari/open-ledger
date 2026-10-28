@@ -1,4 +1,4 @@
-import type { Story } from "@/lib/news/engine";
+import { blindspotLabel, type Story } from "@/lib/news/engine";
 import { OUTLET_BY_ID } from "@/lib/news/outlets";
 import { LEAN_COLOR } from "./NewsChrome";
 
@@ -29,8 +29,8 @@ export function CoverageGraphic({ s, compact = false }: { s: Story; compact?: bo
       })}
       {s.blindspot && (
         <g>
-          <rect x={16} y={top + 3 * gap + 2} width={compact ? 126 : 140} height={20} rx={10} fill="#EEECF6" />
-          <text x={27} y={top + 3 * gap + 16} fontSize={11} fontWeight={600} fill="#4D3E8F">Blindspot for the {s.blindspot}</text>
+          <rect x={16} y={top + 3 * gap + 2} width={compact ? 236 : 250} height={20} rx={10} fill="#EEECF6" />
+          <text x={27} y={top + 3 * gap + 16} fontSize={11} fontWeight={600} fill="#4D3E8F">Blindspot: {blindspotLabel(s.blindspot)!.toLowerCase()}</text>
         </g>
       )}
     </svg>

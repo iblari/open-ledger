@@ -6,6 +6,7 @@ import { METRICS, ADMINS, SITE } from "@/lib/seo-catalog";
 import { getBench } from "@/lib/seo-bench";
 import { getBroadcastRecaps } from "@/lib/broadcast-pages";
 import { STATES } from "@/lib/midterms";
+import { getNewsFeed } from "@/lib/news/store";
 
 // Every clean, indexable page: hubs, the benchmark and economy pages (only
 // administration × measure pairs that have data), broadcast recaps, and one
@@ -28,6 +29,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const s = bench?.metrics[m.key]?.series.find(x => x.id === a.id);
     if (!bench || (s && s.data.length > 1)) pages.push(u(`/economy/${a.slug}/${m.slug}`, 0.6, a.id === "trump2" ? "daily" : "monthly"));
   }
+  try {
+    // News stories with enough coverage to be indexed (same rule as the page).
+    const feed = await getNewsFeed();
+    for (const st of feed?.stories || []) if (st.outlets >= 5) pages.push(u(`/news/${st.slug}`, 0.5, "hourly", new Date(st.updatedAt || st.lastSeen)));
+  } catch { /* KV down */ }
   try {
     for (const b of await getBroadcastRecaps()) pages.push(u(`/broadcasts/${b.slug}`, 0.6, "monthly", new Date(b.date)));
   } catch { /* KV down */ }

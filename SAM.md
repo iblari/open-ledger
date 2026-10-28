@@ -79,6 +79,26 @@ Sam's metric ids:
 
 The same list is at `GET /api/release-calendar`.
 
+### `stories[]`: News stories (who covered it)
+
+Up to 25 stories covered by at least 5 outlets, newest counts first.
+
+| Field | |
+|---|---|
+| `id` | `story:{id}`, stable for the story |
+| `title` | Our neutral wording of the story |
+| `coverage` | Outlets covering it: `left`, `center`, `right`, `unrated` |
+| `rate` | Share of each side's outlets that covered it (0–1) |
+| `dataLine` | One line, e.g. "Covered by 3 of 27 left-leaning (11%), 4 of 16 center (25%) and 12 of 25 right-leaning (48%) outlets we read, as of Oct 28, 4:10 PM ET" |
+| `link` | The story page, with UTM tags (`utm_campaign=news`, `utm_content=story:{id}`) |
+| `image` | The 1200×630 card (title, three bars, "as of" time). Its URL changes when the counts change |
+| `caption` | Draft: title, data line, link |
+| `asOf`, `updatedAt` | When the counts were read, and when they last changed. `?updated_since=` filters on `updatedAt` |
+
+Post the counts as they are. Don't say a side is biased or hiding a story.
+
+The same stories are at `GET /api/news?since=ISO&limit=N`.
+
 ### Traffic: `GET /api/traffic?since=YYYY-MM-DD`
 
 Send your team key (`Authorization: Bearer …` or `?key=`). The response gives visits:
@@ -105,6 +125,7 @@ A human version with copy buttons is at **https://voteunbiased.org/share**.
 | `/c/{claim}` | The quote, the rating stamp, and the official chart with what was said vs the data |
 | `/s/{series}` | Neutral chart card: name, latest value and date, change on a year earlier, 5 years of data |
 | `/dashboard?view=month&metric={metric}` | The same neutral card; lands on the presidents comparison |
+| `/news/{story}` | The story card: neutral title, how many of each side's outlets covered it, "as of" time |
 | anything else | The brand card |
 
 ## Video specs

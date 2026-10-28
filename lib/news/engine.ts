@@ -21,13 +21,20 @@ export interface StoryNumbers {
   counts: { match: number; approx: number; monthly: number; different: number; none: number };
 }
 export interface Story {
-  id: string; slug: string; title: string;
+  id: string; slug: string;
+  /** Our own neutral wording when available (lib/news/titles), else `headline`. */
+  title: string;
+  /** The most typical outlet headline, as published. */
+  headline?: string;
+  /** When these counts were read (the feed refresh), and when they last changed. */
+  asOf?: string; updatedAt?: string;
   firstSeen: string; lastSeen: string;
   articles: StoryArticle[];
   outlets: number;
   coverage: Record<Lean, number>;                 // outlets covering, per lean
   rate: { left: number; center: number; right: number };   // share of each side's outlets that covered it
   blindspot: "left" | "right" | null;              // the side that MISSED it
+  blindspotLabel?: string | null;                 // same wording everywhere: blindspotLabel()
   topic: string;
   numbers?: StoryNumbers | null;
   /** Each side's most typical headline (for "how each side headlined it"). */
@@ -252,7 +259,7 @@ export function buildStories(groups: Article[][], all: Article[], offs: Record<s
     const lastSeen = arts[arts.length - 1].published;
     const ageH = (Date.now() - Date.parse(lastSeen)) / 3600_000;
     stories.push({
-      id, slug: `${slugify(pickTitle.title)}-${id}`, title: pickTitle.title,
+      id, slug: `${slugify(pickTitle.title)}-${id}`, title: pickTitle.title, headline: pickTitle.title, blindspotLabel: blindspotLabel(blindspot),
       firstSeen: first.published, lastSeen, articles: arts, outlets: byOutlet.size, coverage, rate, blindspot, topic, numbers, sides,
       score: byOutlet.size * Math.exp(-ageH / 18),
     });
@@ -261,3 +268,8 @@ export function buildStories(groups: Article[][], all: Article[], offs: Record<s
 }
 
 export { LEAN_TOTALS };
+
+/** One wording for a blindspot, used by the API, the pages and the share kit. */
+export function blindspotLabel(b: "left" | "right" | null | undefined): string | null {
+  return b ? `Mostly skipped by ${b}-leaning outlets` : null;
+}

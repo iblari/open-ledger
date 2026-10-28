@@ -4,7 +4,8 @@ import { notFound } from "next/navigation";
 import { C, SERIF, SANS } from "@/lib/design-tokens";
 import { getStory } from "@/lib/news/store";
 import { LEAN_TOTALS, type Lean } from "@/lib/news/outlets";
-import type { Story, StoryArticle } from "@/lib/news/engine";
+import { blindspotLabel, type Story, type StoryArticle } from "@/lib/news/engine";
+import { storyImage, storyDataLine } from "@/lib/news/share";
 import { NewsChrome, LeanPill, LEAN_COLOR, LEAN_LABEL, ago } from "@/components/news/NewsChrome";
 import { CoverageGraphic } from "@/components/news/Visuals";
 import { OUTLET_BY_ID } from "@/lib/news/outlets";
@@ -16,8 +17,14 @@ const time = (iso: string) => new Date(iso).toLocaleString("en-US", { month: "sh
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const s = await getStory(idOf((await params).slug));
   if (!s) return { title: "Story · Vote Unbiased" };
-  const desc = `${s.outlets} outlets covered this: ${s.coverage.left} left-leaning, ${s.coverage.center} center, ${s.coverage.right} right-leaning.${s.blindspot ? ` Blindspot: few ${s.blindspot}-leaning outlets covered it.` : ""}${s.numbers ? ` Official figure: ${s.numbers.official}${s.numbers.metric === "payrolls" ? "K" : "%"} (${s.numbers.source}).` : ""}`;
-  return { title: `${s.title} · Coverage · Vote Unbiased`, description: desc, alternates: { canonical: `https://voteunbiased.org/news/${s.slug}` }, robots: { index: s.outlets >= 5 } };
+  const desc = `${storyDataLine(s)}.${s.numbers ? ` Official figure: ${s.numbers.official}${s.numbers.metric === "payrolls" ? "K" : "%"} (${s.numbers.source}).` : ""}`;
+  const url = `https://voteunbiased.org/news/${s.slug}`;
+  const image = { url: storyImage(s), width: 1200, height: 630, alt: `Who covered it: ${s.title}` };
+  return {
+    title: `${s.title} · Coverage · Vote Unbiased`, description: desc, alternates: { canonical: url }, robots: { index: s.outlets >= 5 },
+    openGraph: { title: s.title, description: desc, url, siteName: "Vote Unbiased", type: "article", images: [image] },
+    twitter: { card: "summary_large_image", title: s.title, description: desc, images: [image.url] },
+  };
 }
 
 const VERDICT: Record<string, { t: string; c: string }> = {
@@ -69,7 +76,7 @@ export default async function StoryPage({ params }: { params: Promise<{ slug: st
             <div style={{ fontSize: 13, color: C.sub, lineHeight: 1.6, marginTop: 10 }}>
               {pct(s.rate.left)} of the {LEAN_TOTALS.left} left-leaning outlets we read · {pct(s.rate.center)} of {LEAN_TOTALS.center} center · {pct(s.rate.right)} of {LEAN_TOTALS.right} right-leaning{s.coverage.unrated ? ` · plus ${s.coverage.unrated} not rated` : ""}
             </div>
-            {s.blindspot && <div style={{ marginTop: 10, background: "#EEECF6", color: "#4D3E8F", borderRadius: 8, padding: "8px 10px", fontSize: 13 }}><b>Blindspot for the {s.blindspot}.</b> {LEAN_LABEL[s.blindspot]}-leaning outlets mostly skipped this story. <Link href="/methodology#news" style={{ color: "#4D3E8F" }}>How it's measured</Link></div>}
+            {s.blindspot && <div style={{ marginTop: 10, background: "#EEECF6", color: "#4D3E8F", borderRadius: 8, padding: "8px 10px", fontSize: 13 }}><b>Blindspot:</b> {blindspotLabel(s.blindspot)?.toLowerCase()}. <Link href="/methodology#news" style={{ color: "#4D3E8F" }}>How it's measured</Link></div>}
           </section>
           <section style={{ background: "#fff", border: `1px solid ${C.rule}`, borderRadius: 12, padding: "14px 16px" }}>
             {n ? (<>
