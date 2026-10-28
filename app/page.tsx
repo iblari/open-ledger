@@ -2,6 +2,9 @@ import { getLiveState } from "@/lib/live-kv";
 import LiveTakeover, { type LiveNow } from "@/components/LiveTakeover";
 import LandingPage from "@/components/landing/LandingPage";
 import { liveTrending } from "@/lib/trending-live";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { alternates: { canonical: "https://voteunbiased.org/" } };
 
 /**
  * / — the landing page, with a live broadcast band above it when one is running.

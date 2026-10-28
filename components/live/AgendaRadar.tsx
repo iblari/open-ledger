@@ -235,7 +235,7 @@ function EntityRow({ e, open, onToggle, first, phone, kind }: { e: RadarEntity; 
   );
   return (
     <div style={{ borderTop: first ? "none" : `1px solid ${C.rule}` }}>
-      <button type="button" onClick={onToggle} aria-expanded={open} style={{
+      <button data-nosnippet type="button" onClick={onToggle} aria-expanded={open} style={{
         all: "unset", cursor: "pointer", display: "flex", alignItems: "center", gap: 8,
         width: "100%", boxSizing: "border-box", padding: "8px 12px",
       }}>
@@ -322,7 +322,7 @@ export default function AgendaRadar() {
 
       <div role="tablist" aria-label="Rising or fading" style={{ display: "flex", background: "#EFEAE2", borderRadius: 99, padding: 3, margin: "14px 0 8px", maxWidth: phone ? undefined : 420 }}>
         {([["up", "▲ Rising", up.length, C.up], ["watch", "● Watch", watch.length, C.watch], ["down", "▼ Fading", down.length, C.down]] as const).map(([k, l, n, c]) => (
-          <button key={k} type="button" role="tab" aria-selected={dir === k} onClick={() => { setDir(k); setOpenTheme(null); }} style={{
+          <button data-nosnippet key={k} type="button" role="tab" aria-selected={dir === k} onClick={() => { setDir(k); setOpenTheme(null); }} style={{
             flex: 1, border: "none", cursor: "pointer", borderRadius: 99, padding: "7px 0",
             fontFamily: SANS, fontSize: 13, fontWeight: dir === k ? 700 : 500,
             background: dir === k ? "#fff" : "transparent", color: dir === k ? c : C.secondary,
@@ -350,7 +350,7 @@ export default function AgendaRadar() {
       <h3 style={{ fontFamily: SERIF, fontWeight: 500, fontSize: 18, margin: "22px 0 8px", color: C.ink }}>Named on air</h3>
       <div role="tablist" aria-label="Named on air" style={{ display: "flex", gap: 6, marginBottom: 8 }}>
         {([["cos", `Companies · ${cos.length}`], ["ppl", `People · ${ppl.length}`], ["ctry", `Countries · ${ctry.length}`]] as const).map(([k, l]) => (
-          <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => { setTab(k); setAllCos(false); setOpen(null); }} style={{
+          <button data-nosnippet key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => { setTab(k); setAllCos(false); setOpen(null); }} style={{
             fontFamily: SANS, fontSize: 12.5, fontWeight: 600, padding: "6px 12px", borderRadius: 99, cursor: "pointer",
             border: `1px solid ${tab === k ? C.ink : C.rule}`, background: tab === k ? C.ink : C.card, color: tab === k ? "#f8f5f0" : C.ink,
           }}>{l}</button>
@@ -368,7 +368,7 @@ export default function AgendaRadar() {
             {shown.map((e, i) => <EntityRow key={e.name} first={i === 0} e={e} phone={phone} kind={tab} open={open === e.name} onToggle={() => setOpen(o => (o === e.name ? null : e.name))} />)}
           </div>
           {list.length > 6 && (
-            <button type="button" onClick={() => setAllCos(v => !v)} style={{ background: "none", border: "none", padding: "8px 0 0", cursor: "pointer", fontSize: 12.5, fontWeight: 600, color: C.up }}>
+            <button data-nosnippet type="button" onClick={() => setAllCos(v => !v)} style={{ background: "none", border: "none", padding: "8px 0 0", cursor: "pointer", fontSize: 12.5, fontWeight: 600, color: C.up }}>
               {allCos ? "Show fewer" : `Show more (${Math.min(list.length, 20)})`}
             </button>
           )}

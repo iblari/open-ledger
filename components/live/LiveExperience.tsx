@@ -399,7 +399,7 @@ function FactCard({ claim, isNew, onSeek }: { claim: Claim; isNew: boolean; onSe
           )}
         </div>
         {claim.videoTime != null && claim.videoTime > 0 ? (
-          <button
+          <button data-nosnippet
             onClick={(e) => { e.stopPropagation(); onSeek?.(claim); }}
             style={{
               fontSize: 10, color: T.blue, background: "none", border: "none",
@@ -2050,7 +2050,7 @@ export default function LiveExperience({ autoStartReplay, autoStartLive, onExit,
               away — it used to be unreachable until the broadcast ended. */}
           {/* Phones use the ← in the player bar instead (the player covers this nav). */}
           {!mob && isPlaying && !isReplay && !isDemo && onBrowse && (
-            <button type="button" onClick={onBrowse} style={{
+            <button data-nosnippet type="button" onClick={onBrowse} style={{
               background: "none", border: "none", padding: 0, cursor: "pointer", font: "inherit",
               color: T.sub, fontWeight: 500, whiteSpace: "nowrap",
             }}>Past broadcasts &amp; trends</button>
@@ -2089,7 +2089,7 @@ export default function LiveExperience({ autoStartReplay, autoStartLive, onExit,
               <strong style={{ color: T.accent, marginRight: 6 }}>Fact-check unavailable</strong>
               <span style={{ color: T.sub }}>{pollError}</span>
             </div>
-            <button onClick={() => setPollError(null)} style={{
+            <button data-nosnippet onClick={() => setPollError(null)} style={{
               background: "none", border: "none", color: T.mute, cursor: "pointer",
               fontSize: 18, lineHeight: 1, padding: "0 4px",
             }} aria-label="Dismiss">×</button>
@@ -2171,7 +2171,7 @@ export default function LiveExperience({ autoStartReplay, autoStartLive, onExit,
                     fontFamily: "'DM Sans',sans-serif", fontSize: 12, color: "#b8b0a8",
                     marginBottom: 20,
                   }}>{config.source === "youtube" ? "YouTube" : config.source} broadcast</div>
-                  <button
+                  <button data-nosnippet
                     onClick={() => startLive(config.videoId, config.title)}
                     style={{
                       background: "#dc2626", color: "#fff", border: "none", borderRadius: 10,
@@ -2211,7 +2211,7 @@ export default function LiveExperience({ autoStartReplay, autoStartLive, onExit,
                   fontFamily: "'Source Serif 4',serif", fontSize: mob ? 18 : 22, fontWeight: 700,
                   marginBottom: 14, lineHeight: 1.25,
                 }}>{d.title || `${d.channelLabel} — Live broadcast`}</div>
-                <button
+                <button data-nosnippet
                   onClick={async () => {
                     // Captions-first: streams that have ENDED (or VODs)
                     // usually expose captions, which power the full
@@ -2329,7 +2329,7 @@ export default function LiveExperience({ autoStartReplay, autoStartLive, onExit,
                           {" "}· {durMin}m covered
                         </div>
                         <div style={{ marginTop: "auto", display: "flex", justifyContent: "flex-end" }}>
-                          <button
+                          <button data-nosnippet
                             onClick={() => startReplay(b)}
                             style={{
                               background: T.ink, color: "#fff", border: "none", borderRadius: 8,
@@ -2442,7 +2442,7 @@ export default function LiveExperience({ autoStartReplay, autoStartLive, onExit,
                         <span style={{
                           fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: T.mute,
                         }}>{demo.duration}</span>
-                        <button
+                        <button data-nosnippet
                           onClick={() => startDemo(demo.file)}
                           style={{
                             background: T.ink, color: "#fff", border: "none", borderRadius: 8,
@@ -2493,7 +2493,7 @@ export default function LiveExperience({ autoStartReplay, autoStartLive, onExit,
                     background: T.paper, outline: "none",
                   }}
                 />
-                <button
+                <button data-nosnippet
                   onClick={() => urlInput.trim() && startFromUrl(urlInput.trim())}
                   disabled={urlLoading || !urlInput.trim()}
                   style={{
@@ -2699,7 +2699,7 @@ export default function LiveExperience({ autoStartReplay, autoStartLive, onExit,
             <SummaryBar claims={claims} />
 
             <div style={{ marginTop: 16, display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
-              <button
+              <button data-nosnippet
                 onClick={shareResults}
                 style={{
                   background: T.ink, color: "#fff", border: "none", borderRadius: 6,
@@ -2709,7 +2709,7 @@ export default function LiveExperience({ autoStartReplay, autoStartLive, onExit,
               >
                 Share Results
               </button>
-              <button
+              <button data-nosnippet
                 onClick={() => { setShowSummary(false); setClaims([]); }}
                 style={{
                   background: "none", border: `1px solid ${T.rule}`, borderRadius: 6,
@@ -2863,7 +2863,7 @@ function NotifyToggle() {
         <div style={{ fontSize: 11.5, color: T.sub, lineHeight: 1.55 }}>
           iPhone needs this site on your Home Screen before it can send notifications.
           {" "}
-          <button onClick={() => setShowHow(v => !v)} style={{
+          <button data-nosnippet onClick={() => setShowHow(v => !v)} style={{
             background: "none", border: "none", padding: 0, color: T.blue,
             fontFamily: "inherit", fontSize: 11.5, fontWeight: 700, cursor: "pointer", textDecoration: "underline",
           }}>{showHow ? "Hide steps" : "Show me how (15 seconds)"}</button>
@@ -2894,7 +2894,7 @@ function NotifyToggle() {
   return (
     <div style={box}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-        <button onClick={toggle} disabled={state === "busy" || state === "denied"} style={{
+        <button data-nosnippet onClick={toggle} disabled={state === "busy" || state === "denied"} style={{
           fontFamily: "'DM Sans',sans-serif", fontSize: 12, fontWeight: 700,
           color: state === "on" ? "#0d7377" : "#fff",
           background: state === "on" ? "transparent" : "#0d7377",

@@ -271,7 +271,7 @@ export default function ControlRoom({
           aria-label and title, so it is still announced and still explained
           on hover. */}
       {onBack && (
-        <button
+        <button data-nosnippet
           type="button" onClick={onBack} className="vu-back"
           aria-label={mode === "live" ? "Past broadcasts & trends (the live keeps running)" : "Back to recent broadcasts"}
           title={mode === "live" ? "Past broadcasts & trends (the live keeps running)" : "Back to recent broadcasts"}
@@ -307,7 +307,7 @@ export default function ControlRoom({
           shows where playback is, and the title needs the room. */}
       {!mob && <span style={{ fontFamily: F.mono, fontSize: 12, color: L.mutedDark2, flexShrink: 0 }}>{stamp(elapsed)}</span>}
       {immersive && (
-        <button type="button" onClick={exitLandscape} className="vu-back"
+        <button data-nosnippet type="button" onClick={exitLandscape} className="vu-back"
           aria-label="Exit full screen" title="Exit full screen"
           style={{
             width: 30, height: 30, borderRadius: "50%", flexShrink: 0,
@@ -318,7 +318,7 @@ export default function ControlRoom({
       )}
       {mob && !immersive && (
         <span style={{ position: "relative", flexShrink: 0 }}>
-          <button type="button" onClick={() => setMenuOpen(o => !o)} className="vu-back"
+          <button data-nosnippet type="button" onClick={() => setMenuOpen(o => !o)} className="vu-back"
             aria-label="More: full screen, record, stop" aria-expanded={menuOpen}
             style={{
               width: 30, height: 30, borderRadius: "50%",
@@ -339,7 +339,7 @@ export default function ControlRoom({
                   [`Download record · ${views.length} claims`, () => onOpenRecord()],
                   [mode === "live" ? "Stop watching" : "Stop replay", () => onStop()],
                 ] as [string, () => void][]).map(([label, fn], i) => (
-                  <button key={label} role="menuitem" type="button" onClick={() => { setMenuOpen(false); fn(); }} style={{
+                  <button data-nosnippet key={label} role="menuitem" type="button" onClick={() => { setMenuOpen(false); fn(); }} style={{
                     display: "block", width: "100%", textAlign: "left", padding: "12px 14px",
                     background: "transparent", border: "none", borderTop: i ? `1px solid ${L.cardBorder}` : "none",
                     color: "#F2EEE9", fontSize: 13.5, cursor: "pointer",
@@ -351,7 +351,7 @@ export default function ControlRoom({
         </span>
       )}
       {!mob && !immersive && canFs && (
-        <button type="button" onClick={toggleFs} className="vu-back"
+        <button data-nosnippet type="button" onClick={toggleFs} className="vu-back"
           aria-label={fs ? "Exit full screen" : "Full screen with fact-checks"}
           title={fs ? "Exit full screen (Esc)" : "Full screen with fact-checks"}
           style={{
@@ -398,7 +398,7 @@ export default function ControlRoom({
           const active = filter === k;
           const color = k === "all" ? "#fff" : VERDICT_COLOR[k as Verdict];
           return (
-            <button key={k} onClick={() => setFilter(k as Verdict | "all")} style={{
+            <button data-nosnippet key={k} onClick={() => setFilter(k as Verdict | "all")} style={{
               fontFamily: F.ui, fontSize: 9, fontWeight: 700, letterSpacing: "0.1em",
               padding: "4px 9px", borderRadius: 12, cursor: "pointer",
               background: active ? (k === "all" ? "#F2EEE9" : color) : "transparent",
@@ -480,7 +480,7 @@ export default function ControlRoom({
   const RecordBar = mob ? (
     // Phones: the record and stop moved into ⋯; the one action people use
     // mid-broadcast floats over the feed instead of costing a row.
-    <button onClick={onFactCheck} disabled={isChecking} style={{
+    <button data-nosnippet onClick={onFactCheck} disabled={isChecking} style={{
       position: "fixed", right: 14, bottom: "calc(14px + env(safe-area-inset-bottom))", zIndex: 62,
       background: L.true, border: "none", color: "#fff", borderRadius: 99,
       padding: "12px 18px", fontFamily: F.ui, fontSize: 13.5, fontWeight: 700,
@@ -491,7 +491,7 @@ export default function ControlRoom({
       {isChecking ? "Checking…" : "Check this moment"}
     </button>
   ) : (
-    <button onClick={onOpenRecord} style={{
+    <button data-nosnippet onClick={onOpenRecord} style={{
       flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between",
       gap: 10, width: "100%", padding: "16px 16px calc(16px + env(safe-area-inset-bottom))",
       background: L.stageAlt, border: "none", borderTop: `1px solid ${L.cardBorder}`,
@@ -511,11 +511,11 @@ export default function ControlRoom({
       display: "flex", alignItems: "center", gap: 8, padding: "10px 14px",
       background: L.stage, borderTop: `1px solid ${L.cardBorder}`, flexShrink: 0,
     }}>
-      <button onClick={onStop} style={{
+      <button data-nosnippet onClick={onStop} style={{
         background: "transparent", border: `1px solid ${L.cardBorder}`, color: L.mutedDark2,
         borderRadius: 6, padding: "7px 14px", fontFamily: F.ui, fontSize: 11.5, fontWeight: 600, cursor: "pointer",
       }}>■ Stop</button>
-      <button onClick={onFactCheck} disabled={isChecking} style={{
+      <button data-nosnippet onClick={onFactCheck} disabled={isChecking} style={{
         background: L.true, border: "none", color: "#fff", borderRadius: 6,
         padding: "7px 14px", fontFamily: F.ui, fontSize: 11.5, fontWeight: 700,
         cursor: isChecking ? "default" : "pointer", opacity: isChecking ? 0.6 : 1,

@@ -132,7 +132,7 @@ function Mobile({ shift }: { shift: TopicShift }) {
   const color = tab === "up" ? UP : DOWN;
   const w = shift.window;
   const tabBtn = (k: "up" | "down", label: string, n: number, c: string) => (
-    <button type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)} style={{
+    <button data-nosnippet type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)} style={{
       flex: 1, border: "none", cursor: "pointer", borderRadius: 99, padding: "7px 0",
       fontFamily: SANS, fontSize: 13, fontWeight: tab === k ? 700 : 500,
       background: tab === k ? "#fff" : "transparent", color: tab === k ? c : "#5F5850",

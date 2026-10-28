@@ -8,6 +8,7 @@ import {
   Tooltip, ResponsiveContainer,
 } from "recharts";
 import Link from "next/link";
+import { METRIC_COUNT, ADMIN_COUNT } from "@/lib/seo-catalog";
 
 // Design tokens + per-metric display helpers — shared with the dashboard.
 import { C, SERIF, SANS } from "@/lib/design-tokens";
@@ -966,7 +967,7 @@ function DeepDiveSection({ mob, med }: { mob: boolean; med: boolean }) {
               textDecoration: "none", fontSize: 13,
             }}>
               <div>
-                <div style={{ fontFamily: SERIF, fontWeight: 600, fontSize: 15 }}>See all 22 metrics</div>
+                <div style={{ fontFamily: SERIF, fontWeight: 600, fontSize: 15 }}>See all {METRIC_COUNT} metrics</div>
                 <div style={{ fontSize: 11, opacity: 0.6, marginTop: 2 }}>Jobs, wages, trade, debt, and more</div>
               </div>
               <span className="vu-arw" style={{ fontSize: 20, opacity: 0.7 }}>→</span>
@@ -1342,9 +1343,9 @@ function Footer({ mob, med }: { mob: boolean; med: boolean }) {
 
           {/* Link cols */}
           {[
-            { h: "Data", links: [{ l: "Dashboard", href: "/dashboard" }, { l: "Live benchmark", href: "/dashboard?view=month" }, { l: "Scorecard", href: "/dashboard" }] },
-            { h: "About", links: [{ l: "Methodology", href: "#method" }, { l: "Sources", href: "#sources" }] },
-            { h: "Stay in touch", links: [{ l: "Newsletter", href: "#cta" }] },
+            { h: "Data", links: [{ l: "Dashboard", href: "/dashboard" }, { l: "Benchmarks", href: "/benchmark" }, { l: "By president", href: "/economy" }] },
+            { h: "Fact-checks", links: [{ l: "Live", href: "/live" }, { l: "Broadcasts", href: "/broadcasts" }, { l: "2026 ballot", href: "/vote" }] },
+            { h: "About", links: [{ l: "Methodology", href: "/methodology" }, { l: "Sources", href: "#sources" }] },
           ].map(col => (
             <div key={col.h}>
               <h4 style={{ fontSize: 11, color: "#8C8479", letterSpacing: "0.12em", textTransform: "uppercase", fontWeight: 500, marginBottom: 14 }}>{col.h}</h4>
@@ -1470,7 +1471,9 @@ function MobileTicker() {
     <div style={{ margin: "-20px -20px 16px", position: "relative", overflow: "hidden", background: "#fff", borderBottom: `1px solid ${C.rule}` }}>
       <div className="vu-marquee" style={{ display: "flex", width: "max-content", animation: "vuMarquee 32s linear infinite" }}>
         {[...tape, ...tape].map((t, i) => (
-          <div key={i} style={{ display: "flex", alignItems: "baseline", gap: 6, padding: "8px 13px", whiteSpace: "nowrap" }}>
+          // The second copy only exists to make the loop seamless: hidden from
+          // screen readers and search snippets so the prints are read once.
+          <div key={i} aria-hidden={i >= tape.length || undefined} data-nosnippet={i >= tape.length || undefined} style={{ display: "flex", alignItems: "baseline", gap: 6, padding: "8px 13px", whiteSpace: "nowrap" }}>
             <span style={{ fontSize: 8.5, color: C.mute, letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 600 }}>{t.label}</span>
             <span style={{ fontFamily: SERIF, fontSize: 12.5, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{t.val}</span>
             <span style={{ fontSize: 9.5, fontWeight: 600, fontVariantNumeric: "tabular-nums", color: t.deltaColor }}>{t.delta}</span>
@@ -1853,7 +1856,7 @@ function MobileLanding({ liveTrends = [] }: { liveTrends?: TrendCard[] }) {
             background: C.ink, color: "#f8f5f0", fontSize: 12.5, fontWeight: 500,
             padding: "10px 15px", borderRadius: 4, textDecoration: "none",
           }}>
-            See all 22 metrics →
+            See all {METRIC_COUNT} metrics →
           </Link>
           {/* Was a link to /dashboard — "Methodology" landed people on the
               data. It now jumps to the methodology section on this page. */}
@@ -1994,7 +1997,7 @@ function MobileLanding({ liveTrends = [] }: { liveTrends?: TrendCard[] }) {
           <span>
             <span style={{ display: "block", fontFamily: SERIF, fontSize: 15, fontWeight: 600, color: "#f8f5f0" }}>Open the ledger</span>
             <span style={{ display: "block", fontSize: 10.5, color: "rgba(248,245,240,.6)", marginTop: 1 }}>
-              22 metrics · 5 administrations · sources cited
+              {METRIC_COUNT} metrics · {ADMIN_COUNT} administrations · sources cited
             </span>
           </span>
           <span style={{ fontSize: 18, color: "#f8f5f0" }}>→</span>

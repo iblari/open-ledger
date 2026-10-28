@@ -253,7 +253,7 @@ export default function LivePromo() {
       </div>
 
       {/* Purely a picture of the product — the copy and button below carry the meaning. */}
-      <div ref={devRef} aria-hidden className="lp-dev" style={{ maxWidth: 1240, margin: "80px auto 0", padding: "8px 0" }}>
+      <div ref={devRef} aria-hidden data-nosnippet className="lp-dev" style={{ maxWidth: 1240, margin: "80px auto 0", padding: "8px 0" }}>
         <div ref={groupRef} className="lp-group">
 
           {/* ── Laptop ── */}

@@ -219,7 +219,7 @@ function Bar({
           {!busy && error && (
             <p style={{ fontFamily: SANS, fontSize: 11.5, color: C.con, margin: "6px 0" }}>
               {error}{" "}
-              <button type="button" onClick={onToggle} style={{
+              <button data-nosnippet type="button" onClick={onToggle} style={{
                 font: "inherit", color: C.secondary, background: "none", border: "none",
                 textDecoration: "underline", cursor: "pointer", padding: 0,
               }}>Try again</button>
@@ -264,7 +264,7 @@ function Bar({
                     {shown.map((c, i) => <ClaimRow key={`${c.day}-${i}`} c={c} showTopic={Boolean(t.members?.length)} />)}
                   </ul>
                   {hidden > 0 && (
-                    <button type="button" onClick={() => setAll(true)} style={{
+                    <button data-nosnippet type="button" onClick={() => setAll(true)} style={{
                       fontFamily: SANS, fontSize: 11.5, fontWeight: 600, color: C.secondary,
                       background: "none", border: "none", padding: "9px 0 2px",
                       cursor: "pointer", textDecoration: "underline",
@@ -406,7 +406,7 @@ export default function TopicBreakdown({
 
       {hiddenOnPhone > 0 && (
         <div className="tb-m" style={{ textAlign: "center", marginTop: 10 }}>
-          <button type="button" onClick={() => setShowAll(v => !v)} aria-expanded={showAll} style={{
+          <button data-nosnippet type="button" onClick={() => setShowAll(v => !v)} aria-expanded={showAll} style={{
             fontFamily: SANS, fontSize: 13, color: C.ink, background: "none", cursor: "pointer",
             border: `1px solid ${C.rule}`, borderRadius: 99, padding: "8px 16px",
           }}>{showAll ? "Show fewer" : `Show ${hiddenOnPhone} more`}</button>
