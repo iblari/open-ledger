@@ -12,8 +12,8 @@ import { OUTLETS, OUTLET_BY_ID, leanOf, LEAN_TOTALS, type Lean } from "./outlets
  * one tells readers an outlet covered something it didn't.
  */
 
-export interface Article { id: string; outlet: string; title: string; link: string; summary: string; published: string }
-export interface StoryArticle { outlet: string; name: string; lean: Lean; title: string; link: string; published: string; number?: NumberCheck }
+export interface Article { id: string; outlet: string; title: string; link: string; summary: string; published: string; image?: string; imageW?: number }
+export interface StoryArticle { outlet: string; name: string; lean: Lean; title: string; link: string; published: string; number?: NumberCheck; image?: string }
 export interface NumberCheck { verdict: "match" | "approx" | "monthly" | "different"; said: number }
 export interface StoryNumbers {
   metric: string; label: string; source: string; url: string;
@@ -39,6 +39,8 @@ export interface Story {
   numbers?: StoryNumbers | null;
   /** Each side's most typical headline (for "how each side headlined it"). */
   sides?: Partial<Record<"left" | "center" | "right", StoryArticle>>;
+  /** One photo for the story, from an outlet's own feed (credited and linked). */
+  photo?: { url: string; outlet: string; name: string; link: string } | null;
   score: number;
 }
 
@@ -55,6 +57,34 @@ const decode = (s: string) => s
 const tag = (x: string, t: string) => { const m = x.match(new RegExp(`<${t}[^>]*>([\\s\\S]*?)</${t}>`, "i")); return m ? m[1] : ""; };
 const hash = (s: string) => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36); };
 
+/** The best photo an RSS item carries: media:content / media:thumbnail /
+ * enclosure / the first <img> in its body. Prefers the widest; drops
+ * tracking pixels, audio/video and tiny thumbnails; upgrades known small sizes. */
+export function feedImage(it: string): { url: string; w: number } | null {
+  const amp = (u: string) => u.replace(/&amp;/g, "&").replace(/&#038;/g, "&").trim();
+  const c: { url: string; w: number }[] = [];
+  const attr = (t: string, a: string) => (t.match(new RegExp(`\\b${a}=["']([^"']+)["']`, "i")) || [])[1];
+  for (const m of it.matchAll(/<(media:content|media:thumbnail|enclosure)\b[^>]*>/gi)) {
+    const t = m[0], url = attr(t, "url"), type = attr(t, "type") || "", medium = attr(t, "medium") || "";
+    if (!url || /audio|video/i.test(type + medium) || /\.(mp3|mp4|m4a)\b/i.test(url)) continue;
+    if (m[1].toLowerCase() === "enclosure" && type && !/image/i.test(type)) continue;
+    c.push({ url: amp(url), w: +(attr(t, "width") || 0) });
+  }
+  const body = it.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"');
+  for (const m of body.matchAll(/<img\b[^>]*>/gi)) {
+    const url = attr(m[0], "src"); if (!url) continue;
+    c.push({ url: amp(url), w: +(attr(m[0], "width") || 0) });
+  }
+  const ok = c.map(x => {
+    let url = x.url, w = x.w || +((url.match(/[?&](?:w|width)=(\d+)/) || [])[1] || 0);
+    url = url.replace(/ichef\.bbci\.co\.uk\/ace\/standard\/\d+\//, "ichef.bbci.co.uk/ace/standard/976/");
+    if (/ichef\.bbci/.test(url)) w = 976;
+    return { url, w };
+  }).filter(x => /^https:\/\//.test(x.url) && !/pixel|tracking|1x1|spacer|feedburner|gravatar|logo/i.test(x.url) && (x.w === 0 || x.w >= 300));
+  if (!ok.length) return null;
+  return ok.sort((a, b) => (b.w || 800) - (a.w || 800))[0];
+}
+
 /** Lenient RSS/Atom parse (several feeds aren't well-formed XML). */
 export function parseFeed(xml: string, outlet: string): Article[] {
   const items = xml.match(/<item[\s>][\s\S]*?<\/item>/gi) || xml.match(/<entry[\s>][\s\S]*?<\/entry>/gi) || [];
@@ -67,7 +97,8 @@ export function parseFeed(xml: string, outlet: string): Article[] {
     const t = Date.parse(date);
     if (!title || !/^https?:/.test(link) || !Number.isFinite(t)) continue;
     const summary = decode(tag(it, "description") || tag(it, "summary") || tag(it, "content:encoded")).slice(0, 320);
-    out.push({ id: hash(link), outlet, title: title.slice(0, 240), link, summary, published: new Date(t).toISOString() });
+    const img = feedImage(it);
+    out.push({ id: hash(link), outlet, title: title.slice(0, 240), link, summary, published: new Date(t).toISOString(), ...(img ? { image: img.url, imageW: img.w } : {}) });
   }
   return out;
 }
@@ -228,7 +259,7 @@ export function buildStories(groups: Article[][], all: Article[], offs: Record<s
     if (byOutlet.size < 3) continue;                       // a story needs three outlets
     const arts: StoryArticle[] = [...g].sort((x, y) => x.published.localeCompare(y.published)).map(a => {
       const o = OUTLET_BY_ID.get(a.outlet)!;
-      return { outlet: a.outlet, name: o.name, lean: leanOf(o.score), title: a.title, link: a.link, published: a.published };
+      return { outlet: a.outlet, name: o.name, lean: leanOf(o.score), title: a.title, link: a.link, published: a.published, ...(a.image ? { image: a.image } : {}) };
     });
     const coverage = { left: 0, center: 0, right: 0, unrated: 0 } as Record<Lean, number>;
     for (const id of byOutlet.keys()) coverage[leanOf(OUTLET_BY_ID.get(id)!.score)]++;
@@ -251,6 +282,12 @@ export function buildStories(groups: Article[][], all: Article[], offs: Record<s
       const sa = arts.find(x => x.link === a.link)!;
       if (sa && sa.lean !== "unrated" && !sides[sa.lean] && plain(sa.title)) sides[sa.lean] = sa;
     }
+    // Photo: a center-rated outlet's picture first (the photo itself can frame a
+    // story), then the most typical article's; small images last.
+    const withImg = g.filter(a => a.image);
+    const rank = (a: Article) => (leanOf(OUTLET_BY_ID.get(a.outlet)!.score) === "center" ? 0 : 1) * 10 + (a.imageW && a.imageW < 500 ? 5 : 0) + g.indexOf(a) / 100;
+    const ph = [...withImg].sort((x, y) => rank(x) - rank(y))[0];
+    const photo = ph ? { url: ph.image!, outlet: ph.outlet, name: OUTLET_BY_ID.get(ph.outlet)!.name, link: ph.link } : null;
     const first = arts[0];
     const id = hash(first.link);
     const allText = arts.map(a => a.title).join(" ");
@@ -260,7 +297,7 @@ export function buildStories(groups: Article[][], all: Article[], offs: Record<s
     const ageH = (Date.now() - Date.parse(lastSeen)) / 3600_000;
     stories.push({
       id, slug: `${slugify(pickTitle.title)}-${id}`, title: pickTitle.title, headline: pickTitle.title, blindspotLabel: blindspotLabel(blindspot),
-      firstSeen: first.published, lastSeen, articles: arts, outlets: byOutlet.size, coverage, rate, blindspot, topic, numbers, sides,
+      firstSeen: first.published, lastSeen, articles: arts, outlets: byOutlet.size, coverage, rate, blindspot, topic, numbers, sides, photo,
       score: byOutlet.size * Math.exp(-ageH / 18),
     });
   }
