@@ -34,7 +34,7 @@ export function rankAt(m: BenchMetric, key: string, month: number): RankTable {
     const value = valueAt(s.data, month);
     const start = valueAt(s.data, 0);
     const change = value != null && start != null && start !== 0 ? ((value - start) / Math.abs(start)) * 100 : null;
-    const lastMonth = s.data.length ? Math.max(...s.data.map(d => d.month)) : -1;
+    const lastMonth = s.data.length ? Math.min(47, Math.max(...s.data.map(d => d.month))) : -1;
     return { id: s.id, name: s.name, value, start, change, current: s.current, lastMonth, last: lastMonth >= 0 ? valueAt(s.data, lastMonth) : null };
   }).filter(r => r.value != null && (!byChange || r.change != null)) as Omit<RankRow, "rank">[];
   const score = (r: { value: number; change: number | null }) => (byChange ? (r.change as number) : r.value);
