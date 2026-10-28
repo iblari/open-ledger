@@ -13,6 +13,7 @@ export async function POST(req: NextRequest) {
   const key = process.env.ADMIN_KEY;
   if (!key || req.headers.get("authorization") !== `Bearer ${key}`) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const body = await req.json().catch(() => ({}));
-  const r = await reconcile({ apply: body.apply === true, limit: Number(body.limit) || 8 });
+  const r = await reconcile({ apply: body.apply === true, limit: Number(body.limit) || 8, reset: body.reset === true,
+    only: Array.isArray(body.only) ? body.only.map(String) : undefined, drop: body.drop && typeof body.drop === "object" ? body.drop : undefined });
   return NextResponse.json({ ok: true, groups: r.groups, decided: r.decided, changed: r.changed, pending: r.plan.filter(g => !g.decision).length });
 }

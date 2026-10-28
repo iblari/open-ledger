@@ -221,15 +221,27 @@ export function findRepeats(all: RepeatOccurrence[]): {
 }
 
 
+/** Words that change WHAT is measured or over what span. Two quotes that
+ *  differ in one of these are different claims ("crime" vs "murder rate",
+ *  "inflation" vs "prices", "jobs" vs "private sector jobs"). */
+const SUBJECT = new Set(("murder murders homicide homicides violent crime crimes inflation prices price private public federal sector " +
+  "families poverty unemployment jobs employment wages income gas oil deficit debt century decade decades month months year years " +
+  "week weeks day days percent energy food housing home homes rent electricity gonna will going future").split(" "));
+
 /**
  * Stricter than claimRelation "same": the two quotes make the same factual
- * assertion in substantially the same words, so one verdict must fit both.
- * A shared figure alone isn't enough here ("25 million came in" and "25
- * million poured in from prisons" share a figure but not a verdict).
+ * assertion, so one verdict must fit both. Same figures, nearly the same
+ * words, and no difference in what is measured. Used to carry a verdict over
+ * and to group checks for review, where a false match does real damage.
  */
 export function sameAssertion(a: string, b: string): boolean {
   if (claimRelation(a, b).rel !== "same") return false;
+  const fa = [...figuresIn(a)].sort().join(","), fb = [...figuresIn(b)].sort().join(",");
+  if (fa !== fb) return false;
   const ca = contentWords(a), cb = contentWords(b);
   if (ca.size < 3 || cb.size < 3) return false;
-  return containment(ca, cb) >= 0.6 && jaccard(ca, cb) >= 0.35;
+  if (containment(ca, cb) < 0.75 || jaccard(ca, cb) < 0.42) return false;
+  for (const w of ca) if (!cb.has(w) && SUBJECT.has(w)) return false;
+  for (const w of cb) if (!ca.has(w) && SUBJECT.has(w)) return false;
+  return true;
 }
