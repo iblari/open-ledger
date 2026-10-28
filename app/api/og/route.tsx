@@ -27,6 +27,11 @@ export async function GET(req: Request) {
   const row = t?.rows.find(r => r.id === focusId);
   const score = (r: { value: number; change: number | null }) => (t!.byChange ? (r.change ?? 0) : r.value);
   const max = t ? Math.max(...t.rows.map(r => Math.abs(score(r))), 1e-9) : 1;
+  // Bars start at zero: negatives extend left, so length never hides sign.
+  const anyNeg = t ? t.rows.some(r => score(r) < 0) : false;
+  const anyPos = t ? t.rows.some(r => score(r) > 0) : true;
+  const SPAN = 640, zeroX = anyNeg && anyPos ? SPAN / 2 : anyNeg ? SPAN : 0, scaleW = anyNeg && anyPos ? SPAN / 2 : SPAN;
+  const label = (r: { value: number; change: number | null; start: number | null }) => (t!.byChange ? fmtChange(m!, r.start, r.value) : fmtV(m!, r.value));
   const name = (id: string) => ADMINS.find(a => a.id === id)?.name ?? id;
   return new ImageResponse(
     (
@@ -46,7 +51,12 @@ export async function GET(req: Request) {
           {(t?.rows ?? []).slice(0, 10).map(r => (
             <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <div style={{ width: 110, fontSize: 18, color: r.id === focusId ? "#F4F0EA" : "#8C8479" }}>{name(r.id)}</div>
-              <div style={{ display: "flex", height: 14, width: `${Math.max(1.5, (Math.abs(score(r)) / max) * 760)}px`, background: r.id === focusId ? "#E0493A" : "#3A332C", borderRadius: 4 }} />
+              <div style={{ display: "flex", position: "relative", width: SPAN, height: 14 }}>
+                <div style={{ position: "absolute", left: zeroX, top: -3, width: 1, height: 20, background: "#5A5148" }} />
+                <div style={{ position: "absolute", top: 0, height: 14, borderRadius: 4, background: r.id === focusId ? "#E0493A" : "#3A332C",
+                  left: score(r) >= 0 ? zeroX : zeroX - (Math.abs(score(r)) / max) * scaleW, width: Math.max(1.5, (Math.abs(score(r)) / max) * scaleW) }} />
+              </div>
+              <div style={{ fontSize: 17, color: r.id === focusId ? "#F4F0EA" : "#8C8479", width: 120 }}>{label(r)}</div>
             </div>
           ))}
         </div>
