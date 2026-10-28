@@ -52,6 +52,8 @@ export function leanShares(coverage: Record<Lean, number>) {
   return { left: out[0], center: out[1], right: out[2] };
 }
 
+/** Width a segment needs to fit "Center 100%" at this font size. */
+const k_full = (f: number) => Math.round(f * 6.3);
 const BAR_SIZE = { lg: { h: 30, f: 14, full: 16 }, md: { h: 24, f: 12.5, full: 22 }, sm: { h: 20, f: 11.5, full: 30 } } as const;
 
 /**
@@ -68,11 +70,12 @@ export function CoverageBar({ coverage, size = "md" }: { coverage: Record<Lean, 
       title={`${coverage.left} left-leaning · ${coverage.center} center · ${coverage.right} right-leaning outlets`}
       style={{ display: "flex", height: z.h, borderRadius: 4, overflow: "hidden", width: "100%", border: "1px solid #CFC9BF", background: "#fff", boxSizing: "border-box" }}>
       {parts.map(k => (
-        <div key={k} style={{ flex: `${sh[k]} 1 0`, minWidth: size === "lg" ? 46 : 38, background: k === "center" ? "#fff" : LEAN_COLOR[k], color: k === "center" ? "#14110E" : "#fff",
+        <div key={k} className="lb-seg" style={{ flex: `${sh[k]} 1 0`, minWidth: size === "lg" ? 46 : 38, background: k === "center" ? "#fff" : LEAN_COLOR[k], color: k === "center" ? "#14110E" : "#fff",
           fontSize: z.f, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", whiteSpace: "nowrap", overflow: "hidden", padding: "0 4px" }}>
-          {sh[k] >= z.full ? `${LEAN_LABEL[k]} ${sh[k]}%` : `${sh[k]}%`}
+          <span className="lb-full">{`${LEAN_LABEL[k]} ${sh[k]}%`}</span><span className="lb-short">{`${sh[k]}%`}</span>
         </div>
       ))}
+      <style>{`.lb-seg{container-type:inline-size}.lb-short{display:none}@container (max-width:${k_full(z.f)}px){.lb-full{display:none}.lb-short{display:inline}}`}</style>
     </div>
   );
 }
