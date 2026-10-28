@@ -51,5 +51,8 @@ export async function getClaimTimeline(c: SharedClaim, repeats: Repeat[]): Promi
     const points = data.lines[0].points.filter(p => p.d >= from);
     if (points.length >= 3) series = { id: data.id, label: data.label, unit: data.unit, decimals: data.decimals, source: data.source, url: data.url, points };
   }
-  return { occ, series, said: series ? mapping?.said ?? null : null };
+  // The claimed figure is not drawn: a mapped "said" value can refer to a
+  // different period than the window shown (e.g. a 2022 peak), which would
+  // read as a claim about today.
+  return { occ, series, said: null };
 }

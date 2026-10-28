@@ -21,6 +21,16 @@ function fmt(v: number, unit: string, dec: number) {
   return `${n} ${unit}`;
 }
 
+/** Short axis label: the number with a compact unit ("159.1M", "3.7%", "$4.27"). */
+function axis(v: number, unit: string) {
+  const d = Math.abs(v) >= 100 ? 0 : Math.abs(v) >= 10 ? 1 : 2;
+  const n = v.toFixed(unit === "%" ? 1 : d);
+  if (unit === "%") return `${n}%`;
+  if (unit.startsWith("$")) return `$${n}`;
+  const m = unit.match(/^(K|M|B|T)\b/);
+  return m ? `${v.toFixed(1)}${m[1]}` : n;
+}
+
 export default function ClaimTimeline({ t }: { t: T }) {
   const counts = new Map<string, number>();
   for (const o of t.occ) { const v = toOutcome(o.rating); counts.set(v, (counts.get(v) || 0) + 1); }
@@ -74,7 +84,7 @@ export default function ClaimTimeline({ t }: { t: T }) {
 
 function Chart({ t, W, H }: { t: T; W: number; H: number }) {
   const narrow = W < 500;
-  const L = narrow ? 40 : 48, R = 12, Tp = 14, B = 22;
+  const L = narrow ? 46 : 58, R = 12, Tp = 14, B = 22;
   const ms = (d: string) => Date.parse(d.length === 10 ? d + "T12:00:00Z" : d);
   const occMs = t.occ.map(o => ms(o.date));
   const s = t.series;
@@ -127,7 +137,7 @@ function Chart({ t, W, H }: { t: T; W: number; H: number }) {
       {yTicks.map((v, i) => (
         <g key={i}>
           <line x1={L} x2={W - R} y1={Y(v)} y2={Y(v)} stroke="#F0ECE5" />
-          <text x={L - 6} y={Y(v) + 4} textAnchor="end" fontSize={11} fill="#8C8479">{fmt(v, s.unit, s.unit === "%" ? 1 : s.decimals)}</text>
+          <text x={L - 6} y={Y(v) + 4} textAnchor="end" fontSize={11} fill="#8C8479">{axis(v, s.unit)}</text>
         </g>
       ))}
       {ticks.map(k => <text key={k.m} x={X(k.m)} y={H - 6} textAnchor="middle" fontSize={11} fill="#8C8479">{k.label}</text>)}
@@ -149,7 +159,7 @@ function Chart({ t, W, H }: { t: T; W: number; H: number }) {
           </g>
         );
       })}
-      {!narrow && t.occ.length <= 8 && t.occ.map((o, i) => (
+      {!narrow && t.occ.length <= 8 && occMs.every((m, i) => i === 0 || X(m) - X(occMs[i - 1]) > 56) && t.occ.map((o, i) => (
         <text key={"l" + i} x={X(occMs[i])} y={Tp + 2} textAnchor="middle" fontSize={10.5} fill="#8C8479">{nyShort(o.date)}</text>
       ))}
     </svg>
