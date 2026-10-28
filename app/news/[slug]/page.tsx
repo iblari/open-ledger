@@ -72,8 +72,7 @@ export default async function StoryPage({ params }: { params: Promise<{ slug: st
         <div style={{ fontSize: 13, color: C.sub }}>First reported {time(s.firstSeen)} · {s.articles.length} articles from {s.outlets} outlets</div>
         {s.photo && (
           <figure style={{ margin: "16px 0 0", maxWidth: 920 }}>
-            <Photo src={s.photo.url} alt="" topic={s.topic} ratio="16 / 9" priority />
-            <figcaption style={{ fontSize: 12, color: C.mute, marginTop: 6 }}>Photo from <a href={s.photo.link} target="_blank" rel="noopener noreferrer nofollow" style={{ color: C.sub }}>{s.photo.name}</a>&apos;s coverage</figcaption>
+            <Photo src={s.photo.url} alt="" topic={s.topic} credit={s.photo.name} alts={s.photo.alts} ratio="16 / 9" priority />
           </figure>
         )}
 

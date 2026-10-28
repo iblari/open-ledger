@@ -40,7 +40,7 @@ export interface Story {
   /** Each side's most typical headline (for "how each side headlined it"). */
   sides?: Partial<Record<"left" | "center" | "right", StoryArticle>>;
   /** One photo for the story, from an outlet's own feed (credited and linked). */
-  photo?: { url: string; outlet: string; name: string; link: string } | null;
+  photo?: { url: string; outlet: string; name: string; link: string; alts?: { url: string; name: string }[] } | null;
   score: number;
 }
 
@@ -286,8 +286,11 @@ export function buildStories(groups: Article[][], all: Article[], offs: Record<s
     // story), then the most typical article's; small images last.
     const withImg = g.filter(a => a.image);
     const rank = (a: Article) => (leanOf(OUTLET_BY_ID.get(a.outlet)!.score) === "center" ? 0 : 1) * 10 + (a.imageW && a.imageW < 500 ? 5 : 0) + g.indexOf(a) / 100;
-    const ph = [...withImg].sort((x, y) => rank(x) - rank(y))[0];
-    const photo = ph ? { url: ph.image!, outlet: ph.outlet, name: OUTLET_BY_ID.get(ph.outlet)!.name, link: ph.link } : null;
+    const ranked = [...withImg].sort((x, y) => rank(x) - rank(y));
+    const ph = ranked[0];
+    // Two backups from other outlets, in case the first photo won't load.
+    const alts = ranked.filter(a => a.outlet !== ph?.outlet && a.image !== ph?.image).slice(0, 2).map(a => ({ url: a.image!, name: OUTLET_BY_ID.get(a.outlet)!.name }));
+    const photo = ph ? { url: ph.image!, outlet: ph.outlet, name: OUTLET_BY_ID.get(ph.outlet)!.name, link: ph.link, ...(alts.length ? { alts } : {}) } : null;
     const first = arts[0];
     const id = hash(first.link);
     const allText = arts.map(a => a.title).join(" ");

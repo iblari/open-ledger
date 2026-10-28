@@ -37,7 +37,7 @@ const RED = "#C8102E";
 /** "Covered by 26% of left-leaning, 38% of center and 24% of right-leaning outlets" */
 const dek = (s: Story) => `Covered by ${pct(s.rate.left)} of left-leaning, ${pct(s.rate.center)} of center and ${pct(s.rate.right)} of right-leaning outlets`;
 const mins = (iso: string) => { const m = Math.max(1, Math.round((Date.now() - Date.parse(iso)) / 60000)); return m < 60 ? `${m} min` : m < 1440 ? `${Math.round(m / 60)} hr` : `${Math.round(m / 1440)} d`; };
-const P = (s: Story, o: { ratio?: string; priority?: boolean } = {}) => <Photo src={s.photo?.url} alt="" topic={s.topic} credit={s.photo?.name} ratio={o.ratio} priority={o.priority} />;
+const P = (s: Story, o: { ratio?: string; priority?: boolean } = {}) => <Photo src={s.photo?.url} alt="" topic={s.topic} credit={s.photo?.name} alts={s.photo?.alts} ratio={o.ratio} priority={o.priority} />;
 
 function Tags({ s }: { s: Story }) {
   return (
@@ -55,7 +55,7 @@ function Lead({ s }: { s: Story }) {
       <Link href={`/news/${s.slug}`} style={{ display: "block", textDecoration: "none" }}>{P(s, { ratio: "3 / 2", priority: true })}</Link>
       <div style={{ ...K, color: C.sub, marginTop: 12 }}>{kicker(s)} · {s.outlets} outlets</div>
       <Link href={`/news/${s.slug}`} style={{ textDecoration: "none" }}>
-        <h2 style={{ ...H, fontSize: "clamp(26px,3.3vw,40px)", lineHeight: 1.06, margin: "6px 0 10px" }}>{s.title}</h2>
+        <h2 style={{ ...H, fontSize: "clamp(26px,2.7vw,34px)", lineHeight: 1.08, margin: "6px 0 10px" }}>{s.title}</h2>
       </Link>
       <p style={{ fontSize: 16, lineHeight: 1.45, color: "#3d3833", margin: "0 0 10px" }}>{dek(s)}.</p>
       <div style={{ maxWidth: 420 }}><CoverageBar coverage={s.coverage} height={5} /></div>
@@ -64,7 +64,7 @@ function Lead({ s }: { s: Story }) {
         <div style={{ marginTop: 14, borderTop: `1px solid ${C.rule}` }}>
           {SIDES.filter(l => sides[l]).map(l => (
             <a key={l} href={sides[l]!.link} target="_blank" rel="noopener noreferrer nofollow" style={{ display: "flex", gap: 10, alignItems: "baseline", padding: "8px 0", borderBottom: `1px solid ${C.rule}`, textDecoration: "none", color: C.ink }}>
-              <span style={{ flex: "0 0 92px", fontSize: 11, fontWeight: 600, color: LEAN_COLOR[l] === "#B9B3AA" ? "#8a8378" : LEAN_COLOR[l], textTransform: "uppercase", letterSpacing: "0.06em" }}>{l === "center" ? "Center" : `${l[0].toUpperCase()}${l.slice(1)}-leaning`}</span>
+              <span style={{ flex: "0 0 108px", fontSize: 11, fontWeight: 600, color: LEAN_COLOR[l] === "#B9B3AA" ? "#8a8378" : LEAN_COLOR[l], textTransform: "uppercase", letterSpacing: "0.06em" }}>{l === "center" ? "Center" : `${l[0].toUpperCase()}${l.slice(1)}-leaning`}</span>
               <span style={{ fontSize: 14, lineHeight: 1.35 }}>“{sides[l]!.title}” <span style={{ color: C.mute, fontSize: 12 }}>{sides[l]!.name}</span></span>
             </a>
           ))}
@@ -214,6 +214,7 @@ export default async function NewsPage({ searchParams }: { searchParams: Promise
           .nw-card{display:grid!important;grid-template-columns:minmax(0,1fr) 112px;gap:12px;padding:14px 0;border-top:1px solid ${C.rule}}
           .nw-card-img{order:2}
           .nw-card-k{margin-top:0!important}
+          .nw-card-img .ph-credit{display:none}
         }
       `}</style>
       <NewsChrome active="news" />
@@ -240,7 +241,7 @@ export default async function NewsPage({ searchParams }: { searchParams: Promise
                   {second && <Second s={second} />}
                   <div style={{ marginTop: second ? 14 : 0 }}>{texts.map(s => <TextItem key={s.id} s={s} />)}</div>
                 </div>
-                <div className="nw-latest"><Latest stories={all} /></div>
+                <div className="nw-latest"><Latest stories={all.filter(x => !used.has(x))} /></div>
               </div>
             )}
             <div className="nw-lower" style={{ marginTop: lead ? 34 : 0, paddingTop: lead ? 18 : 0, borderTop: lead ? `3px solid ${C.ink}` : 0 }}>
