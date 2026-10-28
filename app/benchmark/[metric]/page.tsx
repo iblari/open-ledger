@@ -31,7 +31,7 @@ export async function generateMetadata({ params }: { params: Promise<{ metric: s
   if (!r) return {};
   const title = `${r.info.name} Under Every President (Month-by-Month Data)`;
   const description = r.m && r.t
-    ? `Compare ${r.info.name.toLowerCase()} across ${r.t.n} modern U.S. presidential administrations at the exact same month in office. ${benchSummary(r.info, r.m, r.t)}`
+    ? `Compare ${r.info.name} across ${r.t.n} modern U.S. presidential administrations at the exact same month in office. ${benchSummary(r.info, r.m, r.t)}`
     : `${r.info.name} across U.S. presidential administrations, month by month, from official ${r.info.agency} data.`;
   const url = benchmarkUrl(r.info);
   const image = `${SITE}/api/og?type=metric&m=${r.info.slug}`;

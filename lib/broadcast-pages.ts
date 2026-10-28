@@ -9,8 +9,14 @@ import { claimPath, claimHash } from "./claim-link";
 import { toVerdict } from "./live-design";
 import { findRepeats, type RepeatOccurrence } from "./repeat-claims";
 
-export const slugify = (s: string) => s.normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase()
-  .replace(/&[a-z]+;/g, " ").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 70).replace(/-+$/, "");
+/** Titles arrive HTML-escaped from YouTube ("SBA&#39;s"). */
+export const decodeTitle = (s: string) => s.replace(/&#(\d+);/g, (_, n) => String.fromCharCode(+n)).replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, "&");
+export const slugify = (s: string) => {
+  const full = decodeTitle(s).normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/'/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  if (full.length <= 72) return full;
+  const cut = full.slice(0, 72);
+  return cut.slice(0, cut.lastIndexOf("-") > 30 ? cut.lastIndexOf("-") : 72); // whole words only
+};
 export const broadcastSlug = (e: { title: string; videoId: string }) => `${slugify(e.title) || "broadcast"}-${e.videoId}`;
 export const videoIdFromSlug = (slug: string) => (slug.length > 11 ? slug.slice(-11) : null);
 
@@ -32,7 +38,7 @@ const build = async (): Promise<BRecap[]> => {
   return ledger.filter(e => e.claims.some(c => toVerdict(c.rating))).map(e => {
     const c = e.counts; const scored = c.true + c.misleading + c.false;
     return {
-      slug: broadcastSlug(e), videoId: e.videoId, title: e.title, speaker: e.speaker, date: e.startedAt, durationSec: e.durationSec,
+      slug: broadcastSlug(e), videoId: e.videoId, title: decodeTitle(e.title), speaker: e.speaker, date: e.startedAt, durationSec: e.durationSec,
       counts: c, matchedPct: scored ? Math.round((c.true / scored) * 100) : null,
       claims: e.claims.filter(x => x.quote && toVerdict(x.rating)).sort((a, b) => (a.videoTime ?? 0) - (b.videoTime ?? 0)).map(x => ({
         quote: x.quote, rating: (x.rating || "").toUpperCase(), actual: x.actual || "", videoTime: x.videoTime,
