@@ -33,6 +33,20 @@ export async function refreshNews(): Promise<NewsFeed> {
   // When each story's counts last changed (stable across refreshes otherwise),
   // for ?since= on /api/news and updated_since in the share kit.
   const prev = await getNewsFeed().catch(() => null);
+  // Keep a story's id and URL as its articles change: a story that shares at
+  // least half its articles with one from the last run takes that one's id
+  // (otherwise links and cards would break when the earliest article ages out).
+  const claimed = new Set<string>();
+  for (const st of stories) {
+    const links = new Set(st.articles.map(a => a.link));
+    let best: Story | null = null, bestN = 0;
+    for (const p of prev?.stories || []) {
+      if (claimed.has(p.id)) continue;
+      const n = p.articles.filter(a => links.has(a.link)).length;
+      if (n > bestN) { best = p; bestN = n; }
+    }
+    if (best && bestN >= Math.min(links.size, best.articles.length) / 2) { st.id = best.id; st.slug = best.slug; claimed.add(best.id); }
+  }
   const before = new Map((prev?.stories || []).map(s => [s.id, s]));
   const sig = (s: Story) => `${s.coverage.left}-${s.coverage.center}-${s.coverage.right}-${s.coverage.unrated}`;
   for (const s of stories) {

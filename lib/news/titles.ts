@@ -8,7 +8,7 @@ import type { Story } from "./engine";
  * checked for loaded words and length, and cached per story forever. If
  * anything fails, the story keeps the most typical outlet headline.
  */
-const KEY = (id: string) => `news:ntitle:v1:${id}`;
+const KEY = (id: string) => `news:ntitle:v2:${id}`;
 const MODEL = "claude-haiku-4-5-20251001";
 const LOADED = /\b(rips?|slams?|blasts?|destroys?|eviscerat\w*|rages?|raging|caught|exposes?|exposed|lies?|lied|liar|stunning|shocking|bombshell|disgrac\w*|outrage\w*|scandal\w*|mastermind|darling|radical|extremist|regime|thug\w*|vile|nut|meltdown|humiliat\w*|owned|epic|brutal|dirty|trick|scheme|smear\w*)\b/i;
 
@@ -25,7 +25,7 @@ async function write(s: Story): Promise<string | null> {
     headers: { "Content-Type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
     body: JSON.stringify({
       model: MODEL, max_tokens: 80, temperature: 0,
-      system: "Write one neutral news headline for the event these outlets' headlines describe. Rules: state only facts that at least two of the headlines agree on; plain verbs (says, files, holds, dies, charged, endorses); no adjectives about people, no characterizations, no quotes, no question or exclamation marks; name who did what; under 95 characters; sentence case. Output the headline only.",
+      system: "Write one neutral news headline for the event these outlets' headlines describe. Rules: state only facts that at least two of the headlines agree on; plain verbs (says, files, holds, dies, charged, endorses); no adjectives about people, no characterizations, no quotes, no question or exclamation marks; name who did what; if the headlines attribute the news to a report, a source or an outlet (\"report says\", \"NYT\", \"AP sources\"), keep that attribution (\"…, report says\"); under 95 characters; sentence case. Output the headline only.",
       messages: [{ role: "user", content: heads }],
     }),
     signal: AbortSignal.timeout(15_000),

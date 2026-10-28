@@ -51,7 +51,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
           <div style={{ width: 14, height: 14, borderRadius: 7, background: "#D8D2C8" }} />
           WHO COVERED IT
         </div>
-        <div>AS OF {etTime(s.asOf || s.lastSeen).toUpperCase()}</div>
+        <div style={{ display: "flex" }}>{`AS OF ${etTime(s.asOf || s.lastSeen).toUpperCase()}`}</div>
       </div>
       <div style={{ display: "flex", marginTop: 26, fontFamily: "Serif", fontSize: tSize, lineHeight: 1.12, maxWidth: 1060 }}>{title}</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 18, marginTop: "auto", marginBottom: 30 }}>
@@ -61,13 +61,13 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
             <div style={{ display: "flex", width: 520, height: 26, borderRadius: 6, background: "#2A2520" }}>
               <div style={{ display: "flex", width: Math.max(x.n ? 10 : 0, Math.round((x.r / maxR) * 520)), height: 26, borderRadius: 6, background: BAR[x.l] }} />
             </div>
-            <div style={{ display: "flex", fontSize: 27, color: "#F4F0EA" }}>{x.n} of {x.of} read · {Math.round(x.r * 100)}%</div>
+            <div style={{ display: "flex", fontSize: 27, color: "#F4F0EA" }}>{`${x.n} of ${x.of} read · ${Math.round(x.r * 100)}%`}</div>
           </div>
         ))}
       </div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
         <div style={{ display: "flex", fontSize: 19, color: "#7A746C", maxWidth: 820 }}>
-          Source: voteunbiased.org · {LEAN_TOTALS.left + LEAN_TOTALS.center + LEAN_TOTALS.right + LEAN_TOTALS.unrated} outlets&apos; public feeds · lean from Robertson et al. (2018)
+          {`Source: voteunbiased.org · ${LEAN_TOTALS.left + LEAN_TOTALS.center + LEAN_TOTALS.right + LEAN_TOTALS.unrated} outlets' public feeds · lean from Robertson et al. (2018)`}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12, flex: "none" }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
