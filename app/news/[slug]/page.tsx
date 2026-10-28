@@ -5,7 +5,9 @@ import { C, SERIF, SANS } from "@/lib/design-tokens";
 import { getStory } from "@/lib/news/store";
 import { LEAN_TOTALS, type Lean } from "@/lib/news/outlets";
 import type { Story, StoryArticle } from "@/lib/news/engine";
-import { NewsChrome, CoverageBar, LeanPill, LEAN_COLOR, LEAN_LABEL, ago } from "@/components/news/NewsChrome";
+import { NewsChrome, LeanPill, LEAN_COLOR, LEAN_LABEL, ago } from "@/components/news/NewsChrome";
+import { CoverageGraphic } from "@/components/news/Visuals";
+import { OUTLET_BY_ID } from "@/lib/news/outlets";
 
 export const revalidate = 300;
 const idOf = (slug: string) => slug.split("-").pop() || "";
@@ -31,7 +33,11 @@ function Col({ lean, arts }: { lean: Lean; arts: StoryArticle[] }) {
       {!arts.length && <div style={{ fontSize: 12.5, color: C.mute, padding: "8px 0" }}>No coverage found.</div>}
       {arts.map(a => (
         <a key={a.link} href={a.link} target="_blank" rel="noopener noreferrer nofollow" style={{ display: "block", textDecoration: "none", color: C.ink, background: "#fff", border: `1px solid ${C.rule}`, borderRadius: 8, padding: "9px 11px", marginBottom: 6 }}>
-          <div style={{ fontSize: 11.5, color: C.mute }}>{a.name} · {ago(a.published)}</div>
+          <div style={{ fontSize: 11.5, color: C.mute, display: "flex", alignItems: "center", gap: 6 }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={`/api/news/icon?d=${OUTLET_BY_ID.get(a.outlet)?.domain}`} alt="" width={14} height={14} loading="lazy" style={{ borderRadius: 3 }} />
+            {a.name} · {ago(a.published)}
+          </div>
           <div style={{ fontSize: 14, lineHeight: 1.35, marginTop: 2 }}>{a.title}</div>
           {a.number && <div style={{ fontSize: 11.5, marginTop: 4, color: VERDICT[a.number.verdict].c, fontWeight: 600 }}>{a.number.said}{a.number.said < 30 ? "%" : ""}: {VERDICT[a.number.verdict].t}</div>}
         </a>
@@ -59,8 +65,7 @@ export default async function StoryPage({ params }: { params: Promise<{ slug: st
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 340px), 1fr))", gap: 14, marginTop: 16 }}>
           <section style={{ background: "#fff", border: `1px solid ${C.rule}`, borderRadius: 12, padding: "14px 16px" }}>
-            <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: C.mute, fontWeight: 600, marginBottom: 8 }}>Who covered it</div>
-            <CoverageBar coverage={s.coverage} height={24} labels />
+            <CoverageGraphic s={s} />
             <div style={{ fontSize: 13, color: C.sub, lineHeight: 1.6, marginTop: 10 }}>
               {pct(s.rate.left)} of the {LEAN_TOTALS.left} left-leaning outlets we read · {pct(s.rate.center)} of {LEAN_TOTALS.center} center · {pct(s.rate.right)} of {LEAN_TOTALS.right} right-leaning{s.coverage.unrated ? ` · plus ${s.coverage.unrated} not rated` : ""}
             </div>

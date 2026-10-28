@@ -8,6 +8,27 @@ import { LEAN_TOTALS } from "@/lib/news/outlets";
 import ClaimsFeed from "@/components/trending/ClaimsFeed";
 import { NewsChrome, CoverageBar, LeanPill, LEAN_COLOR, ago } from "@/components/news/NewsChrome";
 import type { Story, StoryArticle } from "@/lib/news/engine";
+import { CoverageGraphic, DotThumb, DataThumb, OutletIcons } from "@/components/news/Visuals";
+import { getSeries } from "@/lib/series";
+
+type Spark = Record<string, number[]>;
+const SPARK_SERIES: Record<string, string> = { cpi: "cpi_yoy", core_cpi: "core_cpi_yoy", unemployment: "unemployment", payrolls: "payrolls_chg" };
+/** Last two years of each official series a data story can be about. */
+async function sparks(stories: Story[]): Promise<Spark> {
+  const need = [...new Set(stories.map(s => s.numbers?.metric).filter(Boolean) as string[])];
+  const out: Spark = {};
+  await Promise.all(need.map(async m => {
+    const d = await getSeries(SPARK_SERIES[m]).catch(() => null);
+    const pts = d?.lines[0]?.points.slice(-24).map(p => p.v);
+    if (pts && pts.length > 2) out[m] = pts;
+  }));
+  return out;
+}
+function Thumb({ s, sp, w = 96, h = 64 }: { s: Story; sp: Spark; w?: number; h?: number }) {
+  const n = s.numbers;
+  if (n && sp[n.metric]) return <DataThumb points={sp[n.metric]} value={n.official} unit={n.metric === "payrolls" ? "K" : "%"} w={w} h={h} />;
+  return <DotThumb s={s} w={w} h={h} />;
+}
 
 export const revalidate = 300;
 export const metadata: Metadata = {
@@ -35,15 +56,21 @@ const kicker = (s: Story) => s.numbers ? "Data release" : s.topic;
 
 function Lead({ s }: { s: Story }) {
   const sides = sidesOf(s);
+  const first = s.articles[0];
   return (
     <section>
-      <div style={K}>Lead story · {kicker(s)} · {s.outlets} outlets · {ago(s.lastSeen)}</div>
-      <Link href={`/news/${s.slug}`} style={{ color: C.ink, textDecoration: "none" }}>
-        <h2 style={{ fontFamily: SERIF, fontWeight: 500, fontSize: "clamp(23px,3.2vw,31px)", lineHeight: 1.14, margin: "6px 0 10px" }}>{s.title}</h2>
-      </Link>
-      <div className="nw-cov" style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
-        <div style={{ flex: 1, minWidth: 140 }}><CoverageBar coverage={s.coverage} height={10} /></div>
-        <span style={{ fontSize: 12.5, color: C.sub, whiteSpace: "nowrap" }}>{rates(s)}</span>
+      <div className="nw-lead" style={{ display: "grid", gridTemplateColumns: "minmax(0,1.2fr) minmax(0,1fr)", gap: 22, alignItems: "center", marginBottom: 16 }}>
+        <div>
+          <div style={K}>Lead story · {kicker(s)} · {s.outlets} outlets · {ago(s.lastSeen)}</div>
+          <Link href={`/news/${s.slug}`} style={{ color: C.ink, textDecoration: "none" }}>
+            <h2 style={{ fontFamily: SERIF, fontWeight: 500, fontSize: "clamp(23px,3.2vw,31px)", lineHeight: 1.14, margin: "6px 0 12px" }}>{s.title}</h2>
+          </Link>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", fontSize: 12.5, color: C.sub }}>
+            <OutletIcons ids={s.articles.map(a => a.outlet)} />
+            <span>First reported by {first.name}</span>
+          </div>
+        </div>
+        <CoverageGraphic s={s} />
       </div>
       {s.numbers && (
         <div style={{ background: "#E6F1EF", color: "#0E5E61", borderRadius: 8, padding: "8px 12px", fontSize: 13.5, marginBottom: 12 }}>
@@ -77,7 +104,7 @@ function Secondary({ s }: { s: Story }) {
   const contrast = sides.left && sides.right;
   return (
     <div>
-      <div style={K}>{kicker(s)} · {s.outlets} outlets</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}><span style={K}>{kicker(s)} · {s.outlets} outlets</span><span style={{ marginLeft: "auto" }}><OutletIcons ids={s.articles.map(a => a.outlet)} max={4} size={16} /></span></div>
       <Link href={`/news/${s.slug}`} style={{ color: C.ink, textDecoration: "none" }}>
         <h3 style={{ fontFamily: SERIF, fontWeight: 500, fontSize: 19, lineHeight: 1.24, margin: "5px 0 8px" }}>{s.title}</h3>
       </Link>
@@ -97,16 +124,17 @@ function Secondary({ s }: { s: Story }) {
   );
 }
 
-function Row({ s }: { s: Story }) {
+function Row({ s, sp }: { s: Story; sp: Spark }) {
   return (
-    <Link href={`/news/${s.slug}`} className="nw-row" style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 96px 54px", gap: 14, alignItems: "center", padding: "12px 0", borderTop: `1px solid ${C.rule}`, textDecoration: "none", color: C.ink }}>
+    <Link href={`/news/${s.slug}`} className="nw-row" style={{ display: "grid", gridTemplateColumns: "96px minmax(0,1fr) 96px 54px", gap: 14, alignItems: "center", padding: "12px 0", borderTop: `1px solid ${C.rule}`, textDecoration: "none", color: C.ink }}>
+      <span className="nw-thumb"><Thumb s={s} sp={sp} /></span>
       <span style={{ minWidth: 0 }}>
         <span style={{ fontFamily: SERIF, fontSize: 16, lineHeight: 1.3 }}>{s.title}</span>
         {s.blindspot && <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 600, padding: "1px 7px", borderRadius: 999, background: "#EEECF6", color: "#4D3E8F", whiteSpace: "nowrap", verticalAlign: 2 }}>Blindspot</span>}
         {s.numbers && <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 600, padding: "1px 7px", borderRadius: 999, background: "#E6F1EF", color: "#0E7477", whiteSpace: "nowrap", verticalAlign: 2 }}>Official {s.numbers.official}{s.numbers.metric === "payrolls" ? "K" : "%"}</span>}
         <span className="nw-meta" style={{ display: "block", fontSize: 11.5, color: C.mute, marginTop: 2 }}>{kicker(s)} · {ago(s.lastSeen)}</span>
       </span>
-      <CoverageBar coverage={s.coverage} height={6} />
+      <span className="nw-bar"><CoverageBar coverage={s.coverage} height={6} /></span>
       <span className="nw-n" style={{ textAlign: "right", fontSize: 12.5, color: C.sub }}>{s.outlets}</span>
     </Link>
   );
@@ -154,6 +182,7 @@ export default async function NewsPage({ searchParams }: { searchParams: Promise
   const rest = stories.filter(s => s !== lead);
   const secondary = front ? rest.filter(s => sidesOf(s).left && sidesOf(s).right).slice(0, 2) : [];
   const list = rest.filter(s => !secondary.includes(s)).slice(0, 40);
+  const spark = await sparks(stories.slice(0, 45));
   const outlets = LEAN_TOTALS.left + LEAN_TOTALS.center + LEAN_TOTALS.right + LEAN_TOTALS.unrated;
 
   const tabLink = (active: boolean): React.CSSProperties => ({ fontSize: 13, textDecoration: "none", color: active ? C.ink : C.sub, fontWeight: active ? 600 : 500, padding: "4px 0", borderBottom: active ? `2px solid ${C.ink}` : "2px solid transparent", whiteSpace: "nowrap" });
@@ -198,8 +227,10 @@ export default async function NewsPage({ searchParams }: { searchParams: Promise
           .nw-sides>*:last-child{margin-right:20px}
           .nw-swipe{display:block!important}
           .nw-two{grid-template-columns:minmax(0,1fr)}
-          .nw-row{grid-template-columns:minmax(0,1fr) 60px!important}
-          .nw-n{display:none}
+          .nw-row{grid-template-columns:64px minmax(0,1fr)!important;gap:12px!important}
+          .nw-row svg{width:64px!important;height:43px!important}
+          .nw-n,.nw-bar{display:none}
+          .nw-lead{grid-template-columns:minmax(0,1fr)!important;gap:12px!important}
           .nw-cov{flex-wrap:wrap}
         }
       `}</style>
@@ -230,7 +261,7 @@ export default async function NewsPage({ searchParams }: { searchParams: Promise
               {list.length > 0 && (
                 <div style={{ marginTop: lead ? 26 : 0 }}>
                   {lead && <div style={{ ...K, marginBottom: 2 }}>More stories</div>}
-                  {list.map(s => <Row key={s.id} s={s} />)}
+                  {list.map(s => <Row key={s.id} s={s} sp={spark} />)}
                 </div>
               )}
               {!stories.length && <p style={{ color: C.sub }}>No stories here right now.</p>}
