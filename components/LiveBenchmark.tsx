@@ -10,6 +10,9 @@
 // against every prior president at the same point in their tenure.
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import LocationPicker, { LOCAL_INK } from "@/components/local/LocationPicker";
+import { useLocalTerm } from "@/lib/local-client";
+import type { LocalTerm } from "@/lib/local";
 import { useIsMobileViewport } from "@/lib/viewport";
 import { useSearchParams } from "next/navigation";
 import {
@@ -325,7 +328,7 @@ function generateShareCard(
 // ── Distinct colors for highlighted admins ────────────────────────
 const ADMIN_COLORS: Record<string, string> = {
   nixon: "#6366f1", carter: "#0ea5e9", reagan: "#f59e0b", bush41: "#14b8a6",
-  clinton: "#1d4ed8", bush43: "#7c2d12", obama: "#0d7377", trump1: "#8a5a00", // trump1 was accent-red — collided with Trump II
+  clinton: "#db2777", bush43: "#7c2d12", obama: "#059669", trump1: "#8a5a00", // trump1 was accent-red — collided with Trump II; clinton was Biden's blue
   biden: "#1d4ed8", trump2: "#b8372d",
 };
 
@@ -438,7 +441,7 @@ function autoInsight(args: {
   const histDiff = currentValue - historicalAvg;
   const histDir = histDiff >= 0 ? "above" : "below";
   const histColor = (md.lowerBetter ? histDiff < 0 : histDiff > 0) ? "better than" : "worse than";
-  let context = `${Math.abs(histDiff).toFixed(1)}${md.unit === "%" ? "pp" : md.unit} ${histDir} the historical mean of ${histTxt} (${histColor} typical).`;
+  let context = `${md.unit === "%" ? `${Math.abs(histDiff).toFixed(1)}pp` : fmtVal(Math.abs(histDiff), md.unit)} ${histDir} the historical mean of ${histTxt} (${histColor} typical).`;
   context += trajectoryPhrase;
   if (closestAdmin && smallestGap < Math.max(0.5, Math.abs(currentValue) * 0.05)) {
     context += ` Closest historical parallel: ${closestAdmin.name} at month ${atMonth} (${fmtVal(closestAdmin.value, md.unit)}).`;
@@ -446,6 +449,24 @@ function autoInsight(args: {
   // Suppress the unused adverb warning — kept for future template variations.
   void adverbBetter;
   return { headline, context };
+}
+
+/** Under the chart: your region's line, or a prompt to add it. */
+function LocalTermBar({ t, metric, mob }: { t: LocalTerm | null; metric: string; mob: boolean }) {
+  const f = (v: number) => (metric === "gas" ? `$${v.toFixed(2)}` : `${v.toFixed(1)}%`);
+  return (
+    <div data-nosnippet style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", padding: mob ? "8px 8px 0" : "8px 0 0", marginTop: 6, borderTop: `1px solid ${EC.rule}`, fontFamily: ESANS, fontSize: mob ? 11.5 : 12.5, color: EC.sub, lineHeight: 1.45 }}>
+      <div style={{ flex: "1 1 240px", minWidth: 0 }}>
+        {t ? (<>
+          <span style={{ display: "inline-block", width: 16, borderTop: `2px dashed ${LOCAL_INK}`, verticalAlign: "middle", marginRight: 6 }} />
+          <b style={{ color: LOCAL_INK }}>{t.place}</b>{metric === "gas" ? " gas" : " inflation"}, this term
+          {t.latest && <> · month {t.latest.month + 1} ({t.latest.label}): <b style={{ color: LOCAL_INK }}>{f(t.latest.local)}</b> vs US {f(t.latest.us)}</>}
+          <span style={{ color: EC.mute }}> · <a href={t.url} target="_blank" rel="noopener noreferrer" style={{ color: EC.mute }}>{metric === "gas" ? "EIA" : "BLS"}</a> · <a href="/methodology#localize" style={{ color: EC.mute }}>How we localize</a></span>
+        </>) : <span>{metric === "gas" ? "Gas prices" : "Inflation"} differ by region. Add your region's line for this term.</span>}
+      </div>
+      <LocationPicker compact={!!t} cta="Compare your region" />
+    </div>
+  );
 }
 
 // ═══ Main component ════════════════════════════════════════════════
@@ -460,7 +481,8 @@ export default function LiveBenchmark({ initialMetric, onBack }: { initialMetric
   const [data, setData] = useState<APIResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [shareStatus, setShareStatus] = useState<string | null>(null);
-  const [highlighted, setHighlighted] = useState<Set<string>>(new Set());
+  // null = untouched: every earlier administration is highlighted by default.
+  const [hlState, setHlState] = useState<Set<string> | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   // Hover state captured via LineChart.onMouseMove. Lives OUTSIDE the SVG
   // so the panel can render above the chart instead of as an in-chart overlay.
@@ -493,7 +515,7 @@ export default function LiveBenchmark({ initialMetric, onBack }: { initialMetric
     const m = initialMetric || searchParams.get("metric");
     if (m && data.metrics[m]) {
       setMetric(m);
-      setHighlighted(new Set()); // clear any prior highlight state from URL
+      setHlState(null); // back to the default: all earlier administrations
       setScrubMonth(null); setRankOpen(false);
     }
   }, [searchParams, data, initialMetric]);
@@ -524,6 +546,13 @@ export default function LiveBenchmark({ initialMetric, onBack }: { initialMetric
 
   const md = data?.metrics[metric];
   const currentMonth = data?.currentMonth ?? 0;
+  const allPrior = useMemo(() => new Set((md?.series || []).filter(s => !s.current).map(s => s.id)), [md]);
+  const highlighted = hlState ?? allPrior;
+  const setHighlighted = (u: (prev: Set<string>) => Set<string>) => setHlState(prev => u(prev ?? allPrior));
+  // The reader's region across the current term (gas, inflation), if set.
+  const localTerm = useLocalTerm(metric);
+  const localByMonth = useMemo(() => (localTerm && localTerm.metric === metric ? new Map(localTerm.points.map(p => [p.month, p.v])) : null), [localTerm, metric]);
+  const canLocal = metric === "gas" || metric === "inflation";
 
   // Reshape series into recharts row-per-month format
   const chartData = useMemo(() => {
@@ -535,8 +564,9 @@ export default function LiveBenchmark({ initialMetric, onBack }: { initialMetric
         byMonth[p.month][s.id] = p.value;
       }
     }
+    if (localByMonth) for (const [mo, v] of localByMonth) { if (!byMonth[mo]) byMonth[mo] = { month: mo }; byMonth[mo].local = v; }
     return Object.values(byMonth).sort((a, b) => a.month - b.month);
-  }, [md]);
+  }, [md, localByMonth]);
 
   // Headline stats: current value, historical avg, rank
   const stats = useMemo(() => {
@@ -930,11 +960,12 @@ export default function LiveBenchmark({ initialMetric, onBack }: { initialMetric
                       const isCur = adminMap[p.dataKey]?.current;
                       const isHL = highlighted.has(p.dataKey);
                       const anyHL = highlighted.size > 0;
-                      const dimmed = anyHL && !isHL && !isCur;
-                      const col = isCur ? EC.accent : isHL ? (ADMIN_COLORS[p.dataKey] || "#fff") : "#9a9490";
+                      const isLocal = p.dataKey === "local";
+                      const dimmed = anyHL && !isHL && !isCur && !isLocal;
+                      const col = isLocal ? "#B9A6F0" : isCur ? EC.accent : isHL ? (ADMIN_COLORS[p.dataKey] || "#fff") : "#9a9490";
                       return (
                         <span key={i} style={{ display: "inline-flex", gap: 4, opacity: dimmed ? 0.4 : 1, whiteSpace: "nowrap" }}>
-                          <span style={{ color: col, fontWeight: isCur || isHL ? 600 : 400 }}>{adminMap[p.dataKey]?.name || p.dataKey}</span>
+                          <span style={{ color: col, fontWeight: isCur || isHL || isLocal ? 600 : 400 }}>{isLocal ? (p as { name?: string }).name : adminMap[p.dataKey]?.name || p.dataKey}</span>
                           <span>{fmtVal(p.value, md.unit)}</span>
                         </span>
                       );
@@ -995,8 +1026,10 @@ export default function LiveBenchmark({ initialMetric, onBack }: { initialMetric
                       activeDot={isHL ? { r: 5, fill: color, stroke: "#fff", strokeWidth: 2 } : false} />
                   );
                 })}
+                {localByMonth && <Line type="monotone" dataKey="local" name={localTerm!.place} stroke={LOCAL_INK} strokeWidth={2.2} strokeDasharray="6 4" dot={false} connectNulls isAnimationActive={false} />}
               </LineChart>
             </ResponsiveContainer>
+            {canLocal && <LocalTermBar t={localTerm} metric={metric} mob={mob} />}
 
             {/* Legend — click to highlight (multi-select), Trump II always on */}
             <div style={{
@@ -1132,6 +1165,7 @@ export default function LiveBenchmark({ initialMetric, onBack }: { initialMetric
                         fill={e.current ? EC.accent : (ADMIN_COLORS[e.id] || EC.sub)}
                         stroke="#fff" strokeWidth={2} />
                     ))}
+                  {localByMonth && <Line type="monotone" dataKey="local" name={localTerm!.place} stroke={LOCAL_INK} strokeWidth={2.2} strokeDasharray="6 4" dot={false} connectNulls isAnimationActive={false} />}
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -1142,6 +1176,7 @@ export default function LiveBenchmark({ initialMetric, onBack }: { initialMetric
               <span>Drag across the chart to compare any month</span>
               <span>tap legend to highlight</span>
             </div>
+            {canLocal && <LocalTermBar t={localTerm} metric={metric} mob={mob} />}
 
             {/* Legend — real highlight controls, ≥32px touch targets */}
             <div style={{ display: "flex", flexWrap: "wrap", gap: 4, padding: "10px 8px 0", borderTop: `1px solid ${EC.rule}`, marginTop: 8 }}>

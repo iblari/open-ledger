@@ -61,3 +61,16 @@ export function useLocalAnnual(metric: string): import("./local").LocalAnnual | 
   }, [loc?.state.code, metric]);
   return d;
 }
+
+/** Your region across the current term (same point in office view), or null. */
+export function useLocalTerm(metric: string): import("./local").LocalTerm | null {
+  const loc = useLoc();
+  const [d, setD] = useState<import("./local").LocalTerm | null>(null);
+  useEffect(() => {
+    if (!loc || (metric !== "gas" && metric !== "inflation")) { setD(null); return; }
+    let on = true;
+    fetch(`/api/local/term?metric=${metric}&state=${loc.state.code}`).then(r => (r.ok ? r.json() : null)).then(j => { if (on) setD(j?.ok ? j : null); }).catch(() => {});
+    return () => { on = false; };
+  }, [loc?.state.code, metric]);
+  return d;
+}
