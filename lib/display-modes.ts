@@ -242,6 +242,13 @@ export const METRIC_DISPLAY_DASHBOARD: Record<string, MetricDisplay> = {
   five_year:     { perMetricUnit: "pp",           dollarAware: false },
   yield_curve:   { perMetricUnit: "pp",           dollarAware: false },
   purchasing:    { perMetricUnit: "pp",           dollarAware: false },
+  core_cpi:      { perMetricUnit: "pct_avg",      dollarAware: false, pctAvgTarget: 2, pctAvgRange: 4 },
+  mortgage:      { perMetricUnit: "pp",           dollarAware: false },
+  housing_starts:{ perMetricUnit: "pct_yr",       dollarAware: false },
+  retail:        { perMetricUnit: "pct_yr",       dollarAware: true  },
+  openings:      { perMetricUnit: "pct_yr",       dollarAware: false },
+  openings_per_worker: { perMetricUnit: "pp",     dollarAware: false },
+  saving:        { perMetricUnit: "pp",           dollarAware: false },
 };
 
 /* ─────────────────────────────────────────────

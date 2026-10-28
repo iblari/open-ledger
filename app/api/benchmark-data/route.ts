@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { METRIC_LIST, METRIC_BY_BENCH, METRIC_CATS } from '@/lib/metric-list';
+import { POVERTY, INEQUALITY } from '@/lib/annual-only';
 
 // Cache window for this route. Was 86400 (24h); dropped to 3600 (1h) so the
 // site picks up new BLS/BEA prints within an hour of FRED ingesting them
@@ -78,6 +80,8 @@ const OPTIONAL_SERIES: Record<string, { id: string; query?: string }> = {
   GS10: { id: 'GS10' },
   GS5: { id: 'GS5' },
   T10Y2YM: { id: 'T10Y2YM' },
+  // Real median household income (Census, yearly), for the yearly measures.
+  MEHOINUSA672N: { id: 'MEHOINUSA672N' },
 };
 
 // ── Metric definitions ──
@@ -140,14 +144,8 @@ const METRICS: MetricDef[] = [
   { key: 'deficit', label: 'Budget Balance (12-mo)', short: 'Deficit', unit: 'B', lowerBetter: false, cat: 'fiscal', transform: 'deficit_12m', fredKey: 'MTSDS133FMS' },
 ];
 
-const CATS: Record<string, string> = {
-  growth: 'Growth',
-  labor: 'Labor Market',
-  prices: 'Prices & Wages',
-  fiscal: 'Fiscal',
-  sentiment: 'Sentiment',
-  markets: 'Markets & Rates',
-};
+// One list of measures and categories for both Data-tab views (lib/metric-list).
+const CATS: Record<string, string> = METRIC_CATS;
 
 // ── Record lookups for the homepage "Trending" cards ──
 // The per-admin series above cover only each president's first 48 months, so
@@ -449,6 +447,46 @@ export async function GET() {
         hist: extremes(transformed),
       };
     }
+
+    // ── Yearly-only measures (published once a year). Shown across each
+    // year of the term: year k of a term fills months 12k..12k+11, so a
+    // reader can compare year 1, 2, 3 and 4 at the same point in office.
+    const yearlySteps = (byYear: Record<number, number>): AdminSeries[] => ADMINS.map(a => {
+      const y0 = +a.inaug.slice(0, 4);
+      const data: AlignedPoint[] = [];
+      for (let k = 0; k < 4; k++) {
+        const v = byYear[y0 + k];
+        if (v == null) continue;
+        for (let mo = 12 * k; mo < 12 * k + 12 && mo <= maxMonths; mo++) data.push({ month: mo, value: v });
+      }
+      return { id: a.id, name: a.name, party: a.party, current: !!(a as any).current, data };
+    }).filter(s => s.data.length > 0);
+    const inc: Record<number, number> = {};
+    for (const p of parsedMap.MEHOINUSA672N || []) inc[p.date.getUTCFullYear()] = Math.round(p.value);
+    const yearly: [string, string, string, boolean, Record<number, number>][] = [
+      ['median_income', 'Real median household income, Census (yearly)', 'inc', false, inc],
+      ['poverty', 'Official poverty rate, Census (yearly)', '%', true, POVERTY],
+      ['inequality', 'Top 10% pre-tax income share, WID (yearly)', '%', true, INEQUALITY],
+    ];
+    for (const [key, short, unit, lowerBetter, byYear] of yearly) {
+      if (!Object.keys(byYear).length) continue;
+      const ys = Object.keys(byYear).map(Number).sort((a, b) => a - b), last = ys[ys.length - 1];
+      metricsOut[key] = {
+        label: key, short, unit, lowerBetter, cat: 'people', series: yearlySteps(byYear),
+        hist: null, released: undefined, yearly: true, lastYear: last,
+      } as typeof metricsOut[string] & { yearly: boolean; lastYear: number };
+    }
+
+    // Same names, categories and order as the Whole-terms view.
+    const ordered: typeof metricsOut = {};
+    for (const it of METRIC_LIST) {
+      const m = metricsOut[it.bench];
+      if (m) ordered[it.bench] = { ...m, label: it.name, cat: it.cat };
+    }
+    for (const k of Object.keys(metricsOut)) if (!ordered[k]) ordered[k] = metricsOut[k];
+    for (const k of Object.keys(metricsOut)) delete metricsOut[k];
+    Object.assign(metricsOut, ordered);
+    void METRIC_BY_BENCH;
 
     // When the LATEST reading of each metric was first published. ALFRED's
     // "initial release" view (output_type=4) gives each observation's first
