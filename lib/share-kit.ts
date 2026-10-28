@@ -19,6 +19,8 @@ import { kvGet, kvSetMany } from "./live-kv";
 import { getMediaManifest, metricClipName } from "./og-media";
 import { excerpt } from "./quote-fit";
 import { getReleaseCalendar, type CalendarItem } from "./release-calendar";
+import { getNewsFeed } from "./news/store";
+import { storyImage, storyDataLine } from "./news/share";
 
 const SITE = "https://voteunbiased.org";
 const TCO = 23;            // X counts every link as 23 characters
@@ -170,6 +172,15 @@ export interface KitMetric {
   dataUpdatedAt: string;
   releasedLast24h: boolean;
 }
+export interface KitStory {
+  id: string; type: "story"; title: string; topic: string;
+  outlets: number; coverage: { left: number; center: number; right: number; unrated: number };
+  /** Share of each side's outlets that covered it (0–1). */
+  rate: { left: number; center: number; right: number };
+  dataLine: string; link: string; image: string; caption: string;
+  /** When the counts were read, and when they last changed (for updated_since). */
+  asOf: string; updatedAt: string;
+}
 export interface ShareKit {
   generatedAt: string;
   updatedSince: string | null;
@@ -179,6 +190,8 @@ export interface ShareKit {
   calendar: CalendarItem[];
   claims: KitClaim[];
   metrics: KitMetric[];
+  /** News stories (outlets covering, by lean), newest counts first. */
+  stories: KitStory[];
   onAir: { theme: string; change: string; url: string } | null;
 }
 
@@ -257,6 +270,18 @@ export async function buildShareKit(opts: { updatedSince?: string | null } = {})
   if (dirty && seenRaw != null) await saveSeen(seen);
 
   const since = opts.updatedSince && !isNaN(Date.parse(opts.updatedSince)) ? Date.parse(opts.updatedSince) : null;
+  const feed = await getNewsFeed().catch(() => null);
+  const stories: KitStory[] = (feed?.stories || []).filter(st => st.outlets >= 5).slice(0, 25).map(st => {
+    const link = withUtm(`${SITE}/news/${st.slug}`, "news", `story:${st.id}`);
+    const dataLine = storyDataLine(st);
+    return {
+      id: `story:${st.id}`, type: "story", title: st.title, topic: st.topic,
+      outlets: st.outlets, coverage: st.coverage, rate: st.rate,
+      dataLine, link, image: storyImage(st),
+      caption: `${st.title}. ${dataLine}. ${link}`,
+      asOf: st.asOf || feed!.at, updatedAt: st.updatedAt || st.asOf || feed!.at,
+    };
+  });
   const radar = await getRadar().catch(() => null);
   const top = radar?.themes.filter(t => t.market && (t.status === "rising" || t.status === "new")).sort((a, b) => b.z - a.z)[0];
   return {
@@ -268,11 +293,13 @@ export async function buildShareKit(opts: { updatedSince?: string | null } = {})
       "Use the site's rating exactly (True / Mostly true / False). Never upgrade or soften it.",
       "Always link the exact claim or chart page; the preview card carries the chart and the rating.",
       "X caches a link's card for about a week; to refresh a card, add &v=2 to the link.",
+      "News stories: post the counts as they are (how many of each side's outlets covered it). Don't call a side's coverage biased or say it is hiding a story.",
       "Links carry UTM tags (utm_source=x, utm_medium=social, utm_content=<item id>) so visits per post are counted: GET /api/traffic?since=YYYY-MM-DD with your team key.",
     ],
     calendar,
     claims: since != null ? claims.filter(c => Date.parse(c.firstSeenAt) > since) : claims,
     metrics: since != null ? metrics.filter(m => Date.parse(m.dataUpdatedAt) > since) : metrics,
+    stories: since != null ? stories.filter(st => Date.parse(st.updatedAt) > since) : stories,
     onAir: top ? { theme: top.label, change: top.baseRate > 0 ? `${(top.recentRate / top.baseRate).toFixed(1)}× more talk in 14 days` : "new in the last 14 days", url: withUtm(`${SITE}/live#radar-h`, "radar") } : null,
   };
 }

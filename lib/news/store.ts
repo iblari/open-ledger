@@ -1,6 +1,7 @@
 import { kvGet, kvSetMany } from "../live-kv";
 import { getSeries } from "../series";
 import { fetchAll, cluster, buildStories, type Story, type Official } from "./engine";
+import { neutralTitles } from "./titles";
 
 /**
  * Stored News feed. Refreshed every 20 minutes by /api/cron/news: feeds are
@@ -28,7 +29,19 @@ async function officials(): Promise<Record<string, Official>> {
 export async function refreshNews(): Promise<NewsFeed> {
   const [{ articles, failed }, offs] = await Promise.all([fetchAll(48), officials().catch(() => ({}))]);
   const stories = buildStories(cluster(articles), articles, offs).slice(0, 80);
-  const feed: NewsFeed = { at: new Date().toISOString(), articles: articles.length, outlets: new Set(articles.map(a => a.outlet)).size, failed, stories };
+  const at = new Date().toISOString();
+  // When each story's counts last changed (stable across refreshes otherwise),
+  // for ?since= on /api/news and updated_since in the share kit.
+  const prev = await getNewsFeed().catch(() => null);
+  const before = new Map((prev?.stories || []).map(s => [s.id, s]));
+  const sig = (s: Story) => `${s.coverage.left}-${s.coverage.center}-${s.coverage.right}-${s.coverage.unrated}`;
+  for (const s of stories) {
+    const p = before.get(s.id);
+    s.asOf = at;
+    s.updatedAt = p && sig(p) === sig(s) && p.updatedAt ? p.updatedAt : at;
+  }
+  await neutralTitles(stories.filter(s => s.outlets >= 4)).catch(() => {});
+  const feed: NewsFeed = { at, articles: articles.length, outlets: new Set(articles.map(a => a.outlet)).size, failed, stories };
   await kvSetMany([[FEED_KEY, JSON.stringify(feed), 0], ...stories.map(s => [STORY_KEY(s.id), JSON.stringify(s), 30 * 86400] as [string, string, number])]);
   return feed;
 }
@@ -37,6 +50,14 @@ export async function getNewsFeed(): Promise<NewsFeed | null> {
   const [raw] = await kvGet([FEED_KEY]).catch(() => [null]);
   return raw ? JSON.parse(raw) as NewsFeed : null;
 }
+/** Stories whose counts changed after `since` (all when null), capped. */
+export function storiesSince(feed: NewsFeed | null, since: string | null, limit: number | null): Story[] {
+  const t = since && !isNaN(Date.parse(since)) ? Date.parse(since) : null;
+  let list = feed?.stories || [];
+  if (t != null) list = list.filter(s => Date.parse(s.updatedAt || s.asOf || feed!.at) > t);
+  return limit && limit > 0 ? list.slice(0, limit) : list;
+}
+
 export async function getStory(id: string): Promise<Story | null> {
   const feed = await getNewsFeed();
   const live = feed?.stories.find(s => s.id === id);

@@ -7,7 +7,7 @@ import { toOutcome, VERDICT_COLOR, ratingLabel } from "@/lib/live-design";
 import { LEAN_TOTALS } from "@/lib/news/outlets";
 import ClaimsFeed from "@/components/trending/ClaimsFeed";
 import { NewsChrome, CoverageBar, LeanPill, LEAN_COLOR, ago } from "@/components/news/NewsChrome";
-import type { Story, StoryArticle } from "@/lib/news/engine";
+import { blindspotLabel, type Story, type StoryArticle } from "@/lib/news/engine";
 import { CoverageGraphic, DotThumb, DataThumb, OutletIcons } from "@/components/news/Visuals";
 import { getSeries } from "@/lib/series";
 
@@ -130,7 +130,7 @@ function Row({ s, sp }: { s: Story; sp: Spark }) {
       <span className="nw-thumb"><Thumb s={s} sp={sp} /></span>
       <span style={{ minWidth: 0 }}>
         <span style={{ fontFamily: SERIF, fontSize: 16, lineHeight: 1.3 }}>{s.title}</span>
-        {s.blindspot && <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 600, padding: "1px 7px", borderRadius: 999, background: "#EEECF6", color: "#4D3E8F", whiteSpace: "nowrap", verticalAlign: 2 }}>Blindspot</span>}
+        {s.blindspot && <span title={blindspotLabel(s.blindspot)!} style={{ marginLeft: 8, fontSize: 10, fontWeight: 600, padding: "1px 7px", borderRadius: 999, background: "#EEECF6", color: "#4D3E8F", whiteSpace: "nowrap", verticalAlign: 2 }}>{blindspotLabel(s.blindspot)}</span>}
         {s.numbers && <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 600, padding: "1px 7px", borderRadius: 999, background: "#E6F1EF", color: "#0E7477", whiteSpace: "nowrap", verticalAlign: 2 }}>Official {s.numbers.official}{s.numbers.metric === "payrolls" ? "K" : "%"}</span>}
         <span className="nw-meta" style={{ display: "block", fontSize: 11.5, color: C.mute, marginTop: 2 }}>{kicker(s)} · {ago(s.lastSeen)}</span>
       </span>
@@ -149,7 +149,7 @@ function BlindspotRail({ stories }: { stories: Story[] }) {
       <div style={{ fontSize: 12, color: C.sub, margin: "3px 0 10px" }}>Stories one side mostly skipped</div>
       {([["left", L], ["right", R]] as const).map(([side, list]) => (
         <div key={side} style={{ marginBottom: 6 }}>
-          <div style={{ fontSize: 11.5, color: C.mute, marginBottom: 4 }}>Missed by the {side}</div>
+          <div style={{ fontSize: 11.5, color: C.mute, marginBottom: 4 }}>{blindspotLabel(side)}</div>
           {!list.length && <div style={{ fontSize: 12.5, color: C.mute, marginBottom: 8 }}>None right now</div>}
           {list.map(s => (
             <Link key={s.id} href={`/news/${s.slug}`} style={{ display: "block", textDecoration: "none", color: C.ink, marginBottom: 10 }}>
