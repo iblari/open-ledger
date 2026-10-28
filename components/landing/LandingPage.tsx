@@ -140,8 +140,8 @@ function Nav({ mob, dark = false, overlay = false }: { mob: boolean; dark?: bool
       ...(overlay ? { marginBottom: -NAV_H } : {}),
     }}>
       <div style={{
-        maxWidth: mob ? 1280 : "none", margin: "0 auto", padding: mob ? "12px 20px" : "12px 20px 12px 24px",
-        display: "flex", alignItems: "center", gap: mob ? 16 : 40,
+        maxWidth: mob ? 1280 : "none", margin: "0 auto", padding: mob ? "12px 16px" : "12px 20px 12px 24px",
+        display: "flex", alignItems: "center", gap: mob ? 10 : 40,
         ...(mob ? {} : {
           borderRadius: 12,
           background: dark ? "rgba(28,24,20,.62)" : "rgba(248,245,240,.86)",
@@ -152,7 +152,7 @@ function Nav({ mob, dark = false, overlay = false }: { mob: boolean; dark?: bool
         }),
       }}>
         {/* Brand */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12, fontFamily: SERIF, flexShrink: 0, whiteSpace: "nowrap", fontSize: 20, fontWeight: 600, letterSpacing: "-0.015em" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: mob ? 8 : 12, fontFamily: SERIF, flexShrink: 0, whiteSpace: "nowrap", fontSize: mob ? 18 : 20, fontWeight: 600, letterSpacing: "-0.015em" }}>
           <CheetahMark height={mob ? 22 : 26} ink={ink} accent={dark ? "#E0493A" : C.accent} />
           <span className="vu-wordmark" style={{ color: ink, transition: "color .25s ease" }}>Vote <em style={{ fontStyle: "italic", color: dark ? "#E0493A" : C.accent, fontWeight: 500 }}>Unbiased</em></span>
         </div>
@@ -166,8 +166,8 @@ function Nav({ mob, dark = false, overlay = false }: { mob: boolean; dark?: bool
         )}
 
         {/* CTA */}
-        <div style={{ marginLeft: "auto", display: "flex", gap: 10, alignItems: "center" }}>
-          <LocationPicker tone={dark ? "dark" : "light"} />
+        <div style={{ marginLeft: "auto", display: "flex", gap: mob ? 8 : 10, alignItems: "center", flexShrink: 0 }}>
+          <LocationPicker tone={dark ? "dark" : "light"} compact={mob} />
           {/* Both viewports go to the broadcast. This used to send mobile to
               Live Benchmark on the theory that a short "Live" label reads as
               'live data, not a video player' — but the pill carries a pulsing
@@ -181,7 +181,7 @@ function Nav({ mob, dark = false, overlay = false }: { mob: boolean; dark?: bool
               (Data is one tap away from the hero's "See all metrics"). */}
           <Link href="/live" className={mob ? `vu-cta vu-cta-p${dark ? " vu-on-dark" : ""}` : "vu-cta vu-cta-o"} style={mob ? {
             display: "inline-flex", alignItems: "center", gap: 8,
-            padding: "8px 14px", borderRadius: 4, fontSize: 13, fontWeight: 600,
+            padding: "8px 12px", borderRadius: 4, fontSize: 13, fontWeight: 600,
             background: ink, color: dark ? "#0C0A08" : C.bg, border: `1px solid ${ink}`,
             textDecoration: "none",
           } : {
