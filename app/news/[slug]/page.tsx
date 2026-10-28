@@ -6,8 +6,7 @@ import { getStory } from "@/lib/news/store";
 import { LEAN_TOTALS, type Lean } from "@/lib/news/outlets";
 import { blindspotLabel, type Story, type StoryArticle } from "@/lib/news/engine";
 import { storyImage, storyDataLine } from "@/lib/news/share";
-import { NewsChrome, LeanPill, LEAN_COLOR, LEAN_LABEL, ago } from "@/components/news/NewsChrome";
-import { CoverageGraphic } from "@/components/news/Visuals";
+import { NewsChrome, LeanPill, CoverageBar, LEAN_COLOR, LEAN_LABEL, ago } from "@/components/news/NewsChrome";
 import Photo from "@/components/news/Photo";
 import { OUTLET_BY_ID } from "@/lib/news/outlets";
 
@@ -78,9 +77,10 @@ export default async function StoryPage({ params }: { params: Promise<{ slug: st
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 340px), 1fr))", gap: 14, marginTop: 16 }}>
           <section style={{ background: "#fff", border: `1px solid ${C.rule}`, borderRadius: 12, padding: "14px 16px" }}>
-            <CoverageGraphic s={s} />
+            <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: C.mute, fontWeight: 600, marginBottom: 8 }}>Who covered it</div>
+            <CoverageBar coverage={s.coverage} size="lg" />
             <div style={{ fontSize: 13, color: C.sub, lineHeight: 1.6, marginTop: 10 }}>
-              {pct(s.rate.left)} of the {LEAN_TOTALS.left} left-leaning outlets we read · {pct(s.rate.center)} of {LEAN_TOTALS.center} center · {pct(s.rate.right)} of {LEAN_TOTALS.right} right-leaning{s.coverage.unrated ? ` · plus ${s.coverage.unrated} not rated` : ""}
+              {s.coverage.left} of the {LEAN_TOTALS.left} left-leaning outlets we read ({pct(s.rate.left)}) · {s.coverage.center} of {LEAN_TOTALS.center} center ({pct(s.rate.center)}) · {s.coverage.right} of {LEAN_TOTALS.right} right-leaning ({pct(s.rate.right)}){s.coverage.unrated ? ` · plus ${s.coverage.unrated} not rated` : ""}
             </div>
             {s.blindspot && <div style={{ marginTop: 10, background: "#EEECF6", color: "#4D3E8F", borderRadius: 8, padding: "8px 10px", fontSize: 13 }}><b>Blindspot:</b> {blindspotLabel(s.blindspot)?.toLowerCase()}. <Link href="/methodology#news" style={{ color: "#4D3E8F" }}>How it's measured</Link></div>}
           </section>
