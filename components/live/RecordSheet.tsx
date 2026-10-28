@@ -42,7 +42,7 @@ export default function RecordSheet({
   };
 
   const Toggle = ({ on, set, label, hint }: { on: boolean; set: (v: boolean) => void; label: string; hint: string }) => (
-    <button onClick={() => set(!on)} style={{
+    <button data-nosnippet onClick={() => set(!on)} style={{
       display: "flex", gap: 10, alignItems: "flex-start", width: "100%", textAlign: "left",
       background: "none", border: "none", padding: "9px 0", cursor: "pointer",
     }}>
@@ -77,7 +77,7 @@ export default function RecordSheet({
 
         <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
           {(["doc", "md", "csv", "txt"] as Fmt[]).map(f => (
-            <button key={f} onClick={() => setFmt(f)} style={{
+            <button data-nosnippet key={f} onClick={() => setFmt(f)} style={{
               flex: 1, padding: "9px 0", borderRadius: 6, cursor: "pointer",
               fontFamily: F.mono, fontSize: 12,
               background: fmt === f ? L.true : "transparent",
@@ -93,11 +93,11 @@ export default function RecordSheet({
           <Toggle on={contradictedOnly} set={setContradictedOnly} label="Contradicted claims only" hint="Just the misleading and false entries." />
         </div>
 
-        <button onClick={download} style={{
+        <button data-nosnippet onClick={download} style={{
           width: "100%", marginTop: 14, padding: "13px 0", borderRadius: 8, border: "none",
           background: L.true, color: "#fff", fontFamily: F.ui, fontSize: 14, fontWeight: 700, cursor: "pointer",
         }}>Download .{fmt}</button>
-        <button onClick={onClose} style={{
+        <button data-nosnippet onClick={onClose} style={{
           width: "100%", marginTop: 8, padding: "10px 0", borderRadius: 8,
           background: "none", border: `1px solid ${L.cardBorder}`, color: L.mutedDark2,
           fontFamily: F.ui, fontSize: 12.5, cursor: "pointer",

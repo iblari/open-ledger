@@ -7,6 +7,10 @@ import { getSharedClaim } from "@/lib/claim-lookup";
 import { hashFromKey, claimPath } from "@/lib/claim-link";
 import { toOutcome, VERDICT_COLOR, VERDICT_LABEL, ratingLabel } from "@/lib/live-design";
 import { SERIF, SANS } from "@/lib/design-tokens";
+import JsonLd from "@/components/seo/JsonLd";
+import CopyCitation from "@/components/seo/CopyCitation";
+import { claimReviewLd } from "@/lib/claim-review";
+import { broadcastSlug } from "@/lib/broadcast-pages";
 
 /**
  * /c/[key] — one fact-check, on its own page.
@@ -29,8 +33,9 @@ export async function generateMetadata({ params }: { params: Promise<{ key: stri
   const label = ratingLabel(c.rating);
   const verdict = label.charAt(0) + label.slice(1).toLowerCase();
   const short = c.quote.length > 90 ? c.quote.slice(0, 87).replace(/\s+\S*$/, "") + "…" : c.quote;
-  const title = `${verdict}: “${short}”`;
-  const description = (c.actual || "Checked against official data, sources cited.").slice(0, 200);
+  const title = `Fact Check: “${short}” — ${verdict}`;
+  const n = r.repeats.length + 1;
+  const description = `${c.speaker ? `${c.speaker} claimed` : "Claim"}: “${c.quote.length > 110 ? c.quote.slice(0, 107).replace(/\s+\S*$/, "") + "…" : c.quote}” ${c.actual ? `Official data: ${c.actual.slice(0, 170)}` : "Checked against official data."} Verdict: ${verdict}.${n > 1 ? ` Said in ${n} broadcasts.` : ""}`.slice(0, 300);
   const url = `https://voteunbiased.org${claimPath(c.videoId, c.quote)}`;
   return {
     title: `${title} · Vote Unbiased`,
@@ -53,8 +58,11 @@ export default async function ClaimPage({ params }: { params: Promise<{ key: str
   const times = repeats.length + 1;
   const path = claimPath(c.videoId, c.quote);
 
+  const url = `https://voteunbiased.org${path}`;
+  const citation = `📊 Fact check: “${c.quote.length > 140 ? c.quote.slice(0, 137).replace(/\s+\S*$/, "") + "…" : c.quote}”${c.speaker ? ` (${c.speaker})` : ""} — ${ratingLabel(c.rating)}. ${c.actual ? `The data: ${c.actual.slice(0, 200)}` : ""} Sources: ${url}`;
   return (
     <div style={{ minHeight: "100vh", background: "#F8F5F0", color: "#14110E", fontFamily: SANS }}>
+      <JsonLd data={claimReviewLd({ url, quote: c.quote, rating: c.rating, speaker: c.speaker, date: c.date, appearance: c.title, appearanceUrl: `https://www.youtube.com/watch?v=${c.videoId}`, reviewBody: c.actual })} />
       {c.live && (
         <Link href="/live" style={{
           display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12,
@@ -109,12 +117,13 @@ export default async function ClaimPage({ params }: { params: Promise<{ key: str
 
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 24 }}>
           <ShareClaimButton path={path} quote={c.quote} verdict={ratingLabel(c.rating)} variant="light" />
+          <CopyCitation text={citation} />
           <Link href={`/live?v=${encodeURIComponent(c.videoId)}`} style={{
             fontSize: 14, fontWeight: 600, color: "#14110E", textDecoration: "none",
             border: "1px solid #D9D3C8", background: "#fff", borderRadius: 8, padding: "11px 16px",
           }}>▶ {c.live ? "Watch live" : "Watch the broadcast"}</Link>
         </div>
-        <div style={{ fontSize: 12.5, color: "#8C8479", marginTop: 10 }}>From: {c.title}</div>
+        <div style={{ fontSize: 12.5, color: "#8C8479", marginTop: 10 }}>From: {c.live ? c.title : <Link href={`/broadcasts/${broadcastSlug(c)}`} style={{ color: "#8C8479" }}>{c.title}</Link>}</div>
 
         {repeats.length > 0 && (
           <section style={{ marginTop: 34 }}>

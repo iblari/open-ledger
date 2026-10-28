@@ -161,7 +161,7 @@ export default function ClaimCard({
         {claim.sharePath && !checking && (!dense || roomy) && (
           <ShareClaimButton small iconOnly={roomy} path={claim.sharePath} quote={claim.quote} verdict={VERDICT_LABEL[claim.verdict]} />
         )}
-        <button
+        <button data-nosnippet
           onClick={e => { e.stopPropagation(); onSeek?.(claim); }}
           style={{
             fontFamily: F.mono, fontSize: roomy ? 12.5 : dense ? 11 : 14, color: L.mutedDark, background: "none",
@@ -194,7 +194,7 @@ export default function ClaimCard({
           </>)}
           <span style={{ color, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{figure}</span>
           {hasDetail && (
-            <span style={{ marginLeft: "auto", fontFamily: F.ui, fontSize: 10, fontWeight: 700, color: L.true, flex: "none" }}>{open ? "Hide ▲" : "Why ▼"}</span>
+            <span style={{ marginLeft: "auto", fontFamily: F.ui, fontSize: 10, fontWeight: 700, color: L.true, flex: "none" }}><span data-nosnippet>{open ? "Hide ▲" : "Why ▼"}</span></span>
           )}
         </div>
       )}
@@ -288,7 +288,7 @@ export default function ClaimCard({
         <div style={{
           fontFamily: F.ui, fontSize: 10.5, fontWeight: 700, color: L.true,
           marginTop: 12, textAlign: "right",
-        }}>{open ? "Hide analysis ▲" : "Why ▼"}</div>
+        }}><span data-nosnippet>{open ? "Hide analysis ▲" : "Why ▼"}</span></div>
       )}
     </article>
   );

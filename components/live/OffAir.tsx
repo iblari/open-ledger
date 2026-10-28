@@ -90,7 +90,7 @@ function AlertButton() {
   }
   if (state === "idle") {
     return (
-      <button onClick={() => setState("open")} style={{
+      <button data-nosnippet onClick={() => setState("open")} style={{
         background: C.card, color: C.ink, border: "none", borderRadius: 5,
         padding: "9px 15px", fontFamily: SANS, fontSize: 12, fontWeight: 700,
         cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0,
@@ -139,12 +139,12 @@ function AlertButton() {
             colorScheme: "light",
           }}
         />
-        <button onClick={go} disabled={state === "busy"} style={{
+        <button data-nosnippet onClick={go} disabled={state === "busy"} style={{
           background: C.ok, color: "#fff", border: "none", borderRadius: 5,
           padding: "10px 16px", fontFamily: SANS, fontSize: 12, fontWeight: 700,
           cursor: state === "busy" ? "default" : "pointer", whiteSpace: "nowrap",
         }}>{state === "busy" ? "Signing you up…" : "Email me when live"}</button>
-        <button onClick={() => { setState("idle"); setErr(null); }} style={{
+        <button data-nosnippet onClick={() => { setState("idle"); setErr(null); }} style={{
           background: "none", border: "none", color: C.faint,
           fontFamily: SANS, fontSize: 11.5, cursor: "pointer", padding: "10px 4px",
         }}>Cancel</button>
@@ -242,7 +242,7 @@ function BroadcastCarousel({ items, onWatch }: { items: HomeArchiveItem[]; onWat
         {items.map((a, i) => {
           const t = cleanTitle(a.title);
           return (
-            <button key={a.id} role="listitem" onClick={() => onWatch(a.id)} title={a.title} aria-label={`${t.title}, ${fmtDate(a.date)}`} style={{
+            <button data-nosnippet key={a.id} role="listitem" onClick={() => onWatch(a.id)} title={a.title} aria-label={`${t.title}, ${fmtDate(a.date)}`} style={{
               display: "flex", flexDirection: "column", textAlign: "left", cursor: "pointer", padding: 0, font: "inherit",
               background: C.card, border: `1px solid ${C.rule}`, borderRadius: 18, overflow: "hidden", minWidth: 0,
             }}>
@@ -266,7 +266,7 @@ function BroadcastCarousel({ items, onWatch }: { items: HomeArchiveItem[]; onWat
       <div style={{ display: "flex", justifyContent: "center", marginTop: 12 }}>
         <div style={{ display: "flex", gap: 7, alignItems: "center", background: "#ECE7DF", borderRadius: 99, padding: "9px 14px" }}>
           {items.map((a, i) => (
-            <button key={a.id} onClick={() => go(i)} aria-label={`Go to broadcast ${i + 1} of ${items.length}`} aria-current={i === active ? "true" : undefined} style={{
+            <button data-nosnippet key={a.id} onClick={() => go(i)} aria-label={`Go to broadcast ${i + 1} of ${items.length}`} aria-current={i === active ? "true" : undefined} style={{
               width: i === active ? 22 : 7, height: 7, borderRadius: 99, border: "none", padding: 0, cursor: "pointer",
               background: i === active ? C.ink : "#B8B0A4", transition: "width .2s ease, background .2s ease",
             }} />
@@ -408,9 +408,9 @@ function ReplaysArchive({ items, onWatch }: { items: HomeArchiveItem[]; onWatch:
       </div>
       {speakers.length > 1 && (
         <div className="rp-chips" role="tablist" aria-label="Speaker" style={{ marginTop: 10 }}>
-          <button type="button" role="tab" aria-selected={speaker === "all"} onClick={() => setSpeaker("all")} style={chip(speaker === "all")}>Everyone</button>
+          <button data-nosnippet type="button" role="tab" aria-selected={speaker === "all"} onClick={() => setSpeaker("all")} style={chip(speaker === "all")}>Everyone</button>
           {speakers.map(([sp, n]) => (
-            <button key={sp} type="button" role="tab" aria-selected={speaker === sp} onClick={() => setSpeaker(sp)} style={chip(speaker === sp)}>{sp} · {n}</button>
+            <button data-nosnippet key={sp} type="button" role="tab" aria-selected={speaker === sp} onClick={() => setSpeaker(sp)} style={chip(speaker === sp)}>{sp} · {n}</button>
           ))}
         </div>
       )}
@@ -425,7 +425,7 @@ function ReplaysArchive({ items, onWatch }: { items: HomeArchiveItem[]; onWatch:
             {hits.map(({ a, matches }) => {
               const t = cleanTitle(a.title);
               return (
-                <button key={a.id} onClick={() => onWatch(a.id)} className="oa-card" style={{
+                <button data-nosnippet key={a.id} onClick={() => onWatch(a.id)} className="oa-card" style={{
                   display: "grid", gridTemplateColumns: "120px minmax(0,1fr)", gap: 0, textAlign: "left", cursor: "pointer", padding: 0, font: "inherit",
                   background: C.card, border: `1px solid ${C.rule}`, borderRadius: 10, overflow: "hidden",
                 }}>
@@ -460,7 +460,7 @@ function ReplaysArchive({ items, onWatch }: { items: HomeArchiveItem[]; onWatch:
             const shown = capped ? list.slice(0, PEEK) : list;
             return (
             <div key={month} style={{ marginTop: phone ? 10 : 12 }}>
-              <button type="button" onClick={() => toggleMonth(month, first)} aria-expanded={open} style={{
+              <button data-nosnippet type="button" onClick={() => toggleMonth(month, first)} aria-expanded={open} style={{
                 display: "flex", alignItems: "baseline", gap: 10, width: "100%", textAlign: "left", font: "inherit",
                 background: "none", border: "none", borderBottom: `1px solid ${C.rule}`, padding: "10px 0 8px",
                 margin: open ? "0 0 10px" : 0, cursor: "pointer", color: "inherit",
@@ -475,7 +475,7 @@ function ReplaysArchive({ items, onWatch }: { items: HomeArchiveItem[]; onWatch:
                 {shown.map(a => {
                   const t = cleanTitle(a.title);
                   return (
-                    <button key={a.id} onClick={() => onWatch(a.id)} className="oa-card oa-row" title={a.title} style={{
+                    <button data-nosnippet key={a.id} onClick={() => onWatch(a.id)} className="oa-card oa-row" title={a.title} style={{
                       display: "flex", flexDirection: "column", textAlign: "left", cursor: "pointer", padding: 0, font: "inherit",
                       background: C.card, border: `1px solid ${C.rule}`, borderRadius: 10, overflow: "hidden", minWidth: 0,
                     }}>
@@ -492,7 +492,7 @@ function ReplaysArchive({ items, onWatch }: { items: HomeArchiveItem[]; onWatch:
                 })}
               </div>}
               {open && capped && (
-                <button type="button" onClick={() => setExpanded(prev => new Set(prev).add(month))} style={{
+                <button data-nosnippet type="button" onClick={() => setExpanded(prev => new Set(prev).add(month))} style={{
                   background: "none", border: "none", padding: "10px 0 0", cursor: "pointer", fontFamily: SANS, fontSize: 12.5, fontWeight: 600, color: C.ok,
                 }}>Show all {list.length} from {month.split(" ")[0]} →</button>
               )}
@@ -500,7 +500,7 @@ function ReplaysArchive({ items, onWatch }: { items: HomeArchiveItem[]; onWatch:
             );
           })}
           {quietCount > 0 && (
-            <button onClick={() => setShowQuiet(v => !v)} aria-expanded={showQuiet} style={{
+            <button data-nosnippet onClick={() => setShowQuiet(v => !v)} aria-expanded={showQuiet} style={{
               background: "none", border: "none", padding: "14px 0 0", cursor: "pointer", fontFamily: SANS, fontSize: 12.5, color: C.muted,
             }}>
               {quietCount} {quietCount === 1 ? "broadcast" : "broadcasts"} with no economic claims (ceremonies, arrivals) · <span style={{ color: C.ok, fontWeight: 600 }}>{showQuiet ? "Hide" : "Show"}</span>
@@ -588,7 +588,7 @@ export default function OffAir({
               <h1 className="oa-h1" style={{ fontFamily: SERIF, fontWeight: 600, fontSize: "clamp(24px, 3.4vw, 38px)", lineHeight: 1.08, letterSpacing: "-0.02em", margin: 0, flex: "1 1 420px", minWidth: 0 }}>
                 {cleanTitle(liveNow.title).title}
               </h1>
-              <button type="button" onClick={onReturnLive} style={{
+              <button data-nosnippet type="button" onClick={onReturnLive} style={{
                 fontFamily: SANS, fontSize: 14, fontWeight: 700, cursor: "pointer",
                 background: "#E0493A", color: "#fff", border: "none", borderRadius: 8, padding: "12px 18px", whiteSpace: "nowrap",
               }}>Return to live →</button>
@@ -657,7 +657,7 @@ export default function OffAir({
 
             <div className="oa-desk">
             <h2 style={H2}>Latest</h2>
-            <button onClick={() => onWatch(featured.id)} className="oa-card oa-feat" title={featured.title} style={{
+            <button data-nosnippet onClick={() => onWatch(featured.id)} className="oa-card oa-feat" title={featured.title} style={{
               width: "100%", textAlign: "left", cursor: "pointer", padding: 0, font: "inherit",
               background: C.card, border: `1px solid ${C.rule}`, borderRadius: 12, overflow: "hidden",
             }}>
