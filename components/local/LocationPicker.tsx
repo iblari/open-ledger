@@ -8,7 +8,7 @@ import { useLoc, writeLoc } from "@/lib/local-client";
  *  window.dispatchEvent(new Event("vu-loc-open")). */
 export const LOCAL_INK = "#6B4FBB";
 
-export default function LocationPicker({ tone = "light", compact = false }: { tone?: "light" | "dark"; compact?: boolean }) {
+export default function LocationPicker({ tone = "light", compact = false, cta }: { tone?: "light" | "dark"; compact?: boolean; cta?: string }) {
   const loc = useLoc();
   const [open, setOpen] = useState(false);
   const [code, setCode] = useState("");
@@ -45,9 +45,9 @@ export default function LocationPicker({ tone = "light", compact = false }: { to
         onClick={() => setOpen(o => !o)}
         style={{ display: "inline-flex", alignItems: "center", gap: compact ? 4 : 6, padding: compact ? "6px 9px" : "7px 11px", borderRadius: 999, cursor: "pointer",
           fontSize: 12.5, fontWeight: 600, fontFamily: "inherit", whiteSpace: "nowrap",
-          background: "transparent", color: loc ? (dark ? "#B9A6F0" : LOCAL_INK) : sub, border: `1px solid ${loc ? (dark ? "#B9A6F0" : LOCAL_INK) : rule}` }}>
+          background: "transparent", color: loc || cta ? (dark ? "#B9A6F0" : LOCAL_INK) : sub, border: `1px solid ${loc || cta ? (dark ? "#B9A6F0" : LOCAL_INK) : rule}` }}>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z" /><circle cx="12" cy="9.5" r="2.5" /></svg>
-        {compact ? short : <><span className="vu-loc-l">{long}</span><span className="vu-loc-s">{short}</span></>}
+        {!loc && cta ? cta : compact ? short : <><span className="vu-loc-l">{long}</span><span className="vu-loc-s">{short}</span></>}
         {!compact && <span aria-hidden style={{ fontSize: 9 }}>▾</span>}
       </button>
       {open && (

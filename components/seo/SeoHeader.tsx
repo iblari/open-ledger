@@ -1,7 +1,6 @@
 import Link from "next/link";
 import CheetahMark from "@/components/CheetahMark";
 import { C, SERIF } from "@/lib/design-tokens";
-import LocationPicker from "@/components/local/LocationPicker";
 
 /** Shared header for the indexable data and fact-check pages. */
 export default function SeoHeader() {
@@ -19,7 +18,6 @@ export default function SeoHeader() {
           <Link href="/vote" style={l}>Ballot</Link>
           <Link href="/live" style={{ ...l, color: C.accent }}>Live</Link>
         </nav>
-        <LocationPicker />
       </div>
     </div>
   );

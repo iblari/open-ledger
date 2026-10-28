@@ -48,3 +48,16 @@ export function useLocalSnapshot(): { loc: Loc | null; snap: LocalSnapshot | nul
   }, [loc?.state.code, loc?.housing]);
   return { loc, snap };
 }
+
+/** Regional annual series for a Data-tab metric (gas, inflation), or null. */
+export function useLocalAnnual(metric: string): import("./local").LocalAnnual | null {
+  const loc = useLoc();
+  const [d, setD] = useState<import("./local").LocalAnnual | null>(null);
+  useEffect(() => {
+    if (!loc || (metric !== "gas" && metric !== "inflation")) { setD(null); return; }
+    let on = true;
+    fetch(`/api/local/annual?metric=${metric}&state=${loc.state.code}`).then(r => (r.ok ? r.json() : null)).then(j => { if (on) setD(j?.ok ? j : null); }).catch(() => {});
+    return () => { on = false; };
+  }, [loc?.state.code, metric]);
+  return d;
+}

@@ -7,7 +7,9 @@ import { benchKeyFor, liveAnnual, type Bench } from "@/lib/bench-lens";
 import ShareRow from "@/components/ShareRow";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { BarChart, Bar, LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell as RechartsCell } from "recharts";
+import { BarChart, Bar, LineChart, Line, AreaChart, Area, ComposedChart, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell as RechartsCell } from "recharts";
+import LocationPicker, { LOCAL_INK } from "@/components/local/LocationPicker";
+import { useLocalAnnual } from "@/lib/local-client";
 import nextDynamic from "next/dynamic";
 import FeedbackBanner from "./FeedbackBanner";
 
@@ -312,7 +314,7 @@ function Tip({active,payload,label,unit,label2}:{active?:boolean;payload?:any[];
       </div>
       {payload.map((p,i)=>(
         <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,marginTop:i>0?4:0}}>
-          <span style={{color:T.sub,fontSize:11}}>{label2||"Value"}</span>
+          <span style={{color:p.dataKey==="lv"?LOCAL_INK:T.sub,fontSize:11}}>{p.dataKey==="lv"?p.name:(label2||"Value")}</span>
           <span style={{fontWeight:700,color:p.color||T.ink,fontFamily:"'DM Sans',sans-serif",fontSize:14,fontVariantNumeric:"tabular-nums"}}>
             {typeof p.value==='number'?(unit?fmt(p.value,unit):p.value.toLocaleString()):p.value}
           </span>
@@ -924,6 +926,8 @@ function App(){
   const [detail,setDetail]=useState(null);
   const [sel,setSel]=useState(["clinton","bush","obama","trump1","biden","trump2"]);
   const [ct,setCt]=useState("bar");
+  // Reader's region for this metric (gas, inflation), when a location is set.
+  const localAnn=useLocalAnnual(am);
   const [gc,setGc]=useState(["us","china","india","uk"]);
   const [cf,setCf]=useState("all");
   const [openFacts,setOpenFacts]=useState(false);
@@ -1061,7 +1065,10 @@ function App(){
 
   const tog=id=>setSel(p=>p.includes(id)?p.filter(a=>a!==id):[...p,id]);
   const togC=id=>setGc(p=>p.includes(id)?p.filter(c=>c!==id):[...p,id]);
-  const m=M[am];const fd=m.d.filter(d=>sel.includes(d.a));
+  const m=M[am];const fd0=m.d.filter(d=>sel.includes(d.a));
+  const localMap=localAnn&&localAnn.metric===am?new Map(localAnn.points.map(p=>[p.y,p.v])):null;
+  const fd=localMap?fd0.map(d=>({...d,lv:localMap.get(Number(d.y))??null})):fd0;
+  const canLocal=am==="gas"||am==="inflation";
   const vis=cf==="all"?MK:MK.filter(k=>M[k].cat===cf);
 
   const sums=useMemo(()=>{const o={};for(const id of sel){const p=m.d.filter(d=>d.a===id);if(!p.length)continue;
@@ -1914,7 +1921,7 @@ function App(){
             )}
             <ResponsiveContainer width="100%" height={mob?280:360}>
               {ct==="bar"?(
-                <BarChart data={fd} margin={{top:10,right:10,left:0,bottom:10}}>
+                <ComposedChart data={fd} margin={{top:10,right:10,left:0,bottom:10}}>
                   <defs>
                     <linearGradient id="bar-gradient-partial" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor={ADMINS.trump2.color} stopOpacity={0.45}/>
@@ -1934,7 +1941,8 @@ function App(){
                   <Bar dataKey="v" radius={[4,4,0,0]} maxBarSize={28} animationDuration={600} animationEasing="ease-out">
                     {fd.map((e,i)=><RechartsCell key={i} fill={e.partial?"url(#bar-gradient-partial)":`url(#bar-gradient-${e.a})`} stroke={e.partial?ADMINS.trump2.color:undefined} strokeDasharray={e.partial?"3 2":undefined}/>)}
                   </Bar>
-                </BarChart>
+                  {localMap&&<Line type="monotone" dataKey="lv" name={localAnn!.place} stroke={LOCAL_INK} strokeWidth={2.2} strokeDasharray="6 4" dot={false} connectNulls isAnimationActive={false}/>}
+                </ComposedChart>
               ):(
                 <LineChart data={fd} margin={{top:10,right:10,left:0,bottom:10}}>
                   <CartesianGrid strokeDasharray="3 3" stroke={T.rule} strokeOpacity={0.5}/>
@@ -1942,9 +1950,23 @@ function App(){
                   <YAxis stroke={T.rule} fontSize={10} fontFamily="'DM Sans',sans-serif" tick={{fill:T.sub}} tickFormatter={v=>fmt(v,m.u)} axisLine={{stroke:T.rule}}/>
                   <Tooltip content={<Tip unit={m.u} label2={m.l}/>} isAnimationActive={false} position={mob?{y:4}:undefined}/>
                   <Line type="monotone" dataKey="v" stroke={T.sub} strokeWidth={1.5} animationDuration={600} dot={p=><circle key={p.index} cx={p.cx} cy={p.cy} r={4} fill={ADMINS[p.payload?.a]?.color||T.sub} stroke={T.card} strokeWidth={2}/>}/>
+                  {localMap&&<Line type="monotone" dataKey="lv" name={localAnn!.place} stroke={LOCAL_INK} strokeWidth={2.2} strokeDasharray="6 4" dot={false} connectNulls isAnimationActive={false}/>}
                 </LineChart>
               )}
             </ResponsiveContainer>
+            {canLocal&&(
+              <div data-nosnippet style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,flexWrap:"wrap",padding:mob?"6px 4px 2px":"8px 4px 0",borderTop:`1px solid ${T.rule}`,marginTop:6}}>
+                <div style={{fontFamily:ESANS,fontSize:mob?11.5:12.5,lineHeight:1.45,color:EC.sub,flex:"1 1 240px",minWidth:0}}>
+                  {localMap&&localAnn ? (<>
+                    <span style={{display:"inline-block",width:16,borderTop:`2px dashed ${LOCAL_INK}`,verticalAlign:"middle",marginRight:6}}/>
+                    <b style={{color:LOCAL_INK}}>{localAnn.place}</b>{am==="gas"?" region":" region inflation"}
+                    {localAnn.latest&&<> · {localAnn.latest.label}: <b style={{color:LOCAL_INK}}>{am==="gas"?`$${localAnn.latest.local.toFixed(2)}`:`${localAnn.latest.local.toFixed(1)}%`}</b> vs US {am==="gas"?`$${localAnn.latest.us.toFixed(2)}`:`${localAnn.latest.us.toFixed(1)}%`}</>}
+                    <span style={{color:EC.mute}}> · since {localAnn.points[0]?.y} · <a href={localAnn.url} target="_blank" rel="noopener noreferrer" style={{color:EC.mute}}>{am==="gas"?"EIA":"BLS"}</a> · <a href="/methodology#localize" style={{color:EC.mute}}>How we localize</a></span>
+                  </>) : <span>{am==="gas"?"Gas prices":"Inflation"} differ by region. Add your region's line to the chart.</span>}
+                </div>
+                <LocationPicker compact={!!localMap} cta="Compare your region"/>
+              </div>
+            )}
           </div>
 
           </div>{/* end reorder wrapper */}
