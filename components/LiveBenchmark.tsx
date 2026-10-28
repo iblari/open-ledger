@@ -481,7 +481,7 @@ export default function LiveBenchmark({ initialMetric, onBack }: { initialMetric
   const [data, setData] = useState<APIResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [shareStatus, setShareStatus] = useState<string | null>(null);
-  // null = untouched: every earlier administration is highlighted by default.
+  // null = untouched: the previous administration is highlighted by default.
   const [hlState, setHlState] = useState<Set<string> | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   // Hover state captured via LineChart.onMouseMove. Lives OUTSIDE the SVG
@@ -515,7 +515,7 @@ export default function LiveBenchmark({ initialMetric, onBack }: { initialMetric
     const m = initialMetric || searchParams.get("metric");
     if (m && data.metrics[m]) {
       setMetric(m);
-      setHlState(null); // back to the default: all earlier administrations
+      setHlState(null); // back to the default: the previous administration
       setScrubMonth(null); setRankOpen(false);
     }
   }, [searchParams, data, initialMetric]);
@@ -546,9 +546,16 @@ export default function LiveBenchmark({ initialMetric, onBack }: { initialMetric
 
   const md = data?.metrics[metric];
   const currentMonth = data?.currentMonth ?? 0;
-  const allPrior = useMemo(() => new Set((md?.series || []).filter(s => !s.current).map(s => s.id)), [md]);
-  const highlighted = hlState ?? allPrior;
-  const setHighlighted = (u: (prev: Set<string>) => Set<string>) => setHlState(prev => u(prev ?? allPrior));
+  // Default highlight: the administration just before the current one.
+  const prevAdmin = useMemo(() => {
+    const ids = (data?.admins || []).map(a => a.id);
+    const cur = ids.findIndex(id => data?.admins.find(a => a.id === id)?.current);
+    const have = new Set((md?.series || []).map(s => s.id));
+    for (let i = cur - 1; i >= 0; i--) if (have.has(ids[i])) return new Set([ids[i]]);
+    return new Set<string>();
+  }, [md, data]);
+  const highlighted = hlState ?? prevAdmin;
+  const setHighlighted = (u: (prev: Set<string>) => Set<string>) => setHlState(prev => u(prev ?? prevAdmin));
   // The reader's region across the current term (gas, inflation), if set.
   const localTerm = useLocalTerm(metric);
   const localByMonth = useMemo(() => (localTerm && localTerm.metric === metric ? new Map(localTerm.points.map(p => [p.month, p.v])) : null), [localTerm, metric]);
