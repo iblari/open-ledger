@@ -18,7 +18,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ({ url: `${SITE}${path}`, lastModified, changeFrequency, priority });
   const pages: MetadataRoute.Sitemap = [
     u("/", 1, "daily"), u("/dashboard", 0.9), u("/live", 0.8, "daily"), u("/benchmark", 0.9, "daily"),
-    u("/economy", 0.8), u("/broadcasts", 0.8, "daily"), u("/methodology", 0.6, "monthly"), u("/trending", 0.7, "daily"), u("/vote", 0.8, "daily"),
+    u("/economy", 0.8), u("/broadcasts", 0.8, "daily"), u("/methodology", 0.6, "monthly"), u("/news", 0.8, "hourly"), u("/vote", 0.8, "daily"),
     ...STATES.map(s => u(`/vote/${s.st.toLowerCase()}`, 0.7, "daily")),
     ...METRICS.map(m => u(`/benchmark/${m.slug}`, 0.8, "daily")),
     ...ADMINS.map(a => u(`/economy/${a.slug}`, 0.7)),

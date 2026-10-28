@@ -12,7 +12,7 @@ export default function VoteHeader() {
         </Link>
         <div style={{ display: "flex", gap: 14, fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
           <Link href="/vote" style={{ color: C.ink, textDecoration: "none" }}>Ballot</Link>
-          <Link href="/trending" style={{ color: C.sub, textDecoration: "none" }}>Trending</Link>
+          <Link href="/news" style={{ color: C.sub, textDecoration: "none" }}>News</Link>
           <Link href="/live" style={{ color: C.accent, textDecoration: "none" }}>Live</Link>
         </div>
       </div>
