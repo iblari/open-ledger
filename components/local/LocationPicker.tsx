@@ -43,12 +43,12 @@ export default function LocationPicker({ tone = "light", compact = false }: { to
       <style>{`.vu-loc-s{display:none}@media (max-width:640px){.vu-loc-l{display:none}.vu-loc-s{display:inline}}`}</style>
       <button type="button" aria-haspopup="dialog" aria-expanded={open} aria-label={`Your location: ${loc ? loc.state.name : "United States"}. Change`}
         onClick={() => setOpen(o => !o)}
-        style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: compact ? "6px 9px" : "7px 11px", borderRadius: 999, cursor: "pointer",
+        style={{ display: "inline-flex", alignItems: "center", gap: compact ? 4 : 6, padding: compact ? "6px 9px" : "7px 11px", borderRadius: 999, cursor: "pointer",
           fontSize: 12.5, fontWeight: 600, fontFamily: "inherit", whiteSpace: "nowrap",
           background: "transparent", color: loc ? (dark ? "#B9A6F0" : LOCAL_INK) : sub, border: `1px solid ${loc ? (dark ? "#B9A6F0" : LOCAL_INK) : rule}` }}>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z" /><circle cx="12" cy="9.5" r="2.5" /></svg>
         {compact ? short : <><span className="vu-loc-l">{long}</span><span className="vu-loc-s">{short}</span></>}
-        <span aria-hidden style={{ fontSize: 9 }}>▾</span>
+        {!compact && <span aria-hidden style={{ fontSize: 9 }}>▾</span>}
       </button>
       {open && (
         <div role="dialog" aria-label="Your location" style={{ position: "absolute", right: 0, top: "calc(100% + 8px)", zIndex: 80, width: 268, background: "#fff", color: "#1a1a1a",
