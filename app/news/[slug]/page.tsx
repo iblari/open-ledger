@@ -8,6 +8,7 @@ import { blindspotLabel, type Story, type StoryArticle } from "@/lib/news/engine
 import { storyImage, storyDataLine } from "@/lib/news/share";
 import { NewsChrome, LeanPill, LEAN_COLOR, LEAN_LABEL, ago } from "@/components/news/NewsChrome";
 import { CoverageGraphic } from "@/components/news/Visuals";
+import Photo from "@/components/news/Photo";
 import { OUTLET_BY_ID } from "@/lib/news/outlets";
 
 export const revalidate = 300;
@@ -63,12 +64,17 @@ export default async function StoryPage({ params }: { params: Promise<{ slug: st
   const unit = n?.metric === "payrolls" ? "K" : "%";
   const pct = (x: number) => `${Math.round(x * 100)}%`;
   return (
-    <div style={{ minHeight: "100vh", background: C.bg, color: C.ink, fontFamily: SANS }}>
+    <div style={{ minHeight: "100vh", background: "#fff", color: C.ink, fontFamily: SANS }}>
       <NewsChrome active="news" />
       <main style={{ maxWidth: 1180, margin: "0 auto", padding: "18px 20px 60px" }}>
         <div data-nosnippet style={{ fontSize: 13, color: C.sub }}><Link href="/news" style={{ color: C.sub }}>News</Link> › {s.topic}</div>
-        <h1 style={{ fontFamily: SERIF, fontWeight: 500, fontSize: "clamp(24px,3.6vw,34px)", lineHeight: 1.18, margin: "8px 0 6px", maxWidth: 900 }}>{s.title}</h1>
+        <h1 style={{ fontFamily: SANS, fontWeight: 700, letterSpacing: "-0.01em", fontSize: "clamp(26px,3.8vw,40px)", lineHeight: 1.08, margin: "8px 0 8px", maxWidth: 920 }}>{s.title}</h1>
         <div style={{ fontSize: 13, color: C.sub }}>First reported {time(s.firstSeen)} · {s.articles.length} articles from {s.outlets} outlets</div>
+        {s.photo && (
+          <figure style={{ margin: "16px 0 0", maxWidth: 920 }}>
+            <Photo src={s.photo.url} alt="" topic={s.topic} credit={s.photo.name} alts={s.photo.alts} ratio="16 / 9" priority />
+          </figure>
+        )}
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 340px), 1fr))", gap: 14, marginTop: 16 }}>
           <section style={{ background: "#fff", border: `1px solid ${C.rule}`, borderRadius: 12, padding: "14px 16px" }}>
