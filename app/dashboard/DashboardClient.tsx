@@ -10,6 +10,9 @@ import Link from "next/link";
 import { BarChart, Bar, LineChart, Line, AreaChart, Area, ComposedChart, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell as RechartsCell } from "recharts";
 import LocationPicker, { LOCAL_INK } from "@/components/local/LocationPicker";
 import { useLocalAnnual } from "@/lib/local-client";
+import { METRIC_LIST, METRIC_CATS } from "@/lib/metric-list";
+import type { TermPoint } from "@/lib/terms-data";
+import { POVERTY } from "@/lib/annual-only";
 import nextDynamic from "next/dynamic";
 import FeedbackBanner from "./FeedbackBanner";
 
@@ -117,6 +120,11 @@ function Sparkline({ data, color, width = 60, height = 20 }: { data: number[], c
 }
 
 const ADMINS = {
+  nixon:   { name:"Nixon",   party:"R", years:"'69–'74", color:"#6b5b95", full:"1969–1974" },
+  ford:    { name:"Ford",    party:"R", years:"'74–'77", color:"#9a7b4f", full:"1975–1977" },
+  carter:  { name:"Carter",  party:"D", years:"'77–'81", color:"#2a9d8f", full:"1977–1981" },
+  reagan:  { name:"Reagan",  party:"R", years:"'81–'89", color:"#c9733a", full:"1981–1989" },
+  bush41:  { name:"Bush 41", party:"R", years:"'89–'93", color:"#7a8b3c", full:"1989–1993" },
   clinton: { name:"Clinton", party:"D", years:"'93–'01", color:"#1e6b9e", full:"1993–2001" },
   bush:    { name:"Bush W.", party:"R", years:"'01–'09", color:"#8b4c70", full:"2001–2009" },
   obama:   { name:"Obama",   party:"D", years:"'09–'17", color:"#2d6a4f", full:"2009–2017" },
@@ -127,7 +135,7 @@ const ADMINS = {
   // drawn lighter and labelled partial.
   trump2:  { name:"Trump II", party:"R", years:"'25–", color:"#b8372d", full:"2025–" },
 };
-const AID=["clinton","bush","obama","trump1","biden"];
+const AID=["nixon","ford","carter","reagan","bush41","clinton","bush","obama","trump1","biden"];
 const AIDX=[...AID,"trump2"];
 
 const COUNTRIES={
@@ -164,7 +172,7 @@ const M = {
     bench:{good:"+1.5 to +3M/yr",target:"Consistent monthly gains of 150K-250K = healthy expansion",warn:"Negative = net job losses, signaling recession",why:"The economy needs ~100-150K new jobs/month just to keep up with population growth. Anything above 200K is strong."},
     ctx:"Reopenings ≠ creation. Policy lags 12-18 months.",facts:[{t:"Biden's 2021 +6.7M",x:"Largely positions COVID eliminated being refilled, not new structural jobs."}],
     d:[{y:1993,v:2.8,a:"clinton"},{y:1994,v:3.9,a:"clinton"},{y:1995,v:2.2,a:"clinton"},{y:1996,v:2.8,a:"clinton"},{y:1997,v:3.4,a:"clinton"},{y:1998,v:3.0,a:"clinton"},{y:1999,v:3.2,a:"clinton"},{y:2000,v:1.9,a:"clinton"},{y:2001,v:-1.7,a:"bush"},{y:2002,v:-0.5,a:"bush"},{y:2003,v:0.1,a:"bush"},{y:2004,v:2.0,a:"bush"},{y:2005,v:2.5,a:"bush"},{y:2006,v:2.1,a:"bush"},{y:2007,v:1.1,a:"bush"},{y:2008,v:-3.6,a:"bush"},{y:2009,v:-5.1,a:"obama"},{y:2010,v:1.0,a:"obama"},{y:2011,v:2.1,a:"obama"},{y:2012,v:2.2,a:"obama"},{y:2013,v:2.3,a:"obama"},{y:2014,v:3.0,a:"obama"},{y:2015,v:2.7,a:"obama"},{y:2016,v:2.3,a:"obama"},{y:2017,v:2.1,a:"trump1"},{y:2018,v:2.3,a:"trump1"},{y:2019,v:2.0,a:"trump1"},{y:2020,v:-9.3,a:"trump1"},{y:2021,v:6.7,a:"biden"},{y:2022,v:4.8,a:"biden"},{y:2023,v:2.7,a:"biden"},{y:2024,v:2.2,a:"biden"}]},
-  mfg:{l:"Manufacturing",s:"Jobs (M)",src:"BLS",u:"mfg",inv:false,cat:"labor",
+  mfg:{l:"Manufacturing Jobs",s:"Jobs (M)",src:"BLS",u:"mfg",inv:false,cat:"labor",
     def:"Total employees in manufacturing sector from BLS Current Employment Statistics survey. Counts all manufacturing payroll jobs nationwide.",
     bench:{good:"Stabilization at 12-13M",target:"Halting decline is realistic; returning to 17M+ is not",warn:"Sharp drops signal recession or trade disruption",why:"Manufacturing output keeps rising while jobs decline — automation replaces workers. This trend is global and irreversible. Policy focus should be on job quality, not quantity."},
     ctx:"Peaked at 19.6M in 1979. ~85% of losses from automation, not offshoring.",facts:[{t:"Output still rising",x:"U.S. manufactures more by value than ever — with fewer workers."}],
@@ -180,12 +188,12 @@ const M = {
     ctx:"~60% = global crude. OPEC > White House.",facts:[{t:"COVID made gas cheap",x:"2020's $2.17 was demand collapse, not a policy win."}],
     d:[{y:1993,v:1.07,a:"clinton"},{y:1994,v:1.08,a:"clinton"},{y:1995,v:1.10,a:"clinton"},{y:1996,v:1.22,a:"clinton"},{y:1997,v:1.20,a:"clinton"},{y:1998,v:1.03,a:"clinton"},{y:1999,v:1.14,a:"clinton"},{y:2000,v:1.49,a:"clinton"},{y:2001,v:1.42,a:"bush"},{y:2002,v:1.35,a:"bush"},{y:2003,v:1.56,a:"bush"},{y:2004,v:1.85,a:"bush"},{y:2005,v:2.27,a:"bush"},{y:2006,v:2.57,a:"bush"},{y:2007,v:2.80,a:"bush"},{y:2008,v:3.25,a:"bush"},{y:2009,v:2.35,a:"obama"},{y:2010,v:2.78,a:"obama"},{y:2011,v:3.53,a:"obama"},{y:2012,v:3.64,a:"obama"},{y:2013,v:3.53,a:"obama"},{y:2014,v:3.37,a:"obama"},{y:2015,v:2.43,a:"obama"},{y:2016,v:2.14,a:"obama"},{y:2017,v:2.41,a:"trump1"},{y:2018,v:2.72,a:"trump1"},{y:2019,v:2.60,a:"trump1"},{y:2020,v:2.17,a:"trump1"},{y:2021,v:3.01,a:"biden"},{y:2022,v:3.97,a:"biden"},{y:2023,v:3.52,a:"biden"},{y:2024,v:3.31,a:"biden"}]},
   wages:{l:"Real Wages",s:"YoY %",src:"BLS",u:"%",inv:false,cat:"prices",
-    def:"Nominal wage growth − CPI inflation = Real wage growth. If your raise was 4% but inflation was 5%, real wages fell 1%. Measures actual purchasing power change.",
+    def:"Year-over-year change in the median usual weekly earnings of full-time workers, adjusted for inflation (BLS, constant dollars). Positive = paychecks buy more than a year earlier.",
     bench:{good:"+0.5 to +2.0%",target:"Positive real wage growth = workers gaining purchasing power",warn:"Negative = paychecks shrinking in real terms despite nominal raises",why:"If real wages are negative, your raise didn't keep up with prices. Americans experienced 25 consecutive months of negative real wages from mid-2021 to mid-2023."},
     ctx:"Nominal raise minus inflation. 2020 spike = composition effect.",facts:[{t:"Nominal vs Real",x:"A 4% raise with 5% inflation = -1% real decline."}],
     d:[{y:1993,v:0.2,a:"clinton"},{y:1994,v:0.3,a:"clinton"},{y:1995,v:0.6,a:"clinton"},{y:1996,v:0.8,a:"clinton"},{y:1997,v:1.6,a:"clinton"},{y:1998,v:2.4,a:"clinton"},{y:1999,v:1.5,a:"clinton"},{y:2000,v:0.6,a:"clinton"},{y:2001,v:0.8,a:"bush"},{y:2002,v:1.4,a:"bush"},{y:2003,v:0.0,a:"bush"},{y:2004,v:-0.5,a:"bush"},{y:2005,v:-0.8,a:"bush"},{y:2006,v:0.2,a:"bush"},{y:2007,v:0.5,a:"bush"},{y:2008,v:-1.0,a:"bush"},{y:2009,v:1.5,a:"obama"},{y:2010,v:-0.2,a:"obama"},{y:2011,v:-1.2,a:"obama"},{y:2012,v:0.3,a:"obama"},{y:2013,v:0.5,a:"obama"},{y:2014,v:0.8,a:"obama"},{y:2015,v:2.1,a:"obama"},{y:2016,v:1.1,a:"obama"},{y:2017,v:0.4,a:"trump1"},{y:2018,v:0.8,a:"trump1"},{y:2019,v:1.2,a:"trump1"},{y:2020,v:4.0,a:"trump1"},{y:2021,v:-2.2,a:"biden"},{y:2022,v:-1.7,a:"biden"},{y:2023,v:0.8,a:"biden"},{y:2024,v:1.1,a:"biden"}]},
-  median_income:{l:"Median Income",s:"Household (2023$)",src:"Census",u:"inc",inv:false,cat:"people",
-    def:"50th percentile of all household incomes, adjusted to 2023 dollars using CPI-U-RS. Half of households earn more, half earn less. Not skewed by billionaires like averages.",
+  median_income:{l:"Median Income",s:"Household, inflation-adjusted",src:"Census",u:"inc",inv:false,cat:"people",
+    def:"50th percentile of all household incomes, adjusted for inflation to the latest year’s dollars (Census, CPI-U-RS). Half of households earn more, half earn less. Not skewed by billionaires like averages.",
     bench:{good:"Sustained upward trend",target:"Growth that outpaces inflation = real improvement",warn:"Stagnation for 15 years (1999-2014) despite GDP growth = gains going to top earners",why:"If GDP grows but median income doesn't, the economy is growing for corporations and the wealthy — not for typical families. This gap is the core inequality story."},
     ctx:"Inflation-adjusted. Stagnated from 1999-2014.",facts:[{t:"Median, not average",x:"Average is skewed by billionaires. Median = the middle family."}],
     d:[{y:1993,v:55600,a:"clinton"},{y:1994,v:55500,a:"clinton"},{y:1995,v:57200,a:"clinton"},{y:1996,v:57900,a:"clinton"},{y:1997,v:58900,a:"clinton"},{y:1998,v:60600,a:"clinton"},{y:1999,v:61500,a:"clinton"},{y:2000,v:61400,a:"clinton"},{y:2001,v:60200,a:"bush"},{y:2002,v:59500,a:"bush"},{y:2003,v:59300,a:"bush"},{y:2004,v:59200,a:"bush"},{y:2005,v:59700,a:"bush"},{y:2006,v:59900,a:"bush"},{y:2007,v:60400,a:"bush"},{y:2008,v:58600,a:"bush"},{y:2009,v:57600,a:"obama"},{y:2010,v:56800,a:"obama"},{y:2011,v:56500,a:"obama"},{y:2012,v:56700,a:"obama"},{y:2013,v:57600,a:"obama"},{y:2014,v:57900,a:"obama"},{y:2015,v:60500,a:"obama"},{y:2016,v:62900,a:"obama"},{y:2017,v:64000,a:"trump1"},{y:2018,v:65000,a:"trump1"},{y:2019,v:69600,a:"trump1"},{y:2020,v:68000,a:"trump1"},{y:2021,v:71100,a:"biden"},{y:2022,v:74600,a:"biden"},{y:2023,v:80600,a:"biden"},{y:2024,v:80600,a:"biden"}]},
@@ -193,13 +201,13 @@ const M = {
     def:"(People with income below federal poverty threshold / Total population) × 100. Threshold = ~$31K for family of 4 in 2024. Set in 1960s, adjusted only for inflation.",
     bench:{good:"Below 11%",target:"Single digits would match peer nations (UK ~10%, Germany ~8%)",warn:"Above 13% = crisis-era levels. Above 15% = deep structural failure",why:"The U.S. poverty rate has bounced between 11-15% for 30 years while peer nations trend lower. The official threshold (~$31K for family of 4) is itself considered too low by most economists."},
     ctx:"Official line ~$31K for family of 4. Many economists consider it too low.",facts:[{t:"Near-poverty matters",x:"Millions hover just above the line. One medical bill pushes them under."}],
-    d:[{y:1993,v:15.1,a:"clinton"},{y:1994,v:14.5,a:"clinton"},{y:1995,v:13.8,a:"clinton"},{y:1996,v:13.7,a:"clinton"},{y:1997,v:13.3,a:"clinton"},{y:1998,v:12.7,a:"clinton"},{y:1999,v:11.9,a:"clinton"},{y:2000,v:11.3,a:"clinton"},{y:2001,v:11.7,a:"bush"},{y:2002,v:12.1,a:"bush"},{y:2003,v:12.5,a:"bush"},{y:2004,v:12.7,a:"bush"},{y:2005,v:12.6,a:"bush"},{y:2006,v:12.3,a:"bush"},{y:2007,v:12.5,a:"bush"},{y:2008,v:13.2,a:"bush"},{y:2009,v:14.3,a:"obama"},{y:2010,v:15.1,a:"obama"},{y:2011,v:15.0,a:"obama"},{y:2012,v:15.0,a:"obama"},{y:2013,v:14.5,a:"obama"},{y:2014,v:14.8,a:"obama"},{y:2015,v:13.5,a:"obama"},{y:2016,v:12.7,a:"obama"},{y:2017,v:12.3,a:"trump1"},{y:2018,v:11.8,a:"trump1"},{y:2019,v:10.5,a:"trump1"},{y:2020,v:11.4,a:"trump1"},{y:2021,v:11.6,a:"biden"},{y:2022,v:11.5,a:"biden"},{y:2023,v:12.4,a:"biden"},{y:2024,v:12.2,a:"biden"}]},
+    d:Object.entries(POVERTY).filter(([y])=>+y>=1993&&+y<=2024).map(([y,v])=>({y:+y,v,a:+y<=2000?"clinton":+y<=2008?"bush":+y<=2016?"obama":+y<=2020?"trump1":"biden"}))},
   inequality:{l:"Inequality",s:"Top 10% Share %",src:"WID",u:"%",inv:true,cat:"people",
     def:"(Total pre-tax income earned by top 10% of earners / Total national income) × 100. Higher = more concentrated wealth. Pre-tax, pre-transfer.",
     bench:{good:"Below 40%",target:"Peer nations: Germany ~37%, Japan ~35%, UK ~39%",warn:"Above 45% = approaching Gilded Age levels (1920s were ~46%)",why:"When the top 10% captures 47%+ of income, economic mobility declines, social cohesion weakens, and political polarization intensifies. The U.S. is now above 1920s-era inequality."},
     ctx:"40-year bipartisan trend. No administration has reversed it.",facts:[{t:"Tax + globalization + tech",x:"All contribute. Pre-tax income keeps concentrating regardless of party."}],
     d:[{y:1993,v:40.5,a:"clinton"},{y:1994,v:40.8,a:"clinton"},{y:1995,v:41.4,a:"clinton"},{y:1996,v:42.0,a:"clinton"},{y:1997,v:42.8,a:"clinton"},{y:1998,v:43.2,a:"clinton"},{y:1999,v:43.8,a:"clinton"},{y:2000,v:43.5,a:"clinton"},{y:2001,v:42.5,a:"bush"},{y:2002,v:42.0,a:"bush"},{y:2003,v:42.4,a:"bush"},{y:2004,v:43.2,a:"bush"},{y:2005,v:44.0,a:"bush"},{y:2006,v:44.7,a:"bush"},{y:2007,v:45.2,a:"bush"},{y:2008,v:43.4,a:"bush"},{y:2009,v:43.2,a:"obama"},{y:2010,v:44.5,a:"obama"},{y:2011,v:44.3,a:"obama"},{y:2012,v:46.3,a:"obama"},{y:2013,v:45.0,a:"obama"},{y:2014,v:45.5,a:"obama"},{y:2015,v:45.6,a:"obama"},{y:2016,v:45.8,a:"obama"},{y:2017,v:46.1,a:"trump1"},{y:2018,v:46.5,a:"trump1"},{y:2019,v:46.8,a:"trump1"},{y:2020,v:46.0,a:"trump1"},{y:2021,v:46.5,a:"biden"},{y:2022,v:46.8,a:"biden"},{y:2023,v:47.0,a:"biden"},{y:2024,v:47.2,a:"biden"}]},
-  consumer_conf:{l:"Confidence",s:"Index (1985=100)",src:"Conference Board",u:"cc",inv:false,cat:"sentiment",
+  consumer_conf:{l:"Consumer Sentiment",s:"Index (1966=100)",src:"University of Michigan",u:"cc",inv:false,cat:"sentiment",
     def:"University of Michigan survey of ~600 households on personal finances and business conditions. Indexed to 1966 baseline = 100.",
     bench:{good:"Above 90",target:"~85 is the long-run average; 100+ is strong",warn:"Below 60 = recession-level pessimism",why:"Consumer spending is about 70% of GDP, so sentiment leads demand. Read it with care: since 2016 the partisan gap in this survey has been wider than the gap explained by actual conditions."},
     ctx:"How people FEEL — not how the economy performs. Partisan since 2016.",facts:[{t:"Vibes ≠ reality",x:"Confidence dropped in 2022 despite strong jobs. People feel inflation more than employment."}],
@@ -209,7 +217,7 @@ const M = {
     bench:{good:"Below 60%",target:"60% was the pre-2008 norm. 90%+ is elevated by historical standards",warn:"Above 120% = uncharted territory for the U.S. (Japan at ~260% still functions, but pays the price in growth)",why:"The real risk isn't a magic threshold — it's when interest payments crowd out other spending. The U.S. now spends more on interest ($882B in 2024) than on defense."},
     ctx:"The proper debt measure. Japan is ~260%, UK ~100%.",facts:[{t:"Crossed 100% in 2013",x:"Economists debate whether this threshold matters. Several healthy economies exceed it."}],
     d:[{y:1993,v:63.8,a:"clinton"},{y:1994,v:63.4,a:"clinton"},{y:1995,v:63.1,a:"clinton"},{y:1996,v:62.2,a:"clinton"},{y:1997,v:60.2,a:"clinton"},{y:1998,v:57.5,a:"clinton"},{y:1999,v:55.5,a:"clinton"},{y:2000,v:53.7,a:"clinton"},{y:2001,v:54.7,a:"bush"},{y:2002,v:57.1,a:"bush"},{y:2003,v:59.7,a:"bush"},{y:2004,v:61.3,a:"bush"},{y:2005,v:61.7,a:"bush"},{y:2006,v:61.9,a:"bush"},{y:2007,v:62.5,a:"bush"},{y:2008,v:68.2,a:"bush"},{y:2009,v:82.4,a:"obama"},{y:2010,v:91.4,a:"obama"},{y:2011,v:95.6,a:"obama"},{y:2012,v:99.7,a:"obama"},{y:2013,v:100.4,a:"obama"},{y:2014,v:101.2,a:"obama"},{y:2015,v:100.1,a:"obama"},{y:2016,v:104.8,a:"obama"},{y:2017,v:103.6,a:"trump1"},{y:2018,v:104.3,a:"trump1"},{y:2019,v:106.8,a:"trump1"},{y:2020,v:127.0,a:"trump1"},{y:2021,v:121.7,a:"biden"},{y:2022,v:120.0,a:"biden"},{y:2023,v:122.3,a:"biden"},{y:2024,v:124.0,a:"biden"}]},
-  deficit:{l:"Budget Deficit",s:"$Billions",src:"CBO / Treasury",u:"B",inv:false,cat:"fiscal",
+  deficit:{l:"Budget Balance",s:"$Billions, fiscal year",src:"Treasury",u:"B",inv:false,cat:"fiscal",
     def:"Federal Revenue − Federal Outlays. Negative = deficit (spending exceeds revenue). Positive = surplus. This is the FEDERAL BUDGET deficit — not the trade deficit.",
     bench:{good:"Below 3% of GDP (~$800B)",target:"Balanced budget or small surplus is ideal but rare",warn:"Above 5% of GDP in non-crisis years = fiscally unsustainable trajectory",why:"Running deficits during recessions is standard Keynesian economics. Running $1.8T deficits during economic expansion (2024) is unusual and concerning — it leaves no fiscal room for the next crisis."},
     ctx:"Clinton achieved surpluses. COVID spending dwarfed all prior deficits.",facts:[{t:"70% of spending is autopilot",x:"Social Security, Medicare, Medicaid, interest run regardless of president."}],
@@ -244,16 +252,51 @@ const M = {
     bench:{good:"+0.5 to +2.5 pts",target:"Positive and gently upward-sloping",warn:"Below zero (inverted) has preceded every US recession since the late 1970s"},why:"Inversion means markets expect rates to fall — usually because they expect the economy to weaken. It also squeezes banks, which borrow short and lend long.",
     ctx:"A warning, not a timer: recessions have followed inversions by roughly 6–24 months. The 2022–24 inversion, the longest on record, hadn't produced one by its end.",facts:[{t:"Inverted Jul 2022 – Aug 2024",x:"Longest inversion in the series' history; deepest around −1.1 pts in mid-2023."}],
     d:[{y:1993,v:1.83,a:"clinton"},{y:1994,v:1.14,a:"clinton"},{y:1995,v:0.42,a:"clinton"},{y:1996,v:0.6,a:"clinton"},{y:1997,v:0.36,a:"clinton"},{y:1998,v:0.14,a:"clinton"},{y:1999,v:0.21,a:"clinton"},{y:2000,v:-0.23,a:"clinton"},{y:2001,v:1.2,a:"bush"},{y:2002,v:1.97,a:"bush"},{y:2003,v:2.36,a:"bush"},{y:2004,v:1.89,a:"bush"},{y:2005,v:0.44,a:"bush"},{y:2006,v:-0.02,a:"bush"},{y:2007,v:0.27,a:"bush"},{y:2008,v:1.66,a:"bush"},{y:2009,v:2.3,a:"obama"},{y:2010,v:2.51,a:"obama"},{y:2011,v:2.33,a:"obama"},{y:2012,v:1.53,a:"obama"},{y:2013,v:2.04,a:"obama"},{y:2014,v:2.08,a:"obama"},{y:2015,v:1.45,a:"obama"},{y:2016,v:1.01,a:"obama"},{y:2017,v:0.93,a:"trump1"},{y:2018,v:0.38,a:"trump1"},{y:2019,v:0.17,a:"trump1"},{y:2020,v:0.5,a:"trump1"},{y:2021,v:1.18,a:"biden"},{y:2022,v:-0.03,a:"biden"},{y:2023,v:-0.62,a:"biden"},{y:2024,v:-0.16,a:"biden"}]},
-  purchasing:{l:"Purchasing Power",s:"Value of $1 (1993$)",src:"BLS CPI",u:"pp",inv:false,cat:"prices",
-    def:"$1 / (CPI current / CPI 1993). Shows how much a 1993 dollar buys today. Lower = your money buys less. Every president's bar shows how much value the dollar lost on their watch.",
-    bench:{good:"Losing under 2¢/yr",target:"Some decline is normal with 2% inflation target",warn:"Losing over 4¢/yr = rapid erosion of savings"},why:"$1 in 1993 buys only ~47¢ worth of goods in 2024. This is the cumulative cost of inflation that people feel but rarely see quantified.",
+  core_cpi:{l:"Core Inflation",s:"CPI ex food & energy, %",src:"BLS",u:"%",inv:true,cat:"prices",
+    def:"Annual % change in the Consumer Price Index excluding food and energy, the volatile parts. Shows the underlying trend in prices.",
+    bench:{good:"1.5–2.5%",target:"Close to the Fed's 2% goal",warn:"Above 4% = broad-based price pressure",why:"Food and energy swing with weather and oil markets. Core shows whether price increases have spread across the economy."},
+    ctx:"Strips out food and energy to show the trend.",facts:[{t:"Not what people pay",x:"Families do buy food and gas. Core is a signal of trend, not the cost of living."}],
+    d:[]},
+  mortgage:{l:"Mortgage Rate",s:"30-year fixed, %",src:"Freddie Mac",u:"%",inv:true,cat:"prices",
+    def:"Average rate on a 30-year fixed mortgage, Freddie Mac's weekly survey, averaged over the year.",
+    bench:{good:"Below 5%",target:"Long-run average since 1971 is about 7.7%",warn:"Above 7% = monthly payments out of reach for many buyers",why:"On a $300K loan, the payment at 7% is about $600 a month more than at 4%."},
+    ctx:"Tracks the 10-year Treasury yield more than Fed policy.",facts:[{t:"Not set by the president",x:"Mortgage rates follow bond markets and inflation expectations."}],
+    d:[]},
+  housing_starts:{l:"Housing Starts",s:"Thousands, annual rate",src:"Census",u:"K",inv:false,cat:"growth",
+    def:"New privately owned homes started, thousands of units at a seasonally adjusted annual rate, averaged over the year (Census Bureau).",
+    bench:{good:"1.3–1.6 million",target:"Roughly what's needed to keep up with household growth",warn:"Below 1.0 million = construction slump",why:"More homes started means more supply later, which helps prices and rents."},
+    ctx:"Leading indicator for construction and home prices.",facts:[{t:"Rates drive it",x:"Higher mortgage rates usually slow new construction within months."}],
+    d:[]},
+  retail:{l:"Retail Sales",s:"$B per month, annual avg",src:"Census",u:"B",inv:false,cat:"growth",
+    def:"Total retail and food-service sales, $ billions per month (seasonally adjusted), averaged over the year. Not adjusted for inflation.",
+    bench:{good:"Growing faster than inflation",target:"Real growth of 2–3% a year",warn:"Falling sales in dollar terms = consumers pulling back",why:"Consumer spending is about two-thirds of the economy; retail sales are its most timely monthly read."},
+    ctx:"Nominal dollars: part of the rise is just inflation.",facts:[{t:"Not inflation-adjusted",x:"Sales rise with prices even when people buy the same amount."}],
+    d:[]},
+  openings:{l:"Job Openings",s:"Millions",src:"BLS JOLTS",u:"mfg",inv:false,cat:"labor",
+    def:"Job openings on the last business day of the month, millions, averaged over the year (BLS Job Openings and Labor Turnover Survey, since December 2000).",
+    bench:{good:"Close to the number of unemployed",target:"Openings ≈ job seekers is a balanced market",warn:"Falling openings often come before rising unemployment",why:"Openings show how much employers want to hire."},
+    ctx:"Data starts December 2000.",facts:[{t:"Openings aren't hires",x:"A posted job may stay open or never be filled."}],
+    d:[]},
+  openings_per_worker:{l:"Openings per Job Seeker",s:"Openings ÷ unemployed",src:"BLS",u:"x",inv:false,cat:"labor",
+    def:"Job openings divided by the number of unemployed people, averaged over the year. Above 1 = more openings than job seekers.",
+    bench:{good:"Around 1.0",target:"About one opening per job seeker",warn:"Below 0.5 = hard to find work. Above 1.5 = very tight market",why:"Economists read this ratio to judge how tight the labor market is."},
+    ctx:"Above 1 means more open jobs than unemployed people.",facts:[{t:"2022 peak",x:"The ratio reached about 2 in 2022, the highest on record."}],
+    d:[]},
+  saving:{l:"Saving Rate",s:"% of disposable income",src:"BEA",u:"%",inv:false,cat:"fiscal",
+    def:"Personal saving as a share of disposable (after-tax) personal income, averaged over the year (BEA).",
+    bench:{good:"6–10%",target:"Long-run average is about 8%",warn:"Below 4% = thin household cushion",why:"Savings are what households fall back on in a downturn."},
+    ctx:"Spiked in 2020 when spending stopped and stimulus arrived.",facts:[{t:"2020 record",x:"The rate hit 32% in April 2020."}],
+    d:[]},
+  purchasing:{l:"Purchasing Power",s:"Value of $1 (Jan 1969$)",src:"BLS CPI",u:"pp",inv:false,cat:"prices",
+    def:"$1 / (CPI now / CPI January 1969). Shows how much a 1969 dollar buys. Lower = your money buys less. Every president's bar shows how much value the dollar lost on their watch.",
+    bench:{good:"Losing under 2¢/yr",target:"Some decline is normal with 2% inflation target",warn:"Losing over 4¢/yr = rapid erosion of savings"},why:"A dollar from January 1969 buys about 11¢ of goods today. This is the cumulative cost of inflation that people feel but rarely see quantified.",
     ctx:"Steady erosion is expected with 2% inflation target. The 2021-2023 spike was the sharpest decline in decades.",facts:[{t:"Inflation is a hidden tax",x:"You don't see it deducted from your paycheck, but $100 of groceries in 2020 costs $122 in 2024."},{t:"Savers are punished",x:"If your savings account pays 1% but inflation is 3%, you lose 2% of purchasing power every year."}],
     d:[{y:1993,v:1.00,a:"clinton"},{y:1994,v:0.97,a:"clinton"},{y:1995,v:0.95,a:"clinton"},{y:1996,v:0.92,a:"clinton"},{y:1997,v:0.90,a:"clinton"},{y:1998,v:0.88,a:"clinton"},{y:1999,v:0.87,a:"clinton"},{y:2000,v:0.84,a:"clinton"},{y:2001,v:0.81,a:"bush"},{y:2002,v:0.80,a:"bush"},{y:2003,v:0.78,a:"bush"},{y:2004,v:0.76,a:"bush"},{y:2005,v:0.74,a:"bush"},{y:2006,v:0.71,a:"bush"},{y:2007,v:0.69,a:"bush"},{y:2008,v:0.67,a:"bush"},{y:2009,v:0.67,a:"obama"},{y:2010,v:0.66,a:"obama"},{y:2011,v:0.64,a:"obama"},{y:2012,v:0.63,a:"obama"},{y:2013,v:0.62,a:"obama"},{y:2014,v:0.61,a:"obama"},{y:2015,v:0.61,a:"obama"},{y:2016,v:0.60,a:"obama"},{y:2017,v:0.59,a:"trump1"},{y:2018,v:0.57,a:"trump1"},{y:2019,v:0.56,a:"trump1"},{y:2020,v:0.56,a:"trump1"},{y:2021,v:0.53,a:"biden"},{y:2022,v:0.49,a:"biden"},{y:2023,v:0.47,a:"biden"},{y:2024,v:0.46,a:"biden"}]},
 };
 
-const MK=Object.keys(M);
-const CATS={growth:"Growth",labor:"Labor Market",prices:"Prices & Wages",people:"Living Standards",fiscal:"Fiscal Health",markets:"Markets",sentiment:"Sentiment"};
-const ML={real_gdp:"GDP",gdp:"GDP%",unemployment:"Unemp",lfpr:"LFPR",jobs:"Jobs",mfg:"Mfg",inflation:"CPI",gas:"Gas",wages:"Wages",median_income:"Inc",poverty:"Pov",inequality:"Ineq",consumer_conf:"Conf",debt_gdp:"D/GDP",deficit:"Budget",sp500:"S&P",trade:"Trade",fed_rate:"Rate",ten_year:"10Y",five_year:"5Y",yield_curve:"Curve",purchasing:"$PWR"};
+const MK=METRIC_LIST.map(x=>x.key).filter(k=>k in M);
+const CATS=METRIC_CATS;
+const ML={real_gdp:"GDP",gdp:"GDP%",unemployment:"Unemp",lfpr:"LFPR",jobs:"Jobs",mfg:"Mfg",inflation:"CPI",gas:"Gas",wages:"Wages",median_income:"Inc",poverty:"Pov",inequality:"Ineq",consumer_conf:"Conf",debt_gdp:"D/GDP",deficit:"Budget",sp500:"S&P",trade:"Trade",fed_rate:"Rate",ten_year:"10Y",five_year:"5Y",yield_curve:"Curve",purchasing:"$PWR",core_cpi:"Core",mortgage:"Mtg",housing_starts:"Starts",retail:"Retail",openings:"Open",openings_per_worker:"V/U",saving:"Save"};
 
 // Inherited baseline: each president starts from the previous president's last value
 function inheritedStart(mk: string, id: string): number {
@@ -279,7 +322,8 @@ const INH={
 function fmt(v,u){
   if(u==="rT"||u==="T")return`$${v.toFixed(1)}T`;if(u==="B")return`${v<0?"−":""}$${Math.round(Math.abs(v)).toLocaleString()}B`; /* sign kept: deficits and trade gaps are negative */
   if(u==="%")return`${v.toFixed(1)}%`;if(u==="$")return`$${v.toFixed(2)}`;if(u==="M")return`${v>0?"+":""}${v.toFixed(1)}M`;
-  if(u==="inc")return`$${(v/1000).toFixed(1)}K`;if(u==="cc")return v.toFixed(0);if(u==="mfg")return`${v.toFixed(1)}M`;if(u==="pp")return`$${v.toFixed(2)}`;if(u==="pts")return`${v>0?"+":v<0?"−":""}${Math.abs(v).toFixed(2)} pts`;return v.toLocaleString();
+  if(u==="inc")return`$${(v/1000).toFixed(1)}K`;if(u==="cc")return v.toFixed(0);if(u==="mfg")return`${v.toFixed(1)}M`;if(u==="pp")return`$${v.toFixed(2)}`;if(u==="pts")return`${v>0?"+":v<0?"−":""}${Math.abs(v).toFixed(2)} pts`;
+  if(u==="K")return`${Math.round(v).toLocaleString()}K`;if(u==="x")return`${v.toFixed(2)}×`;return v.toLocaleString();
 }
 
 // (Removed: scores() — only consumer was the deleted Scorecard tab.)
@@ -761,7 +805,19 @@ const TABS_MOBILE=[["dashboard","Data"]];
 
 // Per-metric heatmap data, computed once at module-load. Uses the shared lib
 // so the dashboard speaks the same data language as the landing page.
-const HEAT_DATA = computeHeatmap(M, AID, "inflation");
+let HEAT_DATA = computeHeatmap(M, AID, "inflation");
+
+/** Whole-terms data from the server (lib/terms-data): the same official
+ *  series the same-point view uses, 1969 on. Replaces the built-in history
+ *  for every metric it covers; applied once per payload. */
+let TERMS: Record<string, TermPoint[]> | null = null;
+function applyTerms(t: Record<string, TermPoint[]> | null | undefined) {
+  if (!t || t === TERMS) return;
+  TERMS = t;
+  for (const [k, pts] of Object.entries(t)) if (M[k] && pts.length) M[k].d = pts.map(p => ({ ...p }));
+  HEAT_DATA = computeHeatmap(M, AID, "inflation");
+  AVG_SCALE_BY_METRIC = computeAvgScale();
+}
 
 // Bound helper — pre-applies the dashboard's METRIC_DISPLAY config and the
 // per-metric inverse flag so call sites stay short.
@@ -784,7 +840,9 @@ const FIRST_METRIC_KEY: string | undefined = (() => {
 // Per-metric color-scale max for the avg_per_year unit. Different metrics
 // have wildly different "big" magnitudes (2M jobs/yr vs $1000B deficit/yr),
 // so we normalize against each metric's own historical max within this dataset.
-const AVG_SCALE_BY_METRIC: Record<string, number> = (() => {
+let AVG_SCALE_BY_METRIC: Record<string, number> = computeAvgScale();
+function computeAvgScale(): Record<string, number> {
+  return (() => {
   const out: Record<string, number> = {};
   for (const mk of Object.keys(METRIC_DISPLAY_DASHBOARD)) {
     if (METRIC_DISPLAY_DASHBOARD[mk].perMetricUnit !== "avg_per_year") continue;
@@ -795,6 +853,7 @@ const AVG_SCALE_BY_METRIC: Record<string, number> = (() => {
   }
   return out;
 })();
+}
 
 // Per-cell heatmap cell with hover scale + rich tooltip, matching the
 // landing page's HeatCell behavior. Tooltip flips below for the top
@@ -857,8 +916,8 @@ function DashHeatCell({
         zIndex: hov ? 10 : 1,
       }}
     >
-      <span style={{ fontFamily: ESERIF, fontSize: 16, fontWeight: 600, lineHeight: 1.05, letterSpacing: "-0.01em" }}>{headline}</span>
-      <span style={{ fontSize: 10, opacity: 0.78, lineHeight: 1.1, letterSpacing: "0.02em", fontFamily: ESANS, marginTop: 1, fontWeight: 500 }}>
+      <span style={{ fontFamily: ESERIF, fontSize: String(headline).length > 8 ? 13.5 : 16, fontWeight: 600, lineHeight: 1.05, letterSpacing: "-0.01em", whiteSpace: "nowrap" }}>{headline}</span>
+      <span style={{ fontSize: 10, opacity: 0.78, lineHeight: 1.1, letterSpacing: "0.02em", fontFamily: ESANS, marginTop: 1, fontWeight: 500, whiteSpace: "nowrap", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis" }}>
         {fmt(c.start, mx.u)} → {fmt(c.end, mx.u)}
       </span>
 
@@ -914,7 +973,8 @@ function DashHeatCell({
   );
 }
 
-export default function DashboardPage() {
+export default function DashboardPage({ terms }: { terms?: Record<string, TermPoint[]> | null } = {}) {
+  applyTerms(terms);
   return <Suspense><App /></Suspense>;
 }
 
@@ -924,7 +984,7 @@ function App(){
   const searchParams = useSearchParams();
   const [am,setAm]=useState("gdp");
   const [detail,setDetail]=useState(null);
-  const [sel,setSel]=useState(["clinton","bush","obama","trump1","biden","trump2"]);
+  const [sel,setSel]=useState<string[]>(AIDX);
   const [ct,setCt]=useState("bar");
   // Reader's region for this metric (gas, inflation), when a location is set.
   const localAnn=useLocalAnnual(am);
@@ -949,12 +1009,16 @@ function App(){
     // Fold the current term's yearly points into each series (replacing any
     // from an earlier load), then recompute cells for all six columns.
     for(const k of Object.keys(M)){
+      // Covered by the server's whole-terms data (current term included).
+      if(TERMS?.[k]?.length) continue;
       const hist=M[k].d.filter(p=>p.a!=="trump2");
       const h24=hist.find(p=>p.a==="biden"&&p.y===2024)?.v ?? null;
       M[k].d=[...hist,...liveAnnual(bench,k,h24)];
     }
     setHeatLive(computeHeatmap(M, AIDX, "inflation"));
   },[bench]);
+  // Current-term cells straight away when the server data already has them.
+  useEffect(()=>{ if(TERMS) setHeatLive(computeHeatmap(M, AIDX, "inflation")); },[]);
   useEffect(()=>{
     let alive=true;
     fetch("/api/benchmark-data").then(r=>r.json()).then(d=>{ if(alive && d && !d.error) setBench(d); }).catch(()=>{});
@@ -1069,7 +1133,7 @@ function App(){
   const localMap=localAnn&&localAnn.metric===am?new Map(localAnn.points.map(p=>[p.y,p.v])):null;
   const fd=localMap?fd0.map(d=>({...d,lv:localMap.get(Number(d.y))??null})):fd0;
   const canLocal=am==="gas"||am==="inflation";
-  const vis=cf==="all"?MK:MK.filter(k=>M[k].cat===cf);
+  const vis=(cf==="all"?MK:MK.filter(k=>M[k].cat===cf)).filter(k=>M[k].d.length);
 
   const sums=useMemo(()=>{const o={};for(const id of sel){const p=m.d.filter(d=>d.a===id);if(!p.length)continue;
     o[id]={avg:p.reduce((s,x)=>s+x.v,0)/p.length,chg:p[p.length-1].v-p[0].v};}return o;},[am,sel,heatLive]);
@@ -1468,7 +1532,7 @@ function App(){
             {mob && mobileView==="cards" && (
               <div style={{display:"flex",flexDirection:"column",gap:12,marginBottom:20}}>
                 {Object.entries(CATS).map(([catKey,catLabel])=>{
-                  const catMetrics=MK.filter(k=>M[k].cat===catKey);
+                  const catMetrics=MK.filter(k=>M[k].cat===catKey&&M[k].d.length);
                   if(!catMetrics.length)return null;
                   return (
                     <div key={catKey}>
@@ -1524,7 +1588,7 @@ function App(){
             {(!mob || mobileView==="table") && (
             <div style={{background:EC.card,border:`1px solid ${EC.rule}`,borderRadius:4,overflow:"hidden",overflowX:"auto",WebkitOverflowScrolling:"touch",marginBottom:16}}>
               {/* Toggle bar */}
-              <div style={{display:"flex",justifyContent:"flex-end",alignItems:"center",gap:16,padding:"10px 14px",background:EC.paper,borderBottom:`1px solid ${EC.rule}`,flexWrap:"wrap",minWidth:mob?780:undefined}}>
+              <div style={{display:"flex",justifyContent:"flex-end",alignItems:"center",gap:16,padding:"10px 14px",background:EC.paper,borderBottom:`1px solid ${EC.rule}`,flexWrap:"wrap",minWidth:mob?160+(AID.length+1)*58:undefined}}>
                 <PillToggle<DisplayMode>
                   label="Display"
                   value={displayMode}
@@ -1549,10 +1613,10 @@ function App(){
               {/* Header row */}
               <div style={{
                 display:"grid",
-                gridTemplateColumns:mob?"160px repeat(6, 1fr)":"200px repeat(6, 1fr)",
+                gridTemplateColumns:mob?`160px repeat(${AID.length+1}, minmax(58px,1fr))`:`200px repeat(${AID.length+1}, minmax(64px,1fr))`,
                 alignItems:"center",background:EC.paper,borderBottom:`1px solid ${EC.rule}`,
                 padding:"10px 0",fontSize:11,letterSpacing:"0.09em",textTransform:"uppercase",
-                color:EC.sub,fontWeight:500,minWidth:mob?780:undefined,
+                color:EC.sub,fontWeight:500,minWidth:mob?160+(AID.length+1)*58:undefined,
               }}>
                 <div style={{paddingLeft:18}}>Metric</div>
                 {AID.map(id=>{
@@ -1575,7 +1639,7 @@ function App(){
 
               {/* Rows grouped by category */}
               {Object.entries(CATS).map(([catKey,catLabel])=>{
-                const catMetrics=MK.filter(k=>M[k].cat===catKey);
+                const catMetrics=MK.filter(k=>M[k].cat===catKey&&M[k].d.length);
                 if(!catMetrics.length)return null;
                 return (
                   <div key={catKey}>
@@ -1584,7 +1648,7 @@ function App(){
                       textTransform:"uppercase",color:EC.mute,
                       padding:"12px 18px 4px",background:"#fbf8f3",
                       borderTop:`1px solid ${EC.rule}`,
-                      minWidth:mob?780:undefined,
+                      minWidth:mob?160+(AID.length+1)*58:undefined,
                     }}>{catLabel as string}</div>
                     {catMetrics.map((mk)=>{
                       const mx=M[mk];
@@ -1596,9 +1660,9 @@ function App(){
                           key={mk}
                           style={{
                             display:"grid",
-                            gridTemplateColumns:mob?"160px repeat(6, 1fr)":"200px repeat(6, 1fr)",
+                            gridTemplateColumns:mob?`160px repeat(${AID.length+1}, minmax(58px,1fr))`:`200px repeat(${AID.length+1}, minmax(64px,1fr))`,
                             alignItems:"center",borderTop:`1px solid ${EC.rule}`,
-                            fontSize:13,minWidth:mob?780:undefined,
+                            fontSize:13,minWidth:mob?160+(AID.length+1)*58:undefined,
                           }}
                         >
                           <div style={{padding:"10px 18px",display:"flex",flexDirection:"column",gap:1}}>
@@ -1644,7 +1708,7 @@ function App(){
                 display:"flex",alignItems:"center",justifyContent:"space-between",
                 padding:"12px 18px",background:EC.paper,borderTop:`1px solid ${EC.rule}`,
                 fontSize:11,color:EC.sub,letterSpacing:"0.03em",flexWrap:"wrap",gap:10,
-                minWidth:mob?780:undefined,fontFamily:ESANS,
+                minWidth:mob?160+(AID.length+1)*58:undefined,fontFamily:ESANS,
               }}>
                 <span>
                   {displayMode==="per_metric"
@@ -1740,7 +1804,7 @@ function App(){
                   </div>
                   <div style={{padding:"8px 0 20px"}}>
                     {Object.entries(CATS).map(([catKey,catLabel])=>{
-                      const catMetrics=MK.filter(k=>M[k].cat===catKey);
+                      const catMetrics=MK.filter(k=>M[k].cat===catKey&&M[k].d.length);
                       if(!catMetrics.length)return null;
                       return <div key={catKey}>
                         <div style={{padding:"12px 18px 4px",fontFamily:"'DM Sans',sans-serif",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:2,color:T.mute}}>{catLabel}</div>

@@ -47,7 +47,7 @@ function valueAt(data: BenchPoint[], month: number): number | null {
  * rank the years (every recent president "#1" on real GDP). These rank on
  * the % change since that president's own month 0 instead.
  */
-export const RANK_BY_CHANGE = new Set(["real_gdp", "retail", "purchasing", "mfg", "gas", "trade"]);
+export const RANK_BY_CHANGE = new Set(["real_gdp", "retail", "purchasing", "mfg", "gas", "trade", "median_income"]);
 
 export interface SamePointRow { id: string; name: string; value: number; change: number | null; rank: number }
 export interface SamePoint { month: number; n: number; rows: SamePointRow[]; avg: number | null; avgChange: number | null; current: SamePointRow | null; byChange: boolean }
@@ -93,6 +93,7 @@ export function fmtBench(v: number, unit: string, signed = false): string {
     case "x": return `${sign}${a.toFixed(2)}×`;
     case "pts": return `${v > 0 && signed ? "+" : sign}${a.toFixed(2)} pts`;
     case "idx": return `${sign}${Math.round(a).toLocaleString("en-US")}`;
+    case "inc": return `${sign}$${(a / 1000).toFixed(1)}K`;
     default: return `${sign}${a.toFixed(1)}`;
   }
 }

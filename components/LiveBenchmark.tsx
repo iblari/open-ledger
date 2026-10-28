@@ -229,6 +229,9 @@ function fmtVal(v: number | null | undefined, unit: string): string {
   if (unit === "K") return `${v > 0 ? "+" : ""}${v.toFixed(0)}K`;
   if (unit === "$") return `$${v.toFixed(2)}`;
   if (unit === "%") return `${v.toFixed(1)}%`;
+  if (unit === "inc") return `$${(v / 1000).toFixed(1)}K`;
+  if (unit === "x") return `${v.toFixed(2)}×`;
+  if (unit === "idx") return Math.round(v).toLocaleString("en-US");
   if (unit === "pts") return `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(2)} pts`;
   return v.toFixed(1) + unit;
 }
@@ -367,17 +370,14 @@ function autoInsight(args: {
   // ── Phrase the standing vs prior admins ──
   // Lower rank = better when lowerBetter (1st of 10 unemployment = best).
   const adverbBetter = md.lowerBetter ? "lower" : "higher";
-  const performWord  = md.lowerBetter
-    ? (rank <= total / 3 ? "tighter" : rank >= 2 * total / 3 ? "looser" : "in line with")
-    : (rank <= total / 3 ? "stronger" : rank >= 2 * total / 3 ? "weaker" : "in line with");
 
   // Top/bottom quartile + middle wording.
   let rankPhrase: string;
   if (rank <= 3) {
-    rankPhrase = `the ${ordinal(rank)}-${performWord === "in line with" ? "ranked" : performWord} of ${total} modern administrations at month ${atMonth}`;
+    rankPhrase = `the ${rank === 1 ? "best" : `${ordinal(rank)}-best`} of ${total} modern administrations at month ${atMonth}`;
   } else if (rank >= total - 2) {
     const fromBottom = total - rank + 1;
-    rankPhrase = `${ordinal(fromBottom)}-${md.lowerBetter ? "weakest" : "weakest"} of ${total} at month ${atMonth}`;
+    rankPhrase = `${fromBottom === 1 ? "the weakest" : `${ordinal(fromBottom)}-weakest`} of ${total} at month ${atMonth}`;
   } else {
     rankPhrase = `roughly mid-pack: ${ordinal(rank)} of ${total} at month ${atMonth}`;
   }
@@ -844,6 +844,11 @@ export default function LiveBenchmark({ initialMetric, onBack }: { initialMetric
         </>)}
 
         {/* ── Stat strip (3 editorial cards, DESKTOP) ── */}
+        {md && !stats && (
+          <div style={{ fontFamily: ESANS, fontSize: 13, color: EC.sub, background: "#fff", border: `1px solid ${EC.rule}`, borderRadius: 8, padding: "10px 14px", margin: mob ? "0 8px 12px" : "0 0 16px" }}>
+            No figure for the current term yet{(md as { yearly?: boolean }).yearly ? ": this measure is published once a year, after the year ends." : "."}
+          </div>
+        )}
         {!mob && stats && md && (
           <div style={{
             display: "grid",
@@ -926,7 +931,7 @@ export default function LiveBenchmark({ initialMetric, onBack }: { initialMetric
             }}>
               <span>{md.label}</span>
               <span style={{ fontFamily: ESANS, fontSize: 11, color: EC.mute, fontWeight: 400 }}>
-                · {md.series.length} administrations · months in office
+                · {md.series.length} administrations · {(md as { yearly?: boolean }).yearly ? "published yearly: year 1–4 of each term" : "months in office"}
               </span>
             </div>
             {/* Hover panel — renders ABOVE the chart so it never overlays the
@@ -1090,7 +1095,7 @@ export default function LiveBenchmark({ initialMetric, onBack }: { initialMetric
               display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap",
             }}>
               <span>{md.label}</span>
-              <span style={{ fontFamily: ESANS, fontSize: 11, color: EC.mute, fontWeight: 400 }}>· {md.series.length} administrations</span>
+              <span style={{ fontFamily: ESANS, fontSize: 11, color: EC.mute, fontWeight: 400 }}>· {md.series.length} administrations{(md as { yearly?: boolean }).yearly ? " · yearly figures" : ""}</span>
             </div>
 
             {/* Pinned readout bar — replaces the hover tooltip on touch */}

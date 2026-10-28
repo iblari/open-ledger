@@ -3,6 +3,7 @@ import DashboardPage from "./DashboardClient";
 import { getSeries } from "@/lib/series";
 import { shareSeriesFor, shortName } from "@/lib/metric-share";
 import { buildOgChart } from "@/lib/og-chart";
+import { getTermsData } from "@/lib/terms-data";
 import { metricForDash, adminByAlias, METRIC_COUNT, ADMIN_COUNT, FIRST_YEAR, SITE } from "@/lib/seo-catalog";
 
 /** Every dashboard state points search engines at its one clean page:
@@ -49,6 +50,8 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
   };
 }
 
-export default function Page() {
-  return <DashboardPage />;
+export default async function Page() {
+  // Whole-terms data on the server, so the page renders complete (no swap).
+  const terms = await getTermsData().catch(() => null);
+  return <DashboardPage terms={terms} />;
 }
