@@ -111,3 +111,54 @@ export async function getLocalBench(metric: string, code: string, month: number,
     url: fredUrl(localId), since: la[0]?.d.slice(0, 4) || "",
   };
 }
+
+/* ── Data tab: annual regional series to overlay the national bars ─── */
+
+export const LOCAL_ANNUAL = new Set(["gas", "inflation"]);
+export interface LocalAnnual {
+  metric: string; place: string; unit: string; source: string; url: string;
+  points: { y: number; v: number; partial?: boolean }[];
+  latest: { label: string; local: number; us: number } | null;
+}
+/** Annual averages, the same basis as the Data tab: gas = average price,
+ *  inflation = % change in the annual-average CPI. */
+export async function getLocalAnnual(metric: string, code: string): Promise<LocalAnnual | null> {
+  const st = STATE_BY_CODE.get(code);
+  if (!st || !LOCAL_ANNUAL.has(metric)) return null;
+  const isGas = metric === "gas";
+  const localId = isGas ? PADD_MONTHLY[st.padd] : `CUUR${CPI_REGION[st.cpi].code}SA0`;
+  const usId = isGas ? "GASREGCOVM" : "CPIAUCNS";
+  const [a, b] = await Promise.all([fredSeries(localId), fredSeries(usId)]);
+  const avg = (pts: Pt[]) => {
+    const by = new Map<number, number[]>();
+    for (const p of pts) { const y = +p.d.slice(0, 4); by.set(y, [...(by.get(y) || []), p.v]); }
+    return new Map([...by].map(([y, v]) => [y, { v: v.reduce((s, x) => s + x, 0) / v.length, n: v.length }]));
+  };
+  const am = avg(a);
+  const thisYear = new Date().getUTCFullYear();
+  const points: LocalAnnual["points"] = [];
+  for (const [y, { v, n }] of [...am].sort((x, z) => x[0] - z[0])) {
+    if (isGas) { if (n >= 6 || y === thisYear) points.push({ y, v: +v.toFixed(2), ...(y === thisYear ? { partial: true } : {}) }); continue; }
+    // Early regional CPI was published every other month: an annual average
+    // of the months that exist is still the published basis BLS uses.
+    const prev = am.get(y - 1);
+    if (prev && n >= 4 && prev.n >= 4) points.push({ y, v: +((v / prev.v - 1) * 100).toFixed(1), ...(y === thisYear ? { partial: true } : {}) });
+  }
+  // Latest month, both sides.
+  const bm = new Map(b.map(p => [p.d, p.v]));
+  let latest: LocalAnnual["latest"] = null;
+  if (isGas) {
+    const last = [...a].reverse().find(p => bm.has(p.d));
+    if (last) latest = { label: monthLabel(last.d), local: +last.v.toFixed(2), us: +bm.get(last.d)!.toFixed(2) };
+  } else {
+    const la = yoy(a, "m"), lb = new Map(yoy(b, "m").map(p => [p.d, p.v]));
+    const last = [...la].reverse().find(p => lb.has(p.d));
+    if (last) latest = { label: monthLabel(last.d), local: +last.v.toFixed(1), us: +lb.get(last.d)!.toFixed(1) };
+  }
+  return {
+    metric, unit: isGas ? "$" : "%",
+    place: isGas ? `${PADD[st.padd].name}` : `${CPI_REGION[st.cpi].name}`,
+    source: isGas ? "EIA retail regular gasoline, monthly, annual average" : "BLS CPI-U, not seasonally adjusted, annual average",
+    url: fredUrl(localId), points, latest,
+  };
+}

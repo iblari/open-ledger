@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { useLoc } from "@/lib/local-client";
 import type { LocalBench as LB } from "@/lib/local";
-import { LOCAL_INK } from "./LocationPicker";
+import LocationPicker, { LOCAL_INK } from "./LocationPicker";
 
 /** Your region at the same month of every term, next to the US figure.
  *  Without a saved location: a quiet prompt that opens the picker. */
@@ -20,8 +20,7 @@ export default function LocalBench({ metric, month, admins }: { metric: "inflati
   if (!loc) return (
     <div data-nosnippet style={{ ...box, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", fontSize: 14 }}>
       <span style={{ color: "#5c5856" }}>{metric === "gas" ? "Gas prices differ by region." : "Inflation differs by region."} See yours next to the national figure.</span>
-      <button type="button" onClick={() => window.dispatchEvent(new Event("vu-loc-open"))}
-        style={{ padding: "7px 12px", borderRadius: 8, border: `1px solid ${LOCAL_INK}`, background: "transparent", color: LOCAL_INK, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>Set your location</button>
+      <LocationPicker cta="Set your location" />
     </div>
   );
   if (!d) return <div data-nosnippet style={{ ...box, fontSize: 13, color: "#8c8479" }}>Loading {loc.state.name}'s region…</div>;
@@ -30,7 +29,10 @@ export default function LocalBench({ metric, month, admins }: { metric: "inflati
   const shown = d.rows.filter(r => r.us != null);
   return (
     <div data-nosnippet style={box}>
-      <div style={{ fontSize: 14, fontWeight: 700, color: LOCAL_INK }}>{d.place} vs US at month {month + 1} of each term</div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: LOCAL_INK }}>{d.place} vs US at month {month + 1} of each term</div>
+        <LocationPicker compact />
+      </div>
       <div style={{ fontSize: 12, color: "#8c8479", margin: "2px 0 8px" }}>{loc.state.name} is in the {d.place}. {d.source}.</div>
       <div style={{ overflowX: "auto" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13.5, minWidth: 300 }}>

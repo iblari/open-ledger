@@ -15,8 +15,7 @@ import { getClaimTimeline } from "@/lib/claim-timeline";
 import { getClaimSeries } from "@/lib/claim-series";
 import { localTopic } from "@/lib/local-shared";
 import ClaimTimeline from "@/components/ClaimTimeline";
-import LocalLine from "@/components/local/LocalLine";
-import LocationPicker from "@/components/local/LocationPicker";
+import LocalSlot from "@/components/local/LocalSlot";
 
 /**
  * /c/[key] — one fact-check, on its own page.
@@ -89,7 +88,6 @@ export default async function ClaimPage({ params }: { params: Promise<{ key: str
           <span className="vu-wordmark" style={{ fontFamily: SERIF, fontSize: 19 }}>Vote <em style={{ color: "#B8372D" }}>Unbiased</em></span>
         </Link>
         <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <LocationPicker />
           <Link href="/live" style={{ fontSize: 13, fontWeight: 600, color: "#14110E", textDecoration: "none", border: "1px solid #E2DED6", borderRadius: 6, padding: "7px 12px", background: "#fff", whiteSpace: "nowrap" }}>Live fact-checks</Link>
         </span>
       </header>
@@ -123,7 +121,7 @@ export default async function ClaimPage({ params }: { params: Promise<{ key: str
             {c.explanation && c.explanation !== c.actual && (
               <p style={{ fontSize: 14.5, lineHeight: 1.6, color: "#3D3833", margin: "12px 0 0" }}>{c.explanation}</p>
             )}
-            <LocalLine topic={topic} />
+            <LocalSlot topic={topic} />
           </section>
         )}
 

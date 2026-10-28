@@ -8,7 +8,7 @@ import { useLoc, writeLoc } from "@/lib/local-client";
  *  window.dispatchEvent(new Event("vu-loc-open")). */
 export const LOCAL_INK = "#6B4FBB";
 
-export default function LocationPicker({ tone = "light", compact = false }: { tone?: "light" | "dark"; compact?: boolean }) {
+export default function LocationPicker({ tone = "light", compact = false, cta }: { tone?: "light" | "dark"; compact?: boolean; cta?: string }) {
   const loc = useLoc();
   const [open, setOpen] = useState(false);
   const [code, setCode] = useState("");
@@ -44,14 +44,14 @@ export default function LocationPicker({ tone = "light", compact = false }: { to
       <button type="button" aria-haspopup="dialog" aria-expanded={open} aria-label={`Your location: ${loc ? loc.state.name : "United States"}. Change`}
         onClick={() => setOpen(o => !o)}
         style={{ display: "inline-flex", alignItems: "center", gap: compact ? 4 : 6, padding: compact ? "6px 9px" : "7px 11px", borderRadius: 999, cursor: "pointer",
-          fontSize: 12.5, fontWeight: 600, fontFamily: "inherit", whiteSpace: "nowrap",
-          background: "transparent", color: loc ? (dark ? "#B9A6F0" : LOCAL_INK) : sub, border: `1px solid ${loc ? (dark ? "#B9A6F0" : LOCAL_INK) : rule}` }}>
+          fontSize: 12.5, fontWeight: 600, fontFamily: "'DM Sans', system-ui, sans-serif", whiteSpace: "nowrap",
+          background: "transparent", color: loc || cta ? (dark ? "#B9A6F0" : LOCAL_INK) : sub, border: `1px solid ${loc || cta ? (dark ? "#B9A6F0" : LOCAL_INK) : rule}` }}>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z" /><circle cx="12" cy="9.5" r="2.5" /></svg>
-        {compact ? short : <><span className="vu-loc-l">{long}</span><span className="vu-loc-s">{short}</span></>}
+        {!loc && cta ? cta : compact ? short : <><span className="vu-loc-l">{long}</span><span className="vu-loc-s">{short}</span></>}
         {!compact && <span aria-hidden style={{ fontSize: 9 }}>▾</span>}
       </button>
       {open && (
-        <div role="dialog" aria-label="Your location" style={{ position: "absolute", right: 0, top: "calc(100% + 8px)", zIndex: 80, width: 268, background: "#fff", color: "#1a1a1a",
+        <div role="dialog" aria-label="Your location" style={{ fontFamily: "'DM Sans', system-ui, sans-serif", position: "absolute", right: 0, top: "calc(100% + 8px)", zIndex: 80, width: 268, background: "#fff", color: "#1a1a1a",
           border: "1px solid #e2ded6", borderRadius: 12, padding: 14, boxShadow: "0 12px 32px -12px rgba(20,17,14,.35)", textAlign: "left" }}>
           <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 2, color: ink === "#F4F0EA" ? "#1a1a1a" : ink }}>Localize the data</div>
           <div style={{ fontSize: 12, color: "#5c5856", lineHeight: 1.45, marginBottom: 10 }}>Adds your area's official figures next to the national ones. Verdicts don't change.</div>
