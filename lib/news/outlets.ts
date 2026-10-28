@@ -1,0 +1,98 @@
+/**
+ * Outlets the News tab reads, from their own public RSS feeds.
+ *
+ * Lean = the outlet's partisan AUDIENCE score from Robertson et al. (2018),
+ * "Auditing Partisan Audience Bias within Google Search" (Northeastern),
+ * computed from which registered Democrats and Republicans shared each domain
+ * on Twitter: −1 shared only by Democrats, +1 only by Republicans. It
+ * describes who reads an outlet, not a judgment of its content, and dates
+ * from 2017 sharing. Buckets: Left < −0.25 ≤ Center ≤ 0.25 < Right. Outlets
+ * the study didn't score are "not rated" and left out of the split.
+ *
+ * Outlets without a working public feed (AP, Reuters, CNN, USA Today, MSNBC)
+ * are not included yet.
+ */
+export type Lean = "left" | "center" | "right" | "unrated";
+export interface Outlet { id: string; name: string; domain: string; score: number | null; feeds: string[] }
+
+const RAW: Omit<Outlet, "id">[] = [
+  { name: "ABC News", domain: "abcnews.go.com", score: -0.0384, feeds: ["https://abcnews.go.com/abcnews/politicsheadlines", "https://abcnews.go.com/abcnews/moneyheadlines"] },
+  { name: "Al Jazeera", domain: "aljazeera.com", score: -0.5265, feeds: ["https://www.aljazeera.com/xml/rss/all.xml"] },
+  { name: "American Greatness", domain: "amgreatness.com", score: 0.8711, feeds: ["https://amgreatness.com/feed/"] },
+  { name: "Axios", domain: "axios.com", score: -0.3361, feeds: ["https://api.axios.com/feed/"] },
+  { name: "BBC News", domain: "bbc.co.uk", score: -0.2004, feeds: ["https://feeds.bbci.co.uk/news/world/us_and_canada/rss.xml"] },
+  { name: "Bloomberg", domain: "bloomberg.com", score: -0.0792, feeds: ["https://feeds.bloomberg.com/politics/news.rss", "https://feeds.bloomberg.com/economics/news.rss"] },
+  { name: "Breitbart", domain: "breitbart.com", score: 0.7419, feeds: ["https://feeds.feedburner.com/breitbart"] },
+  { name: "Business Insider", domain: "businessinsider.com", score: -0.0373, feeds: ["https://feeds.businessinsider.com/custom/all"] },
+  { name: "CBS News", domain: "cbsnews.com", score: -0.017, feeds: ["https://www.cbsnews.com/latest/rss/politics", "https://www.cbsnews.com/latest/rss/moneywatch"] },
+  { name: "CNBC", domain: "cnbc.com", score: 0.0811, feeds: ["https://www.cnbc.com/id/20910258/device/rss/rss.html", "https://www.cnbc.com/id/10000113/device/rss/rss.html"] },
+  { name: "Common Dreams", domain: "commondreams.org", score: -0.6526, feeds: ["https://www.commondreams.org/feeds/feed.rss"] },
+  { name: "Crooks and Liars", domain: "crooksandliars.com", score: -0.7006, feeds: ["https://crooksandliars.com/rss.xml"] },
+  { name: "Daily Beast", domain: "thedailybeast.com", score: -0.3825, feeds: ["https://www.thedailybeast.com/arc/outboundfeeds/rss/articles/"] },
+  { name: "Daily Caller", domain: "dailycaller.com", score: 0.6958, feeds: ["https://dailycaller.com/feed/"] },
+  { name: "Daily Kos", domain: "dailykos.com", score: -0.7052, feeds: ["https://www.dailykos.com/blogs/main.rss"] },
+  { name: "Daily Signal", domain: "dailysignal.com", score: 0.8842, feeds: ["https://www.dailysignal.com/feed/"] },
+  { name: "Daily Wire", domain: "dailywire.com", score: 0.8496, feeds: ["https://www.dailywire.com/feeds/rss.xml"] },
+  { name: "Fortune", domain: "fortune.com", score: -0.08, feeds: ["https://fortune.com/feed/"] },
+  { name: "Fox Business", domain: "foxbusiness.com", score: 0.6062, feeds: ["https://moxie.foxbusiness.com/google-publisher/economy.xml"] },
+  { name: "Fox News", domain: "foxnews.com", score: 0.6079, feeds: ["https://moxie.foxnews.com/google-publisher/politics.xml", "https://moxie.foxnews.com/google-publisher/latest.xml"] },
+  { name: "Gateway Pundit", domain: "thegatewaypundit.com", score: 0.8635, feeds: ["https://www.thegatewaypundit.com/feed/"] },
+  { name: "Hot Air", domain: "hotair.com", score: 0.8293, feeds: ["https://hotair.com/feed"] },
+  { name: "HuffPost", domain: "huffpost.com", score: -0.3121, feeds: ["https://www.huffpost.com/section/politics/feed"] },
+  { name: "Jacobin", domain: "jacobin.com", score: null, feeds: ["https://jacobin.com/feed"] },
+  { name: "Just the News", domain: "justthenews.com", score: null, feeds: ["https://justthenews.com/rss.xml"] },
+  { name: "Los Angeles Times", domain: "latimes.com", score: -0.261, feeds: ["https://www.latimes.com/politics/rss2.0.xml"] },
+  { name: "MarketWatch", domain: "marketwatch.com", score: 0.2847, feeds: ["https://feeds.content.dowjones.io/public/rss/mw_topstories"] },
+  { name: "Mother Jones", domain: "motherjones.com", score: -0.6966, feeds: ["https://www.motherjones.com/feed/"] },
+  { name: "NBC News", domain: "nbcnews.com", score: -0.1558, feeds: ["https://feeds.nbcnews.com/nbcnews/public/politics"] },
+  { name: "NPR", domain: "npr.org", score: -0.4161, feeds: ["https://feeds.npr.org/1001/rss.xml", "https://feeds.npr.org/1017/rss.xml"] },
+  { name: "National Review", domain: "nationalreview.com", score: 0.6361, feeds: ["https://www.nationalreview.com/feed/"] },
+  { name: "New York Post", domain: "nypost.com", score: 0.1813, feeds: ["https://nypost.com/feed/"] },
+  { name: "New York Times", domain: "nytimes.com", score: -0.2602, feeds: ["https://rss.nytimes.com/services/xml/rss/nyt/Politics.xml", "https://rss.nytimes.com/services/xml/rss/nyt/Business.xml"] },
+  { name: "Newsweek", domain: "newsweek.com", score: -0.4096, feeds: ["https://www.newsweek.com/rss"] },
+  { name: "One America News", domain: "oann.com", score: 0.8644, feeds: ["https://www.oann.com/feed/"] },
+  { name: "PBS NewsHour", domain: "pbs.org", score: -0.4077, feeds: ["https://www.pbs.org/newshour/feeds/rss/politics"] },
+  { name: "PJ Media", domain: "pjmedia.com", score: 0.8157, feeds: ["https://pjmedia.com/feed"] },
+  { name: "Politico", domain: "politico.com", score: -0.1914, feeds: ["https://rss.politico.com/politics-news.xml"] },
+  { name: "ProPublica", domain: "propublica.org", score: -0.6551, feeds: ["https://www.propublica.org/feeds/propublica/main"] },
+  { name: "Raw Story", domain: "rawstory.com", score: -0.6161, feeds: ["https://www.rawstory.com/feeds/feed.rss"] },
+  { name: "RealClearPolitics", domain: "realclearpolitics.com", score: 0.568, feeds: ["https://www.realclearpolitics.com/index.xml"] },
+  { name: "Reason", domain: "reason.com", score: 0.3846, feeds: ["https://reason.com/feed/"] },
+  { name: "RedState", domain: "redstate.com", score: 0.7672, feeds: ["https://redstate.com/feed"] },
+  { name: "Rolling Stone", domain: "rollingstone.com", score: -0.3875, feeds: ["https://www.rollingstone.com/politics/feed/"] },
+  { name: "Salon", domain: "salon.com", score: -0.5926, feeds: ["https://www.salon.com/feed/"] },
+  { name: "Semafor", domain: "semafor.com", score: null, feeds: ["https://www.semafor.com/rss.xml"] },
+  { name: "Slate", domain: "slate.com", score: -0.5108, feeds: ["https://slate.com/feeds/all.rss"] },
+  { name: "Talking Points Memo", domain: "talkingpointsmemo.com", score: -0.6732, feeds: ["https://talkingpointsmemo.com/feed"] },
+  { name: "The American Conservative", domain: "theamericanconservative.com", score: 0.2098, feeds: ["https://www.theamericanconservative.com/feed/"] },
+  { name: "The American Spectator", domain: "spectator.org", score: 0.8369, feeds: ["https://spectator.org/feed/"] },
+  { name: "The Atlantic", domain: "theatlantic.com", score: -0.4148, feeds: ["https://www.theatlantic.com/feed/all/"] },
+  { name: "The Blaze", domain: "theblaze.com", score: 0.7889, feeds: ["https://www.theblaze.com/feeds/feed.rss"] },
+  { name: "The Bulwark", domain: "thebulwark.com", score: null, feeds: ["https://www.thebulwark.com/feed"] },
+  { name: "The Dispatch", domain: "thedispatch.com", score: null, feeds: ["https://thedispatch.com/feed/"] },
+  { name: "The Economist", domain: "economist.com", score: -0.2302, feeds: ["https://www.economist.com/united-states/rss.xml"] },
+  { name: "The Federalist", domain: "thefederalist.com", score: 0.7078, feeds: ["https://thefederalist.com/feed/"] },
+  { name: "The Free Press", domain: "thefp.com", score: null, feeds: ["https://www.thefp.com/feed"] },
+  { name: "The Guardian", domain: "theguardian.com", score: -0.3893, feeds: ["https://www.theguardian.com/us-news/rss"] },
+  { name: "The Hill", domain: "thehill.com", score: -0.06, feeds: ["https://thehill.com/homenews/feed/"] },
+  { name: "The Intercept", domain: "theintercept.com", score: -0.5133, feeds: ["https://theintercept.com/feed/?lang=en"] },
+  { name: "The Nation", domain: "thenation.com", score: -0.7298, feeds: ["https://www.thenation.com/feed/?post_type=article"] },
+  { name: "The New Republic", domain: "newrepublic.com", score: -0.641, feeds: ["https://newrepublic.com/rss.xml"] },
+  { name: "TheGrio", domain: "thegrio.com", score: -0.7296, feeds: ["https://thegrio.com/feed/"] },
+  { name: "Time", domain: "time.com", score: -0.2046, feeds: ["https://time.com/feed/"] },
+  { name: "Townhall", domain: "townhall.com", score: 0.8498, feeds: ["https://townhall.com/feed"] },
+  { name: "Twitchy", domain: "twitchy.com", score: 0.8755, feeds: ["https://twitchy.com/feed"] },
+  { name: "UPI", domain: "upi.com", score: 0.0385, feeds: ["https://rss.upi.com/news/top_news.rss"] },
+  { name: "Vox", domain: "vox.com", score: -0.5546, feeds: ["https://www.vox.com/rss/index.xml"] },
+  { name: "Wall Street Journal", domain: "wsj.com", score: 0.0106, feeds: ["https://feeds.content.dowjones.io/public/rss/RSSUSnews", "https://feeds.content.dowjones.io/public/rss/socialeconomyfeed"] },
+  { name: "Washington Examiner", domain: "washingtonexaminer.com", score: 0.5399, feeds: ["https://www.washingtonexaminer.com/feed"] },
+  { name: "Washington Free Beacon", domain: "freebeacon.com", score: 0.7926, feeds: ["https://freebeacon.com/feed/"] },
+  { name: "Washington Monthly", domain: "washingtonmonthly.com", score: -0.6629, feeds: ["https://washingtonmonthly.com/feed/"] },
+  { name: "Washington Times", domain: "washingtontimes.com", score: 0.6297, feeds: ["https://www.washingtontimes.com/rss/headlines/news/politics/"] },
+  { name: "ZeroHedge", domain: "zerohedge.com", score: 0.6771, feeds: ["https://feeds.feedburner.com/zerohedge/feed"] },
+];
+
+export const OUTLETS: Outlet[] = RAW.map(o => ({ ...o, id: o.domain.replace(/\.(com|org|co\.uk|go\.com)$/, "").replace(/[^a-z0-9]+/g, "-") }));
+export const OUTLET_BY_ID = new Map(OUTLETS.map(o => [o.id, o]));
+export const leanOf = (score: number | null): Lean => (score == null ? "unrated" : score < -0.25 ? "left" : score > 0.25 ? "right" : "center");
+export const LEAN_TOTALS = OUTLETS.reduce((t, o) => { t[leanOf(o.score)]++; return t; }, { left: 0, center: 0, right: 0, unrated: 0 } as Record<Lean, number>);

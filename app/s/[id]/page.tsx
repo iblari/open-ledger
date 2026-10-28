@@ -53,7 +53,7 @@ export default async function SeriesPage({ params }: { params: Promise<{ id: str
             <span className="vu-wordmark">Vote <em style={{ fontStyle: "italic", color: C.accent, fontWeight: 500 }}>Unbiased</em></span>
           </Link>
           <div style={{ display: "flex", gap: 16, fontSize: 13, fontWeight: 600 }}>
-            <Link href="/trending" style={{ color: C.sub, textDecoration: "none" }}>Trending</Link>
+            <Link href="/news" style={{ color: C.sub, textDecoration: "none" }}>News</Link>
             <Link href="/live" style={{ color: C.accent, textDecoration: "none" }}>Live</Link>
           </div>
         </div>
