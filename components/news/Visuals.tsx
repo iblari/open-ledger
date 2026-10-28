@@ -84,7 +84,7 @@ export function OutletIcons({ ids, max = 6, size = 18 }: { ids: string[]; max?: 
         return (
           // eslint-disable-next-line @next/next/no-img-element
           <img key={id} src={`/api/news/icon?d=${o.domain}`} alt={o.name} title={o.name} width={size} height={size} loading="lazy"
-            style={{ width: size, height: size, borderRadius: 5, background: "#fff", border: "1.5px solid #F8F5F0", marginLeft: i ? -5 : 0, objectFit: "cover" }} />
+            style={{ width: size, height: size, borderRadius: 5, background: "#fff", border: "1px solid #E2DED6", marginLeft: i ? 3 : 0, objectFit: "cover", padding: 1 }} />
         );
       })}
       {uniq.length > max && <span style={{ fontSize: 11.5, color: "#5c5856", marginLeft: 5 }}>+{uniq.length - max}</span>}
