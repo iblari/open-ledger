@@ -1,6 +1,6 @@
 import { kvGet, kvSetMany } from "../live-kv";
 import { getSeries } from "../series";
-import { fetchAll, cluster, buildStories, type Story, type Official } from "./engine";
+import { fetchAll, cluster, buildStories, recount, type Story, type Official } from "./engine";
 import { neutralTitles } from "./titles";
 
 /**
@@ -47,6 +47,22 @@ export async function refreshNews(): Promise<NewsFeed> {
     }
     if (best && bestN >= Math.min(links.size, best.articles.length) / 2) { st.id = best.id; st.slug = best.slug; claimed.add(best.id); }
   }
+  // Counts never shrink: feeds only reach back 48 hours, so a story keeps every
+  // article it had in earlier runs (up to 7 days old) unless that article now
+  // belongs to another story. Outlets that join later still add to the counts.
+  const inUse = new Set(stories.flatMap(s => s.articles.map(a => a.link)));
+  const prevById = new Map((prev?.stories || []).map(s => [s.id, s]));
+  const keepFrom = Date.now() - 7 * 86400_000;
+  for (const st of stories) {
+    const p = prevById.get(st.id);
+    if (!p) continue;
+    const old = p.articles.filter(a => !inUse.has(a.link) && Date.parse(a.published) >= keepFrom);
+    if (!old.length) continue;
+    for (const a of old) inUse.add(a.link);
+    st.articles.push(...old);
+    recount(st);
+  }
+  stories.sort((a, b) => b.score - a.score);
   const before = new Map((prev?.stories || []).map(s => [s.id, s]));
   const sig = (s: Story) => `${s.coverage.left}-${s.coverage.center}-${s.coverage.right}-${s.coverage.unrated}`;
   for (const s of stories) {

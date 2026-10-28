@@ -261,17 +261,7 @@ export function buildStories(groups: Article[][], all: Article[], offs: Record<s
       const o = OUTLET_BY_ID.get(a.outlet)!;
       return { outlet: a.outlet, name: o.name, lean: leanOf(o.score), title: a.title, link: a.link, published: a.published, ...(a.image ? { image: a.image } : {}) };
     });
-    const coverage = { left: 0, center: 0, right: 0, unrated: 0 } as Record<Lean, number>;
-    for (const id of byOutlet.keys()) coverage[leanOf(OUTLET_BY_ID.get(id)!.score)]++;
-    const rate = { left: coverage.left / LEAN_TOTALS.left, center: coverage.center / LEAN_TOTALS.center, right: coverage.right / LEAN_TOTALS.right };
-    // Blindspot: rated outlets on one side covered it at no more than a
-    // quarter the rate of the other side, which reached at least 20% of its outlets.
-    const rated = coverage.left + coverage.center + coverage.right;
-    let blindspot: Story["blindspot"] = null;
-    if (rated >= 6) {
-      if (rate.right >= 0.2 && rate.left <= rate.right / 4) blindspot = "left";
-      else if (rate.left >= 0.2 && rate.right <= rate.left / 4) blindspot = "right";
-    }
+    const { coverage, rate, blindspot } = tally(byOutlet.keys());
     // Headline: among the five most typical articles (cluster() orders by
     // closeness to the centre), a center outlet's plain headline if there is one.
     const plain = (t: string) => !/\b(live|watch|opinion|analysis|podcast|newsletter)\b|^[^:]{0,25}:/i.test(t);
@@ -308,6 +298,32 @@ export function buildStories(groups: Article[][], all: Article[], offs: Record<s
 }
 
 export { LEAN_TOTALS };
+
+/** Per-side counts, coverage rates and blindspot for a set of outlet ids. */
+export function tally(outletIds: Iterable<string>) {
+  const coverage = { left: 0, center: 0, right: 0, unrated: 0 } as Record<Lean, number>;
+  for (const id of outletIds) { const o = OUTLET_BY_ID.get(id); if (o) coverage[leanOf(o.score)]++; }
+  const rate = { left: coverage.left / LEAN_TOTALS.left, center: coverage.center / LEAN_TOTALS.center, right: coverage.right / LEAN_TOTALS.right };
+  // Blindspot: rated outlets on one side covered it at no more than a
+  // quarter the rate of the other side, which reached at least 20% of its outlets.
+  const rated = coverage.left + coverage.center + coverage.right;
+  let blindspot: Story["blindspot"] = null;
+  if (rated >= 6) {
+    if (rate.right >= 0.2 && rate.left <= rate.right / 4) blindspot = "left";
+    else if (rate.left >= 0.2 && rate.right <= rate.left / 4) blindspot = "right";
+  }
+  return { coverage, rate, blindspot };
+}
+
+/** Recompute a story's counts after its article list changed (articles kept from earlier runs). */
+export function recount(s: Story): Story {
+  s.articles.sort((a, b) => a.published.localeCompare(b.published));
+  const ids = new Set(s.articles.map(a => a.outlet));
+  const { coverage, rate, blindspot } = tally(ids);
+  const lastSeen = s.articles[s.articles.length - 1].published;
+  const ageH = (Date.now() - Date.parse(lastSeen)) / 3600_000;
+  return Object.assign(s, { outlets: ids.size, coverage, rate, blindspot, blindspotLabel: blindspotLabel(blindspot), firstSeen: s.articles[0].published, lastSeen, score: ids.size * Math.exp(-ageH / 18) });
+}
 
 /** One wording for a blindspot, used by the API, the pages and the share kit. */
 export function blindspotLabel(b: "left" | "right" | null | undefined): string | null {
