@@ -460,7 +460,7 @@ function LocalTermBar({ t, metric, mob }: { t: LocalTerm | null; metric: string;
         {t ? (<>
           <span style={{ display: "inline-block", width: 16, borderTop: `2px dashed ${LOCAL_INK}`, verticalAlign: "middle", marginRight: 6 }} />
           <b style={{ color: LOCAL_INK }}>{t.place}</b>{metric === "gas" ? " gas" : " inflation"}, this term
-          {t.latest && <> · month {t.latest.month + 1} ({t.latest.label}): <b style={{ color: LOCAL_INK }}>{f(t.latest.local)}</b> vs US {f(t.latest.us)}</>}
+          {t.latest && <> · month {t.latest.month} ({t.latest.label}): <b style={{ color: LOCAL_INK }}>{f(t.latest.local)}</b> vs US {f(t.latest.us)}</>}
           <span style={{ color: EC.mute }}> · <a href={t.url} target="_blank" rel="noopener noreferrer" style={{ color: EC.mute }}>{metric === "gas" ? "EIA" : "BLS"}</a> · <a href="/methodology#localize" style={{ color: EC.mute }}>How we localize</a></span>
         </>) : <span>{metric === "gas" ? "Gas prices" : "Inflation"} differ by region. Add your region's line for this term.</span>}
       </div>
