@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { extractAndVerifyClaims } from "@/lib/fact-check";
+import { carryOverVerdicts } from "@/lib/verdict-consistency";
 import { likelyHasEconomicClaim, dedupeClaims } from "@/lib/claim-utils";
 import { upgradeUnverifiable } from "@/lib/web-verify";
 import { appendClaimsToBroadcast, claimsNearTime, appendLiveClaims } from "@/lib/live-kv";
@@ -100,6 +101,7 @@ export async function POST(req: Request) {
   }));
 
   // Tier 3: search the live web for anything our datasets couldn't settle.
+  try { await carryOverVerdicts(claims, videoId ?? null); } catch { /* fresh checks */ }
   try { await upgradeUnverifiable(claims, 8, `${context || ""}\n${text}`); } catch { /* keep original ratings */ }
 
   // ── Persist, so a manual check becomes part of the record ──

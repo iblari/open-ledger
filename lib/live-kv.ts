@@ -11,6 +11,7 @@ import { normalizeQuote } from "./align";
  */
 
 import { isDuplicateQuote } from "@/lib/claim-utils";
+import { claimHash } from "@/lib/claim-link";
 
 export interface LiveState {
   status: "live" | "off";
@@ -43,6 +44,51 @@ export interface LiveClaim {
   /** Tier-3: settled by live web search, with the pages actually cited. */
   webVerified?: boolean;
   sources?: { title: string; url: string }[];
+  /** Consistency with earlier checks of the same claim (see lib/verdict-consistency). */
+  consistency?: Consistency;
+}
+
+/** Why a verdict matches (or was aligned with) another check of the same claim. */
+export interface Consistency {
+  kind: "carried" | "reconciled";
+  /** Claim page of the check this one follows (carried), or of the basis check (reconciled). */
+  from?: string;
+  fromDate?: string;
+  /** The verdict this check had before it was reconciled. */
+  prevRating?: string;
+  /** How many checks of the same claim were reviewed together (reconciled). */
+  group?: number;
+  at: string;
+  note: string;
+}
+
+/* ── Verdict overlay ──────────────────────────────────────────────
+ * Reconciled verdicts are laid over stored claims at READ time, keyed by
+ * claim hash. Stored records keep the verdict each check originally gave, so
+ * every change is reversible and auditable (/api/consistency). Writers read
+ * strict/raw and never see the overlay. */
+export interface VerdictOverlay { rating: string; actual?: string; explanation?: string; sources?: { title: string; url: string }[]; consistency: Consistency }
+const OVERLAY_KEY = "verdict:overlay:v1";
+let overlayCache: { at: number; map: Record<string, VerdictOverlay> } | null = null;
+export async function getVerdictOverlay(fresh = false): Promise<Record<string, VerdictOverlay>> {
+  if (!fresh && overlayCache && Date.now() - overlayCache.at < 60_000) return overlayCache.map;
+  let map: Record<string, VerdictOverlay> = {};
+  try { const [raw] = await kvGet([OVERLAY_KEY]); if (raw) map = JSON.parse(raw); } catch { /* none */ }
+  overlayCache = { at: Date.now(), map };
+  return map;
+}
+export async function setVerdictOverlay(map: Record<string, VerdictOverlay>): Promise<void> {
+  await kvSetMany([[OVERLAY_KEY, JSON.stringify(map), 0]]);
+  overlayCache = { at: Date.now(), map };
+}
+/** Lay reconciled verdicts over a broadcast's claims (returns new objects). */
+export function overlayClaims<T extends { quote: string; rating: string }>(videoId: string, claims: T[], map: Record<string, VerdictOverlay>): T[] {
+  if (!claims?.length || !Object.keys(map).length) return claims;
+  return claims.map(c => {
+    const o = map[claimHash(videoId, c.quote)];
+    if (!o) return c;
+    return { ...c, rating: o.rating, ...(o.actual ? { actual: o.actual } : {}), ...(o.explanation ? { explanation: o.explanation } : {}), ...(o.sources?.length ? { sources: o.sources } : {}), consistency: o.consistency };
+  });
 }
 
 // ── Upstash REST helpers ──────────────────────────────────────────
@@ -579,6 +625,9 @@ export async function getReplayableOne(id: string): Promise<(RecentBroadcast & {
     if (e) b = fromLedger(e);
   }
   if (!b) return null;
+  // The full record isn't overlaid on read; recent and ledger copies are.
+  const ov = await getVerdictOverlay().catch(() => ({}));
+  b = { ...b, claims: overlayClaims(b.videoId, b.claims, ov) };
   const a = await getAlignment(id).catch(() => null);
   return withAlignment(b, a);
 }
@@ -761,7 +810,10 @@ export async function getRecentBroadcasts(strict = false): Promise<RecentBroadca
     // becoming available here. The 22 Sep Vance press conference was
     // recovered on the 27th, correctly dated, and pruned on the very next
     // write — before its claims had even been checked.
-    return all.filter(b => Math.max(Date.parse(b.endedAt), Date.parse(b.availableAt || "") || 0) > cutoff);
+    const kept = all.filter(b => Math.max(Date.parse(b.endedAt), Date.parse(b.availableAt || "") || 0) > cutoff);
+    if (strict) return kept;
+    const ov = await getVerdictOverlay().catch(() => ({}));
+    return kept.map(b => ({ ...b, claims: overlayClaims(b.videoId, b.claims, ov) }));
   } catch {
     return [];
   }
@@ -1166,6 +1218,7 @@ export interface LedgerEntry {
   claims: {
     quote: string; rating: string; actual?: string;
     videoTime?: number; sources?: { title: string; url: string }[];
+    consistency?: Consistency;
   }[];
   recordedAt: string;
 }
@@ -1232,7 +1285,21 @@ export async function getLedger(strict = false): Promise<LedgerEntry[]> {
     // the roster fix carry "Vice President JD" (a truncation) or null where a
     // principal was in fact named, and re-reading the title heals both without
     // a migration.
-    return (p as LedgerEntry[]).map(e => ({ ...e, speaker: speakerFromTitle(e.title) }));
+    const list = (p as LedgerEntry[]).map(e => ({ ...e, speaker: speakerFromTitle(e.title) }));
+    if (strict) return list;
+    const ov = await getVerdictOverlay().catch(() => ({}));
+    if (!Object.keys(ov).length) return list;
+    return list.map(e => {
+      const claims = overlayClaims(e.videoId, e.claims, ov);
+      if (claims === e.claims) return e;
+      const counts = { total: claims.length, true: 0, misleading: 0, false: 0, unverifiable: 0, unconfirmed: 0, projection: 0 };
+      for (const c of claims) {
+        const r = (c.rating || "").toUpperCase();
+        if (r === "TRUE" || r === "MOSTLY TRUE") counts.true++; else if (r === "MISLEADING") counts.misleading++; else if (r === "FALSE") counts.false++;
+        else if (r === "UNCONFIRMED") counts.unconfirmed++; else if (r === "PROJECTION") counts.projection++; else counts.unverifiable++;
+      }
+      return { ...e, claims, counts };
+    });
   } catch { return []; }
 }
 
@@ -1274,6 +1341,7 @@ export async function recordInLedger(b: RecentBroadcast): Promise<LedgerEntry> {
       actual: c.actual,
       videoTime: c.videoTime,
       sources: (c as { sources?: { title: string; url: string }[] }).sources,
+      ...(c.consistency ? { consistency: c.consistency } : {}),
     })),
     recordedAt: new Date().toISOString(),
   };
