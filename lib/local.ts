@@ -77,7 +77,7 @@ export const getLocalSnapshot = (code: string, housing: Housing) =>
 
 const PADD_MONTHLY: Record<Padd, string> = { east: "GASREGECM", midwest: "GASREGMWM", gulf: "GASREGGCM", rocky: "GASREGRMM", west: "GASREGWCM" };
 export const LOCAL_BENCH = new Set(["inflation", "gas"]);
-export interface LocalBenchRow { admin: string; local: number | null; us: number | null; date: string }
+export interface LocalBenchRow { admin: string; local: number | null; us: number | null; date: string; localDate?: string }
 export interface LocalBench { metric: string; place: string; unit: string; month: number; rows: LocalBenchRow[]; source: string; url: string; since: string }
 
 /** Month `m` of a term (month 0 = the January of the inauguration) for every
@@ -95,7 +95,14 @@ export async function getLocalBench(metric: string, code: string, month: number,
     const y = ad.start + Math.floor(month / 12), mo = (month % 12) + 1;
     const k = `${y}-${String(mo).padStart(2, "0")}`;
     const r = (v: number | undefined) => (v == null ? null : +v.toFixed(isGas ? 2 : 1));
-    return { admin: ad.id, local: r(am.get(k)), us: r(bm.get(k)), date: k };
+    // Early regional CPI was published every other month (or quarterly):
+    // use the nearest month within two, and say which month it is.
+    let lk = k;
+    if (!am.has(k)) for (const off of [-1, 1, -2, 2]) {
+      const dt = new Date(Date.UTC(y, mo - 1 + off, 1)); const kk = dt.toISOString().slice(0, 7);
+      if (am.has(kk)) { lk = kk; break; }
+    }
+    return { admin: ad.id, local: r(am.get(lk)), us: r(bm.get(k)), date: k, localDate: lk };
   });
   return {
     metric, month, unit: isGas ? "$/gal" : "%",

@@ -40,14 +40,14 @@ export default function LocalBench({ metric, month, admins }: { metric: "inflati
             return (
               <tr key={r.admin} style={{ borderTop: "1px solid #efebe4" }}>
                 <td style={{ padding: "6px 0" }}>{name(r.admin)}</td>
-                <td style={{ textAlign: "right", fontWeight: 700, color: LOCAL_INK }}>{f(r.local)}</td>
+                <td style={{ textAlign: "right", fontWeight: 700, color: LOCAL_INK }}>{f(r.local)}{r.local != null && r.localDate && r.localDate !== r.date && <sup title={`Nearest published month: ${r.localDate}`} style={{ fontWeight: 400, color: "#8c8479" }}> *</sup>}</td>
                 <td style={{ textAlign: "right", color: "#5c5856" }}>{f(r.us)}</td>
                 <td style={{ textAlign: "right", color: "#5c5856" }}>{gap == null ? "—" : `${gap > 0 ? "+" : gap < 0 ? "−" : ""}${d.unit === "%" ? Math.abs(gap).toFixed(1) + " pts" : "$" + Math.abs(gap).toFixed(2)}`}</td>
               </tr>);
           })}</tbody>
         </table>
       </div>
-      <div style={{ fontSize: 11.5, color: "#8c8479", marginTop: 8 }}>Regional data starts in {d.since}; earlier terms show “—”. US figures here use the same basis as the regional ones, so they can differ slightly from the chart above. <a href={d.url} target="_blank" rel="noopener noreferrer" style={{ color: "inherit" }}>Source</a> · <a href="/methodology#localize" style={{ color: "inherit" }}>How we localize</a></div>
+      <div style={{ fontSize: 11.5, color: "#8c8479", marginTop: 8 }}>Regional data starts in {d.since}; earlier terms show “—”.{shown.some(r => r.local != null && r.localDate && r.localDate !== r.date) && " * Early regional figures were published every other month; the nearest month is shown."} US figures here use the same basis as the regional ones, so they can differ slightly from the chart above. <a href={d.url} target="_blank" rel="noopener noreferrer" style={{ color: "inherit" }}>Source</a> · <a href="/methodology#localize" style={{ color: "inherit" }}>How we localize</a></div>
     </div>
   );
 }
