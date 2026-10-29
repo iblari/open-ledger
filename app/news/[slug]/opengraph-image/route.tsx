@@ -23,7 +23,7 @@ async function font(family: string, spec: string): Promise<ArrayBuffer | null> {
     return url ? await (await fetch(url)).arrayBuffer() : null;
   } catch { return null; }
 }
-const MARK = "data:image/svg+xml;base64," + Buffer.from(markSvg({ bars: 7, id: "nog", width: 120, height: 40 })).toString("base64");
+const MARK = "data:image/svg+xml;base64," + Buffer.from(markSvg({ ink: "#14110E", accent: "#C8102E", bars: 7, id: "nog", width: 120, height: 40 })).toString("base64");
 const COL = { left: "#2C4A86", center: "#FFFFFF", right: "#7B2D26" } as const;
 const LABEL = { left: "Left", center: "Center", right: "Right" } as const;
 const INK = "#14110E", SUB = "#5c5856", MUTE = "#8a8378", RULE = "#CFC9BF";
@@ -51,7 +51,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
       <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "#fff" }}>{brand}</div>
     ), { ...size, fonts, headers });
   }
-  const title = s.title.length > 110 ? s.title.slice(0, 107).replace(/\s+\S*$/, "") + "…" : s.title;
+  const t0 = s.title.replace(/\s+/g, " ").trim();
+  const title = t0.length > 110 ? t0.slice(0, 107).replace(/\s+\S*$/, "") + "…" : t0;
   const tSize = title.length > 85 ? 46 : title.length > 60 ? 52 : 58;
   const sh = leanShares(s.coverage) || { left: 0, center: 0, right: 0 };
   const parts = (["left", "center", "right"] as const).filter(k => s.coverage[k] > 0);
