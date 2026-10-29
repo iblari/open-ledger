@@ -63,7 +63,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
         {brand}
         <div style={{ display: "flex", fontSize: 20, letterSpacing: 2, color: MUTE }}>{`AS OF ${etTime(s.asOf || s.lastSeen).toUpperCase()}`}</div>
       </div>
-      <div style={{ display: "flex", marginTop: 26, fontSize: tSize, fontWeight: 700, lineHeight: 1.08, letterSpacing: -0.5, maxWidth: 1072 }}>{title}</div>
+      <div style={{ display: "flex", marginTop: 26, fontSize: tSize, fontWeight: 700, lineHeight: 1.08, maxWidth: 1072 }}>{title}</div>
       <div style={{ display: "flex", flexDirection: "column", marginTop: "auto", marginBottom: 92 }}>
         <div style={{ display: "flex", fontSize: 19, letterSpacing: 2.5, color: MUTE, marginBottom: 12 }}>WHO COVERED IT</div>
         <div style={{ display: "flex", height: 64, borderRadius: 8, border: `2px solid ${RULE}`, overflow: "hidden", background: "#fff" }}>
