@@ -89,7 +89,7 @@ Up to 25 stories covered by at least 5 outlets, newest counts first.
 | `title` | Our neutral wording of the story |
 | `coverage` | Outlets covering it: `left`, `center`, `right`, `unrated` |
 | `rate` | Share of each side's outlets that covered it (0–1) |
-| `dataLine` | One line, e.g. "Covered by 3 of 27 left-leaning (11%), 4 of 16 center (25%) and 12 of 25 right-leaning (48%) outlets we read, as of Oct 28, 4:10 PM ET" |
+| `dataLine` | One line, e.g. "Covered by 3 of 32 left-leaning (9%), 9 of 31 center (29%) and 12 of 31 right-leaning (39%) outlets we read, as of Oct 28, 4:10 PM ET" |
 | `link` | The story page, with UTM tags (`utm_campaign=news`, `utm_content=story:{id}`) |
 | `image` | The 1200×630 card (title, three bars, "as of" time). Its URL changes when the counts change |
 | `caption` | Draft: title, data line, link |
