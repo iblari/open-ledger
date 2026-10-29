@@ -2,6 +2,8 @@ import Link from "next/link";
 import CheetahMark from "@/components/CheetahMark";
 import { C, SERIF } from "@/lib/design-tokens";
 import type { Lean } from "@/lib/news/outlets";
+import { leanShares } from "@/lib/news/share";
+export { leanShares };
 
 /** Site header + Data / News / Live tabs (News replaces Trending). */
 const tab = (active: boolean): React.CSSProperties => ({
@@ -40,17 +42,6 @@ export function NewsChrome({ active = "news" }: { active?: "news" | "data" | "li
 export const LEAN_COLOR: Record<Lean, string> = { left: "#2C4A86", center: "#D9D5CE", right: "#7B2D26", unrated: "#E2DED6" };
 export const LEAN_TEXT: Record<Lean, string> = { left: "#2C4A86", center: "#6b655c", right: "#7B2D26", unrated: "#8a8378" };
 export const LEAN_LABEL: Record<Lean, string> = { left: "Left", center: "Center", right: "Right", unrated: "Not rated" };
-
-/** Whole-number shares of the rated outlets covering a story, summing to 100. */
-export function leanShares(coverage: Record<Lean, number>) {
-  const ks = ["left", "center", "right"] as const;
-  const rated = ks.reduce((n, k) => n + coverage[k], 0);
-  if (!rated) return null;
-  const raw = ks.map(k => (coverage[k] / rated) * 100), out = raw.map(Math.floor);
-  let rest = 100 - out.reduce((a, b) => a + b, 0);
-  for (const i of raw.map((v, i) => [v - Math.floor(v), i]).sort((a, b) => b[0] - a[0]).map(x => x[1])) { if (rest-- <= 0) break; if (coverage[ks[i]] > 0) out[i]++; else rest++; }
-  return { left: out[0], center: out[1], right: out[2] };
-}
 
 /** Width a segment needs to fit "Center 100%" at this font size. */
 const k_full = (f: number) => Math.round(f * 6.3);
