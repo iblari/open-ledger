@@ -1582,7 +1582,7 @@ function relDay(iso: string): string {
 }
 function TrendingStrip({ cards, desktop = false }: { cards: TrendCard[]; desktop?: boolean; cols?: number }) {
   if (!cards.length) return null;
-  const leadIdx = Math.max(0, cards.slice(0, 2).findIndex(c => c.spark && c.spark.length >= 6));
+  const leadIdx = Math.max(0, cards.findIndex(c => c.spark && c.spark.length >= 6));
   const lead = cards[leadIdx];
   const rest = cards.filter((_, i) => i !== leadIdx).slice(0, 4);
   const newest = cards.reduce((a, c) => (c.date > a ? c.date : a), cards[0].date);
