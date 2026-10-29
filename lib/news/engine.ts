@@ -85,20 +85,38 @@ export function feedImage(it: string): { url: string; w: number } | null {
   return ok.sort((a, b) => (b.w || 800) - (a.w || 800))[0];
 }
 
-/** Lenient RSS/Atom parse (several feeds aren't well-formed XML). */
-export function parseFeed(xml: string, outlet: string): Article[] {
+/** Lenient RSS/Atom parse (several feeds aren't well-formed XML). Also reads
+ * Google News sitemaps (<url> with <news:title>) and Google News search RSS,
+ * whose titles end in " - Outlet" and whose <source> names the publisher. */
+export function parseFeed(xml: string, outlet: string, domain?: string): Article[] {
   const items = xml.match(/<item[\s>][\s\S]*?<\/item>/gi) || xml.match(/<entry[\s>][\s\S]*?<\/entry>/gi) || [];
   const out: Article[] = [];
-  for (const it of items.slice(0, 60)) {
-    const title = decode(tag(it, "title"));
+  for (const it of items.slice(0, 100)) {
+    let title = decode(tag(it, "title"));
     let link = decode(tag(it, "link"));
     if (!link) link = (it.match(/<link[^>]*href="([^"]+)"/i) || [])[1] || "";
     const date = decode(tag(it, "pubDate") || tag(it, "published") || tag(it, "updated") || tag(it, "dc:date"));
     const t = Date.parse(date);
+    if (/news\.google\.com/.test(link)) {
+      // Google News search feed: keep only the outlet's own articles, drop the " - Outlet" suffix.
+      const src = (it.match(/<source[^>]*url="([^"]+)"/i) || [])[1] || "";
+      if (domain && src && !src.replace(/^https?:\/\/(www\.)?/, "").startsWith(domain)) continue;
+      const name = decode(tag(it, "source"));
+      if (name && title.endsWith(" - " + name)) title = title.slice(0, -(name.length + 3));
+    }
     if (!title || !/^https?:/.test(link) || !Number.isFinite(t)) continue;
-    const summary = decode(tag(it, "description") || tag(it, "summary") || tag(it, "content:encoded")).slice(0, 320);
+    const summary = /news\.google\.com/.test(link) ? "" : decode(tag(it, "description") || tag(it, "summary") || tag(it, "content:encoded")).slice(0, 320);
     const img = feedImage(it);
     out.push({ id: hash(link), outlet, title: title.slice(0, 240), link, summary, published: new Date(t).toISOString(), ...(img ? { image: img.url, imageW: img.w } : {}) });
+  }
+  if (!items.length) {
+    for (const u of (xml.match(/<url>[\s\S]*?<\/url>/gi) || []).slice(0, 300)) {
+      const title = decode(tag(u, "news:title")), link = decode(tag(u, "loc"));
+      const t = Date.parse(decode(tag(u, "news:publication_date")));
+      if (!title || !/^https?:/.test(link) || !Number.isFinite(t)) continue;
+      const img = decode(tag(u, "image:loc"));
+      out.push({ id: hash(link), outlet, title: title.slice(0, 240), link, summary: "", published: new Date(t).toISOString(), ...(/^https:/.test(img) ? { image: img, imageW: 0 } : {}) });
+    }
   }
   return out;
 }
@@ -110,7 +128,8 @@ export async function fetchAll(maxAgeH = 48): Promise<{ articles: Article[]; fai
     try {
       const r = await fetch(url, { headers: { "User-Agent": UA, Accept: "application/rss+xml, application/xml, text/xml, */*" }, signal: AbortSignal.timeout(12_000), cache: "no-store" });
       if (!r.ok) throw new Error(String(r.status));
-      return parseFeed(await r.text(), o.id);
+      const arts = parseFeed(await r.text(), o.id, o.domain);
+      return o.include ? arts.filter(a => o.include!.test(a.link)) : arts;
     } catch { failed.push(o.id); return []; }
   })));
   const seen = new Set<string>(), articles: Article[] = [];
