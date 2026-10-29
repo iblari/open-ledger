@@ -6,7 +6,18 @@ const SITE = "https://voteunbiased.org";
 export const storyPath = (s: Story) => `/news/${s.slug}`;
 /** The card URL changes when the counts do, so X and others fetch a fresh one. */
 export const storyImage = (s: Story) =>
-  `${SITE}/news/${s.slug}/opengraph-image?v=${s.coverage.left}-${s.coverage.center}-${s.coverage.right}`;
+  `${SITE}/news/${s.slug}/opengraph-image?v=2-${s.coverage.left}-${s.coverage.center}-${s.coverage.right}`;
+
+/** Whole-number shares of the rated outlets covering a story, summing to 100. */
+export function leanShares(coverage: { left: number; center: number; right: number }) {
+  const ks = ["left", "center", "right"] as const;
+  const rated = ks.reduce((n, k) => n + coverage[k], 0);
+  if (!rated) return null;
+  const raw = ks.map(k => (coverage[k] / rated) * 100), out = raw.map(Math.floor);
+  let rest = 100 - out.reduce((a, b) => a + b, 0);
+  for (const i of raw.map((v, i) => [v - Math.floor(v), i]).sort((a, b) => b[0] - a[0]).map(x => x[1])) { if (rest-- <= 0) break; if (coverage[ks[i]] > 0) out[i]++; else rest++; }
+  return { left: out[0], center: out[1], right: out[2] };
+}
 
 export const etTime = (iso: string) =>
   new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/New_York" }) + " ET";
