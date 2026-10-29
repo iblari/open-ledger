@@ -137,6 +137,10 @@ const ADMINS = {
 };
 const AID=["nixon","ford","carter","reagan","bush41","clinton","bush","obama","trump1","biden"];
 const AIDX=[...AID,"trump2"];
+// On screen: Clinton onward (same six as the same-point view). Earlier terms
+// stay in AID for the calculations that need the previous term's values.
+const SHOW=AID.slice(AID.indexOf("clinton"));
+const SHOWX=[...SHOW,"trump2"];
 
 const COUNTRIES={
   us:{name:"United States",color:"#2563eb",flag:"🇺🇸"},china:{name:"China",color:"#dc2626",flag:"🇨🇳"},
@@ -847,7 +851,7 @@ function computeAvgScale(): Record<string, number> {
   for (const mk of Object.keys(METRIC_DISPLAY_DASHBOARD)) {
     if (METRIC_DISPLAY_DASHBOARD[mk].perMetricUnit !== "avg_per_year") continue;
     const maxAbs = Math.max(
-      ...AID.map(id => Math.abs(HEAT_DATA[mk]?.[id]?.avgValue ?? 0))
+      ...SHOW.map(id => Math.abs(HEAT_DATA[mk]?.[id]?.avgValue ?? 0))
     );
     out[mk] = maxAbs > 0 ? maxAbs : 1;
   }
@@ -984,7 +988,7 @@ function App(){
   const searchParams = useSearchParams();
   const [am,setAm]=useState("gdp");
   const [detail,setDetail]=useState(null);
-  const [sel,setSel]=useState<string[]>(AIDX);
+  const [sel,setSel]=useState<string[]>(SHOWX);
   const [ct,setCt]=useState("bar");
   // Reader's region for this metric (gas, inflation), when a location is set.
   const localAnn=useLocalAnnual(am);
@@ -1157,7 +1161,7 @@ function App(){
   // are dropped and names use short forms so the segments don't truncate.
   const presLegend = (
           <div style={{flex:1,display:"flex",alignItems:"stretch",gap:3,minWidth:0}}>
-            {AID.map(id=>{
+            {SHOW.map(id=>{
               const a=ADMINS[id];
               const parts=a.full.split("–");
               const ys=parseInt(parts[0])||0;
@@ -1521,7 +1525,7 @@ function App(){
                     onChange={e=>setSelectedPres(e.target.value)}
                     style={{width:"100%",padding:"11px 12px",border:`1px solid ${T.rule}`,borderRadius:6,background:T.card,fontFamily:"'DM Sans',sans-serif",fontSize:15,fontWeight:600,color:ADMINS[selectedPres]?.color||T.ink}}
                   >
-                    {AID.map(id=><option key={id} value={id}>{ADMINS[id].name} ({ADMINS[id].years})</option>)}
+                    {SHOW.map(id=><option key={id} value={id}>{ADMINS[id].name} ({ADMINS[id].years})</option>)}
                     {heatLive!==HEAT_DATA && <option value="trump2">Trump II (2025–, so far)</option>}
                   </select>
                 </>)}
@@ -1588,7 +1592,7 @@ function App(){
             {(!mob || mobileView==="table") && (
             <div style={{background:EC.card,border:`1px solid ${EC.rule}`,borderRadius:4,overflow:"hidden",overflowX:"auto",WebkitOverflowScrolling:"touch",marginBottom:16}}>
               {/* Toggle bar */}
-              <div style={{display:"flex",justifyContent:"flex-end",alignItems:"center",gap:16,padding:"10px 14px",background:EC.paper,borderBottom:`1px solid ${EC.rule}`,flexWrap:"wrap",minWidth:mob?160+(AID.length+1)*58:undefined}}>
+              <div style={{display:"flex",justifyContent:"flex-end",alignItems:"center",gap:16,padding:"10px 14px",background:EC.paper,borderBottom:`1px solid ${EC.rule}`,flexWrap:"wrap",minWidth:mob?160+(SHOW.length+1)*58:undefined}}>
                 <PillToggle<DisplayMode>
                   label="Display"
                   value={displayMode}
@@ -1613,13 +1617,13 @@ function App(){
               {/* Header row */}
               <div style={{
                 display:"grid",
-                gridTemplateColumns:mob?`160px repeat(${AID.length+1}, minmax(58px,1fr))`:`200px repeat(${AID.length+1}, minmax(64px,1fr))`,
+                gridTemplateColumns:mob?`160px repeat(${SHOW.length+1}, minmax(58px,1fr))`:`200px repeat(${SHOW.length+1}, minmax(64px,1fr))`,
                 alignItems:"center",background:EC.paper,borderBottom:`1px solid ${EC.rule}`,
                 padding:"10px 0",fontSize:11,letterSpacing:"0.09em",textTransform:"uppercase",
-                color:EC.sub,fontWeight:500,minWidth:mob?160+(AID.length+1)*58:undefined,
+                color:EC.sub,fontWeight:500,minWidth:mob?160+(SHOW.length+1)*58:undefined,
               }}>
                 <div style={{paddingLeft:18}}>Metric</div>
-                {AID.map(id=>{
+                {SHOW.map(id=>{
                   const a=ADMINS[id];
                   return (
                     <div key={id} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3,textAlign:"center"}}>
@@ -1648,7 +1652,7 @@ function App(){
                       textTransform:"uppercase",color:EC.mute,
                       padding:"12px 18px 4px",background:"#fbf8f3",
                       borderTop:`1px solid ${EC.rule}`,
-                      minWidth:mob?160+(AID.length+1)*58:undefined,
+                      minWidth:mob?160+(SHOW.length+1)*58:undefined,
                     }}>{catLabel as string}</div>
                     {catMetrics.map((mk)=>{
                       const mx=M[mk];
@@ -1660,16 +1664,16 @@ function App(){
                           key={mk}
                           style={{
                             display:"grid",
-                            gridTemplateColumns:mob?`160px repeat(${AID.length+1}, minmax(58px,1fr))`:`200px repeat(${AID.length+1}, minmax(64px,1fr))`,
+                            gridTemplateColumns:mob?`160px repeat(${SHOW.length+1}, minmax(58px,1fr))`:`200px repeat(${SHOW.length+1}, minmax(64px,1fr))`,
                             alignItems:"center",borderTop:`1px solid ${EC.rule}`,
-                            fontSize:13,minWidth:mob?160+(AID.length+1)*58:undefined,
+                            fontSize:13,minWidth:mob?160+(SHOW.length+1)*58:undefined,
                           }}
                         >
                           <div style={{padding:"10px 18px",display:"flex",flexDirection:"column",gap:1}}>
                             <span style={{fontWeight:500,color:EC.ink,fontSize:13,fontFamily:ESANS}}>{mx.l}</span>
                             <span style={{fontSize:10,color:EC.mute,letterSpacing:"0.03em",fontFamily:ESANS}}>{mx.s}</span>
                           </div>
-                          {AID.map(id=>{
+                          {SHOW.map(id=>{
                             const c=HEAT_DATA[mk]?.[id];
                             if(!c)return <div key={id}/>;
                             return (
@@ -1708,7 +1712,7 @@ function App(){
                 display:"flex",alignItems:"center",justifyContent:"space-between",
                 padding:"12px 18px",background:EC.paper,borderTop:`1px solid ${EC.rule}`,
                 fontSize:11,color:EC.sub,letterSpacing:"0.03em",flexWrap:"wrap",gap:10,
-                minWidth:mob?160+(AID.length+1)*58:undefined,fontFamily:ESANS,
+                minWidth:mob?160+(SHOW.length+1)*58:undefined,fontFamily:ESANS,
               }}>
                 <span>
                   {displayMode==="per_metric"
@@ -1759,7 +1763,7 @@ function App(){
                   <line x1="2" y1="5" x2="12" y2="5" stroke={T.sub} strokeWidth="1.5" strokeLinecap="round"/>
                   <line x1="4" y1="9" x2="10" y2="9" stroke={T.sub} strokeWidth="1.5" strokeLinecap="round"/>
                 </svg>
-                {sel.length<AIDX.length&&<span style={{
+                {sel.length<SHOWX.length&&<span style={{
                   position:"absolute",top:-4,right:-4,width:14,height:14,borderRadius:"50%",
                   background:T.accent,color:"#fff",fontSize:8,fontWeight:700,
                   display:"flex",alignItems:"center",justifyContent:"center"
@@ -1775,7 +1779,7 @@ function App(){
               }}>
                 <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:1.5,color:T.mute,marginBottom:8}}>Filter Presidents</div>
                 <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
-                  {AIDX.map(id=>{const a=ADMINS[id];return(
+                  {SHOWX.map(id=>{const a=ADMINS[id];return(
                     <button key={id} onClick={()=>tog(id)} style={{
                       display:"flex",alignItems:"center",gap:5,padding:"6px 12px",borderRadius:3,
                       background:sel.includes(id)?a.color+"12":"transparent",
@@ -1835,7 +1839,7 @@ function App(){
             <div>
               <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:1.5,color:T.mute,marginBottom:6}}>Administrations</div>
               <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
-                {AIDX.map(id=>{const a=ADMINS[id];return(
+                {SHOWX.map(id=>{const a=ADMINS[id];return(
                   <button key={id} className="ol-president-toggle" onClick={()=>tog(id)} style={{
                     display:"flex",alignItems:"center",gap:5,padding:"6px 12px",borderRadius:3,
                     background:sel.includes(id)?a.color+"12":"transparent",
