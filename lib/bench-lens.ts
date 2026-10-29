@@ -284,6 +284,8 @@ export interface TrendCard {
   /** A label per spark point ("Sep 2026") and how to print a value. */
   sparkLabels?: string[];
   sparkUnit?: string;
+  /** News cards: outlets covering the story, by lean. */
+  coverage?: { left: number; center: number; right: number; unrated: number };
 }
 
 const INAUG: Record<string, [number, number]> = {
