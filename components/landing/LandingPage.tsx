@@ -3,6 +3,7 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { useIsMobileViewport, useViewportWidth } from "@/lib/viewport";
 import CheetahMark from "@/components/CheetahMark";
 import { liveAnnual, dataSignals, fmtBench, type Bench, type TrendCard } from "@/lib/bench-lens";
+import { CoverageBar } from "@/components/news/NewsChrome";
 import {
   BarChart, Bar, Cell as RechartsCell, LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
@@ -1504,11 +1505,12 @@ function MobileTicker() {
    server (lib/trending-live). Freshest + most unusual first. ── */
 /** Interleave the best data and broadcast signals (capped at n), then order by date, latest first. */
 function mergeTrends(bench: Bench | null, liveTrends: TrendCard[], n = 5): TrendCard[] {
-  const d = dataSignals(bench), l = [...liveTrends].sort((a, b) => b.score - a.score);
+  // Three sources take turns: official data, News stories, broadcasts.
+  const byScore = (a: TrendCard, b: TrendCard) => b.score - a.score;
+  const d = dataSignals(bench), nw = liveTrends.filter(c => c.kicker === "News").sort(byScore), l = liveTrends.filter(c => c.kicker !== "News").sort(byScore);
   const out: TrendCard[] = [];
-  while ((d.length || l.length) && out.length < n) {
-    if (d.length) out.push(d.shift()!);
-    if (l.length && out.length < n) out.push(l.shift()!);
+  while ((d.length || nw.length || l.length) && out.length < n) {
+    for (const q of [d, nw, l]) if (q.length && out.length < n) out.push(q.shift()!);
   }
   // Picked for importance (a mix of data and broadcasts), shown newest first.
   return out.sort((a, b) => Date.parse(b.date) - Date.parse(a.date) || b.score - a.score);
@@ -1571,6 +1573,7 @@ function Spark({ data, color, h = 64, fill = false, labels, fmt }: { data: numbe
   );
 }
 const isLive = (k: string) => ["Fact-checks", "Broadcasts", "Agenda", "Named on air"].includes(k);
+const srcLabel = (k: string) => (k === "News" ? "News" : isLive(k) ? "Live ledger" : "FRED");
 function relDay(iso: string): string {
   const days = Math.floor((Date.now() - Date.parse(iso)) / 864e5);
   if (days <= 0) return "today";
@@ -1619,9 +1622,10 @@ function TrendingStrip({ cards, desktop = false }: { cards: TrendCard[]; desktop
                 fmt={v => lead.sparkUnit === "per 10k words" ? `${v.toFixed(1)} per 10k words` : fmtBench(v, lead.sparkUnit || "")} />
             </div>
           )}
+          {lead.coverage && <span style={{ display: "block", marginTop: 4 }}><CoverageBar coverage={lead.coverage} size="lg" /></span>}
           <span style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: lead.spark ? 2 : "auto" }}>
             {pill(lead)}
-            <span style={{ fontSize: 12, color: C.mute, whiteSpace: "nowrap" }}>{isLive(lead.kicker) ? "Live ledger" : "FRED"} →</span>
+            <span style={{ fontSize: 12, color: C.mute, whiteSpace: "nowrap" }}>{srcLabel(lead.kicker)} →</span>
           </span>
         </Link>
         {/* ranked list */}
@@ -1640,6 +1644,7 @@ function TrendingStrip({ cards, desktop = false }: { cards: TrendCard[]; desktop
                       {c.kicker} <span style={{ color: C.mute, fontWeight: 500 }}>· {c.dateLabel}</span>
                     </span>
                     <span style={{ display: "block", fontFamily: SERIF, fontSize: desktop ? 17.5 : 16, lineHeight: 1.28, marginTop: 4 }}>{c.headline}</span>
+                    {c.coverage && <span style={{ display: "block", marginTop: 8, maxWidth: 380 }}><CoverageBar coverage={c.coverage} size="sm" /></span>}
                     {!desktop && <span style={{ display: "inline-block", marginTop: 7 }}>{pill(c)}</span>}
                   </span>
                   {desktop && <span style={{ paddingTop: 2 }}>{pill(c)}</span>}
@@ -1695,9 +1700,10 @@ function TrendingStripPhone({ cards, desktop = false, cols = 5 }: { cards: Trend
                 {c.kicker} <span style={{ color: C.mute, fontWeight: 500 }}>· {c.dateLabel}</span>
               </span>
               <span style={{ fontFamily: SERIF, fontSize: desktop ? 17 : 15.5, lineHeight: 1.25, letterSpacing: "-0.005em", flex: 1 }}>{c.headline}</span>
+              {c.coverage && <CoverageBar coverage={c.coverage} size="sm" />}
               <span style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
                 <span style={{ fontSize: 10.5, fontWeight: 700, color: col, background: col + "14", padding: "3px 7px", borderRadius: 99, whiteSpace: "nowrap" }}>{c.badge}</span>
-                <span style={{ fontSize: 10.5, color: C.mute, whiteSpace: "nowrap" }}>{["Fact-checks", "Broadcasts", "Agenda", "Named on air"].includes(c.kicker) ? "Live ledger" : "FRED"} →</span>
+                <span style={{ fontSize: 10.5, color: C.mute, whiteSpace: "nowrap" }}>{srcLabel(c.kicker)} →</span>
               </span>
             </Link>
           );

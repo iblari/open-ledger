@@ -2,6 +2,7 @@ import { getLiveState } from "@/lib/live-kv";
 import LiveTakeover, { type LiveNow } from "@/components/LiveTakeover";
 import LandingPage from "@/components/landing/LandingPage";
 import { liveTrending } from "@/lib/trending-live";
+import { newsTrending } from "@/lib/trending-news";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = { alternates: { canonical: "https://voteunbiased.org/" } };
@@ -39,7 +40,8 @@ async function liveNow(): Promise<LiveNow | null> {
 export default async function Page() {
   // Trending cards from the broadcast ledger. Cached (10 min) and never
   // allowed to fail the page — the strip just shows the data cards alone.
-  const [live, liveTrends] = await Promise.all([liveNow(), liveTrending().catch(() => [])]);
+  const [live, broadcastTrends, newsTrends] = await Promise.all([liveNow(), liveTrending().catch(() => []), newsTrending().catch(() => [])]);
+  const liveTrends = [...broadcastTrends, ...newsTrends];
   return (
     <>
       <LiveTakeover live={live} />
