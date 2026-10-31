@@ -64,6 +64,24 @@ export default function RaceCompare({ race, fc, polls }: { race: Race; fc: FC; p
             </div>
           ))}
 
+          <Section title="Background" />
+          {mains.some(c => c.bg) ? (
+            <>
+              <Row label="In brief" sub={<>Opening of their <a href="https://en.wikipedia.org" style={{ color: C.mute }}>Wikipedia</a> article</>}>
+                {mains.map(c => cell(c.name, c.bg?.summary ? (
+                  <><div style={{ fontSize: 14, lineHeight: 1.5 }}>“{c.bg.summary}”</div>{c.bg.wiki && <a href={c.bg.wiki} style={{ fontSize: 11.5, color: C.mute }}>Wikipedia ↗</a>}</>
+                ) : <span style={{ color: C.mute, fontSize: 13 }}>Not listed</span>))}
+              </Row>
+              <Row label="Education">
+                {mains.map(c => cell(c.name, c.bg?.edu.length ? <div style={{ fontSize: 14, lineHeight: 1.55 }}>{c.bg.edu.map(e => <div key={e}>{e}</div>)}</div> : <span style={{ color: C.mute, fontSize: 13 }}>Not listed</span>))}
+              </Row>
+              <Row label="Offices held" sub={<a href="https://www.wikidata.org" style={{ color: C.mute }}>Wikidata</a>}>
+                {mains.map(c => cell(c.name, c.bg?.offices.length ? (
+                  <div style={{ fontSize: 14, lineHeight: 1.55 }}>{c.bg.offices.map(o => <div key={o.t + o.from}>{o.t[0].toUpperCase() + o.t.slice(1)}{o.from ? <span style={{ color: C.mute }}> · {o.from}{o.to ? (o.to !== o.from ? `–${o.to}` : "") : "–now"}</span> : null}</div>)}</div>
+                ) : <span style={{ color: C.mute, fontSize: 13 }}>None listed</span>))}
+              </Row>
+            </>
+          ) : <Note>No public record found for these candidates.</Note>}
           {race.office === "senate" && (
             <>
               <Section title="Polls" />

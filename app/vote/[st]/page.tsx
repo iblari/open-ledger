@@ -6,6 +6,8 @@ import { C, SANS, SERIF } from "@/lib/design-tokens";
 import { NewsChrome } from "@/components/news/NewsChrome";
 import { senatePolls } from "@/lib/polls";
 import Metrics from "../Metrics";
+import StateTrends from "../StateTrends";
+import { stateTrends } from "@/lib/state-trends";
 import RaceCompare from "../RaceCompare";
 
 export const revalidate = 600;
@@ -33,7 +35,7 @@ export default async function StateBallot({ params }: { params: Promise<{ st: st
   const { st } = await params;
   const s = stateByCode(st);
   if (!s) notFound();
-  const [polls] = await Promise.all([senatePolls()]);
+  const [polls, trends] = await Promise.all([senatePolls(), stateTrends(s.st)]);
   const pollsAt = Object.values(polls)[0]?.fetchedAt ?? null;
   const through = s.races.flatMap(r => r.candidates.map(c => c.fec?.through)).filter(Boolean).sort().pop() ?? null;
   const fc = await factChecksFor(s.races.flatMap(r => r.candidates.filter(c => c.main).map(c => c.name)));
@@ -77,6 +79,7 @@ export default async function StateBallot({ params }: { params: Promise<{ st: st
         </div>
         <div style={{ marginTop: 14 }}><Metrics through={through} pollsAt={pollsAt} /></div>
         {s.races.map(r => <RaceCompare key={r.id} race={r} fc={fc} polls={r.office === "senate" ? polls[r.st] : null} />)}
+        <StateTrends name={s.name} trends={trends} />
         <div style={{ marginTop: 26, fontSize: 13, display: "flex", gap: 16 }}>
           <a href="https://vote.gov" style={{ color: C.sub }}>Find your polling place ↗</a>
           <Link href="/methodology" style={{ color: C.sub }}>Methodology</Link>
