@@ -57,7 +57,7 @@ export default function RaceCompare({ race, fc, polls, trends = [] }: { race: Ra
         {ts.length > 0 && (
           <div className="vc-ctx" style={{ gridColumn: "1 / -1", borderTop: `1px solid ${C.rule}`, padding: "12px 16px", background: "#fdfbf8" }}>
             <div style={{ fontSize: 13.5, fontWeight: 600, marginBottom: 8 }}>{MID.topics[t]} <span style={{ fontWeight: 400, color: C.mute, fontSize: 12 }}>· {race.state}, last 10 years</span></div>
-            <div style={{ display: "grid", gridTemplateColumns: `repeat(auto-fit, minmax(150px, 1fr))`, gap: 18 }}>{ts.map(x => <TrendChart key={x.key} t={x} />)}</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(170px, 260px))", gap: 22 }}>{ts.map(x => <TrendChart key={x.key} t={x} />)}</div>
           </div>
         )}
         {quotes && (
