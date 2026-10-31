@@ -1439,6 +1439,10 @@ function App(){
             padding:"13px 20px",fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:600,whiteSpace:"nowrap",
             background:"transparent",color:T.mute,textDecoration:"none",borderBottom:"2px solid transparent",transition:"all 0.2s",
           }}>News</a>
+          <a href="/vote" className="ol-nav-btn" style={{
+            padding:"13px 20px",fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:600,whiteSpace:"nowrap",
+            background:"transparent",color:T.mute,textDecoration:"none",borderBottom:"2px solid transparent",transition:"all 0.2s",
+          }}>Vote</a>
           <a href="/live" className="ol-nav-btn" aria-label={onAir?"Live Broadcast — on air now":"Live Broadcast"} style={{
             padding:"13px 20px",fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:600,whiteSpace:"nowrap",
             background:"transparent",color:onAir?T.accent:T.mute,textDecoration:"none",display:"flex",alignItems:"center",gap:6,

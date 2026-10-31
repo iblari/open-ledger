@@ -11,7 +11,13 @@ const tab = (active: boolean): React.CSSProperties => ({
   color: active ? C.ink : C.mute, textDecoration: "none", display: "flex", alignItems: "center", gap: 6,
   borderBottom: active ? `2px solid ${C.accent}` : "2px solid transparent",
 });
-export function NewsChrome({ active = "news" }: { active?: "news" | "data" | "live" }) {
+/** Days until election day (Nov 3, 2026, polls close ET); null once it has passed. */
+function daysToVote(): number | null {
+  const d = Math.ceil((Date.parse("2026-11-04T05:00:00Z") - Date.now()) / 864e5);
+  return d > 0 ? d - 1 : null;
+}
+export function NewsChrome({ active = "news" }: { active?: "news" | "data" | "live" | "vote" }) {
+  const days = daysToVote();
   return (
     <>
       <div style={{ borderBottom: `1px solid ${C.rule}`, padding: "12px 0", background: "linear-gradient(180deg,#fff 0%," + C.bg + " 100%)" }}>
@@ -27,6 +33,10 @@ export function NewsChrome({ active = "news" }: { active?: "news" | "data" | "li
         <div style={{ maxWidth: 1180, margin: "0 auto", padding: "0 6px", display: "flex", overflowX: "auto" }}>
           <Link href="/dashboard" style={tab(active === "data")}>Data</Link>
           <Link href="/news" aria-current={active === "news" ? "page" : undefined} style={tab(active === "news")}>News</Link>
+          <Link href="/vote" aria-current={active === "vote" ? "page" : undefined} style={tab(active === "vote")}>
+            Vote
+            {days != null && <span style={{ fontSize: 9.5, fontWeight: 700, padding: "2px 6px", borderRadius: 3, background: C.accent, color: "#fff", lineHeight: 1.2 }}>{days === 0 ? "Today" : `${days} day${days === 1 ? "" : "s"}`}</span>}
+          </Link>
           <Link href="/live" style={tab(active === "live")}>
             <span style={{ width: 6, height: 6, borderRadius: "50%", border: `1.5px solid ${C.mute}` }} />
             Live Broadcast
