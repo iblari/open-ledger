@@ -14,6 +14,11 @@ export default function TrendChart({ t }: { t: TrendLite }) {
   const cur = real.find(p => p.y === sel) ?? last;
   const max = Math.max(...real.map(p => Math.abs(p.v))) || 1;
   const neg = real.some(p => p.v < 0);
+  const pick = (e: React.PointerEvent<HTMLDivElement>) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    const i = Math.max(0, Math.min(t.points.length - 1, Math.floor(((e.clientX - r.left) / r.width) * t.points.length)));
+    const p = t.points[i]; if (p && p.v != null) setSel(p.y);
+  };
   return (
     <div style={{ fontFamily: SANS, minWidth: 0 }}>
       <div style={{ fontSize: 12, color: C.sub, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={t.note}>{t.label}{t.scope ? ` · ${t.scope}` : ""}</div>
@@ -21,16 +26,25 @@ export default function TrendChart({ t }: { t: TrendLite }) {
         <span style={{ fontFamily: SERIF, fontSize: 20 }}>{fmt(t, cur.v)}{t.unit !== "%" ? <span style={{ fontSize: 11.5, color: C.sub }}>{t.unit}</span> : null}</span>
         <span style={{ fontSize: 11.5, color: C.mute }}>{cur.y}{cur.partial ? " so far" : ""}</span>
       </div>
-      <div onMouseLeave={() => setSel(null)} role="img" aria-label={`${t.label}: ${real.map(p => `${p.y} ${fmt(t, p.v)}`).join(", ")}`}
-        style={{ display: "flex", gap: 2, height: 40, marginTop: 4, position: "relative", touchAction: "pan-y" }}>
-        <span style={{ position: "absolute", left: 0, right: 0, top: neg ? "50%" : "100%", borderTop: `1px solid ${C.rule}` }} />
-        {t.points.map(p => {
-          const on = p.y === cur.y;
+      <div
+        onPointerMove={pick} onPointerDown={pick} onPointerLeave={e => { if (e.pointerType === "mouse") setSel(null); }}
+        role="img" aria-label={`${t.label}: ${real.map(p => `${p.y} ${fmt(t, p.v)}`).join(", ")}`}
+        style={{ display: "flex", gap: 2, height: 64, marginTop: 6, position: "relative", touchAction: "pan-y", cursor: "crosshair", paddingTop: 18 }}>
+        <span style={{ position: "absolute", left: 0, right: 0, top: neg ? "calc(50% + 9px)" : "100%", borderTop: `1px solid ${C.rule}` }} />
+        {t.points.map((p, i) => {
+          const on = sel != null && p.y === cur.y;
+          const isLast = sel == null && p.y === last.y;
           if (p.v == null) return <span key={p.y} style={{ flex: 1 }} />;
           const h = Math.max(4, (Math.abs(p.v) / max) * (neg ? 50 : 100));
           return (
-            <span key={p.y} onMouseEnter={() => setSel(p.y)} onClick={() => setSel(p.y)} style={{ flex: 1, position: "relative", cursor: "pointer" }}>
-              <span style={{ position: "absolute", left: 0, right: 0, height: `${h}%`, ...(p.v >= 0 ? { bottom: neg ? "50%" : 0 } : { top: "50%" }), background: on ? C.accent : C.ink, opacity: on ? 1 : p.v < 0 ? 0.3 : 0.55, borderRadius: 1 }} />
+            <span key={p.y} style={{ flex: 1, position: "relative" }}>
+              {on && <span style={{ position: "absolute", left: "50%", top: -18, bottom: 0, width: 1, background: "rgba(20,17,14,.25)" }} />}
+              <span style={{ position: "absolute", left: 0, right: 0, height: `${h}%`, ...(p.v >= 0 ? { bottom: neg ? "50%" : 0 } : { top: "50%" }), background: on || isLast ? C.accent : C.ink, opacity: on || isLast ? 1 : sel != null ? 0.25 : p.v < 0 ? 0.3 : 0.5, borderRadius: 2, transition: "opacity .12s" }} />
+              {on && (
+                <span style={{ position: "absolute", top: -20, left: "50%", transform: `translateX(${i < 2 ? "-15%" : i > t.points.length - 3 ? "-85%" : "-50%"})`, background: C.ink, color: "#fff", fontSize: 11.5, fontWeight: 600, padding: "3px 7px", borderRadius: 5, whiteSpace: "nowrap", pointerEvents: "none", zIndex: 2 }}>
+                  {p.y}{p.partial ? " so far" : ""} · {fmt(t, p.v)}{t.unit !== "%" ? t.unit : ""}
+                </span>
+              )}
             </span>
           );
         })}
