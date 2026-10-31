@@ -74,13 +74,18 @@ for i in range(0, len(qs), 40):
     for b in sparql(f"""SELECT ?p ?k ?vLabel ?start ?end WHERE {{ VALUES ?p {{ {vals} }}
       {{ ?p p:P69 ?s. ?s ps:P69 ?v. FILTER NOT EXISTS {{ ?v wdt:P31/wdt:P279* wd:Q9826 }} FILTER NOT EXISTS {{ ?v wdt:P31/wdt:P279* wd:Q159334 }} BIND("edu" AS ?k) }} UNION
       {{ ?p p:P106 ?s. ?s ps:P106 ?v. BIND("job" AS ?k) }} UNION
-      {{ ?p p:P39 ?s. ?s ps:P39 ?v. OPTIONAL{{?s pq:P580 ?start}} OPTIONAL{{?s pq:P582 ?end}} BIND("pos" AS ?k) }}
+      {{ ?p p:P39 ?s. ?s ps:P39 ?v. OPTIONAL{{?s pq:P580 ?start}} OPTIONAL{{?s pq:P582 ?end}} BIND("pos" AS ?k) }} UNION
+      {{ ?p p:P108 ?s. ?s ps:P108 ?v. FILTER NOT EXISTS {{ ?v wdt:P31 wd:Q5 }} OPTIONAL{{?s pq:P580 ?start}} OPTIONAL{{?s pq:P582 ?end}} BIND("emp" AS ?k) }} UNION
+      {{ ?p p:P241 ?s. ?s ps:P241 ?v. OPTIONAL{{?s pq:P580 ?start}} OPTIONAL{{?s pq:P582 ?end}} BIND("mil" AS ?k) }}
       SERVICE wikibase:label {{ bd:serviceParam wikibase:language "en". }} }}"""):
         q = qid(val(b, "p")); k = val(b, "k"); v = val(b, "vLabel")
         if not v or re.fullmatch(r"Q\d+", v): continue
         x = info[q]
         if k == "edu" and not HS.search(v) and not (re.search(r"\bSchool$", v) and not KEEP.search(v)) and v not in x["edu"]: x["edu"].append(v)
         elif k == "job" and v.lower() not in SKIP_JOB and v not in x["jobs"]: x["jobs"].append(v)
+        elif k in ("emp", "mil"):
+            s0, e0 = (val(b, "start") or "")[:4], (val(b, "end") or "")[:4]
+            if not any(o["t"] == v for o in x.setdefault("work", [])): x["work"].append({"t": v, "from": s0, "to": e0, "kind": k})
         elif k == "pos":
             s, e = (val(b, "start") or "")[:4], (val(b, "end") or "")[:4]
             if not any(o["t"] == v and o["from"] == s for o in x["offices"]): x["offices"].append({"t": v, "from": s, "to": e})
@@ -100,8 +105,6 @@ def summary(url):
         return out if 40 < len(out) <= 420 else (out[:400].rsplit(" ", 1)[0] + "…" if len(out) > 420 else None)
     except Exception:
         return None
-for q, x in info.items():
-    x["sum"] = summary(x["wiki"]) if x["wiki"] else None
 
 n = {"id": 0, "name": 0, "none": 0}
 for r, c in mains:
@@ -117,6 +120,8 @@ for r, c in mains:
         if o["from"] and (not cur["from"] or o["from"] < cur["from"]): cur["from"] = o["from"]
         if not o["to"] or (cur["to"] and o["to"] > cur["to"]): cur["to"] = o["to"] if o["to"] else ""
     offices = sorted(offs.values(), key=lambda o: (o["to"] == "", o["to"] or o["from"], o["from"]), reverse=True)
-    c["bg"] = {"qid": q, "match": how, "wiki": x["wiki"], "summary": x["sum"], "edu": x["edu"][:4], "offices": offices[:5]}
+    work = [dict(o, t=("U.S. " + o["t"] if o["kind"] == "mil" and not o["t"].lower().startswith(("united states", "u.s.")) else o["t"])) for o in x.get("work", [])]
+    work = sorted(work, key=lambda o: (o["to"] == "" and o["from"] != "", o["to"] or o["from"]), reverse=True)
+    c["bg"] = {"qid": q, "match": how, "wiki": x["wiki"], "edu": x["edu"][:4], "offices": offices[:5], "work": [{"t": o["t"], "from": o["from"], "to": o["to"], "kind": o["kind"]} for o in work[:4]]}
 json.dump(d, open(P, "w"), ensure_ascii=False, separators=(",", ":"))
 print("matched", n)

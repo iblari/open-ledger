@@ -1,6 +1,9 @@
 import { MID, TOPICS, raceTitle, rollUrl, money, type Race, type Candidate } from "@/lib/midterms";
 import { C, SERIF, SANS } from "@/lib/design-tokens";
 import { POLL_SOURCE, pollShare, type PollSummary } from "@/lib/polls";
+import TrendChart, { type TrendLite } from "./TrendChart";
+
+const TOPIC_TRENDS: Record<string, string[]> = { economy: ["gdp", "jobs", "rent", "homes"], taxes: ["taxes"], immigration: ["migration"] };
 
 type FC = Record<string, { claims: number; true: number; misleading: number; false: number; broadcasts: number }>;
 
@@ -27,7 +30,7 @@ function Section({ title }: { title: string }) {
   return <div className="vc-sec">{title}</div>;
 }
 
-export default function RaceCompare({ race, fc, polls }: { race: Race; fc: FC; polls?: PollSummary | null }) {
+export default function RaceCompare({ race, fc, polls, trends = [] }: { race: Race; fc: FC; polls?: PollSummary | null; trends?: TrendLite[] }) {
   const mains = race.candidates.filter(c => c.main);
   const others = race.candidates.filter(c => !c.main);
   const n = mains.length;
@@ -45,6 +48,31 @@ export default function RaceCompare({ race, fc, polls }: { race: Race; fc: FC; p
   const allRead = mains.every(c => c.siteStatus === "ok");
   const silent = TOPICS.filter(t => allRead && mains.every(c => !c.positions[t]));
   const shown = TOPICS.filter(t => !silent.includes(t));
+
+  const TopicBlock = ({ t }: { t: keyof typeof MID.topics }) => {
+    const ts = (TOPIC_TRENDS[t] || []).map(k => trends.find(x => x.key === k)).filter(Boolean) as TrendLite[];
+    const quotes = !silent.includes(t);
+    return (
+      <>
+        {ts.length > 0 && (
+          <div className="vc-ctx" style={{ gridColumn: "1 / -1", borderTop: `1px solid ${C.rule}`, padding: "12px 16px", background: "#fdfbf8" }}>
+            <div style={{ fontSize: 13.5, fontWeight: 600, marginBottom: 8 }}>{MID.topics[t]} <span style={{ fontWeight: 400, color: C.mute, fontSize: 12 }}>· {race.state}, last 10 years</span></div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(170px, 260px))", gap: 22 }}>{ts.map(x => <TrendChart key={x.key} t={x} />)}</div>
+          </div>
+        )}
+        {quotes && (
+          <Row label={ts.length ? "What they say" : MID.topics[t]}>
+            {mains.map(c => {
+              const p = c.positions[t];
+              if (p) return cell(c.name, <><div className="vc-q" style={{ fontFamily: SERIF, lineHeight: 1.45 }}>“{p.quote}”</div><a href={p.url} style={{ fontSize: 11.5, color: C.mute }}>{host(p.url)}{p.src === "official" ? " · official congressional site" : ""} ↗</a></>);
+              const why = c.siteStatus === "ok" ? "Not on their site" : c.siteStatus === "unreadable" ? "Site unreadable" : "No campaign site";
+              return cell(c.name, <span style={{ color: C.mute, fontSize: 13 }}>{why}{c.site && c.siteStatus !== "ok" ? <> · <a href={c.site} style={{ color: C.mute }}>visit ↗</a></> : null}</span>);
+            })}
+          </Row>
+        )}
+      </>
+    );
+  };
 
   return (
     <section id={race.id} style={{ scrollMarginTop: 60, marginTop: 30 }}>
@@ -67,18 +95,18 @@ export default function RaceCompare({ race, fc, polls }: { race: Race; fc: FC; p
           <Section title="Background" />
           {mains.some(c => c.bg) ? (
             <>
-              <Row label="In brief" sub={<>Opening of their <a href="https://en.wikipedia.org" style={{ color: C.mute }}>Wikipedia</a> article</>}>
-                {mains.map(c => cell(c.name, c.bg?.summary ? (
-                  <><div style={{ fontSize: 14, lineHeight: 1.5 }}>“{c.bg.summary}”</div>{c.bg.wiki && <a href={c.bg.wiki} style={{ fontSize: 11.5, color: C.mute }}>Wikipedia ↗</a>}</>
-                ) : <span style={{ color: C.mute, fontSize: 13 }}>Not listed</span>))}
-              </Row>
-              <Row label="Education">
+              <Row label="Education" sub={<a href="https://www.wikidata.org" style={{ color: C.mute }}>Wikidata</a>}>
                 {mains.map(c => cell(c.name, c.bg?.edu.length ? <div style={{ fontSize: 14, lineHeight: 1.55 }}>{c.bg.edu.map(e => <div key={e}>{e}</div>)}</div> : <span style={{ color: C.mute, fontSize: 13 }}>Not listed</span>))}
               </Row>
-              <Row label="Offices held" sub={<a href="https://www.wikidata.org" style={{ color: C.mute }}>Wikidata</a>}>
-                {mains.map(c => cell(c.name, c.bg?.offices.length ? (
-                  <div style={{ fontSize: 14, lineHeight: 1.55 }}>{c.bg.offices.map(o => <div key={o.t + o.from}>{o.t[0].toUpperCase() + o.t.slice(1)}{o.from ? <span style={{ color: C.mute }}> · {o.from}{o.to ? (o.to !== o.from ? `–${o.to}` : "") : "–now"}</span> : null}</div>)}</div>
-                ) : <span style={{ color: C.mute, fontSize: 13 }}>None listed</span>))}
+              <Row label="Work experience" sub={<a href="https://www.wikidata.org" style={{ color: C.mute }}>Wikidata</a>}>
+                {mains.map(c => {
+                  const items = [...(c.bg?.offices || []), ...(c.bg?.work || [])]
+                    .sort((x, y) => ((y.to === "" && y.from !== "") ? 9999 : +(y.to || y.from || 0)) - ((x.to === "" && x.from !== "") ? 9999 : +(x.to || x.from || 0)))
+                    .slice(0, 6);
+                  return cell(c.name, items.length ? (
+                    <div style={{ fontSize: 14, lineHeight: 1.55 }}>{items.map(o => <div key={o.t + o.from}>{o.t[0].toUpperCase() + o.t.slice(1)}{o.from ? <span style={{ color: C.mute }}> · {o.from}{o.to ? (o.to !== o.from ? `–${o.to}` : "") : "–now"}</span> : null}</div>)}</div>
+                  ) : <span style={{ color: C.mute, fontSize: 13 }}>Not listed</span>);
+                })}
               </Row>
             </>
           ) : <Note>No public record found for these candidates.</Note>}
@@ -172,16 +200,9 @@ export default function RaceCompare({ race, fc, polls }: { race: Race; fc: FC; p
             </Row>
           ) : <Note>Not fact-checked yet.</Note>}
 
-          <Section title="In their own words" />
-          {shown.map(t => (
-            <Row key={t} label={MID.topics[t]}>
-              {mains.map(c => {
-                const p = c.positions[t];
-                if (p) return cell(c.name, <><div className="vc-q" style={{ fontFamily: SERIF, lineHeight: 1.45 }}>“{p.quote}”</div><a href={p.url} style={{ fontSize: 11.5, color: C.mute }}>{host(p.url)}{p.src === "official" ? " · official congressional site" : ""} ↗</a></>);
-                const why = c.siteStatus === "ok" ? "Not on their site" : c.siteStatus === "unreadable" ? "Site unreadable" : "No campaign site";
-                return cell(c.name, <span style={{ color: C.mute, fontSize: 13 }}>{why}{c.site && c.siteStatus !== "ok" ? <> · <a href={c.site} style={{ color: C.mute }}>visit ↗</a></> : null}</span>);
-              })}
-            </Row>
+          <Section title="Issues" />
+          {TOPICS.filter(t => shown.includes(t) || TOPIC_TRENDS[t]).map(t => (
+            <TopicBlock key={t} t={t} />
           ))}
           {silent.length > 0 && <Note>Not on any campaign site: <b style={{ color: C.ink }}>{silent.map(t => MID.topics[t]).join(" · ")}</b></Note>}
         </div>
