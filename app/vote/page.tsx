@@ -3,7 +3,7 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { MID, STATES, stateByCode, raceTitle } from "@/lib/midterms";
 import { senatePolls, pollShare, pollLead } from "@/lib/polls";
-import { C, SANS } from "@/lib/design-tokens";
+import { C, SANS, SERIF } from "@/lib/design-tokens";
 import { NewsChrome } from "@/components/news/NewsChrome";
 import RacesTable, { type RaceRow } from "./RacesTable";
 import StatePicker from "./StatePicker";
@@ -17,9 +17,9 @@ export const metadata: Metadata = {
   openGraph: { title: "Compare the candidates on your 2026 ballot", description: "Polls, money, voting record and positions in their own words, side by side. Facts only.", url: "https://voteunbiased.org/vote", siteName: "Vote Unbiased", type: "website" },
 };
 
-const H: React.CSSProperties = { fontFamily: SANS, fontWeight: 700, letterSpacing: "-0.01em", margin: 0 };
-const PARTY: Record<string, string> = { D: "#2C4A86", R: "#7B2D26" };
-const tag = (p: string) => <span style={{ display: "inline-block", minWidth: 16, textAlign: "center", fontSize: 10.5, fontWeight: 700, padding: "1px 4px", borderRadius: 3, background: PARTY[p] || "#6b655c", color: "#fff", marginRight: 5 }}>{p === "D" || p === "R" ? p : "I"}</span>;
+const H: React.CSSProperties = { fontFamily: SERIF, fontWeight: 500, letterSpacing: "-0.015em", margin: 0 };
+const PARTY: Record<string, string> = { D: "#4361a6", R: "#b8372d" };
+const tag = (p: string) => <span style={{ display: "inline-block", minWidth: 16, textAlign: "center", fontSize: 10.5, fontWeight: 700, padding: "1px 4px", borderRadius: 3, background: PARTY[p] || "#9a7b4f", color: "#fff", marginRight: 5 }}>{p === "D" || p === "R" ? p : "I"}</span>;
 const raceShort = (t: string) => t.replace(" (special election)", " (special)");
 
 export default async function VoteIndex() {
@@ -41,16 +41,16 @@ export default async function VoteIndex() {
   const states = STATES.map(s => ({ st: s.st, name: s.name, races: s.races.map(r => raceShort(raceTitle(r))).join(" · ") }));
 
   return (
-    <div style={{ minHeight: "100vh", background: "#fff", color: C.ink, fontFamily: SANS }}>
+    <div style={{ minHeight: "100vh", background: C.bg, color: C.ink, fontFamily: SANS }}>
       <NewsChrome active="vote" />
       <main style={{ maxWidth: 1240, margin: "0 auto", padding: "22px 20px 70px" }}>
         <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: ".12em", textTransform: "uppercase", color: C.accent }}>Election day · Tuesday, Nov 3</div>
-        <h1 style={{ ...H, fontSize: "clamp(28px,4vw,40px)", lineHeight: 1.08, margin: "6px 0 0" }}>Compare the candidates on your ballot</h1>
+        <h1 style={{ ...H, fontSize: "clamp(30px,4.4vw,46px)", lineHeight: 1.08, margin: "6px 0 0" }}>Compare the candidates on your ballot</h1>
 
         <div className="vi-top" style={{ display: "grid", gridTemplateColumns: "minmax(0,340px) minmax(0,1fr)", gap: 28, marginTop: 22, alignItems: "start" }}>
           <aside style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             {guess ? (
-              <div style={{ border: `1px solid ${C.rule}`, borderTop: `3px solid ${C.ink}`, borderRadius: 10, padding: "12px 14px" }}>
+              <div style={{ border: `1px solid ${C.rule}`, borderRadius: 14, padding: "16px 18px", background: "#fff" }}>
                 
                 <div style={{ ...H, fontSize: 22, margin: "2px 0 8px" }}>{guess.name}</div>
                 {guess.races.map(r => (
@@ -59,7 +59,7 @@ export default async function VoteIndex() {
                     {r.candidates.filter(c => c.main).map(c => <div key={c.name} style={{ marginTop: 2 }}>{tag(c.p)}{c.name}{c.incumbent ? <span style={{ color: C.mute, fontSize: 12 }}> · incumbent</span> : null}</div>)}
                   </div>
                 ))}
-                <Link href={`/vote/${guess.st.toLowerCase()}`} style={{ display: "block", textAlign: "center", marginTop: 8, padding: "11px 14px", borderRadius: 8, background: C.ink, color: "#fff", textDecoration: "none", fontWeight: 700, fontSize: 14.5 }}>See your ballot →</Link>
+                <Link href={`/vote/${guess.st.toLowerCase()}`} style={{ display: "block", textAlign: "center", marginTop: 8, padding: "11px 14px", borderRadius: 6, background: C.ink, color: "#fff", textDecoration: "none", fontWeight: 600, fontSize: 14.5 }}>See your ballot →</Link>
               </div>
             ) : null}
             <div>

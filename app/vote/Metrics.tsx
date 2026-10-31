@@ -13,7 +13,7 @@ export default function Metrics({ through, pollsAt, open = false }: { through: s
     ["In their own words", "Everyone", "Verbatim quotes from campaign sites.", "Checked Oct 26"],
   ];
   return (
-    <details open={open} style={{ border: `1px solid ${C.rule}`, borderRadius: 10, background: "#fff", fontFamily: SANS }}>
+    <details open={open} style={{ border: `1px solid ${C.rule}`, borderRadius: 14, background: "#fff", fontFamily: SANS }}>
       <summary style={{ cursor: "pointer", padding: "12px 16px", fontWeight: 700, fontSize: 15, listStyle: "none", display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
         <span style={{ whiteSpace: "nowrap" }}>What we compare</span><span style={{ fontWeight: 400, color: C.mute, fontSize: 13 }}>Sources</span>
         <span style={{ marginLeft: "auto", color: C.mute, fontSize: 12 }}>▾</span>

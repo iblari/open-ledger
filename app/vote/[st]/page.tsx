@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { STATES, stateByCode, raceTitle, daysToElection, factChecksFor, MID } from "@/lib/midterms";
-import { C, SANS } from "@/lib/design-tokens";
+import { C, SANS, SERIF } from "@/lib/design-tokens";
 import { NewsChrome } from "@/components/news/NewsChrome";
 import { senatePolls } from "@/lib/polls";
 import Metrics from "../Metrics";
@@ -40,15 +40,15 @@ export default async function StateBallot({ params }: { params: Promise<{ st: st
   const days = daysToElection();
   const url = `https://voteunbiased.org/vote/${s.st.toLowerCase()}`;
   return (
-    <div style={{ minHeight: "100vh", background: "#fff", color: C.ink, fontFamily: SANS }}>
+    <div style={{ minHeight: "100vh", background: C.bg, color: C.ink, fontFamily: SANS }}>
       <style>{`
-        .vc-wrap{background:#fff;border:1px solid ${C.rule};border-radius:10px}
+        .vc-wrap{background:#fff;border:1px solid ${C.rule};border-radius:14px}
         .vc-grid{display:grid;grid-template-columns:200px repeat(var(--n),minmax(190px,1fr))}
-        .vc-l{padding:12px 16px;border-top:1px solid ${C.rule};color:${C.sub};font-size:13px;background:#fcfbf8}
+        .vc-l{padding:12px 16px;border-top:1px solid ${C.rule};color:${C.sub};font-size:13px;background:#fdfbf8}
         .vc-c{padding:12px 16px;border-top:1px solid ${C.rule};border-left:1px solid ${C.rule};font-size:14.5px;line-height:1.45;min-width:0}
         .vc-head{position:sticky;top:0;z-index:3;background:#fff;padding-top:12px;padding-bottom:10px;box-shadow:0 1px 0 ${C.rule}}
         .vc-l.vc-head{background:#fff;border-top:none}
-        .vc-sec{grid-column:1/-1;padding:16px 16px 6px;font-family:${"'DM Sans',sans-serif"};font-size:17px;font-weight:700;color:${C.ink};border-top:1px solid ${C.rule};background:#fff}
+        .vc-sec{grid-column:1/-1;padding:16px 16px 6px;font-family:${"'Source Serif 4',Georgia,serif"};font-size:20px;font-weight:500;color:${C.ink};border-top:1px solid ${C.rule};background:#fff}
         .vc-q{font-size:15px}
         .vc-note{grid-column:1/-1;padding:11px 16px;border-top:1px solid ${C.rule};font-size:13.5px;color:${C.sub};line-height:1.55}
         @media (max-width: 720px){
@@ -70,7 +70,7 @@ export default async function StateBallot({ params }: { params: Promise<{ st: st
       <NewsChrome active="vote" />
       <div style={{ maxWidth: 1240, margin: "0 auto", padding: "18px 20px 70px" }}>
         <div style={{ fontSize: 13, color: C.sub }}><Link href="/vote" style={{ color: C.sub }}>Vote</Link> › {s.name}</div>
-        <h1 style={{ fontFamily: SANS, fontWeight: 700, letterSpacing: "-0.01em", fontSize: "clamp(28px, 4.2vw, 40px)", lineHeight: 1.08, margin: "8px 0 0" }}>Your {s.name} ballot</h1>
+        <h1 style={{ fontFamily: SERIF, fontWeight: 500, letterSpacing: "-0.015em", fontSize: "clamp(30px, 4.4vw, 46px)", lineHeight: 1.08, margin: "8px 0 0" }}>Your {s.name} ballot</h1>
         <div className="vs-tabs" style={{ display: "flex", gap: 18, alignItems: "center", borderBottom: `1px solid ${C.rule}`, marginTop: 16 }}>
           {s.races.map(r => <a key={r.id} href={`#${r.id}`} style={{ padding: "9px 0", color: C.ink, textDecoration: "none", fontSize: 14, fontWeight: 700, borderBottom: "2px solid transparent" }}>{raceTitle(r)} ↓</a>)}
           <a href={`https://x.com/intent/post?text=${encodeURIComponent(`Compare the candidates on the ${s.name} ballot, side by side. Facts only.`)}&url=${encodeURIComponent(url)}`} style={{ marginLeft: "auto", fontSize: 13, color: C.sub, textDecoration: "none", whiteSpace: "nowrap" }}>Share ↗</a>
