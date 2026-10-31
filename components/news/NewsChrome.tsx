@@ -49,8 +49,8 @@ export function NewsChrome({ active = "news" }: { active?: "news" | "data" | "li
 }
 
 /* Lean colours: blue / white / red, as on the coverage bar. */
-export const LEAN_COLOR: Record<Lean, string> = { left: "#2C4A86", center: "#D9D5CE", right: "#7B2D26", unrated: "#E2DED6" };
-export const LEAN_TEXT: Record<Lean, string> = { left: "#2C4A86", center: "#6b655c", right: "#7B2D26", unrated: "#8a8378" };
+export const LEAN_COLOR: Record<Lean, string> = { left: "#4361a6", center: "#D9D5CE", right: "#b8372d", unrated: "#E2DED6" };
+export const LEAN_TEXT: Record<Lean, string> = { left: "#4361a6", center: "#6b655c", right: "#b8372d", unrated: "#8a8378" };
 export const LEAN_LABEL: Record<Lean, string> = { left: "Left", center: "Center", right: "Right", unrated: "Not rated" };
 
 /** Width a segment needs to fit "Center 100%" at this font size. */

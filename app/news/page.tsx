@@ -32,8 +32,8 @@ function sidesOf(s: Story): Partial<Record<(typeof SIDES)[number], StoryArticle>
   return out;
 }
 const kicker = (s: Story) => s.numbers ? "Data release" : s.topic;
-const H: React.CSSProperties = { fontFamily: SANS, fontWeight: 700, letterSpacing: "-0.01em", color: C.ink, margin: 0 };
-const RED = "#C8102E";
+const H: React.CSSProperties = { fontFamily: SERIF, fontWeight: 500, letterSpacing: "-0.015em", color: C.ink, margin: 0 };
+const RED = C.accent;
 /** "Covered by 26% of left-leaning, 38% of center and 24% of right-leaning outlets" */
 const mins = (iso: string) => { const m = Math.max(1, Math.round((Date.now() - Date.parse(iso)) / 60000)); return m < 60 ? `${m} min` : m < 1440 ? `${Math.round(m / 60)} hr` : `${Math.round(m / 1440)} d`; };
 const P = (s: Story, o: { ratio?: string; priority?: boolean } = {}) => <Photo src={s.photo?.url} alt="" topic={s.topic} credit={s.photo?.name} alts={s.photo?.alts} ratio={o.ratio} priority={o.priority} />;
@@ -196,7 +196,7 @@ export default async function NewsPage({ searchParams }: { searchParams: Promise
   );
 
   return (
-    <div style={{ minHeight: "100vh", background: "#fff", color: C.ink, fontFamily: SANS }}>
+    <div style={{ minHeight: "100vh", background: C.bg, color: C.ink, fontFamily: SANS }}>
       <style>{`
         .nw-band{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr) 300px;gap:0;align-items:start}
         .nw-band>*{padding:0 22px;border-left:1px solid ${C.rule}}
