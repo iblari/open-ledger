@@ -6,7 +6,7 @@ const SITE = "https://voteunbiased.org";
 export const storyPath = (s: Story) => `/news/${s.slug}`;
 /** The card URL changes when the counts do, so X and others fetch a fresh one. */
 export const storyImage = (s: Story) =>
-  `${SITE}/news/${s.slug}/opengraph-image?v=2-${s.coverage.left}-${s.coverage.center}-${s.coverage.right}`;
+  `${SITE}/news/${s.slug}/opengraph-image?v=3-${s.coverage.left}-${s.coverage.center}-${s.coverage.right}`;
 
 /** Whole-number shares of the rated outlets covering a story, summing to 100. */
 export function leanShares(coverage: { left: number; center: number; right: number }) {
