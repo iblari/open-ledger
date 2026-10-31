@@ -36,7 +36,14 @@ function persistEmail(addr: string) {
   try { window.localStorage.setItem(EMAIL_KEY, addr); } catch { /* ignore */ }
 }
 
-export default function FeedbackBanner() {
+/** Scroll-triggered "Useful?" bar, then an optional email. `page` tags the
+ *  signup source and picks the email prompt; one answer anywhere hides it everywhere. */
+const PROMPTS: Record<string, string> = {
+  data: "Get notified when we add new data — enter email",
+  vote: "Get election-night results and fact-checks — enter email",
+  news: "Get the day's biggest stories, checked — enter email",
+};
+export default function FeedbackBanner({ page = "data" }: { page?: "data" | "vote" | "news" } = {}) {
   const [mounted, setMounted] = useState(false);
   const [showBanner, setShowBanner] = useState(false);
   const [dismissed, setDismissed] = useState(false);
@@ -107,7 +114,7 @@ export default function FeedbackBanner() {
     fetch("/api/subscribe", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: "", feedback: val, source: "banner-feedback" }),
+      body: JSON.stringify({ email: "", feedback: val, source: page === "data" ? "banner-feedback" : `banner-feedback-${page}` }),
     }).catch(() => {});
     // After a short beat, advance to stage 2 for optional email
     setTimeout(() => setStage(2), 1200);
@@ -120,7 +127,7 @@ export default function FeedbackBanner() {
       await fetch("/api/subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, feedback: feedback || "", source: "banner" }),
+        body: JSON.stringify({ email, feedback: feedback || "", source: page === "data" ? "banner" : `banner-${page}` }),
       });
     } catch {}
     persistEmail(email);
@@ -308,7 +315,7 @@ export default function FeedbackBanner() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       onKeyDown={(e) => { if (e.key === "Enter") handleSubscribe(); }}
-                      placeholder="Get notified when we add new data — enter email"
+                      placeholder={PROMPTS[page]}
                       disabled={loading}
                       style={{
                         flex: 1,

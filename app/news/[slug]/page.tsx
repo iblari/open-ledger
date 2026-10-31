@@ -6,6 +6,7 @@ import { getStory } from "@/lib/news/store";
 import { LEAN_TOTALS, type Lean } from "@/lib/news/outlets";
 import { blindspotLabel, type Story, type StoryArticle } from "@/lib/news/engine";
 import { storyImage, storyDataLine } from "@/lib/news/share";
+import FeedbackBanner from "@/app/dashboard/FeedbackBanner";
 import { NewsChrome, LeanPill, CoverageBar, LEAN_COLOR, LEAN_LABEL, ago } from "@/components/news/NewsChrome";
 import Photo from "@/components/news/Photo";
 import { OUTLET_BY_ID } from "@/lib/news/outlets";
@@ -114,6 +115,7 @@ export default async function StoryPage({ params }: { params: Promise<{ slug: st
         </div>
         <p style={{ fontSize: 12, color: C.mute, marginTop: 18, lineHeight: 1.6, maxWidth: 820 }}>Headlines link to each outlet's own article. Lean is from published research on each outlet's audience (Robertson et al., 2018), not our judgment of its content. Stories are grouped automatically from {LEAN_TOTALS.left + LEAN_TOTALS.center + LEAN_TOTALS.right + LEAN_TOTALS.unrated} outlets' public feeds. <Link href="/methodology#news" style={{ color: C.mute }}>Method</Link></p>
       </main>
+      <FeedbackBanner page="news" />
     </div>
   );
 }

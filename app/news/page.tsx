@@ -6,6 +6,7 @@ import { listTrendingClaims } from "@/lib/trending-claims";
 import { toOutcome, VERDICT_COLOR, ratingLabel } from "@/lib/live-design";
 import { LEAN_TOTALS } from "@/lib/news/outlets";
 import ClaimsFeed from "@/components/trending/ClaimsFeed";
+import FeedbackBanner from "@/app/dashboard/FeedbackBanner";
 import { NewsChrome, CoverageBar, LeanPill, LEAN_COLOR, LEAN_TEXT, ago } from "@/components/news/NewsChrome";
 import { blindspotLabel, type Story, type StoryArticle } from "@/lib/news/engine";
 import Photo from "@/components/news/Photo";
@@ -271,6 +272,7 @@ export default async function NewsPage({ searchParams }: { searchParams: Promise
           Headlines link to each outlet. Lean: Robertson et al. (2018). <Link href="/methodology#news" style={{ color: C.mute }}>Methodology</Link>
         </p>
       )}
+      <FeedbackBanner page="news" />
     </div>
   );
 }
