@@ -3,7 +3,6 @@ import LiveTakeover, { type LiveNow } from "@/components/LiveTakeover";
 import LandingPage from "@/components/landing/LandingPage";
 import { liveTrending } from "@/lib/trending-live";
 import { newsTrending } from "@/lib/trending-news";
-import YourBallotBar from "@/components/YourBallotBar";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = { alternates: { canonical: "https://voteunbiased.org/" } };
@@ -46,7 +45,6 @@ export default async function Page() {
   return (
     <>
       <LiveTakeover live={live} />
-      <YourBallotBar />
       <LandingPage liveTrends={liveTrends} />
     </>
   );
