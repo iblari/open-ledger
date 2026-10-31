@@ -1,6 +1,5 @@
 import { ImageResponse } from "next/og";
 import { getStory } from "@/lib/news/store";
-import { LEAN_TOTALS } from "@/lib/news/outlets";
 import { etTime, leanShares } from "@/lib/news/share";
 import { markSvg } from "@/lib/cheetah-mark";
 
@@ -9,7 +8,7 @@ import { markSvg } from "@/lib/cheetah-mark";
  * (1200×630): the story's photo (the one the page shows, from an outlet's own
  * feed, credited) full-bleed under a dark gradient, the headline in white, an
  * "N sources" tag, and the Left / Center / Right bar along the bottom with
- * counts and shares. With no usable photo it falls back to the white card.
+ * shares only. With no usable photo it falls back to the white card.
  * Re-rendered every 10 minutes; the page links it with ?v=<counts> so a
  * changed count gets a fresh card.
  */
@@ -40,6 +39,7 @@ async function photoData(cands: { url: string; name: string }[]): Promise<{ src:
   return null;
 }
 const MARK = "data:image/svg+xml;base64," + Buffer.from(markSvg({ ink: "#14110E", accent: "#C8102E", bars: 7, id: "nog", width: 120, height: 40 })).toString("base64");
+const MARK_WHITE = "data:image/svg+xml;base64," + Buffer.from(markSvg({ ink: "#FFFFFF", accent: "#FFFFFF", bars: 7, id: "nogw", width: 120, height: 40 })).toString("base64");
 const COL = { left: "#2C4A86", center: "#FFFFFF", right: "#7B2D26" } as const;
 const LABEL = { left: "Left", center: "Center", right: "Right" } as const;
 const INK = "#14110E", SUB = "#5c5856", MUTE = "#8a8378", RULE = "#CFC9BF";
@@ -62,9 +62,18 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
       <div style={{ display: "flex", fontFamily: "Serif", fontSize: 28, color: INK }}>Vote&nbsp;<span style={{ color: "#C8102E" }}>Unbiased</span></div>
     </div>
   );
+  const brandWhite = (
+    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={MARK_WHITE} width={54} height={18} alt="" />
+      <div style={{ display: "flex", fontFamily: "Sans", fontSize: 20, fontWeight: 700, color: "#fff" }}>voteunbiased.org</div>
+    </div>
+  );
   if (!s) {
     return new ImageResponse((
-      <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "#fff" }}>{brand}</div>
+      <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", background: "#fff", padding: "44px 64px" }}>
+        <div style={{ display: "flex", justifyContent: "flex-end" }}>{brand}</div>
+      </div>
     ), { ...size, fonts, headers });
   }
   const t0 = s.title.replace(/\s+/g, " ").trim();
@@ -85,19 +94,19 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
             <div style={{ display: "flex", fontSize: 24, fontWeight: 700, letterSpacing: 0.5, padding: "8px 18px", borderRadius: 999, background: "rgba(255,255,255,0.18)", border: "1.5px solid rgba(255,255,255,0.55)" }}>
               {`${s.outlets} source${s.outlets === 1 ? "" : "s"}`}
             </div>
-            <div style={{ display: "flex", fontSize: 20, letterSpacing: 2, color: "rgba(255,255,255,0.8)" }}>{`AS OF ${etTime(s.asOf || s.lastSeen).toUpperCase()}`}</div>
+            {brandWhite}
           </div>
           <div style={{ display: "flex", marginTop: 28, fontSize: tSize + 6, fontWeight: 700, lineHeight: 1.08, maxWidth: 1072, color: "#fff" }}>{title}</div>
           <div style={{ display: "flex", flexDirection: "column", marginTop: "auto" }}>
             <div style={{ display: "flex", height: 68, borderRadius: 10, overflow: "hidden", border: "2px solid rgba(255,255,255,0.85)" }}>
               {parts.map(k => (
                 <div key={k} style={{ display: "flex", flexGrow: sh[k], flexBasis: 0, minWidth: 132, alignItems: "center", justifyContent: "center", background: COL[k], color: k === "center" ? INK : "#fff", fontSize: 26, fontWeight: 700 }}>
-                  {`${LABEL[k]} ${c[k]} · ${sh[k]}%`}
+                  {`${LABEL[k]} ${sh[k]}%`}
                 </div>
               ))}
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", marginTop: 12, fontSize: 17, color: "rgba(255,255,255,0.75)" }}>
-              <div style={{ display: "flex" }}>{`Share of the ${c.left + c.center + c.right} rated outlets covering it · voteunbiased.org`}</div>
+              <div style={{ display: "flex" }}>{`Share of rated outlets covering it · as of ${etTime(s.asOf || s.lastSeen)}`}</div>
               <div style={{ display: "flex" }}>{`Photo: ${photo.name}`}</div>
             </div>
           </div>
@@ -108,8 +117,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
   return new ImageResponse((
     <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", background: "#fff", color: INK, padding: "44px 64px 0", fontFamily: "Sans" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: 18, borderBottom: `3px solid ${INK}` }}>
-        {brand}
         <div style={{ display: "flex", fontSize: 20, letterSpacing: 2, color: MUTE }}>{`AS OF ${etTime(s.asOf || s.lastSeen).toUpperCase()}`}</div>
+        {brand}
       </div>
       <div style={{ display: "flex", marginTop: 26, fontSize: tSize, fontWeight: 700, lineHeight: 1.08, maxWidth: 1072 }}>{title}</div>
       <div style={{ display: "flex", flexDirection: "column", marginTop: "auto", marginBottom: 92 }}>
@@ -122,7 +131,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
           ))}
         </div>
         <div style={{ display: "flex", marginTop: 14, fontSize: 23, color: SUB }}>
-          {`${c.left} of ${LEAN_TOTALS.left} left-leaning · ${c.center} of ${LEAN_TOTALS.center} center · ${c.right} of ${LEAN_TOTALS.right} right-leaning outlets we read`}
+          {`Share of rated outlets covering it, by lean`}
         </div>
         <div style={{ display: "flex", marginTop: 6, fontSize: 17, color: MUTE }}>
           {`voteunbiased.org · lean from Robertson et al. (2018)`}
