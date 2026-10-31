@@ -93,24 +93,28 @@ export default function RaceCompare({ race, fc, polls, trends = [] }: { race: Ra
           ))}
 
           <Section title="Background" />
-          {mains.some(c => c.bg) ? (
+          {mains.some(c => c.bg) && (
             <>
-              <Row label="Education" sub={<a href="https://www.wikidata.org" style={{ color: C.mute }}>Wikidata</a>}>
-                {mains.map(c => cell(c.name, c.bg?.edu.length ? <div style={{ fontSize: 14, lineHeight: 1.55 }}>{c.bg.edu.map(e => <div key={e}>{e}</div>)}</div> : <span style={{ color: C.mute, fontSize: 13 }}>Not listed</span>))}
+              <Row label="Education">
+                {mains.map(c => cell(c.name, c.bg?.edu.length ? <div style={{ fontSize: 14, lineHeight: 1.55 }}>{c.bg.edu.map(e => <div key={e}>{e}</div>)}</div> : <span style={{ color: C.mute, fontSize: 13 }}>No college listed</span>))}
               </Row>
-              <Row label="Work experience" sub={<a href="https://www.wikidata.org" style={{ color: C.mute }}>Wikidata</a>}>
+              <Row label="Work experience" sub="Campaign sites, official bios, Wikipedia, Ballotpedia">
                 {mains.map(c => {
                   const items = [...(c.bg?.offices || []), ...(c.bg?.work || [])]
-                    .sort((x, y) => ((y.to === "" && y.from !== "") ? 9999 : +(y.to || y.from || 0)) - ((x.to === "" && x.from !== "") ? 9999 : +(x.to || x.from || 0)))
+                    .sort((x, y) => {
+                      const k = (o: { from: string; to: string; kind?: string }) => (o.to === "" && o.from !== "" && o.kind !== "research") ? 9999 : +(o.to || o.from || 0);
+                      return k(y) - k(x);
+                    })
                     .slice(0, 6);
                   return cell(c.name, items.length ? (
-                    <div style={{ fontSize: 14, lineHeight: 1.55 }}>{items.map(o => <div key={o.t + o.from}>{o.t[0].toUpperCase() + o.t.slice(1)}{o.from ? <span style={{ color: C.mute }}> · {o.from}{o.to ? (o.to !== o.from ? `–${o.to}` : "") : "–now"}</span> : null}</div>)}</div>
+                    <div style={{ fontSize: 14, lineHeight: 1.55 }}>{items.map(o => <div key={o.t + o.from}>{o.t[0].toUpperCase() + o.t.slice(1)}{o.from ? <span style={{ color: C.mute }}> · {o.from}{o.to ? (o.to !== o.from ? `–${o.to}` : "") : ("kind" in o && o.kind === "research" ? "" : "–now")}</span> : null}</div>)}
+                      <div style={{ fontSize: 11.5, color: C.mute, marginTop: 4 }}>{[...(c.bg?.src || []), ...(c.bg?.wiki ? [c.bg.wiki] : [])].filter((u, i, a) => a.findIndex(v => host(v) === host(u)) === i).slice(0, 3).map((u, i) => <a key={u} href={u} style={{ color: C.mute, marginRight: 8 }}>{host(u)} ↗</a>)}</div></div>
                   ) : <span style={{ color: C.mute, fontSize: 13 }}>Not listed</span>);
                 })}
               </Row>
             </>
-          ) : <Note>No public record found for these candidates.</Note>}
-          {race.office === "senate" && (
+          )}
+          {race.office === "senate" && hasPolls && (
             <>
               <Section title="Polls" />
               {hasPolls ? (
@@ -141,7 +145,7 @@ export default function RaceCompare({ race, fc, polls, trends = [] }: { race: Ra
                     </details>
                   </Note>
                 </>
-              ) : <Note>No recent nonpartisan polls.</Note>}
+              ) : null}
             </>
           )}
           {race.office === "senate" ? (
@@ -164,13 +168,10 @@ export default function RaceCompare({ race, fc, polls, trends = [] }: { race: Ra
               </Row>
             </>
           ) : (
-            <>
-              <Section title="Money" />
-              <Note>Reported to the state, not the FEC.</Note>
-            </>
+            null
           )}
 
-          <Section title="Record in Congress" />
+          {anyRecord && <Section title="Record in Congress" />}
           {anyRecord ? (
             <>
               <Row label="Votes with own party" sub={<>Party-line votes · <a href="https://voteview.com" style={{ color: C.mute }}>Voteview</a></>}>
@@ -191,20 +192,20 @@ export default function RaceCompare({ race, fc, polls, trends = [] }: { race: Ra
                 </Row>
               ))}
             </>
-          ) : <Note>No one in this race serves in Congress.</Note>}
+          ) : null}
 
-          <Section title="Our live fact-checks" />
+          {anyFc && <Section title="Our live fact-checks" />}
           {anyFc ? (
             <Row label="Claims checked">
               {mains.map(c => { const f = fc[c.name]; return cell(c.name, f ? `${f.claims} claims · ${f.true} true · ${f.misleading} misleading · ${f.false} false` : <span style={{ color: C.mute, fontSize: 13 }}>Not checked yet</span>); })}
             </Row>
-          ) : <Note>Not fact-checked yet.</Note>}
+          ) : null}
 
           <Section title="Issues" />
           {TOPICS.filter(t => shown.includes(t) || TOPIC_TRENDS[t]).map(t => (
             <TopicBlock key={t} t={t} />
           ))}
-          {silent.length > 0 && <Note>Not on any campaign site: <b style={{ color: C.ink }}>{silent.map(t => MID.topics[t]).join(" · ")}</b></Note>}
+
         </div>
       </div>
       {others.length > 0 && (

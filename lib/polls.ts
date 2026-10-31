@@ -78,11 +78,11 @@ export function pollShare(race: Race, s: PollSummary | undefined | null, p: { d:
   const m = new Map<string, number>();
   if (!s || !p || race.office !== "senate") return m;
   const mains = race.candidates.filter(c => c.main);
-  const ind = mains.find(c => c.p !== "D" && c.p !== "R");
-  for (const c of mains) {
-    const v = c.p === "D" ? p.d : c.p === "R" ? p.r : c === ind ? p.i : null;
-    if (v != null) m.set(c.name, v);
-  }
+  // One poll column per party: when a party has several candidates on the ballot,
+  // it belongs to the incumbent, else the one who has raised the most.
+  const lead = (xs: typeof mains) => [...xs].sort((a, b) => (+b.incumbent - +a.incumbent) || ((b.fec?.raised ?? 0) - (a.fec?.raised ?? 0)))[0];
+  const dem = lead(mains.filter(c => c.p === "D")), rep = lead(mains.filter(c => c.p === "R")), ind = lead(mains.filter(c => c.p !== "D" && c.p !== "R"));
+  for (const [c, v] of [[dem, p.d], [rep, p.r], [ind, p.i]] as const) if (c && v != null) m.set(c.name, v);
   return m;
 }
 
