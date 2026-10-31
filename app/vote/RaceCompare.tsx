@@ -7,8 +7,8 @@ type FC = Record<string, { claims: number; true: number; misleading: number; fal
 const host = (u: string) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return u; } };
 const role = (c: Candidate) => c.record?.chamber === "Senate" ? "U.S. senator" : c.record?.chamber === "House" ? "U.S. representative" : null;
 const partyName = (c: Candidate) => c.party.replace(" Party", "");
-const PARTY: Record<string, string> = { D: "#2C4A86", R: "#7B2D26" };
-const pcol = (c: Candidate) => PARTY[c.p] || "#6b655c";
+const PARTY: Record<string, string> = { D: "#4361a6", R: "#b8372d" };
+const pcol = (c: Candidate) => PARTY[c.p] || "#9a7b4f";
 const ptag = (c: Candidate) => <span style={{ display: "inline-block", minWidth: 18, textAlign: "center", fontSize: 11, fontWeight: 700, padding: "1px 5px", borderRadius: 3, background: pcol(c), color: "#fff", marginRight: 7, verticalAlign: 2 }}>{c.p === "D" || c.p === "R" ? c.p : "I"}</span>;
 const fmtDay = (d: string) => new Date(d + "T12:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
 
@@ -48,7 +48,7 @@ export default function RaceCompare({ race, fc, polls }: { race: Race; fc: FC; p
 
   return (
     <section id={race.id} style={{ scrollMarginTop: 60, marginTop: 30 }}>
-      <h2 style={{ fontFamily: SANS, fontWeight: 700, fontSize: 26, letterSpacing: "-0.01em", margin: "0 0 2px" }}>{raceTitle(race)}</h2>
+      <h2 style={{ fontFamily: SERIF, fontWeight: 500, fontSize: 30, letterSpacing: "-0.015em", margin: "0 0 2px" }}>{raceTitle(race)}</h2>
       <div style={{ fontSize: 13, color: C.sub, marginBottom: 12 }}>
         {race.incumbent ? `Incumbent: ${race.incumbent}` : "Open seat"}
       </div>
@@ -57,7 +57,7 @@ export default function RaceCompare({ race, fc, polls }: { race: Race; fc: FC; p
           <div className="vc-l vc-head" />
           {mains.map(c => (
             <div key={c.name} className="vc-c vc-head" style={{ borderTop: `3px solid ${pcol(c)}` }}>
-              <div style={{ fontFamily: SANS, fontSize: 18, fontWeight: 700, lineHeight: 1.2 }}>{ptag(c)}{c.name}</div>
+              <div style={{ fontFamily: SERIF, fontSize: 20, fontWeight: 500, lineHeight: 1.2 }}>{ptag(c)}{c.name}</div>
               <div style={{ fontSize: 12.5, color: C.sub, marginTop: 3 }}>
                 {partyName(c)}{c.incumbent ? " · incumbent" : role(c) ? ` · ${role(c)}` : ""}
               </div>
