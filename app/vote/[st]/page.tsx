@@ -64,6 +64,7 @@ export default async function StateBallot({ params }: { params: Promise<{ st: st
           .vc-head.vc-c{padding-top:10px;border-top-width:3px}
           .vc-sec{padding:14px 14px 4px;font-size:16px}
           .vc-q{font-size:13.5px}
+          .vc-head.vc-c > div:first-child{font-size:15px!important}
         }
       `}</style>
       <NewsChrome active="vote" />

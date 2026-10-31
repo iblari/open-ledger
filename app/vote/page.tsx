@@ -69,13 +69,13 @@ export default async function VoteIndex() {
               <div style={{ fontSize: 12, color: C.sub, marginBottom: 6 }}>{guess ? "Another state" : "Find your state"}</div>
               <StatePicker states={states} />
             </div>
-            <Metrics through={through} pollsAt={pollsAt} />
             <a href="https://vote.gov" style={{ fontSize: 13, color: C.sub }}>Check your registration and polling place at vote.gov ↗</a>
           </aside>
           <RacesTable rows={rows} />
         </div>
 
-        <h2 style={{ ...H, fontSize: 20, margin: "34px 0 10px" }}>All states</h2>
+        <div style={{ marginTop: 28 }}><Metrics through={through} pollsAt={pollsAt} /></div>
+        <h2 style={{ ...H, fontSize: 20, margin: "30px 0 10px" }}>All states</h2>
         <div style={{ columns: "4 220px", columnGap: 24, fontSize: 14 }}>
           {states.map(s => (
             <Link key={s.st} href={`/vote/${s.st.toLowerCase()}`} style={{ display: "block", breakInside: "avoid", padding: "6px 0", borderTop: `1px solid ${C.rule}`, textDecoration: "none", color: C.ink }}>

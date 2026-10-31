@@ -14,8 +14,8 @@ export default function Metrics({ through, pollsAt, open = false }: { through: s
   ];
   return (
     <details open={open} style={{ border: `1px solid ${C.rule}`, borderRadius: 10, background: "#fff", fontFamily: SANS }}>
-      <summary style={{ cursor: "pointer", padding: "12px 16px", fontWeight: 700, fontSize: 15, listStyle: "none", display: "flex", alignItems: "center", gap: 8 }}>
-        What we compare <span style={{ fontWeight: 400, color: C.sub, fontSize: 13 }}>· {rows.length} measures, every one sourced</span>
+      <summary style={{ cursor: "pointer", padding: "12px 16px", fontWeight: 700, fontSize: 15, listStyle: "none", display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+        <span style={{ whiteSpace: "nowrap" }}>What we compare</span><span style={{ fontWeight: 400, color: C.sub, fontSize: 13 }}>{rows.length} measures, every one sourced</span>
         <span style={{ marginLeft: "auto", color: C.mute, fontSize: 12 }}>▾</span>
       </summary>
       <div style={{ borderTop: `1px solid ${C.rule}` }}>
