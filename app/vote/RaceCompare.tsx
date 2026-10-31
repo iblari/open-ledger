@@ -108,7 +108,7 @@ export default function RaceCompare({ race, fc, polls, trends = [] }: { race: Ra
                     .slice(0, 6);
                   return cell(c.name, items.length ? (
                     <div style={{ fontSize: 14, lineHeight: 1.55 }}>{items.map(o => <div key={o.t + o.from}>{o.t[0].toUpperCase() + o.t.slice(1)}{o.from ? <span style={{ color: C.mute }}> · {o.from}{o.to ? (o.to !== o.from ? `–${o.to}` : "") : ("kind" in o && o.kind === "research" ? "" : "–now")}</span> : null}</div>)}
-                      <div style={{ fontSize: 11.5, color: C.mute, marginTop: 4 }}>{[...(c.bg?.src || []), ...(c.bg?.wiki ? [c.bg.wiki] : [])].slice(0, 3).map((u, i) => <a key={u} href={u} style={{ color: C.mute, marginRight: 8 }}>{host(u)}{i === 0 ? " ↗" : ""}</a>)}</div></div>
+                      <div style={{ fontSize: 11.5, color: C.mute, marginTop: 4 }}>{[...(c.bg?.src || []), ...(c.bg?.wiki ? [c.bg.wiki] : [])].filter((u, i, a) => a.findIndex(v => host(v) === host(u)) === i).slice(0, 3).map((u, i) => <a key={u} href={u} style={{ color: C.mute, marginRight: 8 }}>{host(u)} ↗</a>)}</div></div>
                   ) : <span style={{ color: C.mute, fontSize: 13 }}>Not listed</span>);
                 })}
               </Row>
