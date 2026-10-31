@@ -1,12 +1,16 @@
 import { MID, TOPICS, raceTitle, rollUrl, money, type Race, type Candidate } from "@/lib/midterms";
-import { C, SERIF } from "@/lib/design-tokens";
+import { C, SERIF, SANS } from "@/lib/design-tokens";
+import { POLL_SOURCE, pollShare, type PollSummary } from "@/lib/polls";
 
 type FC = Record<string, { claims: number; true: number; misleading: number; false: number; broadcasts: number }>;
 
 const host = (u: string) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return u; } };
-const initials = (n: string) => n.split(/\s+/).filter(w => /^[A-Z]/.test(w)).map(w => w[0]).slice(0, 2).join("") || n[0];
 const role = (c: Candidate) => c.record?.chamber === "Senate" ? "U.S. senator" : c.record?.chamber === "House" ? "U.S. representative" : null;
 const partyName = (c: Candidate) => c.party.replace(" Party", "");
+const PARTY: Record<string, string> = { D: "#2C4A86", R: "#7B2D26" };
+const pcol = (c: Candidate) => PARTY[c.p] || "#6b655c";
+const ptag = (c: Candidate) => <span style={{ display: "inline-block", minWidth: 18, textAlign: "center", fontSize: 11, fontWeight: 700, padding: "1px 5px", borderRadius: 3, background: pcol(c), color: "#fff", marginRight: 7, verticalAlign: 2 }}>{c.p === "D" || c.p === "R" ? c.p : "I"}</span>;
+const fmtDay = (d: string) => new Date(d + "T12:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
 
 function Row({ label, sub, children }: { label: string; sub?: React.ReactNode; children: React.ReactNode }) {
   return (
@@ -23,7 +27,7 @@ function Section({ title }: { title: string }) {
   return <div className="vc-sec">{title}</div>;
 }
 
-export default function RaceCompare({ race, fc }: { race: Race; fc: FC }) {
+export default function RaceCompare({ race, fc, polls }: { race: Race; fc: FC; polls?: PollSummary | null }) {
   const mains = race.candidates.filter(c => c.main);
   const others = race.candidates.filter(c => !c.main);
   const n = mains.length;
@@ -33,26 +37,70 @@ export default function RaceCompare({ race, fc }: { race: Race; fc: FC }) {
   const through = mains.map(c => c.fec?.through).filter(Boolean).sort().pop();
   const cell = (key: string, content: React.ReactNode) => <div key={key} className="vc-c">{content}</div>;
   const dash = <span style={{ color: C.mute }}>—</span>;
+  const share = pollShare(race, polls);
+  const hasPolls = race.office === "senate" && share.size >= 2 && polls;
+  const lead = hasPolls ? [...share.values()].sort((a, b) => b - a) : [];
+  const margin = lead.length >= 2 ? Math.round((lead[0] - lead[1]) * 10) / 10 : null;
+  // Topics no main candidate addresses (and every site was readable): one line, not empty rows.
+  const allRead = mains.every(c => c.siteStatus === "ok");
+  const silent = TOPICS.filter(t => allRead && mains.every(c => !c.positions[t]));
+  const shown = TOPICS.filter(t => !silent.includes(t));
 
   return (
-    <section id={race.id} style={{ scrollMarginTop: 16, marginTop: 26 }}>
-      <h2 style={{ fontFamily: SERIF, fontWeight: 500, fontSize: 26, margin: "0 0 2px" }}>{raceTitle(race)}</h2>
+    <section id={race.id} style={{ scrollMarginTop: 60, marginTop: 30 }}>
+      <h2 style={{ fontFamily: SANS, fontWeight: 700, fontSize: 26, letterSpacing: "-0.01em", margin: "0 0 2px" }}>{raceTitle(race)}</h2>
       <div style={{ fontSize: 13, color: C.sub, marginBottom: 12 }}>
         {race.state}{race.incumbent ? ` · current officeholder: ${race.incumbent}` : ""} · {race.candidates.length} candidate{race.candidates.length === 1 ? "" : "s"} on the ballot
       </div>
-      <div className="vc-wrap" style={{ ["--n" as string]: n } as React.CSSProperties}>
+      <div className={`vc-wrap${n > 2 ? " vc-many" : ""}`} style={{ ["--n" as string]: n } as React.CSSProperties}>
         <div className="vc-grid">
           <div className="vc-l vc-head" />
           {mains.map(c => (
-            <div key={c.name} className="vc-c vc-head">
-              <div style={{ width: 40, height: 40, borderRadius: "50%", background: C.paper, display: "grid", placeItems: "center", fontWeight: 700, fontSize: 14, color: C.sub }}>{initials(c.name)}</div>
-              <div style={{ fontFamily: SERIF, fontSize: 20, fontWeight: 600, marginTop: 6, lineHeight: 1.15 }}>{c.name}</div>
-              <div style={{ fontSize: 12.5, color: C.sub, marginTop: 2 }}>
+            <div key={c.name} className="vc-c vc-head" style={{ borderTop: `3px solid ${pcol(c)}` }}>
+              <div style={{ fontFamily: SANS, fontSize: 18, fontWeight: 700, lineHeight: 1.2 }}>{ptag(c)}{c.name}</div>
+              <div style={{ fontSize: 12.5, color: C.sub, marginTop: 3 }}>
                 {partyName(c)}{c.incumbent ? " · incumbent" : role(c) ? ` · ${role(c)}` : ""}
               </div>
             </div>
           ))}
 
+          {race.office === "senate" && (
+            <>
+              <Section title="Polls" />
+              {hasPolls ? (
+                <>
+                  <Row label="Poll average" sub={<>{polls!.used.length} nonpartisan poll{polls!.used.length === 1 ? "" : "s"}, {fmtDay(polls!.from)}–{fmtDay(polls!.to)} · <a href={POLL_SOURCE.url} style={{ color: C.mute }}>{POLL_SOURCE.name}</a></>}>
+                    {mains.map(c => { const v = share.get(c.name); return cell(c.name, v != null ? (
+                      <><b style={{ fontSize: 19, fontFamily: SANS }}>{v.toFixed(1)}%</b>
+                        <div style={{ height: 8, borderRadius: 4, background: C.paper, marginTop: 5 }}><div style={{ height: 8, borderRadius: 4, width: `${Math.min(100, v)}%`, background: pcol(c) }} /></div></>
+                    ) : <span style={{ color: C.mute, fontSize: 13 }}>Not in these polls</span>); })}
+                  </Row>
+                  <Note>
+                    {margin != null && margin < 5.4
+                      ? <>The gap is {margin.toFixed(1)} points, which is within the typical error of Senate polls: in the final three weeks they have missed the result by 5.4 points on average (<a href="https://fivethirtyeight.com/features/2022-election-polling-accuracy/" style={{ color: C.sub }}>FiveThirtyEight</a>). </>
+                      : margin != null ? <>The gap is {margin.toFixed(1)} points. Senate polls in the final three weeks have missed the result by 5.4 points on average (<a href="https://fivethirtyeight.com/features/2022-election-polling-accuracy/" style={{ color: C.sub }}>FiveThirtyEight</a>). </> : null}
+                    Polls are a snapshot, not a forecast.
+                    <details style={{ marginTop: 8 }}>
+                      <summary style={{ cursor: "pointer", fontWeight: 600, color: C.ink }}>Every poll ({polls!.polls.length})</summary>
+                      <div style={{ marginTop: 6, display: "grid", gridTemplateColumns: `minmax(0,1.4fr) 80px repeat(${mains.length}, minmax(48px, 70px))`, fontSize: 12.5, rowGap: 4, columnGap: 10, maxWidth: 560 }}>
+                        <span style={{ color: C.mute }}>Pollster</span><span style={{ color: C.mute }}>Midpoint</span>
+                        {mains.map(c => <span key={c.name} style={{ color: C.mute }}>{c.name.split(" ").slice(-1)[0]}</span>)}
+                        {polls!.polls.map((p, i) => {
+                          const sh = pollShare(race, polls, p); const inAvg = polls!.used.includes(p);
+                          return [
+                            <span key={`a${i}`} style={{ fontWeight: inAvg ? 600 : 400 }}>{p.pollster}{inAvg ? " •" : ""}</span>,
+                            <span key={`b${i}`}>{fmtDay(p.mid)}</span>,
+                            ...mains.map(c => <span key={`c${i}${c.name}`} style={{ fontVariantNumeric: "tabular-nums" }}>{sh.get(c.name) ?? "—"}</span>),
+                          ];
+                        })}
+                      </div>
+                      <div style={{ fontSize: 11.5, color: C.mute, marginTop: 6 }}>• = in the average (each pollster's latest poll from the 30 days before the newest).</div>
+                    </details>
+                  </Note>
+                </>
+              ) : <Note>No nonpartisan poll of this race in the {POLL_SOURCE.name} file{polls?.polls.length ? " in the last month" : ""}.</Note>}
+            </>
+          )}
           {race.office === "senate" ? (
             <>
               <Section title="Money" />
@@ -60,7 +108,7 @@ export default function RaceCompare({ race, fc }: { race: Race; fc: FC }) {
                 {mains.map(c => cell(c.name, c.fec ? (
                   <a href={`https://www.fec.gov/data/candidate/${c.fec.id}/?cycle=2026`} style={{ color: C.ink, textDecoration: "none" }}>
                     <b style={{ fontSize: 17 }}>{money(c.fec.raised)}</b>
-                    <div style={{ height: 6, borderRadius: 3, background: C.paper, marginTop: 5 }}><div style={{ height: 6, borderRadius: 3, width: `${Math.max(2, (c.fec.raised / maxRaised) * 100)}%`, background: C.sub }} /></div>
+                    <div style={{ height: 6, borderRadius: 3, background: C.paper, marginTop: 5 }}><div style={{ height: 6, borderRadius: 3, width: `${Math.max(2, (c.fec.raised / maxRaised) * 100)}%`, background: pcol(c) }} /></div>
                   </a>
                 ) : <span style={{ color: C.mute, fontSize: 13 }}>No FEC filing found</span>))}
               </Row>
@@ -110,7 +158,7 @@ export default function RaceCompare({ race, fc }: { race: Race; fc: FC }) {
           ) : <Note>We haven't fact-checked any of these candidates live yet. When we do, the results appear here.</Note>}
 
           <Section title="In their own words" />
-          {TOPICS.map(t => (
+          {shown.map(t => (
             <Row key={t} label={MID.topics[t]}>
               {mains.map(c => {
                 const p = c.positions[t];
@@ -120,6 +168,7 @@ export default function RaceCompare({ race, fc }: { race: Race; fc: FC }) {
               })}
             </Row>
           ))}
+          {silent.length > 0 && <Note>Not on any of these campaign sites: <b style={{ color: C.ink }}>{silent.map(t => MID.topics[t]).join(" · ")}</b></Note>}
         </div>
       </div>
       {others.length > 0 && (
