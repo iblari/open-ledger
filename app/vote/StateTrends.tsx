@@ -1,7 +1,7 @@
 import { C, SERIF, SANS } from "@/lib/design-tokens";
 import type { Trend } from "@/lib/state-trends";
 
-const fmt = (t: Trend, v: number) => `${t.unit === "%" && t.key !== "jobs" && t.key !== "taxes" && v > 0 ? "+" : ""}${t.key === "taxes" ? v.toFixed(1) : v}${t.unit === "%" ? "%" : ""}`;
+const fmt = (t: Trend, v: number) => `${t.unit === "%" && t.key !== "jobs" && t.key !== "taxes" && v > 0 ? "+" : ""}${v.toFixed(1)}${t.unit === "%" ? "%" : ""}`;
 
 /** One small bar chart per measure, last ten years, latest value on top. */
 export default function StateTrends({ name, trends }: { name: string; trends: Trend[] }) {
