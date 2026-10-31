@@ -6,6 +6,8 @@ import { C, SANS, SERIF } from "@/lib/design-tokens";
 import { NewsChrome } from "@/components/news/NewsChrome";
 import { senatePolls } from "@/lib/polls";
 import Metrics from "../Metrics";
+import StateTrends from "../StateTrends";
+import { stateTrends } from "@/lib/state-trends";
 import RaceCompare from "../RaceCompare";
 
 export const revalidate = 600;
@@ -33,7 +35,7 @@ export default async function StateBallot({ params }: { params: Promise<{ st: st
   const { st } = await params;
   const s = stateByCode(st);
   if (!s) notFound();
-  const [polls] = await Promise.all([senatePolls()]);
+  const [polls, trends] = await Promise.all([senatePolls(), stateTrends(s.st)]);
   const pollsAt = Object.values(polls)[0]?.fetchedAt ?? null;
   const through = s.races.flatMap(r => r.candidates.map(c => c.fec?.through)).filter(Boolean).sort().pop() ?? null;
   const fc = await factChecksFor(s.races.flatMap(r => r.candidates.filter(c => c.main).map(c => c.name)));
@@ -73,10 +75,12 @@ export default async function StateBallot({ params }: { params: Promise<{ st: st
         <h1 style={{ fontFamily: SERIF, fontWeight: 500, letterSpacing: "-0.015em", fontSize: "clamp(30px, 4.4vw, 46px)", lineHeight: 1.08, margin: "8px 0 0" }}>Your {s.name} ballot</h1>
         <div className="vs-tabs" style={{ display: "flex", gap: 18, alignItems: "center", borderBottom: `1px solid ${C.rule}`, marginTop: 16 }}>
           {s.races.map(r => <a key={r.id} href={`#${r.id}`} style={{ padding: "9px 0", color: C.ink, textDecoration: "none", fontSize: 14, fontWeight: 700, borderBottom: "2px solid transparent" }}>{raceTitle(r)} ↓</a>)}
+          {trends.length > 0 && <a href="#state-data" style={{ padding: "9px 0", color: C.sub, textDecoration: "none", fontSize: 14, fontWeight: 600 }}>{s.name} data ↓</a>}
           <a href={`https://x.com/intent/post?text=${encodeURIComponent(`Compare the candidates on the ${s.name} ballot, side by side. Facts only.`)}&url=${encodeURIComponent(url)}`} style={{ marginLeft: "auto", fontSize: 13, color: C.sub, textDecoration: "none", whiteSpace: "nowrap" }}>Share ↗</a>
         </div>
         <div style={{ marginTop: 14 }}><Metrics through={through} pollsAt={pollsAt} /></div>
         {s.races.map(r => <RaceCompare key={r.id} race={r} fc={fc} polls={r.office === "senate" ? polls[r.st] : null} />)}
+        <StateTrends name={s.name} trends={trends} />
         <div style={{ marginTop: 26, fontSize: 13, display: "flex", gap: 16 }}>
           <a href="https://vote.gov" style={{ color: C.sub }}>Find your polling place ↗</a>
           <Link href="/methodology" style={{ color: C.sub }}>Methodology</Link>
