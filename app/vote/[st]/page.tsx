@@ -70,21 +70,16 @@ export default async function StateBallot({ params }: { params: Promise<{ st: st
       <NewsChrome active="vote" />
       <div style={{ maxWidth: 1240, margin: "0 auto", padding: "18px 20px 70px" }}>
         <div style={{ fontSize: 13, color: C.sub }}><Link href="/vote" style={{ color: C.sub }}>Vote</Link> › {s.name}</div>
-        <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: ".12em", textTransform: "uppercase", color: C.accent, marginTop: 12 }}>Election day · Tuesday, Nov 3{days > 0 ? ` · ${days} day${days === 1 ? "" : "s"}` : ""}</div>
-        <h1 style={{ fontFamily: SANS, fontWeight: 700, letterSpacing: "-0.01em", fontSize: "clamp(28px, 4.2vw, 40px)", lineHeight: 1.08, margin: "6px 0 8px" }}>Your {s.name} ballot, side by side</h1>
-        <p style={{ fontSize: 15.5, color: C.sub, lineHeight: 1.55, maxWidth: 720, margin: 0 }}>Nonpartisan polls, money, voting record and what the candidates say they'll do, in their own words. Facts only: we don't endorse anyone, and every figure links to its source.</p>
+        <h1 style={{ fontFamily: SANS, fontWeight: 700, letterSpacing: "-0.01em", fontSize: "clamp(28px, 4.2vw, 40px)", lineHeight: 1.08, margin: "8px 0 0" }}>Your {s.name} ballot</h1>
         <div className="vs-tabs" style={{ display: "flex", gap: 18, alignItems: "center", borderBottom: `1px solid ${C.rule}`, marginTop: 16 }}>
           {s.races.map(r => <a key={r.id} href={`#${r.id}`} style={{ padding: "9px 0", color: C.ink, textDecoration: "none", fontSize: 14, fontWeight: 700, borderBottom: "2px solid transparent" }}>{raceTitle(r)} ↓</a>)}
           <a href={`https://x.com/intent/post?text=${encodeURIComponent(`Compare the candidates on the ${s.name} ballot, side by side. Facts only.`)}&url=${encodeURIComponent(url)}`} style={{ marginLeft: "auto", fontSize: 13, color: C.sub, textDecoration: "none", whiteSpace: "nowrap" }}>Share ↗</a>
         </div>
         <div style={{ marginTop: 14 }}><Metrics through={through} pollsAt={pollsAt} /></div>
         {s.races.map(r => <RaceCompare key={r.id} race={r} fc={fc} polls={r.office === "senate" ? polls[r.st] : null} />)}
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 26 }}>
-          <a href="https://vote.gov" style={{ padding: "11px 18px", borderRadius: 8, background: C.ink, color: "#fff", textDecoration: "none", fontWeight: 600, fontSize: 14 }}>Find your polling place at vote.gov →</a>
-          <a href={`https://x.com/intent/post?text=${encodeURIComponent(`Compare the candidates on the ${s.name} ballot, side by side. Facts only.`)}&url=${encodeURIComponent(url)}`} style={{ padding: "11px 18px", borderRadius: 8, background: "#fff", border: `1px solid ${C.rule}`, color: C.ink, textDecoration: "none", fontWeight: 600, fontSize: 14 }}>Share on X</a>
-        </div>
-        <div style={{ marginTop: 34, paddingTop: 16, borderTop: `1px solid ${C.rule}`, fontSize: 12.5, color: C.mute, lineHeight: 1.7, maxWidth: 820 }}>
-          <b style={{ color: C.sub }}>How this is built.</b> Candidates: {MID.sources.candidates}. Money: {MID.sources.money}. Voting record: {MID.sources.record}; key votes are the final vote on major bills that passed both chambers; members who weren't in office for a vote show "Not in office". Positions: {MID.sources.positions} Where a member of Congress's campaign site doesn't cover a topic, we use their official House website, labelled as such (Senate websites block automated reading). Candidates are listed with Democrats first, then Republicans, then others, with no ranking intended. Spotted an error? Tell us through the site and we will fix it.
+        <div style={{ marginTop: 26, fontSize: 13, display: "flex", gap: 16 }}>
+          <a href="https://vote.gov" style={{ color: C.sub }}>Find your polling place ↗</a>
+          <Link href="/methodology" style={{ color: C.sub }}>Methodology</Link>
         </div>
       </div>
     </div>

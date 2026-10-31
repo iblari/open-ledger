@@ -45,16 +45,13 @@ export default async function VoteIndex() {
       <NewsChrome active="vote" />
       <main style={{ maxWidth: 1240, margin: "0 auto", padding: "22px 20px 70px" }}>
         <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: ".12em", textTransform: "uppercase", color: C.accent }}>Election day · Tuesday, Nov 3</div>
-        <h1 style={{ ...H, fontSize: "clamp(28px,4vw,40px)", lineHeight: 1.08, margin: "6px 0 8px" }}>Compare the candidates on your ballot</h1>
-        <p style={{ fontSize: 16, color: C.sub, lineHeight: 1.55, maxWidth: 720, margin: 0 }}>
-          Every Senate and governor race, side by side: nonpartisan polls, where the money comes from, how they've voted, and what they say they'll do in their own words. We don't endorse anyone, and every number links to its source.
-        </p>
+        <h1 style={{ ...H, fontSize: "clamp(28px,4vw,40px)", lineHeight: 1.08, margin: "6px 0 0" }}>Compare the candidates on your ballot</h1>
 
         <div className="vi-top" style={{ display: "grid", gridTemplateColumns: "minmax(0,340px) minmax(0,1fr)", gap: 28, marginTop: 22, alignItems: "start" }}>
           <aside style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             {guess ? (
               <div style={{ border: `1px solid ${C.rule}`, borderTop: `3px solid ${C.ink}`, borderRadius: 10, padding: "12px 14px" }}>
-                <div style={{ fontSize: 12, color: C.sub }}>Your state</div>
+                
                 <div style={{ ...H, fontSize: 22, margin: "2px 0 8px" }}>{guess.name}</div>
                 {guess.races.map(r => (
                   <div key={r.id} style={{ borderTop: `1px solid ${C.rule}`, padding: "8px 0", fontSize: 13.5 }}>
@@ -62,14 +59,13 @@ export default async function VoteIndex() {
                     {r.candidates.filter(c => c.main).map(c => <div key={c.name} style={{ marginTop: 2 }}>{tag(c.p)}{c.name}{c.incumbent ? <span style={{ color: C.mute, fontSize: 12 }}> · incumbent</span> : null}</div>)}
                   </div>
                 ))}
-                <Link href={`/vote/${guess.st.toLowerCase()}`} style={{ display: "block", textAlign: "center", marginTop: 8, padding: "11px 14px", borderRadius: 8, background: C.ink, color: "#fff", textDecoration: "none", fontWeight: 700, fontSize: 14.5 }}>See your ballot side by side →</Link>
+                <Link href={`/vote/${guess.st.toLowerCase()}`} style={{ display: "block", textAlign: "center", marginTop: 8, padding: "11px 14px", borderRadius: 8, background: C.ink, color: "#fff", textDecoration: "none", fontWeight: 700, fontSize: 14.5 }}>See your ballot →</Link>
               </div>
             ) : null}
             <div>
-              <div style={{ fontSize: 12, color: C.sub, marginBottom: 6 }}>{guess ? "Another state" : "Find your state"}</div>
-              <StatePicker states={states} />
+                            <StatePicker states={states} />
             </div>
-            <a href="https://vote.gov" style={{ fontSize: 13, color: C.sub }}>Check your registration and polling place at vote.gov ↗</a>
+            <a href="https://vote.gov" style={{ fontSize: 13, color: C.sub }}>Find your polling place ↗</a>
           </aside>
           <RacesTable rows={rows} />
         </div>
@@ -83,7 +79,6 @@ export default async function VoteIndex() {
             </Link>
           ))}
         </div>
-        <p style={{ fontSize: 12.5, color: C.mute, marginTop: 20, lineHeight: 1.6 }}>States not listed have no Senate or governor race this year.</p>
       </main>
       <style>{`@media(max-width:900px){.vi-top{grid-template-columns:minmax(0,1fr)!important}}`}</style>
     </div>
