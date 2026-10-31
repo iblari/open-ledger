@@ -1,0 +1,579 @@
+[
+ {
+  "name": "Bob Chew",
+  "state": "Colorado",
+  "education": [
+   {
+    "t": "B.S., Chemical Engineering, Case Western Reserve University",
+    "url": "https://bobchew2026.com/about-bob/",
+    "quote": "after graduating from Case Western Reserve University with a degree in chemical engineering"
+   }
+  ],
+  "work": [
+   {
+    "t": "Board chair, engineering services company",
+    "from": "",
+    "to": "2026",
+    "url": "https://ballotpedia.org/Bob_Chew",
+    "quote": "I served as the company's CEO until 2022, and board chair until June 2026."
+   },
+   {
+    "t": "Co-founder and CEO, engineering and technical services company",
+    "from": "1996",
+    "to": "2022",
+    "url": "https://bobchew2026.com/about-bob/",
+    "quote": "In 1996, Bob and his wife founded a second business, providing engineering and technical services"
+   },
+   {
+    "t": "Intelligence officer, U.S. Navy Reserve",
+    "from": "",
+    "to": "",
+    "url": "https://bobchew2026.com/about-bob/",
+    "quote": "He also joined the Navy Reserves and became an intelligence officer with top-secret clearance."
+   },
+   {
+    "t": "Government services",
+    "from": "",
+    "to": "",
+    "url": "https://bobchew2026.com/about-bob/",
+    "quote": "Bob took a job in government services."
+   },
+   {
+    "t": "U.S. Navy officer",
+    "from": "1980",
+    "to": "1986",
+    "url": "https://ballotpedia.org/Bob_Chew",
+    "quote": "Bob Chew served in the U.S. Navy from 1980 to 1986."
+   }
+  ],
+  "notes": "Ballotpedia gives bachelor's year 1981; campaign site gives chemical engineering major. Company name not stated on either source. Navy Reserve and government services roles have no dates (end not current). Campaign site fetched via web_fetch (curl blocked by Cloudflare)."
+ },
+ {
+  "name": "John Deaton",
+  "state": "Massachusetts",
+  "education": [
+   {
+    "t": "B.A., Eastern Michigan University",
+    "url": "https://en.wikipedia.org/wiki/John_Deaton",
+    "quote": "Deaton received a B.A., magna cum laude, from Eastern Michigan University in 1989"
+   },
+   {
+    "t": "J.D., New England School of Law",
+    "url": "https://en.wikipedia.org/wiki/John_Deaton",
+    "quote": "He received a J.D. from the New England School of Law in Boston in 1995."
+   }
+  ],
+  "work": [
+   {
+    "t": "Founder, Deaton Law Firm",
+    "from": "2006",
+    "to": "",
+    "url": "https://en.wikipedia.org/wiki/John_Deaton",
+    "quote": "when he established the Deaton Law Firm in East Providence, Rhode Island"
+   },
+   {
+    "t": "Attorney, plaintiffs' law firm",
+    "from": "",
+    "to": "2006",
+    "url": "https://en.wikipedia.org/wiki/John_Deaton",
+    "quote": "joined a plaintiffs' law firm specializing in mesothelioma litigation, where he remained for four years, until March 2006"
+   },
+   {
+    "t": "Judge advocate, U.S. Marine Corps",
+    "from": "",
+    "to": "2002",
+    "url": "https://en.wikipedia.org/wiki/John_Deaton",
+    "quote": "served for seven years as both a prosecutor and defense attorney in the United States Marine Corps Judge Advocate Division"
+   }
+  ],
+  "notes": "Plaintiffs firm: joined after leaving the Marine Corps (medically retired 2002), stayed four years until March 2006. Campaign site states he was a Captain in the USMC."
+ },
+ {
+  "name": "Kurt Alme",
+  "state": "Montana",
+  "education": [
+   {
+    "t": "Undergraduate degree in business, University of Colorado",
+    "url": "https://almeforsenate.com/meet-kurt",
+    "quote": "Kurt earned his undergraduate degree in business from the University of Colorado, summa cum laude"
+   },
+   {
+    "t": "Law degree, Harvard Law School",
+    "url": "https://almeforsenate.com/meet-kurt",
+    "quote": "He earned his law degree from Harvard Law School, cum laude"
+   }
+  ],
+  "work": [
+   {
+    "t": "Montana Budget Director",
+    "from": "",
+    "to": "",
+    "url": "https://almeforsenate.com/meet-kurt",
+    "quote": "Kurt also served as Montana’s Budget Director under Governor Gianforte"
+   },
+   {
+    "t": "U.S. Attorney for the District of Montana",
+    "from": "",
+    "to": "",
+    "url": "https://almeforsenate.com/meet-kurt",
+    "quote": "Kurt previously served as Montana’s United States Attorney"
+   },
+   {
+    "t": "President, Yellowstone Boys and Girls Ranch Foundation",
+    "from": "",
+    "to": "",
+    "url": "https://almeforsenate.com/meet-kurt",
+    "quote": "Kurt served as Vice President and General Counsel, and later President of Yellowstone Boys and Girls Ranch Foundation."
+   },
+   {
+    "t": "First Assistant U.S. Attorney, Montana",
+    "from": "",
+    "to": "",
+    "url": "https://almeforsenate.com/meet-kurt",
+    "quote": "He was later appointed First Assistant U.S. Attorney"
+   },
+   {
+    "t": "Assistant U.S. Attorney, Montana",
+    "from": "",
+    "to": "",
+    "url": "https://almeforsenate.com/meet-kurt",
+    "quote": "Kurt served as an Assistant U.S. Attorney in Montana, prosecuting white-collar crime"
+   },
+   {
+    "t": "Director, Montana Department of Revenue",
+    "from": "",
+    "to": "",
+    "url": "https://almeforsenate.com/meet-kurt",
+    "quote": "Kurt served as Director of the Department of Revenue under Governor Judy Martz"
+   }
+  ],
+  "notes": "Campaign site gives no years; ordering by sequence is approximate. Also practiced at Crowley Fleck law firm and clerked for U.S. District Judge Charles Lovell (not listed, limit 6). All roles appear to be former (no dates on source)."
+ },
+ {
+  "name": "N'Kiyla Jasmine Thomas",
+  "state": "Oklahoma",
+  "education": [],
+  "work": [
+   {
+    "t": "Nurse",
+    "from": "",
+    "to": "",
+    "url": "https://www.jasmineforok.com/about",
+    "quote": "N'Kiyla \"Jasmine\" Thomas is a proud Chickasaw citizen, nurse, and active-duty military spouse"
+   },
+   {
+    "t": "Community health worker",
+    "from": "",
+    "to": "",
+    "url": "https://ballotpedia.org/N'Kiyla_Thomas",
+    "quote": "Her career experience includes working as a nurse, community health worker, and stay-at-home parent."
+   }
+  ],
+  "notes": "Ballotpedia lists only a high school diploma (Ardmore High School). Campaign site mentions she pursued nursing education but names no institution or degree. No dates for roles."
+ },
+ {
+  "name": "Marquita Bradshaw",
+  "state": "Tennessee",
+  "education": [
+   {
+    "t": "Bachelor of Liberal Studies, University of Memphis",
+    "url": "https://en.wikipedia.org/wiki/Marquita_Bradshaw",
+    "quote": "Bradshaw earned a Bachelor of Liberal Studies in journalism and communication studies from the University of Memphis."
+   }
+  ],
+  "work": [
+   {
+    "t": "Founder, Sowing Justice",
+    "from": "",
+    "to": "",
+    "url": "https://en.wikipedia.org/wiki/Marquita_Bradshaw",
+    "quote": "Following her unsuccessful senate bid, Bradshaw founded Sowing Justice"
+   },
+   {
+    "t": "Environmental justice committee chair, Sierra Club Tennessee chapter",
+    "from": "",
+    "to": "",
+    "url": "https://en.wikipedia.org/wiki/Marquita_Bradshaw",
+    "quote": "She is the environmental justice committee chair of the Sierra Club's Tennessee chapter."
+   }
+  ],
+  "notes": "Sowing Justice founded after the 2020 Senate race (year not stated). Campaign site has no bio page text."
+ },
+ {
+  "name": "James W. Byrd",
+  "state": "Wyoming",
+  "education": [
+   {
+    "t": "Attended Laramie County Community College",
+    "url": "https://en.wikipedia.org/wiki/James_W._Byrd",
+    "quote": "studied at Laramie County Community College and the University of Wyoming"
+   },
+   {
+    "t": "Attended University of Wyoming",
+    "url": "https://en.wikipedia.org/wiki/James_W._Byrd",
+    "quote": "studied at Laramie County Community College and the University of Wyoming"
+   }
+  ],
+  "work": [
+   {
+    "t": "President, Southeast Wyoming Economic Development District",
+    "from": "2012",
+    "to": "",
+    "url": "https://en.wikipedia.org/wiki/James_W._Byrd",
+    "quote": "Since 2012, he has served as president of the Southeast Wyoming Economic Development District."
+   },
+   {
+    "t": "Wyoming House of Representatives, District 44",
+    "from": "2009",
+    "to": "2019",
+    "url": "https://en.wikipedia.org/wiki/James_W._Byrd",
+    "quote": "representing the 44th district from 2009 to 2019"
+   },
+   {
+    "t": "Cybersecurity analyst",
+    "from": "",
+    "to": "",
+    "url": "https://en.wikipedia.org/wiki/James_W._Byrd",
+    "quote": "transitioning into the cybersecurity sector, where he worked as an analyst"
+   },
+   {
+    "t": "Geophysicist technician",
+    "from": "",
+    "to": "",
+    "url": "https://en.wikipedia.org/wiki/James_W._Byrd",
+    "quote": "He began his career as a geophysicist technician in the 1980s"
+   }
+  ],
+  "notes": "No degree stated for either institution. Cybersecurity analyst dates unknown (not necessarily current). Geophysicist technician began in 1980s."
+ },
+ {
+  "name": "Victor Marx",
+  "state": "Colorado",
+  "education": [],
+  "work": [
+   {
+    "t": "Founder, All Things Possible Ministries",
+    "from": "2003",
+    "to": "",
+    "url": "https://en.wikipedia.org/wiki/Victor_Marx",
+    "quote": "Marx founded All Things Possible Ministries in 2003."
+   },
+   {
+    "t": "Assistant, Focus on the Family",
+    "from": "",
+    "to": "",
+    "url": "https://en.wikipedia.org/wiki/Victor_Marx",
+    "quote": "Marx was an assistant for three years at James Dobson's Evangelical Christian organization Focus on the Family."
+   },
+   {
+    "t": "U.S. Marine Corps",
+    "from": "1983",
+    "to": "1986",
+    "url": "https://en.wikipedia.org/wiki/Victor_Marx",
+    "quote": "He served for three years in the United States Marine Corps from 1983 to 1986."
+   }
+  ],
+  "notes": "No post-secondary education found on campaign site or Wikipedia; Ballotpedia rate-limited. Focus on the Family years not given (not current)."
+ },
+ {
+  "name": "Terri Pickens",
+  "state": "Idaho",
+  "education": [
+   {
+    "t": "B.A., Political Science, University of Southern California",
+    "url": "https://terriforidaho.com/about",
+    "quote": "earn her B.A. in Political Science from the University of Southern California in 1994"
+   },
+   {
+    "t": "J.D., University of Idaho College of Law",
+    "url": "https://terriforidaho.com/about",
+    "quote": "Terri returned home to the University of Idaho College of Law, where she participated in the Idaho Law Review and Appellate Clinic, earning her J.D. in 1998."
+   }
+  ],
+  "work": [
+   {
+    "t": "Founder, Pickens Law, P.A.",
+    "from": "2008",
+    "to": "",
+    "url": "https://terriforidaho.com/about",
+    "quote": "In 2008, she founded Pickens Law, P.A., where she practices real estate litigation"
+   },
+   {
+    "t": "Trial attorney, Boise",
+    "from": "1999",
+    "to": "",
+    "url": "https://terriforidaho.com/about",
+    "quote": "moving to Boise in 1999 to be a trial attorney"
+   },
+   {
+    "t": "Public Defender, Nez Perce County",
+    "from": "",
+    "to": "1999",
+    "url": "https://terriforidaho.com/about",
+    "quote": "Terri served as a Public Defender for Nez Perce County in Lewiston before moving to Boise in 1999"
+   }
+  ],
+  "notes": "Trial attorney end date not stated (likely preceded founding her firm in 2008, not confirmed)."
+ },
+ {
+  "name": "Rob Sand",
+  "state": "Iowa",
+  "education": [
+   {
+    "t": "B.A., Political Science, Brown University",
+    "url": "https://en.wikipedia.org/wiki/Rob_Sand",
+    "quote": "Sand graduated from Brown with a bachelor's degree in political science in 2005."
+   },
+   {
+    "t": "J.D., University of Iowa College of Law",
+    "url": "https://en.wikipedia.org/wiki/Rob_Sand",
+    "quote": "enrolling at the University of Iowa College of Law, earning his Juris Doctor in 2010"
+   }
+  ],
+  "work": [
+   {
+    "t": "Iowa State Auditor",
+    "from": "2019",
+    "to": "",
+    "url": "https://en.wikipedia.org/wiki/Rob_Sand",
+    "quote": "has served since 2019 as the 33rd state auditor of Iowa"
+   },
+   {
+    "t": "Assistant Attorney General of Iowa",
+    "from": "2010",
+    "to": "2017",
+    "url": "https://en.wikipedia.org/wiki/Rob_Sand",
+    "quote": "he was the assistant attorney general of Iowa from 2010 to 2017"
+   },
+   {
+    "t": "Campaign manager, Denise O'Brien for Iowa Secretary of Agriculture",
+    "from": "2006",
+    "to": "2006",
+    "url": "https://en.wikipedia.org/wiki/Rob_Sand",
+    "quote": "Sand became the campaign manager for Denise O'Brien, the Democratic nominee for Iowa Secretary of Agriculture."
+   }
+  ],
+  "notes": "Wikipedia says bachelor's degree (not specifically B.A.)."
+ },
+ {
+  "name": "Dan Cox",
+  "state": "Maryland",
+  "education": [
+   {
+    "t": "B.S., Political Science and Government, University of Maryland University College",
+    "url": "https://ballotpedia.org/Dan_Cox_(Maryland)",
+    "quote": "Cox earned a B.S. in political science and government from the University of Maryland University College in 2002"
+   },
+   {
+    "t": "J.D., Regent University",
+    "url": "https://ballotpedia.org/Dan_Cox_(Maryland)",
+    "quote": "a J.D. from Regent University in 2006"
+   }
+  ],
+  "work": [
+   {
+    "t": "Maryland House of Delegates, District 4",
+    "from": "2019",
+    "to": "2023",
+    "url": "https://ballotpedia.org/Dan_Cox_(Maryland)",
+    "quote": "He assumed office on January 9, 2019. He left office on January 11, 2023."
+   },
+   {
+    "t": "Principal attorney, The Cox Law Center",
+    "from": "",
+    "to": "",
+    "url": "https://ballotpedia.org/Dan_Cox_(Maryland)",
+    "quote": "working as the principal and an attorney with The Cox Law Center"
+   },
+   {
+    "t": "Town Council Member",
+    "from": "",
+    "to": "",
+    "url": "https://dancoxforgovernor.com/about-dan-cox/",
+    "quote": "As a former elected Town Council Member and State Delegate"
+   },
+   {
+    "t": "Associate attorney, Law Offices of John Seipp",
+    "from": "",
+    "to": "",
+    "url": "https://ballotpedia.org/Dan_Cox_(Maryland)",
+    "quote": "an associate civil litigation attorney with the Law Offices of John Seipp"
+   },
+   {
+    "t": "High school teacher, Walkersville Christian Family Schools",
+    "from": "",
+    "to": "",
+    "url": "https://ballotpedia.org/Dan_Cox_(Maryland)",
+    "quote": "a high school teacher with Walkersville Christian Family Schools"
+   }
+  ],
+  "notes": "Town council not named on source (role is former). Seipp and teaching roles have no dates (not current)."
+ },
+ {
+  "name": "Aaron Ford",
+  "state": "Nevada",
+  "education": [
+   {
+    "t": "Undergraduate degree, Texas A&M University",
+    "url": "https://en.wikipedia.org/wiki/Aaron_D._Ford",
+    "quote": "received his undergraduate degree from Texas A&M University in 1994"
+   },
+   {
+    "t": "Master's, International Education, George Washington University",
+    "url": "https://en.wikipedia.org/wiki/Aaron_D._Ford",
+    "quote": "He earned a master's degree in international education from George Washington University."
+   },
+   {
+    "t": "M.A., J.D., and Ph.D., Ohio State University",
+    "url": "https://en.wikipedia.org/wiki/Aaron_D._Ford",
+    "quote": "He also has an M.A., J.D., and Ph.D. from Ohio State University."
+   }
+  ],
+  "work": [
+   {
+    "t": "Attorney General of Nevada",
+    "from": "2019",
+    "to": "",
+    "url": "https://en.wikipedia.org/wiki/Aaron_D._Ford",
+    "quote": "currently serving as the 34th attorney general of Nevada since 2019"
+   },
+   {
+    "t": "Nevada Senate, District 11",
+    "from": "2013",
+    "to": "2018",
+    "url": "https://en.wikipedia.org/wiki/Aaron_D._Ford",
+    "quote": "a member of the Nevada Senate representing the 11th district from 2013 to 2018"
+   },
+   {
+    "t": "Nevada Senate Majority Leader",
+    "from": "2017",
+    "to": "",
+    "url": "https://en.wikipedia.org/wiki/Aaron_D._Ford",
+    "quote": "In 2017, Ford became the Majority Leader"
+   },
+   {
+    "t": "Partner, Snell & Wilmer",
+    "from": "",
+    "to": "",
+    "url": "https://en.wikipedia.org/wiki/Aaron_D._Ford",
+    "quote": "Ford joined Snell & Wilmer and was promoted to partner a few years later."
+   },
+   {
+    "t": "Federal judicial clerk",
+    "from": "",
+    "to": "",
+    "url": "https://en.wikipedia.org/wiki/Aaron_D._Ford",
+    "quote": "He clerked for federal judges Denise Page Hood and Johnnie B. Rawlinson"
+   },
+   {
+    "t": "Public school math teacher",
+    "from": "",
+    "to": "",
+    "url": "https://www.fordfornevada.com/about",
+    "quote": "He became a public school math teacher."
+   }
+  ],
+  "notes": "Majority Leader end date not stated (Senate term ended 2018). Law firm, clerkship and teaching dates not given (none current). Wikipedia article title is Aaron_D._Ford."
+ },
+ {
+  "name": "Alan Wilson",
+  "state": "South Carolina",
+  "education": [
+   {
+    "t": "B.S., Political Science, Francis Marion University",
+    "url": "https://en.wikipedia.org/wiki/Alan_Wilson_(South_Carolina_politician)",
+    "quote": "in 1996 with a Bachelor of Science in political science"
+   },
+   {
+    "t": "J.D., University of South Carolina School of Law",
+    "url": "https://en.wikipedia.org/wiki/Alan_Wilson_(South_Carolina_politician)",
+    "quote": "He later received a Juris Doctor from the University of South Carolina School of Law in 2002."
+   }
+  ],
+  "work": [
+   {
+    "t": "Attorney General of South Carolina",
+    "from": "2011",
+    "to": "",
+    "url": "https://en.wikipedia.org/wiki/Alan_Wilson_(South_Carolina_politician)",
+    "quote": "has served as the 51st attorney general of South Carolina since 2011"
+   },
+   {
+    "t": "Attorney, Willoughby & Hoefer",
+    "from": "2009",
+    "to": "",
+    "url": "https://en.wikipedia.org/wiki/Alan_Wilson_(South_Carolina_politician)",
+    "quote": "In 2009, he moved to the private sector and started working at the law firm Willoughby & Hoefer"
+   },
+   {
+    "t": "Assistant, South Carolina Attorney General's Office",
+    "from": "2007",
+    "to": "2009",
+    "url": "https://ballotpedia.org/Alan_Wilson_(South_Carolina)",
+    "quote": "From January 2007 until March 2009, he served as an assistant in the South Carolina Attorney General's Office."
+   },
+   {
+    "t": "Assistant solicitor, 11th Circuit Solicitor's Office",
+    "from": "2003",
+    "to": "2007",
+    "url": "https://ballotpedia.org/Alan_Wilson_(South_Carolina)",
+    "quote": "In October 2003, he was appointed as an assistant to the 11th Circuit Solicitor's Office, remaining there for four years."
+   },
+   {
+    "t": "South Carolina National Guard",
+    "from": "1996",
+    "to": "",
+    "url": "https://en.wikipedia.org/wiki/Alan_Wilson_(South_Carolina_politician)",
+    "quote": "Wilson joined the South Carolina National Guard in 1996 after finishing his undergraduate studies."
+   }
+  ],
+  "notes": "Willoughby & Hoefer end date not stated (became AG in 2011). National Guard: Wikipedia says he currently serves as a colonel in the JAG Corps. 2007 end of solicitor role inferred from 'remaining there for four years'."
+ },
+ {
+  "name": "Amanda Janoo",
+  "state": "Vermont",
+  "education": [
+   {
+    "t": "B.A., Political Science and Global Political Economy, Macalester College",
+    "url": "https://ballotpedia.org/Amanda_Janoo",
+    "quote": "Janoo received a bachelor's degree in political science and global political economy from Macalester College in 2010"
+   },
+   {
+    "t": "MPhil, Development Studies, University of Cambridge",
+    "url": "https://www.janooforvt.com/about-page/",
+    "quote": "Amanda earned an MPhil in Development Studies from the University of Cambridge"
+   }
+  ],
+  "work": [
+   {
+    "t": "Economics and Policy Lead, Wellbeing Economy Alliance",
+    "from": "",
+    "to": "",
+    "url": "https://www.janooforvt.com/about-page/",
+    "quote": "Amanda now works as the Economics and Policy Lead for the Wellbeing Economy Alliance"
+   },
+   {
+    "t": "Co-founder, Wellbeing Economy Alliance of Vermont",
+    "from": "",
+    "to": "",
+    "url": "https://www.janooforvt.com/about-page/",
+    "quote": "Amanda co-founded the Wellbeing Economy Alliance of Vermont"
+   },
+   {
+    "t": "Board member, ACLU of Vermont and Rights & Democracy Vermont",
+    "from": "",
+    "to": "",
+    "url": "https://www.janooforvt.com/about-page/",
+    "quote": "She served on the boards of the ACLU of Vermont and Rights & Democracy Vermont"
+   },
+   {
+    "t": "Industrial policy specialist, United Nations and international development organizations",
+    "from": "",
+    "to": "",
+    "url": "https://www.janooforvt.com/about-page/",
+    "quote": "She began her career working with the United Nations and international development organizations as an industrial policy and structural transformation specialist"
+   }
+  ],
+  "notes": "Ballotpedia describes the Cambridge degree as 'master of philosophy in development economics' (2013); campaign site says 'Development Studies'. Board roles described in past tense (not current). Ballotpedia says bachelor's degree (not specifically B.A.)."
+ }
+]
