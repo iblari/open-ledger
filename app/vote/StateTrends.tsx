@@ -7,7 +7,7 @@ const fmt = (t: Trend, v: number) => `${t.unit === "%" && t.key !== "jobs" && t.
 export default function StateTrends({ name, trends }: { name: string; trends: Trend[] }) {
   if (!trends.length) return null;
   return (
-    <section style={{ marginTop: 40 }}>
+    <section id="state-data" style={{ marginTop: 40, scrollMarginTop: 20 }}>
       <h2 style={{ fontFamily: SERIF, fontWeight: 500, fontSize: 30, letterSpacing: "-0.015em", margin: 0 }}>{name}, last 10 years</h2>
       <div className="st-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12, marginTop: 14 }}>
         {trends.map(t => {
@@ -19,6 +19,7 @@ export default function StateTrends({ name, trends }: { name: string; trends: Tr
           return (
             <a key={t.key} href={t.url} style={{ display: "block", background: "#fff", border: `1px solid ${C.rule}`, borderRadius: 14, padding: "12px 14px", textDecoration: "none", color: C.ink, fontFamily: SANS }}>
               <div style={{ fontSize: 12.5, color: C.sub }}>{t.label}{t.scope ? ` · ${t.scope}` : ""}</div>
+              {t.note && <div style={{ fontSize: 11, color: C.mute }}>{t.note}</div>}
               <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginTop: 2 }}>
                 <span style={{ fontFamily: SERIF, fontSize: 26 }}>{fmt(t, last.v)}{t.unit !== "%" ? <span style={{ fontSize: 13, color: C.sub }}>{t.unit}</span> : null}</span>
                 <span style={{ fontSize: 12, color: C.mute }}>{last.y}{last.partial ? " so far" : ""}</span>
@@ -35,7 +36,7 @@ export default function StateTrends({ name, trends }: { name: string; trends: Tr
                   );
                 })}
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: C.mute, marginTop: 4 }}><span>{pts[0].y}</span><span>{t.source}{t.note ? ` · ${t.note}` : ""} ↗</span><span>{pts[pts.length - 1].y}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: C.mute, marginTop: 4 }}><span>{pts[0].y}</span><span>{t.source} ↗</span><span>{pts[pts.length - 1].y}</span></div>
             </a>
           );
         })}

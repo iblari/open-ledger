@@ -75,11 +75,11 @@ async function build(st: string): Promise<Trend[]> {
   const g = byYear(rgsp);
   const gdp = [...g.keys()].sort().filter(y => g.has(y - 1)).map(y => ({ y, v: r1((avg(g.get(y)!) / avg(g.get(y - 1)!) - 1) * 100) }));
   if (gdp.length) T.push({ key: "gdp", label: "Economy, real GDP growth", unit: "%", points: keep(gdp), source: "BEA", url: fred(`${s.code}RGSP`) });
-  const u = annualAvg(ur, 12).map(p => ({ y: p.y, v: r1(p.v), partial: p.n < 12 }));
+  const u = annualAvg(ur, 12).map(p => ({ y: p.y, v: r1(p.v), partial: p.y === thisYear() }));
   if (u.length) T.push({ key: "jobs", label: "Unemployment rate", unit: "%", points: keep(u), source: "BLS", url: fred(`${s.code}UR`) });
-  const h = yoyAnnual(hpi, 4).map(p => ({ ...p, v: r1(p.v) }));
+  const h = yoyAnnual(hpi, 4).map(p => ({ ...p, v: r1(p.v), partial: p.y === thisYear() }));
   if (h.length) T.push({ key: "homes", label: "Home prices, yearly change", unit: "%", points: keep(h), source: "FHFA", url: fred(`${s.code}STHPI`) });
-  const rr = yoyAnnual(rent, 12).map(p => ({ ...p, v: r1(p.v) }));
+  const rr = yoyAnnual(rent, 12).map(p => ({ ...p, v: r1(p.v), partial: p.y === thisYear() }));
   if (rr.length) T.push({ key: "rent", label: "Rent, yearly change", unit: "%", points: keep(rr), source: "BLS CPI", url: fred(`CUUR${reg.code}SEHA`), scope: `${reg.name} region` });
   const nm = new Map(byYear(ngsp)), tx = byYear(tax);
   const tp = [...tx.keys()].sort().filter(y => nm.has(y)).map(y => ({ y, v: Math.round((avg(tx.get(y)!) / (avg(nm.get(y)!) * 1000)) * 1000) / 10 }));
@@ -96,4 +96,4 @@ async function build(st: string): Promise<Trend[]> {
 }
 
 /** One state's trends, cached six hours. */
-export const stateTrends = (st: string) => unstable_cache(() => build(st).catch(() => []), ["state-trends-v1", st.toUpperCase()], { revalidate: 21600 })();
+export const stateTrends = (st: string) => unstable_cache(() => build(st).catch(() => []), ["state-trends-v2", st.toUpperCase()], { revalidate: 21600 })();
