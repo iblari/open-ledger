@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { STATES, stateByCode, raceTitle, daysToElection, factChecksFor, MID } from "@/lib/midterms";
 import { C, SANS, SERIF } from "@/lib/design-tokens";
+import FeedbackBanner from "@/app/dashboard/FeedbackBanner";
 import { NewsChrome } from "@/components/news/NewsChrome";
 import { senatePolls } from "@/lib/polls";
 import Metrics from "../Metrics";
@@ -83,6 +84,7 @@ export default async function StateBallot({ params }: { params: Promise<{ st: st
           <Link href="/methodology" style={{ color: C.sub }}>Methodology</Link>
         </div>
       </div>
+      <FeedbackBanner page="vote" />
     </div>
   );
 }

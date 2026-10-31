@@ -3,6 +3,7 @@ import Link from "next/link";
 import { MID, STATES, stateByCode, raceTitle } from "@/lib/midterms";
 import { senatePolls, pollShare, pollLead } from "@/lib/polls";
 import { C, SANS, SERIF } from "@/lib/design-tokens";
+import FeedbackBanner from "@/app/dashboard/FeedbackBanner";
 import { NewsChrome } from "@/components/news/NewsChrome";
 import RacesTable, { type RaceRow } from "./RacesTable";
 import StatePicker from "./StatePicker";
@@ -90,6 +91,7 @@ export default async function VoteIndex() {
         </div>
       </main>
       <style>{`@media(max-width:900px){.vi-top{grid-template-columns:minmax(0,1fr)!important}}`}</style>
+      <FeedbackBanner page="vote" />
     </div>
   );
 }
