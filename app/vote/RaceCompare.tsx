@@ -50,7 +50,7 @@ export default function RaceCompare({ race, fc, polls }: { race: Race; fc: FC; p
     <section id={race.id} style={{ scrollMarginTop: 60, marginTop: 30 }}>
       <h2 style={{ fontFamily: SANS, fontWeight: 700, fontSize: 26, letterSpacing: "-0.01em", margin: "0 0 2px" }}>{raceTitle(race)}</h2>
       <div style={{ fontSize: 13, color: C.sub, marginBottom: 12 }}>
-        {race.state}{race.incumbent ? ` · current officeholder: ${race.incumbent}` : ""} · {race.candidates.length} candidate{race.candidates.length === 1 ? "" : "s"} on the ballot
+        {race.incumbent ? `Incumbent: ${race.incumbent}` : "Open seat"}
       </div>
       <div className={`vc-wrap${n > 2 ? " vc-many" : ""}`} style={{ ["--n" as string]: n } as React.CSSProperties}>
         <div className="vc-grid">
@@ -69,17 +69,14 @@ export default function RaceCompare({ race, fc, polls }: { race: Race; fc: FC; p
               <Section title="Polls" />
               {hasPolls ? (
                 <>
-                  <Row label="Poll average" sub={<>{polls!.used.length} nonpartisan poll{polls!.used.length === 1 ? "" : "s"}, {fmtDay(polls!.from)}–{fmtDay(polls!.to)} · <a href={POLL_SOURCE.url} style={{ color: C.mute }}>{POLL_SOURCE.name}</a></>}>
+                  <Row label="Poll average" sub={<>{polls!.used.length} poll{polls!.used.length === 1 ? "" : "s"}, {fmtDay(polls!.from)}–{fmtDay(polls!.to)} · <a href={POLL_SOURCE.url} style={{ color: C.mute }}>{POLL_SOURCE.name}</a></>}>
                     {mains.map(c => { const v = share.get(c.name); return cell(c.name, v != null ? (
                       <><b style={{ fontSize: 19, fontFamily: SANS }}>{v.toFixed(1)}%</b>
                         <div style={{ height: 8, borderRadius: 4, background: C.paper, marginTop: 5 }}><div style={{ height: 8, borderRadius: 4, width: `${Math.min(100, v)}%`, background: pcol(c) }} /></div></>
                     ) : <span style={{ color: C.mute, fontSize: 13 }}>Not in these polls</span>); })}
                   </Row>
                   <Note>
-                    {margin != null && margin < 5.4
-                      ? <>The gap is {margin.toFixed(1)} points, which is within the typical error of Senate polls: in the final three weeks they have missed the result by 5.4 points on average (<a href="https://fivethirtyeight.com/features/2022-election-polling-accuracy/" style={{ color: C.sub }}>FiveThirtyEight</a>). </>
-                      : margin != null ? <>The gap is {margin.toFixed(1)} points. Senate polls in the final three weeks have missed the result by 5.4 points on average (<a href="https://fivethirtyeight.com/features/2022-election-polling-accuracy/" style={{ color: C.sub }}>FiveThirtyEight</a>). </> : null}
-                    Polls are a snapshot, not a forecast.
+                    {margin != null && margin < 5.4 ? <>Within typical polling error (±5.4 pts, <a href="https://fivethirtyeight.com/features/2022-election-polling-accuracy/" style={{ color: C.sub }}>538</a>). </> : null}
                     <details style={{ marginTop: 8 }}>
                       <summary style={{ cursor: "pointer", fontWeight: 600, color: C.ink }}>Every poll ({polls!.polls.length})</summary>
                       <div style={{ marginTop: 6, display: "grid", gridTemplateColumns: `minmax(0,1.4fr) 80px repeat(${mains.length}, minmax(48px, 70px))`, fontSize: 12.5, rowGap: 4, columnGap: 10, maxWidth: 560 }}>
@@ -94,17 +91,17 @@ export default function RaceCompare({ race, fc, polls }: { race: Race; fc: FC; p
                           ];
                         })}
                       </div>
-                      <div style={{ fontSize: 11.5, color: C.mute, marginTop: 6 }}>• = in the average (each pollster's latest poll from the 30 days before the newest).</div>
+                      <div style={{ fontSize: 11.5, color: C.mute, marginTop: 6 }}>• in the average</div>
                     </details>
                   </Note>
                 </>
-              ) : <Note>No nonpartisan poll of this race in the {POLL_SOURCE.name} file{polls?.polls.length ? " in the last month" : ""}.</Note>}
+              ) : <Note>No recent nonpartisan polls.</Note>}
             </>
           )}
           {race.office === "senate" ? (
             <>
               <Section title="Money" />
-              <Row label="Raised" sub={<>2025–26 cycle · <a href="https://www.fec.gov/data/candidates/senate/" style={{ color: C.mute }}>FEC</a>{through ? `, filings through ${through}` : ""}</>}>
+              <Row label="Raised" sub={<><a href="https://www.fec.gov/data/candidates/senate/" style={{ color: C.mute }}>FEC</a>{through ? ` · through ${through}` : ""}</>}>
                 {mains.map(c => cell(c.name, c.fec ? (
                   <a href={`https://www.fec.gov/data/candidate/${c.fec.id}/?cycle=2026`} style={{ color: C.ink, textDecoration: "none" }}>
                     <b style={{ fontSize: 17 }}>{money(c.fec.raised)}</b>
@@ -113,24 +110,24 @@ export default function RaceCompare({ race, fc, polls }: { race: Race; fc: FC; p
                 ) : <span style={{ color: C.mute, fontSize: 13 }}>No FEC filing found</span>))}
               </Row>
               <Row label="Cash on hand">{mains.map(c => cell(c.name, c.fec ? money(c.fec.cash) : dash))}</Row>
-              <Row label="From small donors" sub="Share of individual donations under $200">
+              <Row label="From small donors" sub="Under $200">
                 {mains.map(c => cell(c.name, c.fec && c.fec.indiv > 0 ? `${Math.round((c.fec.small / c.fec.indiv) * 100)}%` : dash))}
               </Row>
-              <Row label="Own money" sub="Candidate's contributions and loans">
+              <Row label="Own money">
                 {mains.map(c => cell(c.name, c.fec ? (c.fec.self > 0 ? money(c.fec.self) : "None") : dash))}
               </Row>
             </>
           ) : (
             <>
               <Section title="Money" />
-              <Note>Governor campaigns report their money to the state, not to the FEC, so we don't compare it here.</Note>
+              <Note>Reported to the state, not the FEC.</Note>
             </>
           )}
 
           <Section title="Record in Congress" />
           {anyRecord ? (
             <>
-              <Row label="Votes with own party" sub={<>On votes where most Democrats and most Republicans disagreed · <a href="https://voteview.com" style={{ color: C.mute }}>Voteview</a>, 2025–26</>}>
+              <Row label="Votes with own party" sub={<>Party-line votes · <a href="https://voteview.com" style={{ color: C.mute }}>Voteview</a></>}>
                 {mains.map(c => cell(c.name, c.record?.unity != null ? (
                   <><b style={{ fontSize: 17 }}>{c.record.unity.toFixed(0)}%</b><div style={{ fontSize: 11.5, color: C.mute }}>of {c.record.unityVotes} {c.record.chamber} votes</div></>
                 ) : <span style={{ color: C.mute, fontSize: 13 }}>Not in the current Congress</span>))}
@@ -148,14 +145,14 @@ export default function RaceCompare({ race, fc, polls }: { race: Race; fc: FC; p
                 </Row>
               ))}
             </>
-          ) : <Note>No candidate in this race currently serves in Congress, so there's no congressional voting record to compare.</Note>}
+          ) : <Note>No one in this race serves in Congress.</Note>}
 
           <Section title="Our live fact-checks" />
           {anyFc ? (
             <Row label="Claims checked">
               {mains.map(c => { const f = fc[c.name]; return cell(c.name, f ? `${f.claims} claims · ${f.true} true · ${f.misleading} misleading · ${f.false} false` : <span style={{ color: C.mute, fontSize: 13 }}>Not checked yet</span>); })}
             </Row>
-          ) : <Note>We haven't fact-checked any of these candidates live yet. When we do, the results appear here.</Note>}
+          ) : <Note>Not fact-checked yet.</Note>}
 
           <Section title="In their own words" />
           {shown.map(t => (
@@ -163,17 +160,17 @@ export default function RaceCompare({ race, fc, polls }: { race: Race; fc: FC; p
               {mains.map(c => {
                 const p = c.positions[t];
                 if (p) return cell(c.name, <><div className="vc-q" style={{ fontFamily: SERIF, lineHeight: 1.45 }}>“{p.quote}”</div><a href={p.url} style={{ fontSize: 11.5, color: C.mute }}>{host(p.url)}{p.src === "official" ? " · official congressional site" : ""} ↗</a></>);
-                const why = c.siteStatus === "ok" ? "Not addressed on their campaign site" : c.siteStatus === "unreadable" ? "We couldn't read their campaign site" : "No campaign site found";
+                const why = c.siteStatus === "ok" ? "Not on their site" : c.siteStatus === "unreadable" ? "Site unreadable" : "No campaign site";
                 return cell(c.name, <span style={{ color: C.mute, fontSize: 13 }}>{why}{c.site && c.siteStatus !== "ok" ? <> · <a href={c.site} style={{ color: C.mute }}>visit ↗</a></> : null}</span>);
               })}
             </Row>
           ))}
-          {silent.length > 0 && <Note>Not on any of these campaign sites: <b style={{ color: C.ink }}>{silent.map(t => MID.topics[t]).join(" · ")}</b></Note>}
+          {silent.length > 0 && <Note>Not on any campaign site: <b style={{ color: C.ink }}>{silent.map(t => MID.topics[t]).join(" · ")}</b></Note>}
         </div>
       </div>
       {others.length > 0 && (
         <details style={{ marginTop: 10, fontSize: 13.5, color: C.sub }}>
-          <summary style={{ cursor: "pointer", fontWeight: 600 }}>Also on the ballot: {others.length} more candidate{others.length === 1 ? "" : "s"}</summary>
+          <summary style={{ cursor: "pointer", fontWeight: 600 }}>+{others.length} more on the ballot</summary>
           <ul style={{ margin: "8px 0 0", paddingLeft: 18, lineHeight: 1.7 }}>
             {others.map(c => <li key={c.name}>{c.name} ({partyName(c)}){c.fec && c.fec.raised > 0 ? ` · raised ${money(c.fec.raised)}` : ""}{c.site ? <> · <a href={c.site} style={{ color: C.sub }}>campaign site</a></> : null}</li>)}
           </ul>

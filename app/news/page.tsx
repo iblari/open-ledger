@@ -35,7 +35,6 @@ const kicker = (s: Story) => s.numbers ? "Data release" : s.topic;
 const H: React.CSSProperties = { fontFamily: SANS, fontWeight: 700, letterSpacing: "-0.01em", color: C.ink, margin: 0 };
 const RED = "#C8102E";
 /** "Covered by 26% of left-leaning, 38% of center and 24% of right-leaning outlets" */
-const dek = (s: Story) => `Covered by ${s.coverage.left} of the ${LEAN_TOTALS.left} left-leaning, ${s.coverage.center} of ${LEAN_TOTALS.center} center and ${s.coverage.right} of ${LEAN_TOTALS.right} right-leaning outlets we read`;
 const mins = (iso: string) => { const m = Math.max(1, Math.round((Date.now() - Date.parse(iso)) / 60000)); return m < 60 ? `${m} min` : m < 1440 ? `${Math.round(m / 60)} hr` : `${Math.round(m / 1440)} d`; };
 const P = (s: Story, o: { ratio?: string; priority?: boolean } = {}) => <Photo src={s.photo?.url} alt="" topic={s.topic} credit={s.photo?.name} alts={s.photo?.alts} ratio={o.ratio} priority={o.priority} />;
 
@@ -57,7 +56,6 @@ function Lead({ s }: { s: Story }) {
       <Link href={`/news/${s.slug}`} style={{ textDecoration: "none" }}>
         <h2 style={{ ...H, fontSize: "clamp(26px,2.7vw,34px)", lineHeight: 1.08, margin: "6px 0 10px" }}>{s.title}</h2>
       </Link>
-      <p style={{ fontSize: 16, lineHeight: 1.45, color: "#3d3833", margin: "0 0 10px" }}>{dek(s)}.</p>
       <div style={{ maxWidth: 520 }}><CoverageBar coverage={s.coverage} size="lg" /></div>
       <div style={{ marginTop: 8 }}><Tags s={s} /></div>
       {Object.keys(sides).length >= 2 && (
@@ -82,7 +80,6 @@ function Second({ s }: { s: Story }) {
         <h3 style={{ ...H, fontSize: 21, lineHeight: 1.18, margin: "10px 0 6px" }}>{s.title}</h3>
       </Link>
       <div style={{ margin: "4px 0 8px" }}><CoverageBar coverage={s.coverage} /></div>
-      <p style={{ fontSize: 13.5, lineHeight: 1.45, color: C.sub, margin: 0 }}>{dek(s)}.</p>
       <div style={{ marginTop: 4 }}><Tags s={s} /></div>
     </article>
   );
@@ -135,7 +132,7 @@ function BlindspotRail({ stories }: { stories: Story[] }) {
   return (
     <section style={{ borderTop: `3px solid ${C.ink}`, paddingTop: 10 }}>
       <h2 style={{ ...H, fontSize: 18 }}>Blindspots</h2>
-      <div style={{ fontSize: 12.5, color: C.sub, margin: "2px 0 8px" }}>Stories one side's outlets mostly skipped</div>
+      <div style={{ height: 6 }} />
       {(["left", "right"] as const).map(side => {
         const list = missed(side);
         return (
@@ -237,7 +234,7 @@ export default async function NewsPage({ searchParams }: { searchParams: Promise
 
         {view === "claims" ? <ClaimsFeed embedded /> : (
           <>
-            {view === "blindspots" && <p style={{ fontSize: 14, color: C.sub, margin: "0 0 16px", maxWidth: 760 }}>Stories one side's outlets largely skipped: they covered it at a quarter of the other side's rate or less. <Link href="/methodology#news" style={{ color: C.sub }}>How it's measured</Link></p>}
+            {view === "blindspots" && <p style={{ fontSize: 14, color: C.sub, margin: "0 0 16px", maxWidth: 760 }}>One side's outlets covered these at a quarter of the other side's rate or less. <Link href="/methodology#news" style={{ color: C.sub }}>How it's measured</Link></p>}
             {topic && <h1 style={{ ...H, fontSize: 30, margin: "0 0 14px" }}>{topic}</h1>}
             {lead && (
               <div className="nw-band">
@@ -271,7 +268,7 @@ export default async function NewsPage({ searchParams }: { searchParams: Promise
       </main>
       {view !== "claims" && (
         <p style={{ maxWidth: 1240, margin: "-30px auto 40px", padding: "0 20px", fontSize: 12, color: C.mute, lineHeight: 1.6 }}>
-          We link to each outlet's own article and show only headlines, plus one photo per story from an outlet's own feed (credited; a center-rated outlet's photo is used first). Left / center / right comes from published research on each outlet's audience (Robertson et al., 2018), not our judgment.
+          Headlines link to each outlet. Lean: Robertson et al. (2018). <Link href="/methodology#news" style={{ color: C.mute }}>Methodology</Link>
         </p>
       )}
     </div>

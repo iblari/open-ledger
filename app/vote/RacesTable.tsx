@@ -32,17 +32,16 @@ export default function RacesTable({ rows }: { rows: RaceRow[] }) {
   return (
     <section>
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
-        <h2 style={{ fontFamily: SANS, fontWeight: 700, fontSize: 20, margin: "0 8px 0 0" }}>Every race at a glance</h2>
-        <span style={{ fontSize: 12, color: C.mute }}>Sort</span>
+        <h2 style={{ fontFamily: SANS, fontWeight: 700, fontSize: 20, margin: "0 8px 0 0" }}>All races</h2>
         <button style={btn(sort === "close")} onClick={() => setSort("close")}>Closest polls</button>
         <button style={btn(sort === "money")} onClick={() => setSort("money")}>Most money</button>
         <button style={btn(sort === "state")} onClick={() => setSort("state")}>A–Z</button>
-        <span style={{ fontSize: 12, color: C.mute, marginLeft: 6 }}>Show</span>
+        <span style={{ width: 1, height: 18, background: C.rule, margin: "0 4px" }} />
         {(["all", "senate", "governor"] as const).map(o => <button key={o} style={btn(office === o)} onClick={() => setOffice(o)}>{o === "all" ? "All" : o === "senate" ? "Senate" : "Governor"}</button>)}
       </div>
       <div style={{ border: `1px solid ${C.rule}`, borderRadius: 10, overflow: "hidden", background: "#fff" }}>
         <div className="rt-row rt-head" style={{ fontSize: 11, letterSpacing: ".06em", textTransform: "uppercase", color: C.mute, fontWeight: 600 }}>
-          <span>Race</span><span>Candidates · money raised</span><span>Poll average</span>
+          <span>Race</span><span>Candidates · raised</span><span>Polls</span>
         </div>
         {list.map(r => (
           <Link key={r.id} href={`/vote/${r.st.toLowerCase()}#${r.id}`} className="rt-row" style={{ textDecoration: "none", color: C.ink }}>
@@ -62,9 +61,9 @@ export default function RacesTable({ rows }: { rows: RaceRow[] }) {
               {r.lead ? (
                 <>
                   <b style={{ fontWeight: 700 }}>{last(r.lead.name)} +{r.lead.margin.toFixed(1)}</b>
-                  <span style={{ display: "block", fontSize: 11.5, color: C.mute }}>{r.polls} poll{r.polls === 1 ? "" : "s"}{r.lead.margin < 5.4 ? " · within typical error" : ""}</span>
+                  <span style={{ display: "block", fontSize: 11.5, color: C.mute }}>{r.polls} poll{r.polls === 1 ? "" : "s"}</span>
                 </>
-              ) : <span style={{ color: C.mute, fontSize: 12 }}>{r.office === "senate" ? "No recent nonpartisan polls" : "Senate only"}</span>}
+              ) : <span style={{ color: C.mute, fontSize: 12 }}>—</span>}
             </span>
           </Link>
         ))}
