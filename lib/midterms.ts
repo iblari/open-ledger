@@ -23,7 +23,7 @@ export interface Candidate {
   site: string | null; siteStatus: "ok" | "unreadable" | "none";
   positions: Partial<Record<Topic, { quote: string; url: string; src?: "official" }>>;
   /** Wikidata (education, offices) + the opening of the Wikipedia article, verbatim. */
-  bg?: { qid: string; match: "id" | "name"; wiki: string | null; summary: string | null; edu: string[]; offices: { t: string; from: string; to: string }[] } | null;
+  bg?: { qid: string; match: "id" | "name"; wiki: string | null; edu: string[]; offices: { t: string; from: string; to: string }[]; work: { t: string; from: string; to: string; kind: string }[] } | null;
 }
 export interface Race { id: string; state: string; st: string; office: "senate" | "governor"; special: boolean; incumbent: string | null; candidates: Candidate[] }
 export interface KeyVote { bill: string; title: string; desc: string; rolls: Record<string, string | null> }

@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { headers } from "next/headers";
 import { MID, STATES, stateByCode, raceTitle } from "@/lib/midterms";
 import { senatePolls, pollShare, pollLead } from "@/lib/polls";
 import { C, SANS, SERIF } from "@/lib/design-tokens";
@@ -8,6 +7,8 @@ import { NewsChrome } from "@/components/news/NewsChrome";
 import RacesTable, { type RaceRow } from "./RacesTable";
 import StatePicker from "./StatePicker";
 import Metrics from "./Metrics";
+import ChangeState from "./ChangeState";
+import { voterState } from "@/lib/vote-geo";
 
 export const revalidate = 600;
 export const metadata: Metadata = {
@@ -23,8 +24,8 @@ const tag = (p: string) => <span style={{ display: "inline-block", minWidth: 16,
 const raceShort = (t: string) => t.replace(" (special election)", " (special)");
 
 export default async function VoteIndex() {
-  const h = await headers();
-  const guess = stateByCode(h.get("x-vercel-ip-country-region") || "");
+  const v = await voterState();
+  const guess = v?.ballot ?? null;
   const polls = await senatePolls();
   const pollsAt = Object.values(polls)[0]?.fetchedAt ?? null;
   const through = MID.races.flatMap(r => r.candidates.map(c => c.fec?.through)).filter(Boolean).sort().pop() ?? null;
@@ -52,7 +53,10 @@ export default async function VoteIndex() {
             {guess ? (
               <div style={{ border: `1px solid ${C.rule}`, borderRadius: 14, padding: "16px 18px", background: "#fff" }}>
                 
-                <div style={{ ...H, fontSize: 22, margin: "2px 0 8px" }}>{guess.name}</div>
+                <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8, flexWrap: "wrap", margin: "2px 0 8px" }}>
+                  <div style={{ ...H, fontSize: 22 }}>{guess.name}</div>
+                  <ChangeState states={states} current={guess.st} label={v?.how === "chosen" ? "Your state" : "Not here?"} />
+                </div>
                 {guess.races.map(r => (
                   <div key={r.id} style={{ borderTop: `1px solid ${C.rule}`, padding: "8px 0", fontSize: 13.5 }}>
                     <div style={{ fontWeight: 700, marginBottom: 3 }}>{raceShort(raceTitle(r))}</div>
@@ -61,7 +65,12 @@ export default async function VoteIndex() {
                 ))}
                 <Link href={`/vote/${guess.st.toLowerCase()}`} style={{ display: "block", textAlign: "center", marginTop: 8, padding: "11px 14px", borderRadius: 6, background: C.ink, color: "#fff", textDecoration: "none", fontWeight: 600, fontSize: 14.5 }}>See your ballot →</Link>
               </div>
-            ) : null}
+            ) : (
+              <div style={{ border: `1px solid ${C.rule}`, borderRadius: 14, padding: "14px 16px", background: "#fff" }}>
+                <div style={{ fontSize: 13.5, marginBottom: 8 }}>{v?.name ? `${v.name} has no Senate or governor race this year.` : "Pick your state to see your ballot."}</div>
+                <ChangeState states={states} current={undefined} label="Your state" />
+              </div>
+            )}
             <div>
                             <StatePicker states={states} />
             </div>
