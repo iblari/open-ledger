@@ -40,7 +40,7 @@ async function photoData(cands: { url: string; name: string }[]): Promise<{ src:
 }
 const MARK = "data:image/svg+xml;base64," + Buffer.from(markSvg({ ink: "#14110E", accent: "#C8102E", bars: 7, id: "nog", width: 120, height: 40 })).toString("base64");
 const MARK_WHITE = "data:image/svg+xml;base64," + Buffer.from(markSvg({ ink: "#FFFFFF", accent: "#FFFFFF", bars: 7, id: "nogw", width: 120, height: 40 })).toString("base64");
-const COL = { left: "#2C4A86", center: "#FFFFFF", right: "#7B2D26" } as const;
+const COL = { left: "#4361a6", center: "#FFFFFF", right: "#b8372d" } as const;
 const LABEL = { left: "Left", center: "Center", right: "Right" } as const;
 const INK = "#14110E", SUB = "#5c5856", MUTE = "#8a8378", RULE = "#CFC9BF";
 

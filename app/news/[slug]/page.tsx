@@ -63,11 +63,11 @@ export default async function StoryPage({ params }: { params: Promise<{ slug: st
   const unit = n?.metric === "payrolls" ? "K" : "%";
   const pct = (x: number) => `${Math.round(x * 100)}%`;
   return (
-    <div style={{ minHeight: "100vh", background: "#fff", color: C.ink, fontFamily: SANS }}>
+    <div style={{ minHeight: "100vh", background: C.bg, color: C.ink, fontFamily: SANS }}>
       <NewsChrome active="news" />
       <main style={{ maxWidth: 1180, margin: "0 auto", padding: "18px 20px 60px" }}>
         <div data-nosnippet style={{ fontSize: 13, color: C.sub }}><Link href="/news" style={{ color: C.sub }}>News</Link> › {s.topic}</div>
-        <h1 style={{ fontFamily: SANS, fontWeight: 700, letterSpacing: "-0.01em", fontSize: "clamp(26px,3.8vw,40px)", lineHeight: 1.08, margin: "8px 0 8px", maxWidth: 920 }}>{s.title}</h1>
+        <h1 style={{ fontFamily: SERIF, fontWeight: 500, letterSpacing: "-0.015em", fontSize: "clamp(28px,4vw,44px)", lineHeight: 1.08, margin: "8px 0 8px", maxWidth: 920 }}>{s.title}</h1>
         <div style={{ fontSize: 13, color: C.sub }}>First reported {time(s.firstSeen)} · {s.articles.length} articles from {s.outlets} outlets</div>
         {s.photo && (
           <figure style={{ margin: "16px 0 0", maxWidth: 920 }}>
@@ -76,7 +76,7 @@ export default async function StoryPage({ params }: { params: Promise<{ slug: st
         )}
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 340px), 1fr))", gap: 14, marginTop: 16 }}>
-          <section style={{ background: "#fff", border: `1px solid ${C.rule}`, borderRadius: 12, padding: "14px 16px" }}>
+          <section style={{ background: "#fff", border: `1px solid ${C.rule}`, borderRadius: 14, padding: "14px 16px" }}>
             <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: C.mute, fontWeight: 600, marginBottom: 8 }}>Who covered it</div>
             <CoverageBar coverage={s.coverage} size="lg" />
             <div style={{ fontSize: 13, color: C.sub, lineHeight: 1.6, marginTop: 10 }}>
@@ -84,7 +84,7 @@ export default async function StoryPage({ params }: { params: Promise<{ slug: st
             </div>
             {s.blindspot && <div style={{ marginTop: 10, background: "#EEECF6", color: "#4D3E8F", borderRadius: 8, padding: "8px 10px", fontSize: 13 }}><b>Blindspot:</b> {blindspotLabel(s.blindspot)?.toLowerCase()}. <Link href="/methodology#news" style={{ color: "#4D3E8F" }}>How it's measured</Link></div>}
           </section>
-          <section style={{ background: "#fff", border: `1px solid ${C.rule}`, borderRadius: 12, padding: "14px 16px" }}>
+          <section style={{ background: "#fff", border: `1px solid ${C.rule}`, borderRadius: 14, padding: "14px 16px" }}>
             {n ? (<>
               <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: C.mute, fontWeight: 600, marginBottom: 8 }}>The numbers in the coverage</div>
               <div style={{ fontSize: 15 }}><b>Official:</b> {n.label} <b style={{ color: "#0E7477" }}>{n.official}{unit}</b> ({n.officialLabel}, <a href={n.url} target="_blank" rel="noopener noreferrer" style={{ color: C.sub }}>{n.source}</a>)</div>
