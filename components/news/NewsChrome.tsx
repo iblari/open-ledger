@@ -5,45 +5,53 @@ import type { Lean } from "@/lib/news/outlets";
 import { leanShares } from "@/lib/news/share";
 export { leanShares };
 
-/** Site header + Data / News / Live tabs (News replaces Trending). */
+/**
+ * Site header + Data / News / Vote / Live tabs. Sizes match the Data page
+ * (app/dashboard) exactly, on desktop and phone, so switching tabs doesn't jump.
+ */
 const tab = (active: boolean): React.CSSProperties => ({
-  padding: "13px 18px", fontFamily: "'DM Sans',sans-serif", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap",
+  padding: "13px 20px", fontFamily: "'DM Sans',sans-serif", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap",
   color: active ? C.ink : C.mute, textDecoration: "none", display: "flex", alignItems: "center", gap: 6,
   borderBottom: active ? `2px solid ${C.accent}` : "2px solid transparent",
 });
 /** Days until election day (Nov 3, 2026, polls close ET); null once it has passed. */
-function daysToVote(): number | null {
+export function daysToVote(): number | null {
   const d = Math.ceil((Date.parse("2026-11-04T05:00:00Z") - Date.now()) / 864e5);
   return d > 0 ? d - 1 : null;
 }
-export function NewsChrome({ active = "news" }: { active?: "news" | "data" | "live" | "vote" }) {
+/** The red "2 days" badge on the Vote tab. */
+export function VoteBadge() {
   const days = daysToVote();
+  if (days == null) return null;
+  return <span suppressHydrationWarning style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 9.5, fontWeight: 700, padding: "2px 6px", borderRadius: 3, background: C.accent, color: "#fff", lineHeight: 1.2 }}>{days === 0 ? "Today" : `${days} day${days === 1 ? "" : "s"}`}</span>;
+}
+export function NewsChrome({ active = "news" }: { active?: "news" | "data" | "live" | "vote" }) {
   return (
     <>
-      <div style={{ borderBottom: `1px solid ${C.rule}`, padding: "12px 0", background: "linear-gradient(180deg,#fff 0%," + C.bg + " 100%)" }}>
-        <div style={{ maxWidth: 1180, margin: "0 auto", padding: "0 20px" }}>
-          <Link href="/" aria-label="Back to Vote Unbiased home" style={{ display: "inline-flex", alignItems: "center", gap: 10, textDecoration: "none", fontFamily: SERIF, fontSize: 19, fontWeight: 600, color: C.ink }}>
-            <span style={{ width: 32, height: 32, borderRadius: "50%", border: `1px solid ${C.rule}`, background: "#fff", display: "grid", placeItems: "center", fontFamily: "'DM Sans',sans-serif", fontSize: 16, fontWeight: 500 }}>←</span>
-            <CheetahMark height={22} ink={C.ink} accent={C.accent} />
+      <div className="vc-head" style={{ borderBottom: `1px solid ${C.rule}`, padding: "12px 0", background: "linear-gradient(180deg,#fff 0%," + C.bg + " 100%)" }}>
+        <div style={{ maxWidth: 1400, margin: "0 auto", display: "flex", alignItems: "center" }}>
+          <Link href="/" aria-label="Back to Vote Unbiased home" className="vc-brand" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none", fontFamily: SERIF, fontSize: 20, fontWeight: 600, letterSpacing: "-0.015em", color: C.ink, flexShrink: 0 }}>
+            <span className="vc-back" style={{ width: 34, height: 34, borderRadius: "50%", marginRight: 4, border: `1px solid ${C.rule}`, background: "#fff", color: C.ink, display: "grid", placeItems: "center", fontFamily: "'DM Sans',sans-serif", fontSize: 16, fontWeight: 500, flexShrink: 0 }}>←</span>
+            <span className="vc-mark-d"><CheetahMark height={26} ink={C.ink} accent={C.accent} /></span>
+            <span className="vc-mark-m"><CheetahMark height={20} ink={C.ink} accent={C.accent} /></span>
             <span className="vu-wordmark" style={{ whiteSpace: "nowrap" }}>Vote <em style={{ fontStyle: "italic", color: C.accent, fontWeight: 500 }}>Unbiased</em></span>
           </Link>
         </div>
       </div>
       <nav data-nosnippet style={{ borderBottom: `1px solid ${C.rule}`, background: C.card }}>
-        <div style={{ maxWidth: 1180, margin: "0 auto", padding: "0 6px", display: "flex", overflowX: "auto" }}>
-          <Link href="/dashboard" style={tab(active === "data")}>Data</Link>
-          <Link href="/news" aria-current={active === "news" ? "page" : undefined} style={tab(active === "news")}>News</Link>
-          <Link href="/vote" aria-current={active === "vote" ? "page" : undefined} style={tab(active === "vote")}>
-            Vote
-            {days != null && <span style={{ fontSize: 9.5, fontWeight: 700, padding: "2px 6px", borderRadius: 3, background: C.accent, color: "#fff", lineHeight: 1.2 }}>{days === 0 ? "Today" : `${days} day${days === 1 ? "" : "s"}`}</span>}
-          </Link>
-          <Link href="/live" style={tab(active === "live")}>
-            <span style={{ width: 6, height: 6, borderRadius: "50%", border: `1.5px solid ${C.mute}` }} />
+        <div className="vc-nav" style={{ maxWidth: 1400, margin: "0 auto", padding: "0 24px", display: "flex", overflowX: "auto" }}>
+          <Link href="/dashboard" className="vc-tab" style={tab(active === "data")}>Data</Link>
+          <Link href="/news" className="vc-tab" aria-current={active === "news" ? "page" : undefined} style={tab(active === "news")}>News</Link>
+          <Link href="/vote" className="vc-tab" aria-current={active === "vote" ? "page" : undefined} style={tab(active === "vote")}>Vote<VoteBadge /></Link>
+          <Link href="/live" className="vc-tab" style={tab(active === "live")}>
+            <span style={{ width: 6, height: 6, borderRadius: "50%", border: `1.5px solid ${C.mute}`, flexShrink: 0 }} />
             Live Broadcast
             <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", padding: "2px 5px", borderRadius: 3, marginLeft: 2, background: "#a67c0014", color: "#a67c00", border: "1px solid #a67c0040", lineHeight: 1 }}>Beta</span>
           </Link>
         </div>
       </nav>
+      <style>{`.vc-mark-d{display:inline-flex}.vc-mark-m{display:none}
+@media(max-width:768px){.vc-head{padding:20px 14px 16px!important}.vc-brand{font-size:16px!important}.vc-back{width:32px!important;height:32px!important;margin-right:0!important}.vc-mark-d{display:none!important}.vc-mark-m{display:inline-flex!important}.vc-nav{padding:0 14px!important}.vc-tab{padding:10px 12px!important;font-size:12px!important}}`}</style>
     </>
   );
 }
