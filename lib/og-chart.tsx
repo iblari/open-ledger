@@ -34,6 +34,7 @@ export interface OgChart {
   path: string; area: string;
   sayY: number | null; dot: [number, number];
   said: string | null; value: string; valueDate: string;
+  saidNum: number | null; valueNum: number;
   label: string; source: string; from: string; to: string;
   /** Change vs the same period a year earlier, e.g. "▲ 0.4 pts vs a year earlier". */
   change: string | null;
@@ -80,6 +81,7 @@ export function buildOgChart(sd: SeriesData, opts: { lineKey?: string | null; an
     W, H, path, area: `${path} L${X(at.ms).toFixed(1)},${H} L0,${H} Z`,
     sayY: said != null ? Y(said) : null, dot: [X(at.ms), Y(at.v)],
     said: said != null ? fmtVal(said, sd.unit, sd.decimals) : null,
+    saidNum: said, valueNum: at.v,
     value: fmtVal(at.v, sd.unit, sd.decimals), valueDate: dlabel(at.ms, sd.freq),
     label: sd.label, source: sd.source, from: yr(x0), to: yr(x1), change,
   };
