@@ -238,5 +238,5 @@ html.vu-immersive body { min-height: calc(100lvh + 120px); }
 
 /* Height of the pinned site header + tabs (components/news/NewsChrome, dashboard),
    so other sticky bars sit just under it. */
-:root { --vu-chrome-h: 106px; }
-@media (max-width: 768px) { :root { --vu-chrome-h: 108px; } }
+:root { --vu-chrome-h: 107px; }
+@media (max-width: 768px) { :root { --vu-chrome-h: 109px; } }
