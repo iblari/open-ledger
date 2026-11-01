@@ -20,11 +20,12 @@ async function font(family: string, spec: string): Promise<ArrayBuffer | null> {
     return url ? await (await fetch(url)).arrayBuffer() : null;
   } catch { return null; }
 }
-export async function ogFonts() {
-  const [serif, sans] = await Promise.all([font("Source+Serif+4", "wght@400"), font("DM+Sans", "wght@500")]);
+export async function ogFonts(opts: { bold?: boolean } = {}) {
+  const [serif, sans, bold] = await Promise.all([font("Source+Serif+4", "wght@400"), font("DM+Sans", "wght@500"), opts.bold ? font("DM+Sans", "wght@700") : null]);
   return [
     ...(serif ? [{ name: "Serif", data: serif, weight: 400 as const, style: "normal" as const }] : []),
     ...(sans ? [{ name: "Sans", data: sans, weight: 500 as const, style: "normal" as const }] : []),
+    ...(bold ? [{ name: "Sans", data: bold, weight: 700 as const, style: "normal" as const }] : []),
   ];
 }
 

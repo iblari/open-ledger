@@ -7,6 +7,15 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Share kit · Vote Unbiased", robots: { index: false, follow: false } };
 
 const box: React.CSSProperties = { background: "#fff", border: "1px solid #E2DED6", borderRadius: 12, padding: 14, display: "flex", flexDirection: "column", gap: 8 };
+const igLinks = (x: { imagePortrait: string; imageSquare: string }) => (
+  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", fontSize: 12.5 }}>
+    <span style={{ color: "#8C8479" }}>Instagram:</span>
+    <a href={x.imagePortrait} target="_blank" rel="noreferrer" style={{ padding: "6px 10px" }}>Portrait 1080×1350 ↗</a>
+    <a href={x.imageSquare} target="_blank" rel="noreferrer" style={{ padding: "6px 10px" }}>Square 1080×1080 ↗</a>
+    <CopyButton text={x.imagePortrait} label="Copy portrait URL" />
+    <CopyButton text={x.imageSquare} label="Copy square URL" />
+  </div>
+);
 const h2: React.CSSProperties = { fontFamily: "'Newsreader',Georgia,serif", fontWeight: 500, fontSize: 24, margin: "28px 0 10px" };
 
 export default async function SharePage() {
@@ -31,6 +40,7 @@ export default async function SharePage() {
                 <CopyButton text={c.link} label="Copy link" />
                 {c.video && <a href={c.video} target="_blank" rel="noreferrer" style={{ fontSize: 12.5, padding: "6px 10px" }}>Video ↗</a>}
               </div>
+              {igLinks(c)}
             </div>
           ))}
         </div>
@@ -48,6 +58,24 @@ export default async function SharePage() {
                 <CopyButton text={m.link} label="Copy link" />
                 {m.video && <a href={m.video} target="_blank" rel="noreferrer" style={{ fontSize: 12.5, padding: "6px 10px" }}>Video ↗</a>}
               </div>
+              {igLinks(m)}
+            </div>
+          ))}
+        </div>
+
+        <h2 style={h2}>News stories</h2>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 12 }}>
+          {k.stories.map(st => (
+            <div key={st.id} style={box}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={st.image} alt="" width={1200} height={630} style={{ width: "100%", height: "auto", borderRadius: 8 }} loading="lazy" />
+              <div style={{ fontSize: 12, color: "#8C8479" }}>{st.topic} · {st.outlets} sources</div>
+              <pre style={{ whiteSpace: "pre-wrap", fontFamily: "inherit", fontSize: 13.5, margin: 0 }}>{st.caption}</pre>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                <CopyButton text={st.caption} label="Copy post" />
+                <CopyButton text={st.link} label="Copy link" />
+              </div>
+              {igLinks(st)}
             </div>
           ))}
         </div>
