@@ -235,3 +235,8 @@ html.vu-immersive body { min-height: calc(100lvh + 120px); }
 .vu-trend-lead:hover { border-color: #CFC7BB; box-shadow: 0 6px 18px rgba(20, 17, 14, .06); }
 .vu-trend-row { border-radius: 8px; transition: background .15s ease; }
 .vu-trend-row:hover { background: rgba(255, 255, 255, .7); }
+
+/* Height of the pinned site header + tabs (components/news/NewsChrome, dashboard),
+   so other sticky bars sit just under it. */
+:root { --vu-chrome-h: 107px; }
+@media (max-width: 768px) { :root { --vu-chrome-h: 109px; } }

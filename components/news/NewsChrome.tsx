@@ -27,32 +27,32 @@ export function VoteBadge() {
 }
 export function NewsChrome({ active = "news" }: { active?: "news" | "data" | "live" | "vote" }) {
   return (
-    <>
-      <div className="vc-head" style={{ borderBottom: `1px solid ${C.rule}`, padding: "12px 0", background: "linear-gradient(180deg,#fff 0%," + C.bg + " 100%)" }}>
+    <div className="vu-chrome" style={{ position: "sticky", top: 0, zIndex: 50 }}>
+      <div className="vuc-head" style={{ borderBottom: `1px solid ${C.rule}`, padding: "12px 0", background: "linear-gradient(180deg,#fff 0%," + C.bg + " 100%)" }}>
         <div style={{ maxWidth: 1400, margin: "0 auto", display: "flex", alignItems: "center" }}>
-          <Link href="/" aria-label="Back to Vote Unbiased home" className="vc-brand" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none", fontFamily: SERIF, fontSize: 20, fontWeight: 600, letterSpacing: "-0.015em", color: C.ink, flexShrink: 0 }}>
-            <span className="vc-back" style={{ width: 34, height: 34, borderRadius: "50%", marginRight: 4, border: `1px solid ${C.rule}`, background: "#fff", color: C.ink, display: "grid", placeItems: "center", fontFamily: "'DM Sans',sans-serif", fontSize: 16, fontWeight: 500, flexShrink: 0 }}>←</span>
-            <span className="vc-mark-d"><CheetahMark height={26} ink={C.ink} accent={C.accent} /></span>
-            <span className="vc-mark-m"><CheetahMark height={20} ink={C.ink} accent={C.accent} /></span>
+          <Link href="/" aria-label="Back to Vote Unbiased home" className="vuc-brand" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none", fontFamily: SERIF, fontSize: 20, fontWeight: 600, letterSpacing: "-0.015em", color: C.ink, flexShrink: 0 }}>
+            <span className="vuc-back" style={{ width: 34, height: 34, borderRadius: "50%", marginRight: 4, border: `1px solid ${C.rule}`, background: "#fff", color: C.ink, display: "grid", placeItems: "center", fontFamily: "'DM Sans',sans-serif", fontSize: 16, fontWeight: 500, flexShrink: 0 }}>←</span>
+            <span className="vuc-mark-d"><CheetahMark height={26} ink={C.ink} accent={C.accent} /></span>
+            <span className="vuc-mark-m"><CheetahMark height={20} ink={C.ink} accent={C.accent} /></span>
             <span className="vu-wordmark" style={{ whiteSpace: "nowrap" }}>Vote <em style={{ fontStyle: "italic", color: C.accent, fontWeight: 500 }}>Unbiased</em></span>
           </Link>
         </div>
       </div>
       <nav data-nosnippet style={{ borderBottom: `1px solid ${C.rule}`, background: C.card }}>
-        <div className="vc-nav" style={{ maxWidth: 1400, margin: "0 auto", padding: "0 24px", display: "flex", overflowX: "auto" }}>
-          <Link href="/dashboard" className="vc-tab" style={tab(active === "data")}>Data</Link>
-          <Link href="/news" className="vc-tab" aria-current={active === "news" ? "page" : undefined} style={tab(active === "news")}>News</Link>
-          <Link href="/vote" className="vc-tab" aria-current={active === "vote" ? "page" : undefined} style={tab(active === "vote")}>Vote<VoteBadge /></Link>
-          <Link href="/live" className="vc-tab" style={tab(active === "live")}>
+        <div className="vuc-nav" style={{ maxWidth: 1400, margin: "0 auto", padding: "0 24px", display: "flex", overflowX: "auto" }}>
+          <Link href="/dashboard" className="vuc-tab" style={tab(active === "data")}>Data</Link>
+          <Link href="/news" className="vuc-tab" aria-current={active === "news" ? "page" : undefined} style={tab(active === "news")}>News</Link>
+          <Link href="/vote" className="vuc-tab" aria-current={active === "vote" ? "page" : undefined} style={tab(active === "vote")}>Vote<VoteBadge /></Link>
+          <Link href="/live" className="vuc-tab" style={tab(active === "live")}>
             <span style={{ width: 6, height: 6, borderRadius: "50%", border: `1.5px solid ${C.mute}`, flexShrink: 0 }} />
             Live Broadcast
             <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", padding: "2px 5px", borderRadius: 3, marginLeft: 2, background: "#a67c0014", color: "#a67c00", border: "1px solid #a67c0040", lineHeight: 1 }}>Beta</span>
           </Link>
         </div>
       </nav>
-      <style>{`.vc-mark-d{display:inline-flex}.vc-mark-m{display:none}
-@media(max-width:768px){.vc-head{padding:20px 14px 16px!important}.vc-brand{font-size:16px!important}.vc-back{width:32px!important;height:32px!important;margin-right:0!important}.vc-mark-d{display:none!important}.vc-mark-m{display:inline-flex!important}.vc-nav{padding:0 14px!important}.vc-tab{padding:10px 12px!important;font-size:12px!important}}`}</style>
-    </>
+      <style>{`.vuc-mark-d{display:inline-flex}.vuc-mark-m{display:none}
+@media(max-width:768px){.vuc-head{padding:20px 14px 16px!important}.vuc-brand{font-size:16px!important}.vuc-back{width:32px!important;height:32px!important;margin-right:0!important}.vuc-mark-d{display:none!important}.vuc-mark-m{display:inline-flex!important}.vuc-nav{padding:0 14px!important}.vuc-tab{padding:10px 12px!important;font-size:12px!important}}`}</style>
+    </div>
   );
 }
 
