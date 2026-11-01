@@ -80,6 +80,7 @@ export default async function AdminMetricPage({ params }: { params: Promise<{ ad
         <h1 style={{ fontFamily: SERIF, fontWeight: 500, fontSize: "clamp(28px,4.5vw,40px)", lineHeight: 1.12, margin: "8px 0 8px" }}>{info.name} under {a.full}</h1>
         <p style={{ fontSize: 16, color: C.sub, lineHeight: 1.6, maxWidth: 780, margin: 0 }}>{summary} Official data from the {src}.</p>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "16px 0" }}>
+          {info.dash && <Link data-nosnippet href={`/dashboard?metric=${info.dash}&admin=${a.id === "bush43" ? "bush" : a.id}`} style={{ padding: "8px 14px", borderRadius: 8, background: C.ink, color: "#fff", textDecoration: "none", fontWeight: 600, fontSize: 13 }}>Open in dashboard →</Link>}
           <CopyCitation text={citation} />
           <Link data-nosnippet href={`/benchmark/${info.slug}`} style={{ padding: "8px 14px", borderRadius: 8, background: "#fff", border: `1px solid ${C.rule}`, color: C.ink, textDecoration: "none", fontWeight: 600, fontSize: 13 }}>Compare all presidents →</Link>
         </div>
