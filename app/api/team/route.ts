@@ -17,7 +17,7 @@ export async function GET(req: Request) {
   const me = memberFor(keyFrom(req));
   if (!me) return NextResponse.json({ error: "bad key" }, { status: 401, headers: H });
   const since = Number(new URL(req.url).searchParams.get("since") || 0) || 0;
-  const who: Member[] = ["claude", "sam"];
+  const who: Member[] = ["claude", "sam", "john"];
   const flags = await kvGet(who.map(TYPING_KEY)).catch(() => []);
   const typing = who.filter((_, i) => flags[i]);
   const thread = await readThread(since);
