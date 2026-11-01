@@ -48,7 +48,7 @@ export default async function StateBallot({ params }: { params: Promise<{ st: st
         .vc-grid{display:grid;grid-template-columns:200px repeat(var(--n),minmax(190px,1fr))}
         .vc-l{padding:12px 16px;border-top:1px solid ${C.rule};color:${C.sub};font-size:13px;background:#fdfbf8}
         .vc-c{padding:12px 16px;border-top:1px solid ${C.rule};border-left:1px solid ${C.rule};font-size:14.5px;line-height:1.45;min-width:0}
-        .vc-head{position:sticky;top:0;z-index:3;background:#fff;padding-top:12px;padding-bottom:10px;box-shadow:0 1px 0 ${C.rule}}
+        .vc-head{position:sticky;top:var(--vu-chrome-h, 0px);z-index:3;background:#fff;padding-top:12px;padding-bottom:10px;box-shadow:0 1px 0 ${C.rule}}
         .vc-l.vc-head{background:#fff;border-top:none}
         .vc-sec{grid-column:1/-1;padding:16px 16px 6px;font-family:${"'Source Serif 4',Georgia,serif"};font-size:20px;font-weight:500;color:${C.ink};border-top:1px solid ${C.rule};background:#fff}
         .vc-q{font-size:15px}

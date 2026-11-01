@@ -1367,6 +1367,8 @@ function App(){
         }
       `}</style>
 
+      {/* Header + tabs stay pinned on scroll (same as News / Vote). */}
+      <div className="vu-chrome" style={{position:"sticky",top:0,zIndex:50}}>
       {/* ── HEADER ── Vote Unbiased logo (left) + presidential timeline
           strip (right). Trump II appears as the 6th segment with a live
           pulse — historical admins 1993-2024 + current term 2025-. */}
@@ -1466,6 +1468,8 @@ function App(){
             }}>Beta</span>
           </a>
         </div>
+      </div>
+
       </div>
 
       {/* (Removed: the presidents colour key on phones. Every card and chart
@@ -2277,7 +2281,7 @@ function App(){
               />
             </div>
             {/* Detail / legend panel */}
-            <div style={{background:T.paper,border:`1px solid ${T.rule}`,borderRadius:4,padding:"16px 20px",alignSelf:"start",position:mob?undefined:"sticky",top:mob?undefined:20}}>
+            <div style={{background:T.paper,border:`1px solid ${T.rule}`,borderRadius:4,padding:"16px 20px",alignSelf:"start",position:mob?undefined:"sticky",top:mob?undefined:"calc(var(--vu-chrome-h, 0px) + 20px)"}}>
               {sel===null?(
                 <>
                   <div style={{fontFamily:"'Source Serif 4', serif",fontSize:16,fontWeight:700,color:T.ink,marginBottom:12}}>Legend</div>
