@@ -13,6 +13,7 @@ import { hashFromKey } from "./claim-link";
 import { toOutcome, ratingLabel } from "./live-design";
 import { excerpt } from "./quote-fit";
 import { claimChart, claimBars, type ClaimBars, type BarFigure, STAMP, decodeEntities } from "./og-claim-chart";
+import { layoutProblem, barHeight } from "./claim-bars-core";
 import { getStory } from "./news/store";
 import { etTime, leanShares } from "./news/share";
 import { photoData } from "./news/og-photo";
@@ -86,7 +87,8 @@ async function claimCard(file: string, size: IgSize): Promise<Response> {
   const date = new Date(c.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "America/New_York" }).toUpperCase();
   const times = r.repeats.length + 1;
   const trend = await claimChart(c, { W: INNER, H: tall ? 400 : 250 });
-  const bars = await claimBars(c, trend);
+  const bars0 = await claimBars(c, trend);
+  const bars = bars0 && !layoutProblem(bars0, tall) ? bars0 : null;
   const chart = bars ? null : trend;
 
   const q0 = c.quote.trim();
@@ -154,7 +156,7 @@ function SaidDataBars({ b, color, tall }: { b: ClaimBars; color: string; tall: b
   const area = tall ? 500 : 300;
   const numH = tall ? 86 : 66, wordH = tall ? 40 : 32;
   const mx = Math.max(Math.abs(b.said), Math.abs(b.data), 1e-9);
-  const h = (v: number) => Math.max(10, Math.round((Math.abs(v) / mx) * area));
+  const h = (v: number) => barHeight(v, mx, area);
   const cols: [string, number, BarFigure, string][] = [["SAID", b.said, b.saidFig, "#A39D93"], ["DATA", b.data, b.dataFig, color]];
   return (
     <div style={{ marginTop: "auto", display: "flex", flexDirection: "column" }}>
