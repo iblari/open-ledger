@@ -12,7 +12,7 @@ import { getSharedClaim } from "./claim-lookup";
 import { hashFromKey } from "./claim-link";
 import { toOutcome, ratingLabel } from "./live-design";
 import { excerpt } from "./quote-fit";
-import { claimChart, claimBars, type ClaimBars, STAMP, decodeEntities } from "./og-claim-chart";
+import { claimChart, claimBars, type ClaimBars, type BarFigure, STAMP, decodeEntities } from "./og-claim-chart";
 import { getStory } from "./news/store";
 import { etTime, leanShares } from "./news/share";
 import { photoData } from "./news/og-photo";
@@ -151,17 +151,19 @@ async function claimCard(file: string, size: IgSize): Promise<Response> {
 }
 
 function SaidDataBars({ b, color, tall }: { b: ClaimBars; color: string; tall: boolean }) {
-  const area = tall ? 540 : 340;
+  const area = tall ? 500 : 300;
+  const numH = tall ? 86 : 66, wordH = tall ? 40 : 32;
   const mx = Math.max(Math.abs(b.said), Math.abs(b.data), 1e-9);
   const h = (v: number) => Math.max(10, Math.round((Math.abs(v) / mx) * area));
-  const cols: [string, number, string, string][] = [["SAID", b.said, b.saidText, "#A39D93"], ["DATA", b.data, b.dataText, color]];
+  const cols: [string, number, BarFigure, string][] = [["SAID", b.said, b.saidFig, "#A39D93"], ["DATA", b.data, b.dataFig, color]];
   return (
     <div style={{ marginTop: "auto", display: "flex", flexDirection: "column" }}>
       <div style={{ display: "flex", alignItems: "flex-end", gap: 56, paddingBottom: 14, borderBottom: "3px solid #3A352F" }}>
-        {cols.map(([l, v, t, fill]) => (
-          <div key={l} style={{ display: "flex", flexDirection: "column", flexGrow: 1, flexBasis: 0, justifyContent: "flex-end", height: area + (tall ? 90 : 70) }}>
-            <div style={{ display: "flex", fontFamily: "Serif", fontSize: tall ? 78 : 60, lineHeight: 1, color: l === "DATA" ? fill : "#D8D2C8", marginBottom: 12 }}>{t}</div>
-            <div style={{ display: "flex", height: h(v), background: fill, borderRadius: "10px 10px 0 0" }} />
+        {cols.map(([l, v, f, fill]) => (
+          <div key={l} style={{ display: "flex", flexDirection: "column", flexGrow: 1, flexBasis: 0, minWidth: 0, justifyContent: "flex-end", height: area + numH + wordH + 12 }}>
+            <div style={{ display: "flex", flexShrink: 0, height: numH, alignItems: "flex-end", fontFamily: "Serif", fontSize: (tall ? 78 : 60) * (f.num.length > 8 ? 8 / f.num.length : 1), lineHeight: 1, whiteSpace: "nowrap", color: l === "DATA" ? fill : "#D8D2C8" }}>{f.num}</div>
+            <div style={{ display: "flex", flexShrink: 0, height: wordH, alignItems: "center", fontSize: tall ? 30 : 24, letterSpacing: 1, whiteSpace: "nowrap", color: "#A39D93", marginBottom: 12 }}>{f.word}</div>
+            <div style={{ display: "flex", flexShrink: 0, height: h(v), background: fill, borderRadius: "10px 10px 0 0" }} />
           </div>
         ))}
       </div>
