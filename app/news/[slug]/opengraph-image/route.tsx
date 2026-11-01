@@ -2,6 +2,7 @@ import { ImageResponse } from "next/og";
 import { getStory } from "@/lib/news/store";
 import { etTime, leanShares } from "@/lib/news/share";
 import { markSvg } from "@/lib/cheetah-mark";
+import { photoData } from "@/lib/news/og-photo";
 
 /**
  * GET /news/<slug>-<id>/opengraph-image — the preview card for one story
@@ -23,21 +24,6 @@ async function font(family: string, spec: string): Promise<ArrayBuffer | null> {
   } catch { return null; }
 }
 
-/** The story photo as a data URI (satori only draws PNG/JPEG/GIF); tries the chosen photo, then its backups. */
-async function photoData(cands: { url: string; name: string }[]): Promise<{ src: string; name: string } | null> {
-  for (const { url: u, name } of cands) {
-    if (!/^https:\/\//.test(u)) continue;
-    try {
-      const r = await fetch(u, { signal: AbortSignal.timeout(4000), headers: { "User-Agent": "Mozilla/5.0 (compatible; VoteUnbiasedBot/1.0; +https://voteunbiased.org)" } });
-      const type = (r.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
-      if (!r.ok || !/^image\/(jpeg|png|gif)$/.test(type)) continue;
-      const buf = await r.arrayBuffer();
-      if (buf.byteLength < 8_000 || buf.byteLength > 4_000_000) continue;
-      return { src: `data:${type};base64,${Buffer.from(buf).toString("base64")}`, name };
-    } catch { /* try the next one */ }
-  }
-  return null;
-}
 const MARK = "data:image/svg+xml;base64," + Buffer.from(markSvg({ ink: "#14110E", accent: "#C8102E", bars: 7, id: "nog", width: 120, height: 40 })).toString("base64");
 const MARK_WHITE = "data:image/svg+xml;base64," + Buffer.from(markSvg({ ink: "#FFFFFF", accent: "#FFFFFF", bars: 7, id: "nogw", width: 120, height: 40 })).toString("base64");
 const COL = { left: "#4361a6", center: "#FFFFFF", right: "#b8372d" } as const;

@@ -29,6 +29,11 @@ export const utm = (campaign: string) => `utm_source=x&utm_medium=social&utm_cam
 const withUtm = (url: string, campaign: string, content?: string) => `${url}${url.includes("?") ? "&" : "?"}${utm(campaign)}${content ? `&utm_content=${content}` : ""}`;
 const RATING_LABEL: Record<string, string> = { FALSE: "False", TRUE: "True", "MOSTLY TRUE": "Mostly true", "MOSTLY FALSE": "Mostly false" };
 const clip = (s: string, n: number) => (s.length > n ? s.slice(0, Math.max(1, n - 1)).replace(/\s+\S*$/, "").replace(/[,;:\s]+$/, "") + "…" : s);
+/** Instagram-sized cards (1080×1350 portrait, 1080×1080 square), same designs as `image`. */
+const igImages = (kind: "m" | "c" | "n", id: string, v?: string) => ({
+  imagePortrait: `${SITE}/og/ig/portrait/${kind}/${id}.png${v ? `?v=${v}` : ""}`,
+  imageSquare: `${SITE}/og/ig/square/${kind}/${id}.png${v ? `?v=${v}` : ""}`,
+});
 const squash = (s: string) => s.replace(/\s+/g, " ").trim();
 
 const HASHTAG: Record<string, string> = {
@@ -154,6 +159,8 @@ export interface KitClaim {
   dataLine: string; source: string;
   topic: string; hashtag: string | null;
   link: string; image: string; video: string | null; watch: string;
+  /** Instagram: 1080×1350 and 1080×1080 PNGs of the same card. */
+  imagePortrait: string; imageSquare: string;
   caption: string;
   /** One line, numbers first, to lead a post. */
   hook: string;
@@ -164,6 +171,8 @@ export interface KitMetric {
   value: string; observationDate: string; observationLabel: string; change: string | null;
   dataLine: string; source: string; hashtag: string | null;
   link: string; dashboardLink: string | null; image: string; video: string | null;
+  /** Instagram: 1080×1350 and 1080×1080 PNGs of the same card. */
+  imagePortrait: string; imageSquare: string;
   caption: string;
   hook: string;
   /** Next scheduled release of this metric, if known. */
@@ -177,7 +186,10 @@ export interface KitStory {
   outlets: number; coverage: { left: number; center: number; right: number; unrated: number };
   /** Share of each side's outlets that covered it (0–1). */
   rate: { left: number; center: number; right: number };
-  dataLine: string; link: string; image: string; caption: string;
+  dataLine: string; link: string; image: string;
+  /** Instagram: 1080×1350 and 1080×1080 PNGs of the same card. */
+  imagePortrait: string; imageSquare: string;
+  caption: string;
   /** When the counts were read, and when they last changed (for updated_since). */
   asOf: string; updatedAt: string;
 }
@@ -226,7 +238,7 @@ export async function buildShareKit(opts: { updatedSince?: string | null } = {})
         claimText: squash(c.quote), speaker: c.speaker || null, event: c.title, saidAt: c.date,
         rating: c.rating, ratingLabel: RATING_LABEL[c.rating] || c.rating,
         dataLine, source, topic, hashtag,
-        link, image: `${page}/opengraph-image`,
+        link, image: `${page}/opengraph-image`, ...igImages("c", c.key),
         video: manifest[c.key] ? `${SITE}/og/v/${c.key}.mp4` : null,
         watch: `${SITE}/live?v=${c.videoId}${c.videoTime != null ? `&t=${Math.max(0, Math.floor(c.videoTime))}` : ""}`,
         caption: cap.caption,
@@ -255,7 +267,7 @@ export async function buildShareKit(opts: { updatedSince?: string | null } = {})
       value: c.value, observationDate: obs, observationLabel: c.valueDate, change,
       dataLine, source, hashtag,
       link, dashboardLink: dash ? withUtm(`${SITE}/dashboard?view=month&metric=${dash}`, "metric") : null,
-      image: `${SITE}/og/m/${mid}.png?d=${obs}`,
+      image: `${SITE}/og/m/${mid}.png?d=${obs}`, ...igImages("m", mid, obs),
       video: manifest[clipName]?.date === obs ? `${SITE}/og/v/${clipName}.mp4?d=${obs}` : null,
       caption: `${dataLine}. Source: ${source}. ${link}${hashtag ? ` ${hashtag}` : ""}`,
       hook: `${name}: ${c.value}${change ? `, ${change}` : ""}.`,
@@ -277,7 +289,7 @@ export async function buildShareKit(opts: { updatedSince?: string | null } = {})
     return {
       id: `story:${st.id}`, type: "story", title: st.title, topic: st.topic,
       outlets: st.outlets, coverage: st.coverage, rate: st.rate,
-      dataLine, link, image: storyImage(st),
+      dataLine, link, image: storyImage(st), ...igImages("n", st.slug, `${st.coverage.left}-${st.coverage.center}-${st.coverage.right}`),
       caption: `${st.title}. ${dataLine}. ${link}`,
       asOf: st.asOf || feed!.at, updatedAt: st.updatedAt || st.asOf || feed!.at,
     };

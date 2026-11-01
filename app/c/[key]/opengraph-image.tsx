@@ -4,11 +4,8 @@ import { hashFromKey } from "@/lib/claim-link";
 import { toOutcome, ratingLabel } from "@/lib/live-design";
 import { excerpt } from "@/lib/quote-fit";
 import { markSvg } from "@/lib/cheetah-mark";
-import { kvGet } from "@/lib/live-kv";
-import { SERIES_KEY, cleanMapping, type ClaimSeries } from "@/lib/claim-series";
-import { getSeries } from "@/lib/series";
-import { buildOgChart, OgChartSvg, type OgChart } from "@/lib/og-chart";
-import { listTrendingClaims } from "@/lib/trending-claims";
+import { OgChartSvg } from "@/lib/og-chart";
+import { claimChart, STAMP, decodeEntities } from "@/lib/og-claim-chart";
 
 /**
  * The preview card for one fact-check — what a pasted link looks like in
@@ -20,12 +17,6 @@ export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 export const revalidate = 120;
 
-// Brighter than the page palette: these sit on near-black.
-const STAMP: Record<string, string> = {
-  true: "#2BA393", misleading: "#E08A2E", false: "#E0493A",
-  projection: "#7FA3C2", unconfirmed: "#7FA3C2", unverifiable: "#A39D93", checking: "#A39D93",
-};
-
 async function font(family: string, spec: string): Promise<ArrayBuffer | null> {
   try {
     // No browser UA → Google serves TrueType, which the image renderer reads.
@@ -36,7 +27,6 @@ async function font(family: string, spec: string): Promise<ArrayBuffer | null> {
 }
 
 const MARK = "data:image/svg+xml;base64," + Buffer.from(markSvg({ bars: 7, id: "cog", width: 120, height: 40 })).toString("base64");
-const decodeEntities = (s: string) => s.replace(/&#(\d+);/g, (_, n) => String.fromCharCode(+n)).replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&apos;/g, "'");
 const fit = (s: string, n: number) => (s.length > n ? s.slice(0, n - 1).replace(/\s+\S*$/, "") + "…" : s);
 
 export default async function Image({ params }: { params: Promise<{ key: string }> }) {
@@ -68,22 +58,7 @@ export default async function Image({ params }: { params: Promise<{ key: string 
   const date = new Date(c.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "America/New_York" }).toUpperCase();
   const times = r.repeats.length + 1;
 
-  // The chart behind the verdict, when the claim maps to an official series
-  // (lib/og-chart, shared with the metric cards): ~5 years, the claimed value
-  // as a dashed line, the reading at the claim as a dot.
-  let chart: OgChart | null = null;
-  try {
-    const [raw] = await kvGet([SERIES_KEY(c.key)]);
-    const map = cleanMapping(raw ? JSON.parse(raw) as ClaimSeries : null, { quote: c.quote, actual: c.actual, explanation: c.explanation, date: c.date });
-    const sd = map?.series ? await getSeries(map.series, map.countries) : null;
-    if (sd && map) {
-      // Same fallback as the page: the checker's extracted value when the
-      // mapping didn't restate it. Claims about the past get no said line.
-      const historical = map.terms || !!map.since;
-      const said = historical ? null : map.said ?? (await listTrendingClaims().catch(() => [])).find(x => x.key === c.key)?.claimedValue ?? null;
-      chart = buildOgChart(sd, { lineKey: map.saidCountry, anchor: c.date, said });
-    }
-  } catch { chart = null; }
+  const chart = await claimChart(c);
   // Quote: whole if it fits, else the sentence with the number; at most 3 lines
   // beside a chart, 4 without, so nothing below it gets overlapped.
   const qMax = chart ? 100 : 140;

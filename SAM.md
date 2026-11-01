@@ -33,6 +33,7 @@ Every item has a stable `id`. Use it to skip anything already posted.
 | `topic`, `hashtag` | For example "Inflation & prices", `#Inflation` |
 | `link` | The claim page, with UTM tags |
 | `image` | The 1200×630 card (PNG) |
+| `imagePortrait`, `imageSquare` | Instagram versions of the card (see below) |
 | `video` | 8-second 16:9 MP4, or `null` until rendered. Only claims charted against an official series get one; use `image` otherwise. |
 | `watch` | The moment in the broadcast |
 | `caption` | Draft in Sam's format, fitted to 280 characters with the link counted as 23: `Claim: "…" <data> (<source>). <link> #Topic`. The data line is never cut mid-sentence. A long quote is trimmed to its sentence with the number; if that's still too long, "…" marks the omission. |
@@ -50,6 +51,7 @@ Every item has a stable `id`. Use it to skip anything already posted.
 | `link` | The chart page `/s/{series}` |
 | `dashboardLink` | The presidents comparison page |
 | `image` | The card. It includes `?d=` so X fetches a fresh card after each release. |
+| `imagePortrait`, `imageSquare` | Instagram versions of the card (see below) |
 | `video` | 8-second MP4 of the chart animating in. It is `null` until the clip for the current number has rendered (within about an hour of a release). It never points to a clip with an old number. |
 | `dataUpdatedAt` | When this reading first appeared on the site |
 | `releasedLast24h` | The release-day trigger |
@@ -92,12 +94,22 @@ Up to 25 stories covered by at least 5 outlets, newest counts first.
 | `dataLine` | One line, e.g. "Covered by 3 of 32 left-leaning (9%), 9 of 31 center (29%) and 12 of 31 right-leaning (39%) outlets we read, as of Oct 28, 4:10 PM ET" |
 | `link` | The story page, with UTM tags (`utm_campaign=news`, `utm_content=story:{id}`) |
 | `image` | The 1200×630 card (title, three bars, "as of" time). Its URL changes when the counts change |
+| `imagePortrait`, `imageSquare` | Instagram versions of the card (see below) |
 | `caption` | Draft: title, data line, link |
 | `asOf`, `updatedAt` | When the counts were read, and when they last changed. `?updated_since=` filters on `updatedAt` |
 
 Post the counts as they are. Don't say a side is biased or hiding a story.
 
 The same stories are at `GET /api/news?since=ISO&limit=N`.
+
+### Instagram images (`imagePortrait`, `imageSquare`)
+
+Every claim, metric and story has two ready PNGs, the same design as `image`, laid out for Instagram:
+
+- `imagePortrait`: 1080×1350 (4:5)
+- `imageSquare`: 1080×1080
+
+They are public, stable URLs of the form `https://voteunbiased.org/og/ig/{portrait|square}/{c|m|n}/{id}.png` (`c` claim key, `m` metric id, `n` story slug). Post them as they are, no re-rendering. A metric's or story's URL carries `?v=` so it changes when the number does; a changed URL means a changed card. The human view at `/share` has the links and copy buttons under each card.
 
 ### Traffic: `GET /api/traffic?since=YYYY-MM-DD`
 
