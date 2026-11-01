@@ -12,7 +12,7 @@ import { getSharedClaim } from "./claim-lookup";
 import { hashFromKey } from "./claim-link";
 import { toOutcome, ratingLabel } from "./live-design";
 import { excerpt } from "./quote-fit";
-import { claimChart, STAMP, decodeEntities } from "./og-claim-chart";
+import { claimChart, claimBars, type ClaimBars, STAMP, decodeEntities } from "./og-claim-chart";
 import { getStory } from "./news/store";
 import { etTime, leanShares } from "./news/share";
 import { photoData } from "./news/og-photo";
@@ -48,7 +48,7 @@ async function metricCard(file: string, size: IgSize): Promise<Response> {
   const tall = size === "portrait";
   const id = shareSeriesFor(file);
   const [sd, fonts] = await Promise.all([id ? getSeries(id).catch(() => null) : null, ogFonts()]);
-  const c = sd ? buildOgChart(sd, { W: INNER, H: tall ? 520 : 290 }) : null;
+  const c = sd ? buildOgChart(sd, { W: INNER, H: tall ? 680 : 380 }) : null;
   if (!sd || !c) return notFound();
   return new ImageResponse((
     <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", background: "#0C0A08", color: "#F4F0EA", padding: "64px 64px 52px", fontFamily: "Sans" }}>
@@ -85,15 +85,17 @@ async function claimCard(file: string, size: IgSize): Promise<Response> {
   const longStamp = label.length > 6;
   const date = new Date(c.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "America/New_York" }).toUpperCase();
   const times = r.repeats.length + 1;
-  const chart = await claimChart(c, { W: INNER, H: tall ? 400 : 250 });
+  const trend = await claimChart(c, { W: INNER, H: tall ? 400 : 250 });
+  const bars = await claimBars(c, trend);
+  const chart = bars ? null : trend;
 
   const q0 = c.quote.trim();
-  const qx = excerpt(q0.charAt(0).toUpperCase() + q0.slice(1), chart ? (tall ? 150 : 105) : (tall ? 210 : 150)).text;
+  const qx = excerpt(q0.charAt(0).toUpperCase() + q0.slice(1), bars || chart ? (tall ? 140 : 100) : (tall ? 210 : 150)).text;
   const quote = qx.charAt(0).toUpperCase() + qx.slice(1);
   const n = quote.length;
   const qSize = tall
-    ? (chart ? (n > 100 ? 52 : n > 65 ? 60 : 68) : (n > 150 ? 56 : n > 95 ? 64 : 74))
-    : (chart ? (n > 70 ? 44 : 52) : (n > 95 ? 52 : n > 60 ? 60 : 68));
+    ? (bars || chart ? (n > 100 ? 52 : n > 65 ? 60 : 68) : (n > 150 ? 56 : n > 95 ? 64 : 74))
+    : (bars || chart ? (n > 70 ? 42 : 50) : (n > 95 ? 52 : n > 60 ? 60 : 68));
   const who = c.speaker || `From “${fit(decodeEntities(c.title), 64)}”`;
 
   return new ImageResponse((
@@ -115,7 +117,9 @@ async function claimCard(file: string, size: IgSize): Promise<Response> {
           padding: longStamp ? "8px 20px" : "10px 26px", fontSize: longStamp ? 40 : 54, letterSpacing: longStamp ? 3 : 4, transform: "rotate(-6deg)",
         }}>{label}</div>
       </div>
-      {chart ? (
+      {bars ? (
+        <SaidDataBars b={bars} color={col} tall={tall} />
+      ) : chart ? (
         <div style={{ marginTop: "auto", display: "flex", flexDirection: "column" }}>
           <div style={{ display: "flex", gap: 72, marginBottom: 18 }}>
             {chart.said && (
@@ -144,6 +148,30 @@ async function claimCard(file: string, size: IgSize): Promise<Response> {
       </div>
     </div>
   ), { width: IG_W, height: igHeight(size), fonts, headers: HEADERS });
+}
+
+function SaidDataBars({ b, color, tall }: { b: ClaimBars; color: string; tall: boolean }) {
+  const area = tall ? 540 : 340;
+  const mx = Math.max(Math.abs(b.said), Math.abs(b.data), 1e-9);
+  const h = (v: number) => Math.max(10, Math.round((Math.abs(v) / mx) * area));
+  const cols: [string, number, string, string][] = [["SAID", b.said, b.saidText, "#A39D93"], ["DATA", b.data, b.dataText, color]];
+  return (
+    <div style={{ marginTop: "auto", display: "flex", flexDirection: "column" }}>
+      <div style={{ display: "flex", alignItems: "flex-end", gap: 56, paddingBottom: 14, borderBottom: "3px solid #3A352F" }}>
+        {cols.map(([l, v, t, fill]) => (
+          <div key={l} style={{ display: "flex", flexDirection: "column", flexGrow: 1, flexBasis: 0, justifyContent: "flex-end", height: area + (tall ? 90 : 70) }}>
+            <div style={{ display: "flex", fontFamily: "Serif", fontSize: tall ? 78 : 60, lineHeight: 1, color: l === "DATA" ? fill : "#D8D2C8", marginBottom: 12 }}>{t}</div>
+            <div style={{ display: "flex", height: h(v), background: fill, borderRadius: "10px 10px 0 0" }} />
+          </div>
+        ))}
+      </div>
+      <div style={{ display: "flex", gap: 56, marginTop: 12, fontSize: 24, letterSpacing: 4, color: "#A39D93" }}>
+        <div style={{ display: "flex", flexGrow: 1, flexBasis: 0 }}>SAID</div>
+        <div style={{ display: "flex", flexGrow: 1, flexBasis: 0 }}>DATA</div>
+      </div>
+      <div style={{ display: "flex", fontSize: 21, color: "#7A746C", marginTop: 12 }}>{`${fit(b.metric, 60)} · Source: ${fit(b.source, 44)}`}</div>
+    </div>
+  );
 }
 
 async function newsCard(file: string, size: IgSize): Promise<Response> {

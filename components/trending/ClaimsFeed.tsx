@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { monthlySeries, fmtBench, type Bench } from "@/lib/bench-lens";
 import type { TrendingClaim } from "@/lib/trending-claims";
 import type { ClaimChart } from "@/lib/claim-chart";
+import { fmtU, unitOf } from "@/lib/chart-format";
 import type { ClaimSeries } from "@/lib/claim-series";
 import type { SeriesData } from "@/lib/series";
 import ProChart from "./ProChart";
@@ -33,23 +34,6 @@ const tone = (r: string) => (isTrue(r) ? C.true : C.false);
 const day = (iso: string) => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "America/New_York" });
 const stamp = (t?: number) => t == null ? "" : `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
 const host = (u: string) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return u; } };
-
-function fmtU(v: number, unit: string): string {
-  const u = unit.trim(), a = Math.abs(v), sign = v < 0 ? "-" : "";
-  if (u === "%") return `${Math.round(v * 10) / 10}%`;
-  const big = a >= 1e12 ? `${+(a / 1e12).toFixed(2)}T` : a >= 1e9 ? `${+(a / 1e9).toFixed(1)}B` : a >= 1e6 ? `${+(a / 1e6).toFixed(1)}M` : null;
-  if (u === "$") return `${sign}$${big ?? (a >= 1000 ? Math.round(a).toLocaleString("en-US") : a.toFixed(2))}`;
-  const n = big ? sign + big : a >= 1000 ? Math.round(v).toLocaleString("en-US") : String(Math.round(v * 100) / 100);
-  return u ? `${n} ${u}` : n;
-}
-/** The model sometimes names the thing counted ("deaths") as the unit of a
- *  percent change; when the verified data figure is written as a percent,
- *  it is a percent. */
-function unitOf(ch: ClaimChart): string {
-  if (ch.unit === "%" || !ch.data) return ch.unit;
-  const n = String(Math.abs(ch.data.value));
-  return new RegExp(`${n.replace(".", "\\.")}\\s*(%|percent)`, "i").test(ch.data.span.replace(/(\d),(\d{3})/g, "$1$2")) ? "%" : ch.unit;
-}
 
 /* ── Interactive line (hover / drag) ───────────────────────────────── */
 function Line({ pts, color, said, fmt, caption }: {
