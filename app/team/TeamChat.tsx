@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-type Member = "ib" | "sam" | "claude";
+type Member = "ib" | "sam" | "claude" | "john";
 type Kind = "message" | "request" | "approve" | "decline" | "build" | "ship" | "reject";
 interface Build { request: number; status: "queued" | "building" | "ready" | "failed" | "shipped" | "rejected"; preview?: string; prUrl?: string }
 interface Msg { id: number; from: Member; text: string; at: string; kind: Kind; ref?: number }
@@ -10,7 +10,8 @@ interface Req { id: number; from: Member; text: string; at: string; status: "pen
 const WHO: Record<Member, { name: string; role: string; color: string }> = {
   ib: { name: "Ib", role: "CEO", color: "#B07A12" },
   claude: { name: "Claude", role: "Code & UI design", color: "#E0493A" },
-  sam: { name: "Sam", role: "Social media manager", color: "#2F6FB0" },
+  sam: { name: "Sam", role: "Social media (X)", color: "#2F6FB0" },
+  john: { name: "John", role: "Social media (Instagram)", color: "#8A3FA0" },
 };
 const SERIF = "'Newsreader','Source Serif 4',Georgia,serif";
 const LS = "vu-team-key";
@@ -140,7 +141,7 @@ export default function TeamChat() {
             <div>
               <div style={{ fontFamily: SERIF, fontSize: 32, lineHeight: 1.1 }}>Team room</div>
               <div style={{ fontSize: 13.5, color: "#5F5850", marginTop: 4 }}>
-                {(["ib", "claude", "sam"] as Member[]).map((m, i) => <span key={m}>{i ? " · " : ""}<b style={{ color: WHO[m].color }}>{WHO[m].name}</b> {WHO[m].role}</span>)}
+                {(["ib", "claude", "sam", "john"] as Member[]).map((m, i) => <span key={m}>{i ? " · " : ""}<b style={{ color: WHO[m].color }}>{WHO[m].name}</b> {WHO[m].role}</span>)}
               </div>
             </div>
             <div style={{ fontSize: 13, color: "#8C8479" }}>You're {WHO[me].name} · <button onClick={() => { store.set(null); setKey(null); setMe(null); }} style={{ background: "none", border: 0, color: "#8C8479", textDecoration: "underline", cursor: "pointer", padding: 0 }}>sign out</button></div>
@@ -212,7 +213,7 @@ export default function TeamChat() {
             <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
               <textarea value={draft} onChange={e => setDraft(e.target.value)} rows={2}
                 onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); } }}
-                placeholder={me === "ib" ? "Message Claude and Sam…" : me === "claude" ? "Message Ib and Sam…" : "Message Ib and Claude…"}
+                placeholder={me === "ib" ? "Message the team…" : "Message Ib and the team…"}
                 style={{ flex: 1, resize: "vertical", minHeight: 48, maxHeight: 240, padding: "12px 14px", borderRadius: 12, border: "1px solid #D8D2C8", fontSize: 16, fontFamily: "inherit", background: "#fff" }} />
               <button onClick={submit} disabled={busy || !draft.trim()} style={{ padding: "13px 18px", borderRadius: 12, border: 0, background: draft.trim() ? "#14110E" : "#BDB6AB", color: "#fff", fontWeight: 600, fontSize: 15, cursor: "pointer" }}>Send</button>
             </div>
@@ -230,7 +231,8 @@ export default function TeamChat() {
             <div style={{ fontSize: 12, letterSpacing: ".14em", textTransform: "uppercase", color: "#8C8479" }}>How it works</div>
             <div><b style={{ color: WHO.ib.color }}>Ib</b> (CEO) sees everything, can jump in anytime and give either of us a task. Anything that changes the live site needs Ib's approval.</div>
             <div><b style={{ color: WHO.claude.color }}>Claude</b> answers instantly. When Ib approves a request, Claude builds it and posts a preview; Ib clicks Ship to put it live.</div>
-            <div><b style={{ color: WHO.sam.color }}>Sam</b> posts from the share kit and asks for what social needs.</div>
+            <div><b style={{ color: WHO.sam.color }}>Sam</b> posts to X from the share kit and asks for what social needs.</div>
+            <div><b style={{ color: WHO.john.color }}>John</b> runs Instagram from the same share kit.</div>
             <div>Every change gets a preview first. Nothing goes live until Ib ships it.</div>
             <div style={{ color: "#8C8479" }}>Live: new messages appear within seconds.</div>
           </div>

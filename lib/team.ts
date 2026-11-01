@@ -1,6 +1,7 @@
 /**
  * The team thread: one plain-English conversation between Ib (CEO),
- * Claude (code & UI design) and Sam (social media manager). Lives at /team, API at /api/team.
+ * Claude (code & UI design), Sam (X social media manager) and John (Instagram social
+ * media manager). Lives at /team, API at /api/team.
  *
  * Each member has a key; only SHA-256 hashes are in the code. Sam's messages
  * are requests: anything that changes the live site needs Ib's approval
@@ -9,16 +10,21 @@
 import { createHash } from "node:crypto";
 import { teamAppend, teamRead } from "./live-kv";
 
-export type Member = "ib" | "sam" | "claude";
+export type Member = "ib" | "sam" | "claude" | "john";
+/** Outside bots (Grok) that post with their own key and get webhook pings. */
+export const BOTS = ["sam", "john"] as const;
+export type Bot = (typeof BOTS)[number];
 export const MEMBERS: Record<Member, { name: string; role: string }> = {
   ib: { name: "Ib", role: "CEO" },
   claude: { name: "Claude", role: "Code & UI design" },
-  sam: { name: "Sam", role: "Social media manager" },
+  sam: { name: "Sam", role: "Social media manager (X)" },
+  john: { name: "John", role: "Social media manager (Instagram)" },
 };
 const HASHES: Record<string, Member> = {
   "6da4b8ec8af9173c6ef22d440fe0d4cc41a746caf960b6ca4ca37f700a8e8b82": "ib",
   "7e0d537301844adbf2db16207ac7ba8de9f6372ee8f69f0413bc42931b0c07df": "sam",
   "4621e3663dc00edd66d0688d1b649025e2218510915d11ed68fb6af1da679370": "claude",
+  "a689b3e322b9ca4b8dbfff0cd7df14d8f15f1380198604d1480dd39ea672ae85": "john",
 };
 
 export function memberFor(key: string | null | undefined): Member | null {
