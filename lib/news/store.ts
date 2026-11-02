@@ -1,6 +1,6 @@
 import { kvGet, kvSetMany } from "../live-kv";
 import { getSeries } from "../series";
-import { fetchAll, cluster, buildStories, recount, type Story, type Official } from "./engine";
+import { fetchAll, cluster, buildStories, recount, tokens, type Story, type Official } from "./engine";
 import { neutralTitles } from "./titles";
 
 /**
@@ -26,6 +26,73 @@ async function officials(): Promise<Record<string, Official>> {
   return out;
 }
 
+/** Share of `a`'s words that also appear in `b`. */
+function share(a: Set<string>, b: Set<string>): number {
+  let n = 0; for (const w of a) if (b.has(w)) n++;
+  return a.size ? n / a.size : 0;
+}
+
+/** Keep a story's id and URL as its articles change: a story that shares at
+ * least half its articles with one from the last run takes that one's id
+ * (otherwise links and cards would break when the earliest article ages out).
+ * Only if its headline still fits that story's slug, so when a story splits
+ * the id stays with the part the URL describes and the others get new ids. */
+export function inheritIds(stories: Story[], prev: Story[]): void {
+  const claimed = new Set<string>();
+  for (const st of stories) {
+    const links = new Set(st.articles.map(a => a.link));
+    const head = new Set(tokens(st.headline || st.title));
+    let best: Story | null = null, bestN = 0;
+    for (const p of prev) {
+      if (claimed.has(p.id)) continue;
+      const n = p.articles.filter(a => links.has(a.link)).length;
+      if (n <= bestN || n < Math.min(links.size, p.articles.length) / 2) continue;
+      if (share(new Set(tokens(p.slug.replace(/-[a-z0-9]+$/, "").replace(/-/g, " "))), head) < 0.5) continue;
+      best = p; bestN = n;
+    }
+    if (best) { st.id = best.id; st.slug = best.slug; claimed.add(best.id); }
+  }
+}
+
+/** Counts never shrink: feeds only reach back 48 hours, so a story keeps every
+ * article it had in earlier runs (up to 7 days old) unless that article now
+ * belongs to another story, or no longer fits this one (it was grouped by a
+ * loose link, e.g. a different shooting on the same night). Outlets that join
+ * later still add to the counts. */
+export function carryOver(stories: Story[], prev: Story[]): void {
+  const inUse = new Set(stories.flatMap(s => s.articles.map(a => a.link)));
+  const prevById = new Map(prev.map(s => [s.id, s]));
+  const keepFrom = Date.now() - 7 * 86400_000;
+  // Words weighted by rarity across every story: "shooting" says little, "spirit" a lot.
+  const all = [...stories, ...prev].flatMap(s => s.articles.map(a => new Set(tokens(a.title))));
+  const df = new Map<string, number>();
+  for (const d of all) for (const w of d) df.set(w, (df.get(w) || 0) + 1);
+  const wt = (w: string) => Math.log(1 + all.length / (df.get(w) || 1));
+  // Each story's core words: those in at least 40% of its current headlines.
+  const cores = new Map<Story, Map<string, number>>();
+  for (const st of stories) {
+    const freq = new Map<string, number>();
+    for (const a of st.articles) for (const w of new Set(tokens(a.title))) freq.set(w, (freq.get(w) || 0) + 1);
+    cores.set(st, new Map([...freq].filter(([, n]) => n >= st.articles.length * 0.4).map(([w]) => [w, wt(w)])));
+  }
+  const fit = (title: string, st: Story) => {
+    const core = cores.get(st)!, ws = new Set(tokens(title));
+    let tot = 0, hit = 0;
+    for (const [w, x] of core) { tot += x; if (ws.has(w)) hit += x; }
+    return tot ? hit / tot : 0;
+  };
+  for (const st of stories) {
+    const p = prevById.get(st.id);
+    if (!p) continue;
+    const old = p.articles.filter(a => !inUse.has(a.link) && Date.parse(a.published) >= keepFrom
+      && fit(a.title, st) >= 0.45 && stories.every(o => o === st || fit(a.title, o) < fit(a.title, st)));
+    if (!old.length) continue;
+    for (const a of old) inUse.add(a.link);
+    st.articles.push(...old);
+    recount(st);
+  }
+}
+
 export async function refreshNews(): Promise<NewsFeed> {
   const [{ articles, failed }, offs] = await Promise.all([fetchAll(48), officials().catch(() => ({}))]);
   const stories = buildStories(cluster(articles), articles, offs).slice(0, 80);
@@ -33,35 +100,8 @@ export async function refreshNews(): Promise<NewsFeed> {
   // When each story's counts last changed (stable across refreshes otherwise),
   // for ?since= on /api/news and updated_since in the share kit.
   const prev = await getNewsFeed().catch(() => null);
-  // Keep a story's id and URL as its articles change: a story that shares at
-  // least half its articles with one from the last run takes that one's id
-  // (otherwise links and cards would break when the earliest article ages out).
-  const claimed = new Set<string>();
-  for (const st of stories) {
-    const links = new Set(st.articles.map(a => a.link));
-    let best: Story | null = null, bestN = 0;
-    for (const p of prev?.stories || []) {
-      if (claimed.has(p.id)) continue;
-      const n = p.articles.filter(a => links.has(a.link)).length;
-      if (n > bestN) { best = p; bestN = n; }
-    }
-    if (best && bestN >= Math.min(links.size, best.articles.length) / 2) { st.id = best.id; st.slug = best.slug; claimed.add(best.id); }
-  }
-  // Counts never shrink: feeds only reach back 48 hours, so a story keeps every
-  // article it had in earlier runs (up to 7 days old) unless that article now
-  // belongs to another story. Outlets that join later still add to the counts.
-  const inUse = new Set(stories.flatMap(s => s.articles.map(a => a.link)));
-  const prevById = new Map((prev?.stories || []).map(s => [s.id, s]));
-  const keepFrom = Date.now() - 7 * 86400_000;
-  for (const st of stories) {
-    const p = prevById.get(st.id);
-    if (!p) continue;
-    const old = p.articles.filter(a => !inUse.has(a.link) && Date.parse(a.published) >= keepFrom);
-    if (!old.length) continue;
-    for (const a of old) inUse.add(a.link);
-    st.articles.push(...old);
-    recount(st);
-  }
+  inheritIds(stories, prev?.stories || []);
+  carryOver(stories, prev?.stories || []);
   stories.sort((a, b) => b.score - a.score);
   const before = new Map((prev?.stories || []).map(s => [s.id, s]));
   const sig = (s: Story) => `${s.coverage.left}-${s.coverage.center}-${s.coverage.right}-${s.coverage.unrated}`;

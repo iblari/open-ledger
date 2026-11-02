@@ -149,10 +149,12 @@ const STOP = new Set(("a an the and or but of to in on for at by with from as is
   "than then just also how what why who when where which while live latest update updates watch video photos opinion analysis exclusive breaking here there all one two first last " +
   "year years day days week weeks time times us u.s. america american americans").split(" "));
 const stem = (w: string) => w.length > 4 ? w.replace(/(ings|ing|ers|ed|es|s)$/, "") : w;
-function tokens(s: string): string[] {
+export function tokens(s: string): string[] {
   return (s.toLowerCase().replace(/['’]s\b/g, "").match(/[a-z][a-z0-9.%-]*|\d[\d.,%]*/g) || [])
     .map(w => w.replace(/[.,]+$/, "")).filter(w => w.length > 2 && !STOP.has(w)).map(stem);
 }
+
+const SPLIT_SIM = 0.25;
 
 export function cluster(articles: Article[]): Article[][] {
   const docs = articles.map(a => {
@@ -192,10 +194,29 @@ export function cluster(articles: Article[]): Article[][] {
   const groups = new Map<number, number[]>();
   docs.forEach((_, i) => (groups.get(find(i)) || groups.set(find(i), []).get(find(i))!).push(i));
 
-  // Trim to the core: members must be close to the group's centroid.
-  const out: Article[][] = [];
+  // Single links can chain two events that share only generic words ("Halloween
+  // shooting"): split each group into sub-groups whose members are, on average,
+  // close to each other, so each event gets its own story.
+  const split: number[][] = [];
   for (const g of groups.values()) {
     if (g.length < 2) continue;
+    const parts = g.map(i => [i]);
+    for (;;) {
+      let bi = -1, bj = -1, best = SPLIT_SIM;
+      for (let x = 0; x < parts.length; x++) for (let y = x + 1; y < parts.length; y++) {
+        let s = 0; for (const i of parts[x]) for (const j of parts[y]) s += cos(i, j);
+        s /= parts[x].length * parts[y].length;
+        if (s > best) { best = s; bi = x; bj = y; }
+      }
+      if (bi < 0) break;
+      parts[bi] = parts[bi].concat(parts[bj]); parts.splice(bj, 1);
+    }
+    split.push(...parts.filter(p => p.length >= 2));
+  }
+
+  // Trim to the core: members must be close to the group's centroid.
+  const out: Article[][] = [];
+  for (const g of split) {
     const c = new Map<string, number>();
     for (const i of g) for (const [w, x] of vec[i]) c.set(w, (c.get(w) || 0) + x / g.length);
     let n = 0; for (const x of c.values()) n += x * x; n = Math.sqrt(n) || 1;
