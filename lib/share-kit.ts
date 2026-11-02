@@ -8,6 +8,7 @@
  *   Claim: "…" <the data, with source>. <link> #Topic
  * Drafts are built from the data (no model), neutral, numbers first.
  */
+import { dataLineOf, AGENCIES } from "./claim-dataline";
 import { getTrendingClaims, TRENDING_RATINGS } from "./trending-claims";
 import { getSeries, CATALOG_BY_ID } from "./series";
 import { buildOgChart } from "./og-chart";
@@ -48,13 +49,7 @@ const METRIC_TAG: Record<string, string> = {
   gas: "#GasPrices", payrolls_chg: "#Jobs", unemployment: "#Jobs", debt: "#NationalDebt", deficit_12m: "#NationalDebt",
   fed_funds: "#Fed", mortgage: "#Housing", treasury_10y: "#Bonds", sp500: "#Stocks", gdp_growth: "#Economy", real_wages: "#Wages",
 };
-const AGENCIES = /\b(BLS|BEA|EIA|IMF|CBO|OECD|FRED|CBP|FBI|CDC|EPA|USDA|Census Bureau|Treasury|Federal Reserve|World Bank|Statistics Canada|Eurostat|OPEC|AAA|Gallup|Ballotpedia|CMS|KFF|SSA|DHS|DOJ|GAO|OMB|FDA|NOAA|NASA|UN|WHO)\b/;
 
-/** First sentence of the finding: the data, numbers first. */
-function dataLineOf(actual: string): string {
-  const s = squash(actual);
-  return (s.split(/(?<=[.;])\s+(?=[A-Z$0-9])/)[0] || s).replace(/[.;]\s*$/, "");
-}
 function sourceOf(actual: string, sources: { title: string; url: string }[], seriesId?: string | null): string {
   const named = actual.match(AGENCIES)?.[1];
   if (named) return named;
