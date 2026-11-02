@@ -79,6 +79,7 @@ ${numbers}
 
 Useful links: claim pages ${SITE}/c/<key>, chart pages ${SITE}/s/<series> (e.g. /s/cpi_yoy, /s/gas), metric cards ${SITE}/og/m/<series>.png, dashboard ${SITE}/dashboard.
 
+Filing: a request exists only after you put it in "requests"; the site gives it its number and shows Ib an Approve button. Never write request numbers yourself and never say something is filed, queued or ready to approve unless it's in "requests" in this same reply or listed as pending. Message numbers in the chat (#249 etc.) are not requests.
 Reply with JSON only: {"reply": "your chat message", "requests": ["one concrete change for Ib to approve", "another, separate change"]}. Each item in "requests" becomes its own approval card for Ib, so put ONE change per item (never several numbered changes in one item, and never put request text in "reply"). Keep "reply" short and don't repeat the requests in it. Use {"reply": null, "requests": []} only when nothing needs saying (e.g. a plain "thanks" or a message clearly meant only for Sam that you have nothing to add to).`;
 
 function transcript(msgs: TeamMessage[]): string {
@@ -154,7 +155,16 @@ export async function claudeRespond(trigger: TeamMessage): Promise<void> {
       if (run >= MAX_BOT_RUN) return;
       await teamFlagSet(TYPING_KEY("claude"), "1", 90);
       const approved = messages.filter(m => m.kind === "request" && messages.some(x => x.kind === "approve" && x.ref === m.id)).map(m => `#${m.id}`);
-      const out = await callClaude(SYSTEM(await liveNumbers()), `Approved requests so far: ${approved.join(", ") || "none"}.\n\nThe chat so far:\n\n${transcript(messages)}\n\nWrite Claude's next message, responding to everything since Claude last spoke.`);
+      const decided = new Set(messages.filter(x => x.kind === "approve" || x.kind === "decline").map(x => x.ref));
+      const pending = messages.filter(m => m.kind === "request" && !decided.has(m.id)).map(m => `#${m.id}: ${m.text.slice(0, 120)}`);
+      const sys = SYSTEM(await liveNumbers());
+      const prompt = `Approved requests so far: ${approved.join(", ") || "none"}.\nRequests waiting for Ib's approval right now (these are the ONLY filed, pending requests; anything else has NOT been filed): ${pending.length ? "\n" + pending.join("\n") : "none"}.\n\nThe chat so far:\n\n${transcript(messages)}\n\nWrite Claude's next message, responding to everything since Claude last spoke.`;
+      let out = await callClaude(sys, prompt);
+      // Guard: a reply that claims requests are filed/ready while filing none would leave Ib with nothing to approve.
+      if (out && !out.requests.length && /\b(filed|filing|queued|ready to approve|ready for (your )?approval|approv(e|ing) #?\d)/i.test(out.reply || "")) {
+        const again = await callClaude(sys, prompt + `\n\nYour draft reply was: ${JSON.stringify(out.reply)}\nIt talks about requests, but "requests" was empty, so nothing would appear for Ib to approve. Put each change Ib needs to approve as its own item in "requests" now (the site numbers them). If there is truly nothing to file, rewrite the reply so it doesn't claim anything was filed.`);
+        if (again) out = again;
+      }
       if (out?.reply) { await pingBots(await post("claude", out.reply)); posted = true; }
       for (const req of (out?.requests || []).slice(0, 5)) { await pingBots(await post("claude", req, "request")); posted = true; }
     } finally {
