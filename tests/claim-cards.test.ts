@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { barsProblem, layoutProblem, parseFigure, moneyBars, plainBars, validBars, type ClaimBars } from "../lib/claim-bars-core";
-import { claimBars } from "../lib/og-claim-chart";
+import { claimBars, withDataLine } from "../lib/og-claim-chart";
 import type { OgChart } from "../lib/og-chart";
 import type { SharedClaim } from "../lib/claim-lookup";
 
@@ -122,4 +122,14 @@ test("every stored claim and metric card is clean", { skip: !process.env.UPSTASH
     if (!c.value || /NaN|undefined/.test(c.value + (c.change ?? ""))) fails.push(`m/${id}: unparsed value "${c.value}"`);
   }
   assert.deepEqual(fails, []);
+});
+
+test("c/0eamvf5: Data and source come from the feed's dataLine ($232.2 billion, BEA)", async () => {
+  const c = { ...claim("0eamvf5", "We have 22.2 trillion dollars invested in America."), actual: "$232.2B actual 2025 FDI per BEA, not the $22.2 trillion claimed. FRED shows a 304B annual rate." };
+  const t = withDataLine(c, trend({ unit: "$B", saidRaw: 22200, saidNum: 22200, valueNum: 304, value: "$304B", source: "FRED" }));
+  assert.equal(t.value, "$232.2B");
+  assert.equal(t.source, "BEA");
+  const b = assertCard(await claimBars(c, t));
+  assert.equal(label(b.dataFig), "$232.2 billion");
+  assert.equal(b.source, "BEA");
 });

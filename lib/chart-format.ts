@@ -42,7 +42,7 @@ export function moneyMult(unit: string): number | null {
 export function moneyParts(dollars: number): { num: string; word: string } {
   const a = Math.abs(dollars), sign = dollars < 0 ? "-" : "";
   const [d, word] = a >= 1e12 ? [a / 1e12, "trillion"] : a >= 1e9 ? [a / 1e9, "billion"] : a >= 1e6 ? [a / 1e6, "million"] : [a, ""];
-  const n = word ? String(+d.toFixed(d >= 100 ? 0 : d >= 10 ? 1 : 2)) : d >= 1000 ? Math.round(d).toLocaleString("en-US") : String(+d.toFixed(2));
+  const n = word ? String(+d.toFixed(d >= 10 ? 1 : 2)) : d >= 1000 ? Math.round(d).toLocaleString("en-US") : String(+d.toFixed(2));
   return { num: `${sign}$${n}`, word };
 }
 

@@ -21,6 +21,7 @@ import { excerpt } from "./quote-fit";
 import { getReleaseCalendar, type CalendarItem } from "./release-calendar";
 import { getNewsFeed } from "./news/store";
 import { storyImage, storyDataLine } from "./news/share";
+import { AGENCIES, dataLineOf } from "./claim-dataline";
 
 const SITE = "https://voteunbiased.org";
 const TCO = 23;            // X counts every link as 23 characters
@@ -48,13 +49,7 @@ const METRIC_TAG: Record<string, string> = {
   gas: "#GasPrices", payrolls_chg: "#Jobs", unemployment: "#Jobs", debt: "#NationalDebt", deficit_12m: "#NationalDebt",
   fed_funds: "#Fed", mortgage: "#Housing", treasury_10y: "#Bonds", sp500: "#Stocks", gdp_growth: "#Economy", real_wages: "#Wages",
 };
-const AGENCIES = /\b(BLS|BEA|EIA|IMF|CBO|OECD|FRED|CBP|FBI|CDC|EPA|USDA|Census Bureau|Treasury|Federal Reserve|World Bank|Statistics Canada|Eurostat|OPEC|AAA|Gallup|Ballotpedia|CMS|KFF|SSA|DHS|DOJ|GAO|OMB|FDA|NOAA|NASA|UN|WHO)\b/;
 
-/** First sentence of the finding: the data, numbers first. */
-function dataLineOf(actual: string): string {
-  const s = squash(actual);
-  return (s.split(/(?<=[.;])\s+(?=[A-Z$0-9])/)[0] || s).replace(/[.;]\s*$/, "");
-}
 function sourceOf(actual: string, sources: { title: string; url: string }[], seriesId?: string | null): string {
   const named = actual.match(AGENCIES)?.[1];
   if (named) return named;

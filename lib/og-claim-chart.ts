@@ -6,6 +6,7 @@ import { listTrendingClaims } from "./trending-claims";
 import { getClaimChart } from "./claim-chart";
 import { fmtU, fmtVal, unitOf, moneyMult, moneyIn } from "./chart-format";
 import { writtenDollars, moneyBars, plainBars, validBars, type ClaimBars, type BarFigure } from "./claim-bars-core";
+import { AGENCIES, dataLineOf } from "./claim-dataline";
 import type { SharedClaim } from "./claim-lookup";
 
 /** The chart behind a claim's verdict, when it maps to an official series: ~5 years,
@@ -20,8 +21,23 @@ export async function claimChart(c: SharedClaim, size?: { W: number; H: number }
     // mapping didn't restate it. Claims about the past get no said line.
     const historical = map.terms || !!map.since;
     const said = historical ? null : map.said ?? (await listTrendingClaims().catch(() => [])).find(x => x.key === c.key)?.claimedValue ?? null;
-    return buildOgChart(sd, { lineKey: map.saidCountry, anchor: c.date, said, ...size });
+    const chart = buildOgChart(sd, { lineKey: map.saidCountry, anchor: c.date, said, ...size });
+    return chart ? withDataLine(c, chart) : null;
   } catch { return null; }
+}
+
+/** The Data figure and source the share feed states (the first sentence of the finding), when the
+ *  mapped series reads a different measure of the same dollars (e.g. a FRED rate vs BEA's actual). */
+export function withDataLine(c: SharedClaim, chart: OgChart): OgChart {
+  const mult = moneyMult(chart.unit);
+  if (mult == null || !c.actual) return chart;
+  const line = dataLineOf(c.actual);
+  const said = chart.saidNum != null ? chart.saidNum * mult : Math.max(0, ...moneyIn(c.quote));
+  const series = chart.valueNum * mult;
+  const near = (a: number, b: number) => Math.abs(a - b) <= 0.01 * Math.abs(b);
+  const figure = moneyIn(line).find(v => v > 0 && !(said && near(v, said)) && v / series >= 0.1 && v / series <= 10);
+  if (figure == null) return chart;
+  return { ...chart, value: fmtU(figure, "$"), valueNum: figure / mult, source: line.match(AGENCIES)?.[1] ?? chart.source };
 }
 
 // Brighter than the page palette: these sit on near-black.
