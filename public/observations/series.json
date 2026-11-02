@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-26T18:59:20.212Z",
+  "generatedAt": "2026-11-02T22:04:27.946Z",
   "series": [
     {
       "id": "ai_business_adoption",
@@ -385,10 +385,15 @@
           "t": "2026-07-01",
           "v": 26.97,
           "label": "GPT-6 Astra · OpenAI"
+        },
+        {
+          "t": "2026-10-01",
+          "v": 26.97,
+          "label": "GPT-6 Astra · OpenAI"
         }
       ],
       "latest": {
-        "t": "2026-07-01",
+        "t": "2026-10-01",
         "v": 26.97,
         "label": "GPT-6 Astra · OpenAI"
       },
@@ -397,12 +402,12 @@
         "v": 19.38,
         "label": "MSRA (C, PReLU) · Microsoft Research"
       },
-      "score": 60.5,
+      "score": 60.4,
       "yoy": 0.3,
       "changeUnit": "oom",
       "changeWindowDays": 365,
       "comparedWith": {
-        "t": "2025-07-01",
+        "t": "2025-10-01",
         "v": 26.7
       },
       "confidenceNotes": []
