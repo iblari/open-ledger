@@ -123,3 +123,22 @@ test("every stored claim and metric card is clean", { skip: !process.env.UPSTASH
   }
   assert.deepEqual(fails, []);
 });
+
+test("c/11498j9: Data bar is the first dollar figure in the dataLine, not the series reading", async () => {
+  const c = { ...claim("11498j9", "We have created $25 trillion in new wealth."), actual: "$5.4 trillion from Q4 2024 to Q2 2025 (6 months). Extrapolated over a year that would be $17 trillion." };
+  const b = assertCard(await claimBars(c, trend({ unit: "$ trillion", saidRaw: 25000, valueNum: 17 })));
+  assert.equal(label(b.saidFig), "$25 trillion");
+  assert.equal(label(b.dataFig), "$5.4 trillion");
+});
+
+test("c/0eamvf5: Data bar and source follow the dataLine ($232.2B, BEA)", async () => {
+  const c = { ...claim("0eamvf5", "We have 22.2 trillion dollars invested in America."), actual: "$232.2 billion in foreign direct investment inflows in 2024 (BEA). FRED shows $304B." };
+  const b = assertCard(await claimBars(c, trend({ unit: "$B", saidRaw: 22200, valueNum: 304, source: "FRED" })));
+  assert.equal(label(b.dataFig), "$232 billion");
+  assert.equal(b.source, "BEA");
+});
+
+test("money card whose dataLine has no dollar figure draws no bars", async () => {
+  const c = { ...claim("nodollar", "We added $25 trillion in wealth."), actual: "Household net worth rose over the period. Series reads $17 trillion." };
+  assert.equal(await claimBars(c, trend({ unit: "$ trillion", saidRaw: 25000, valueNum: 17 })), null);
+});

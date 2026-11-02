@@ -7,6 +7,7 @@ import { getClaimChart } from "./claim-chart";
 import { fmtU, fmtVal, unitOf, moneyMult, moneyIn } from "./chart-format";
 import { writtenDollars, moneyBars, plainBars, validBars, type ClaimBars, type BarFigure } from "./claim-bars-core";
 import type { SharedClaim } from "./claim-lookup";
+import { dataLineOf, firstDollarIn, AGENCIES } from "./claim-dataline";
 
 /** The chart behind a claim's verdict, when it maps to an official series: ~5 years,
  *  the claimed value as a dashed line, the reading at the claim as a dot. */
@@ -40,7 +41,18 @@ const host = (u: string) => { try { return new URL(u).hostname.replace(/^www\./,
  *  never built while rendering). Money is put on one scale in dollars so the bars
  *  are true to size and read "$25 trillion". */
 export async function claimBars(c: SharedClaim, trend: OgChart | null): Promise<ClaimBars | null> {
-  return validBars(await buildBars(c, trend));
+  return validBars(pinToDataLine(c, await buildBars(c, trend)));
+}
+
+/** The Data bar of a money card is the first dollar figure in the dataLine (the finding's
+ *  first sentence), never a series reading or a calculation. No dollar figure there, no bars. */
+function pinToDataLine(c: SharedClaim, b: ClaimBars | null): ClaimBars | null {
+  const line = dataLineOf(c.actual || "");
+  if (!b || !b.money || !line) return b;
+  const data = firstDollarIn(line);
+  if (data == null || data <= 0) return null;
+  const agency = line.match(AGENCIES)?.[1];
+  return moneyBars(b.said, data, b.metric, agency ?? b.source);
 }
 
 async function buildBars(c: SharedClaim, trend: OgChart | null): Promise<ClaimBars | null> {
