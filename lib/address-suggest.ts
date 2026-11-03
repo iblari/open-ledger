@@ -20,7 +20,8 @@ const line = (num: string | undefined, street: string | undefined, f: F["propert
   const st = ABBR[(f.state || "").toLowerCase()];
   const city = f.city || f.town || f.district || f.county;
   if (!street || !st) return null;
-  return `${num ? num + " " : ""}${street}, ${city ? city + ", " : ""}${st}${f.postcode ? " " + f.postcode.slice(0, 5) : ""}`;
+  // No ZIP: OpenStreetMap's postcodes are often the neighbouring ZIP, which makes the voter-file lookup miss.
+  return `${num ? num + " " : ""}${street}, ${city ? city + ", " : ""}${st}`;
 };
 
 
