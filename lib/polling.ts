@@ -73,8 +73,8 @@ type Raw = {
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 const busy = (j: Raw | null) => !j || j.error?.code === 429 || (j.error?.code ?? 0) >= 500;
 /** One Civic call (wider data, which includes the official feed), retried on rate limits and timeouts. */
-async function civic(key: string, address: string): Promise<Raw | null> {
-  const q = new URLSearchParams({ key, electionId: ELECTION_ID, address, officialOnly: "false" });
+async function civic(key: string, address: string, quotaUser?: string): Promise<Raw | null> {
+  const q = new URLSearchParams({ key, electionId: ELECTION_ID, address, officialOnly: "false", ...(quotaUser ? { quotaUser } : {}) });
   let j: Raw | null = null;
   for (const wait of [0, 700, 1800]) {
     if (wait) await sleep(wait);
@@ -100,19 +100,19 @@ async function cacheKey(address: string) {
  * side of the same street (almost always the same precinct), flagged; 3) the
  * state's official lookup link, always. Sorted by distance from the address.
  */
-export async function lookupPolling(address: string, known?: { lat: number; lng: number } | null): Promise<PollingResult | { error: string; stateLookup?: { name: string; url: string } | null }> {
+export async function lookupPolling(address: string, known?: { lat: number; lng: number } | null, quotaUser?: string): Promise<PollingResult | { error: string; stateLookup?: { name: string; url: string } | null }> {
   const key = process.env.GOOGLE_CIVIC_API_KEY;
   const ck = await cacheKey(address);
   try { const [hit] = await kvGet([ck]); if (hit) { const c = JSON.parse(hit); if (known && c.found) c.home = known; return c; } } catch { /* fetch fresh */ }
 
-  const [geo, first] = await Promise.all([known ? Promise.resolve({ ...known, st: null }) : geocode(address), key ? civic(key, address) : Promise.resolve(null)]);
+  const [geo, first] = await Promise.all([known ? Promise.resolve({ ...known, st: null }) : geocode(address), key ? civic(key, address, quotaUser) : Promise.resolve(null)]);
   let j = first, matchedNearby: string | null = null;
   if (key && !hasPoll(j) && !busy(j)) {
     const m = address.match(/^\s*(\d+)(\s*[A-Za-z]?\b)?\s+(.+)$/);
     if (m) {
       const n = Number(m[1]), rest = m[3];
       for (const pair of [[2, -2], [4, -4], [10, -10]]) {
-        const got = await Promise.all(pair.map(d => n + d).filter(x => x > 0).map(x => `${x} ${rest}`).map(a => civic(key, a).then(r => ({ a, r }))));
+        const got = await Promise.all(pair.map(d => n + d).filter(x => x > 0).map(x => `${x} ${rest}`).map(a => civic(key, a, quotaUser).then(r => ({ a, r }))));
         const hit = got.find(g => hasPoll(g.r));
         if (hit) { matchedNearby = hit.a; if (!(hit.r!.dropOffLocations || []).length && j && !j.error) hit.r!.dropOffLocations = j.dropOffLocations; j = hit.r; break; }
         if (got.some(g => busy(g.r))) break;
