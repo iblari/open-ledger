@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { PollingResult, Place } from "@/lib/polling";
 import { STATE_LOOKUP, ANY_STATE_LOOKUP } from "@/lib/state-voting";
+import PollMap from "./PollMap";
 
 /**
  * "Find your polling place" → sheet with address / my location → map of the
@@ -20,44 +21,6 @@ const etDay = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_Yo
 const isElectionDay = () => etDay() === "2026-11-03";
 
 type Res = PollingResult & { home?: { lat: number; lng: number } | null };
-type Pin = { lat: number; lng: number; kind: "poll" | "drop" | "home"; label?: string };
-
-/* ── Static map: OpenStreetMap tiles stitched under the pins (no map library). ── */
-const lng2x = (lng: number, z: number) => ((lng + 180) / 360) * 256 * 2 ** z;
-const lat2y = (lat: number, z: number) => { const r = (lat * Math.PI) / 180; return ((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) * 256 * 2 ** z; };
-function MiniMap({ pins, onPick }: { pins: Pin[]; onPick?: (i: number) => void }) {
-  const W = 720, H = 300;
-  const { z, cx, cy } = useMemo(() => {
-    for (let z = 17; z >= 3; z--) {
-      const xs = pins.map(p => lng2x(p.lng, z)), ys = pins.map(p => lat2y(p.lat, z));
-      if (Math.max(...xs) - Math.min(...xs) < W - 120 && Math.max(...ys) - Math.min(...ys) < H - 90)
-        return { z, cx: (Math.max(...xs) + Math.min(...xs)) / 2, cy: (Math.max(...ys) + Math.min(...ys)) / 2 + 10 };
-    }
-    return { z: 3, cx: lng2x(pins[0].lng, 3), cy: lat2y(pins[0].lat, 3) };
-  }, [pins]);
-  const x0 = cx - W / 2, y0 = cy - H / 2, n = 2 ** z;
-  const tiles: { x: number; y: number }[] = [];
-  for (let tx = Math.floor(x0 / 256); tx <= Math.floor((x0 + W) / 256); tx++) for (let ty = Math.floor(y0 / 256); ty <= Math.floor((y0 + H) / 256); ty++) if (ty >= 0 && ty < n) tiles.push({ x: tx, y: ty });
-  return (
-    <div style={{ position: "relative", height: 230, overflow: "hidden", background: "#E9EEE6", borderRadius: 12 }}>
-      <div style={{ position: "absolute", left: "50%", top: "50%", width: W, height: H, transform: "translate(-50%,-50%)" }}>
-        {tiles.map(t => (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img key={`${t.x}-${t.y}`} alt="" src={`https://tile.openstreetmap.org/${z}/${((t.x % n) + n) % n}/${t.y}.png`} width={256} height={256}
-            style={{ position: "absolute", left: t.x * 256 - x0, top: t.y * 256 - y0, filter: "saturate(.35) contrast(.95)" }} />
-        ))}
-        {[...pins].sort((a, b) => (a.kind === "poll" ? 1 : 0) - (b.kind === "poll" ? 1 : 0)).map((p, i) => {
-          const px = lng2x(p.lng, z) - x0, py = lat2y(p.lat, z) - y0;
-          if (p.kind === "home") return <span key={i} title="You" style={{ position: "absolute", left: px - 8, top: py - 8, width: 16, height: 16, borderRadius: "50%", background: "#2F6FB0", border: "3px solid #fff", boxShadow: "0 0 0 1px #2F6FB055" }} />;
-          const s = p.kind === "poll" ? 26 : 16;
-          return <button key={i} type="button" aria-label={p.label} title={p.label} onClick={() => onPick?.(pins.indexOf(p))}
-            style={{ position: "absolute", left: px - s / 2, top: py - s, width: s, height: s, padding: 0, border: "2px solid #fff", borderRadius: "50% 50% 50% 0", transform: "rotate(-45deg)", background: p.kind === "poll" ? RED : "#8A8378", cursor: "pointer" }} />;
-        })}
-      </div>
-      <span style={{ position: "absolute", right: 6, bottom: 4, fontSize: 10, color: SUB, background: "rgba(255,255,255,.8)", padding: "1px 5px", borderRadius: 3 }}>© OpenStreetMap</span>
-    </div>
-  );
-}
 
 const fullAddr = (p: Place) => [p.address, p.city, [p.state, p.zip].filter(Boolean).join(" ")].filter(Boolean).join(", ");
 const apple = (p: Place) => `https://maps.apple.com/?daddr=${p.lat != null ? `${p.lat},${p.lng}` : encodeURIComponent(fullAddr(p))}&q=${encodeURIComponent(p.name)}`;
@@ -85,6 +48,8 @@ export default function PollingFinder({ variant = "button", st, prompt: canPromp
   const [prompt, setPrompt] = useState(false);
   const [count, setCount] = useState<number | null>(null);
   const [sharing, setSharing] = useState(false);
+  const [others, setOthers] = useState<Place[]>([]);
+  const [othersBusy, setOthersBusy] = useState(false);
 
   // Election day: someone who looked up their polling place earlier gets asked once.
   useEffect(() => {
@@ -95,7 +60,10 @@ export default function PollingFinder({ variant = "button", st, prompt: canPromp
   useEffect(() => { document.body.style.overflow = open ? "hidden" : ""; return () => { document.body.style.overflow = ""; }; }, [open]);
 
   const show = (r: Res) => {
-    setRes(r); setSel(r.polling[0] || null); setMode("result");
+    setRes(r); setSel(r.polling[0] || null); setMode("result"); setOthers([]);
+    // Fill the map with other polling places around you, in the background.
+    const c = r.home ?? (r.polling[0]?.lat != null ? { lat: r.polling[0].lat!, lng: r.polling[0].lng! } : null);
+    if (c) { setOthersBusy(true); fetch(`/api/polling/nearby?lat=${c.lat.toFixed(4)}&lng=${c.lng.toFixed(4)}`).then(x => x.json()).then(j => setOthers(j.places || [])).catch(() => {}).finally(() => setOthersBusy(false)); }
     if (r.st) ls.set(LS.st, r.st);
     ls.set(LS.seen, String(Date.now()));
   };
@@ -149,14 +117,10 @@ export default function PollingFinder({ variant = "button", st, prompt: canPromp
     const at = res.home ?? { lat: sel.lat, lng: sel.lng! };
     return res.dropoff.filter(d => d.lat != null && !(d.lat === sel.lat && d.lng === sel.lng)).map(d => ({ d, k: km(at, { lat: d.lat!, lng: d.lng! }) })).sort((a, b) => a.k - b.k).slice(0, 3);
   }, [res, sel]);
-  const pins: Pin[] = useMemo(() => {
-    if (!sel || sel.lat == null) return [];
-    return [
-      ...(res?.home ? [{ lat: res.home.lat, lng: res.home.lng, kind: "home" as const }] : []),
-      ...drops.map(x => ({ lat: x.d.lat!, lng: x.d.lng!, kind: "drop" as const, label: x.d.name })),
-      { lat: sel.lat, lng: sel.lng!, kind: "poll" as const, label: sel.name },
-    ];
-  }, [sel, drops, res]);
+  const mapDrops = useMemo(() => {
+    const c = res?.home ?? (res?.polling[0]?.lat != null ? { lat: res.polling[0].lat!, lng: res.polling[0].lng! } : null);
+    return c ? (res?.dropoff || []).filter(d => d.lat != null && km(c, { lat: d.lat!, lng: d.lng! }) < 15) : [];
+  }, [res]);
   const dist = res?.home && sel?.lat != null ? mi(km(res.home, { lat: sel.lat, lng: sel.lng! })) : null;
 
   const trigger = variant === "none" ? null : variant === "link"
@@ -223,7 +187,18 @@ export default function PollingFinder({ variant = "button", st, prompt: canPromp
 
             {mode === "result" && res && sel && (
               <div>
-                {pins.length > 0 && <MiniMap pins={pins} onPick={i => { const p = pins[i]; if (p.kind === "drop") { const d = drops.find(x => x.d.lat === p.lat && x.d.lng === p.lng)?.d; if (d) setSel(d); } }} />}
+                {res.polling[0]?.lat != null && (
+                  <>
+                    <PollMap mine={res.polling[0]} home={res.home} others={others} drops={mapDrops} onPick={p => setSel(p)} />
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 12px", fontSize: 11.5, color: SUB, marginTop: 6 }}>
+                      <span><b style={{ color: RED }}>●</b> Your polling place</span>
+                      <span><b style={{ color: "#3d3833" }}>●</b> Other precincts{othersBusy ? " (finding…)" : others.length ? ` (${others.length})` : ""}</span>
+                      <span><b style={{ color: "#8A8378" }}>●</b> Drop boxes</span>
+                      {res.home && <span><b style={{ color: "#2F6FB0" }}>●</b> You</span>}
+                    </div>
+                    {others.length > 0 && <div style={{ fontSize: 11.5, color: MUTE, marginTop: 3 }}>On Election Day you can only vote at your own polling place (red). Other pins belong to other precincts.</div>}
+                  </>
+                )}
                 <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".1em", color: RED, marginTop: 14 }}>{sel === res.polling[0] ? (res.matchedArea ? "POLLING PLACE NEAR YOU · TUE, NOV 3" : res.polling.length > 1 ? "CLOSEST POLLING PLACE · TUE, NOV 3" : "YOUR POLLING PLACE · TUE, NOV 3") : res.polling.includes(sel) ? "POLLING PLACE · TUE, NOV 3" : "BALLOT DROP BOX"}</div>
                 <div style={{ fontFamily: SERIF, fontSize: 23, lineHeight: 1.15, marginTop: 4 }}>{sel.name}</div>
                 {res.matchedNearby && sel === res.polling[0] && <div style={{ fontSize: 12.5, color: "#8A5A00", background: "#FFF6E0", border: "1px solid #F0DFB0", borderRadius: 6, padding: "6px 9px", marginTop: 6 }}>{res.matchedArea ? `Your exact address isn't in the state's data, so this is the polling place for ${res.matchedNearby}, close to you. Yours is very likely the same, but it can differ.` : "Matched from a neighbouring address on your street."} <a href={res.stateLookup?.url || "https://www.vote.org/polling-place-locator/"} target="_blank" rel="noopener noreferrer" style={{ color: "#8A5A00", fontWeight: 600 }}>Confirm with {res.stateLookup?.name ?? "your state"} ↗</a></div>}
