@@ -70,7 +70,7 @@ const mi = (k: number) => `${(k * 0.621371).toFixed(k < 1.6 ? 1 : 0)} mi`;
 
 const btn = (dark: boolean): React.CSSProperties => ({ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "11px 12px", borderRadius: 8, fontFamily: SANS, fontSize: 14, fontWeight: 600, textDecoration: "none", cursor: "pointer", border: dark ? "none" : `1px solid #D9D2C7`, background: dark ? INK : "#fff", color: dark ? "#fff" : INK });
 
-export default function PollingFinder({ variant = "button", st }: { variant?: "button" | "link"; st?: string }) {
+export default function PollingFinder({ variant = "button", st, prompt: canPrompt = false }: { variant?: "button" | "link" | "none"; st?: string; prompt?: boolean }) {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"ask" | "result" | "voted">("ask");
   const [addr, setAddr] = useState("");
@@ -84,10 +84,10 @@ export default function PollingFinder({ variant = "button", st }: { variant?: "b
 
   // Election day: someone who looked up their polling place earlier gets asked once.
   useEffect(() => {
-    if (!isElectionDay() || ls.get(LS.answered)) return;
+    if (!canPrompt || !isElectionDay() || ls.get(LS.answered)) return;
     const seen = Number(ls.get(LS.seen) || 0);
     if (seen && Date.now() - seen > 20 * 60_000) { const t = setTimeout(() => setPrompt(true), 1500); return () => clearTimeout(t); }
-  }, []);
+  }, [canPrompt]);
   useEffect(() => { document.body.style.overflow = open ? "hidden" : ""; return () => { document.body.style.overflow = ""; }; }, [open]);
 
   const show = (r: Res) => {
@@ -136,7 +136,7 @@ export default function PollingFinder({ variant = "button", st }: { variant?: "b
 
   const drops = useMemo(() => {
     if (!res || !sel || sel.lat == null) return [];
-    const at = { lat: sel.lat, lng: sel.lng! };
+    const at = res.home ?? { lat: sel.lat, lng: sel.lng! };
     return res.dropoff.filter(d => d.lat != null && !(d.lat === sel.lat && d.lng === sel.lng)).map(d => ({ d, k: km(at, { lat: d.lat!, lng: d.lng! }) })).sort((a, b) => a.k - b.k).slice(0, 3);
   }, [res, sel]);
   const pins: Pin[] = useMemo(() => {
@@ -149,7 +149,7 @@ export default function PollingFinder({ variant = "button", st }: { variant?: "b
   }, [sel, drops, res]);
   const dist = res?.home && sel?.lat != null ? mi(km(res.home, { lat: sel.lat, lng: sel.lng! })) : null;
 
-  const trigger = variant === "link"
+  const trigger = variant === "none" ? null : variant === "link"
     ? <button type="button" onClick={() => { setOpen(true); setMode(res ? "result" : "ask"); }} style={{ background: "none", border: "none", padding: 0, font: "inherit", fontSize: 13, color: SUB, textDecoration: "underline", cursor: "pointer" }}>Find your polling place</button>
     : <button type="button" onClick={() => { setOpen(true); setMode(res ? "result" : "ask"); }} style={{ ...btn(false), width: "100%", marginTop: 8, borderColor: RED, color: RED }}>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden><path d="M12 21s-7-6.2-7-12a7 7 0 0 1 14 0c0 5.8-7 12-7 12z" /><circle cx="12" cy="9" r="2.5" /></svg>
@@ -207,7 +207,7 @@ export default function PollingFinder({ variant = "button", st }: { variant?: "b
                 {!res.polling.includes(sel) && <button type="button" onClick={() => setSel(res.polling[0])} style={{ background: "none", border: "none", color: SUB, fontSize: 13, marginTop: 10, cursor: "pointer", textDecoration: "underline", padding: 0 }}>← Back to your polling place</button>}
                 {drops.length > 0 && res.polling.includes(sel) && (
                   <div style={{ marginTop: 16 }}>
-                    <div style={{ fontSize: 12, color: SUB, marginBottom: 4 }}>Ballot drop boxes nearby (grey pins)</div>
+                    <div style={{ fontSize: 12, color: SUB, marginBottom: 4 }}>{res.home ? "Ballot drop boxes near you (grey pins)" : "Ballot drop boxes nearby (grey pins), distance from your polling place"}</div>
                     {drops.map(({ d, k }) => (
                       <button key={`${d.lat},${d.lng}`} type="button" onClick={() => setSel(d)} style={{ display: "flex", justifyContent: "space-between", width: "100%", gap: 10, background: "#fff", border: `1px solid ${RULE}`, borderRadius: 8, padding: "9px 11px", marginTop: 6, textAlign: "left", cursor: "pointer", fontFamily: SANS, fontSize: 13.5, color: INK }}>
                         <span>{d.name}<span style={{ display: "block", fontSize: 12, color: SUB }}>{d.address}{d.hours ? ` · ${d.hours}` : ""}</span></span>

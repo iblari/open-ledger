@@ -24,13 +24,18 @@ export interface PollingResult {
 type Addr = { locationName?: string; line1?: string; city?: string; state?: string; zip?: string };
 type Loc = { address?: Addr; latitude?: number; longitude?: number; pollingHours?: string; notes?: string };
 
-const titleCase = (s: string) => s && s === s.toUpperCase() ? s.toLowerCase().replace(/\b([a-z])/g, m => m.toUpperCase()).replace(/\b(Of|The|And|At|For)\b/g, w => w.toLowerCase()) : s;
+const titleCase = (s: string) => s && s === s.toUpperCase()
+  ? s.toLowerCase().replace(/(^|[\s\-/(.])([a-z])/g, (_, a, b) => a + b.toUpperCase()).replace(/\s(Of|The|And|At|For|On|In|To|By|Near)\b/g, w => w.toLowerCase())
+    .replace(/\b(Tcnj|Ymca|Ywca|Vfw|Ny|Nj|Nyc|Dc|Usa|Us)\b/g, w => w.toUpperCase())
+  : s;
 /** Drop boxes list every day of the season; keep the election-day line. */
 function dayHours(h?: string): string | null {
   if (!h) return null;
   const lines = h.split("\n").map(x => x.trim()).filter(Boolean);
   const today = lines.find(l => /Nov 3\b/.test(l));
-  return (today || (lines.length <= 2 ? lines.join(" · ") : null))?.replace(/^\w{3}, Nov 3:\s*/, "") ?? null;
+  const h1 = (today || (lines.length <= 2 ? lines.join(" · ") : null))?.replace(/^\w{3}, Nov 3:\s*/, "") ?? null;
+  // Drop boxes open around the clock until polls close: "12 am - 8 pm" reads better as "until 8 pm".
+  return h1?.replace(/^12(:00)? am\s*-\s*/i, "until ") ?? null;
 }
 const place = (l: Loc): Place => ({
   name: titleCase(l.address?.locationName || "Polling place"),

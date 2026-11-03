@@ -7,6 +7,7 @@ import { headers } from 'next/headers'
 import { ViewportProvider } from '@/lib/viewport'
 import HitBeacon from '@/components/HitBeacon'
 import NavLoader from '@/components/NavLoader'
+import PollingFinder from '@/components/vote/PollingFinder'
 
 const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
@@ -148,6 +149,7 @@ export default async function RootLayout({
       </head>
       <body className="font-sans antialiased">
         <NavLoader />
+        <PollingFinder variant="none" prompt />
         <ViewportProvider mobile={mobile}>{children}</ViewportProvider>
         {process.env.NODE_ENV === 'production' && <Analytics />}
         <HitBeacon />
