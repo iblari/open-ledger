@@ -10,7 +10,7 @@ import { STATE_LOOKUP } from "@/lib/state-voting";
 export const dynamic = "force-dynamic";
 const ABBR = Object.fromEntries(Object.entries(STATE_LOOKUP).map(([k, v]) => [v.name.toLowerCase(), k]));
 ABBR["district of columbia"] = "DC";
-type F = { properties: { housenumber?: string; street?: string; name?: string; city?: string; town?: string; district?: string; county?: string; state?: string; postcode?: string; countrycode?: string; type?: string } };
+type F = { geometry?: { coordinates?: [number, number] }; properties: { housenumber?: string; street?: string; name?: string; city?: string; town?: string; district?: string; county?: string; state?: string; postcode?: string; countrycode?: string; type?: string } };
 
 async function photon(q: string, layers: string[], bias: { lat: number; lon: number } | null) {
   const p = new URLSearchParams({ q, limit: "8", lang: "en" });
@@ -37,10 +37,19 @@ export async function GET(req: Request) {
     photon(q, ["house"], bias),
     m ? photon(m[2], ["street"], bias) : Promise.resolve([] as F[]),
   ]);
+  // Rank by distance from the visitor (exact houses get a head start), so nearby streets win.
+  const km = (f: F) => {
+    const c = f.geometry?.coordinates; if (!bias || !c) return 500;
+    const dLat = (c[1] - bias.lat) * 111, dLon = (c[0] - bias.lon) * 111 * Math.cos((bias.lat * Math.PI) / 180);
+    return Math.sqrt(dLat * dLat + dLon * dLon);
+  };
+  const cands: { s: string; d: number }[] = [];
+  for (const f of houses) if (f.properties.countrycode === "US" && (!m || f.properties.housenumber?.toLowerCase() === m[1].toLowerCase())) {
+    const s1 = line(f.properties.housenumber, f.properties.street, f.properties); if (s1) cands.push({ s: s1, d: km(f) * 0.6 });
+  }
+  for (const f of streets) if (f.properties.countrycode === "US") { const s1 = line(m![1], f.properties.name, f.properties); if (s1) cands.push({ s: s1, d: km(f) }); }
+  if (!m) for (const f of houses) if (f.properties.countrycode === "US") { const s1 = line(f.properties.housenumber, f.properties.street, f.properties); if (s1) cands.push({ s: s1, d: km(f) }); }
   const out: string[] = [];
-  const push = (s: string | null) => { if (s && !out.includes(s)) out.push(s); };
-  for (const f of houses) if (f.properties.countrycode === "US" && (!m || f.properties.housenumber?.toLowerCase() === m[1].toLowerCase())) push(line(f.properties.housenumber, f.properties.street, f.properties));
-  for (const f of streets) if (f.properties.countrycode === "US") push(line(m![1], f.properties.name, f.properties));
-  if (!m) for (const f of houses) if (f.properties.countrycode === "US") push(line(f.properties.housenumber, f.properties.street, f.properties));
+  for (const c of cands.sort((x, y) => x.d - y.d)) if (!out.includes(c.s)) out.push(c.s);
   return NextResponse.json({ suggestions: out.slice(0, 5) }, { headers: { "Cache-Control": "no-store" } });
 }
