@@ -138,6 +138,8 @@ export interface SeriesData {
   recessions?: [string, string][];          // NBER recessions (start, end) — US series
   ref?: { v: number; label: string } | null;
   prepandemic?: { d: string; v: number } | null;
+  /** Days after the latest official reading, filled from the market (marked, never mixed silently). */
+  market?: { from: string; to: string; source: string; url: string; officialTo: string } | null;
   related?: { id: string; label: string } | null;
   transform?: Transform;
 }
@@ -289,6 +291,54 @@ async function recessions(): Promise<[string, string][]> {
   return out;
 }
 
+/* ── Freshness ───────────────────────────────────────────────────────
+ * Weekly averages of a daily series (oil, stocks…) end at the last FULL week,
+ * so a claim made today was being charted against a week that ended 10 days
+ * ago. Two fixes, both labelled:
+ *  1. official daily readings after the last weekly point are appended;
+ *  2. for market prices, the days the official source hasn't published yet
+ *     are filled with market closes (Yahoo Finance), flagged in `market`. */
+const MARKET: Record<string, { symbol: string; source: string }> = {
+  oil_wti: { symbol: "CL=F", source: "NYMEX WTI front-month futures" },
+  oil_brent: { symbol: "BZ=F", source: "ICE Brent front-month futures" },
+  natgas: { symbol: "NG=F", source: "NYMEX natural gas front-month futures" },
+  sp500: { symbol: "^GSPC", source: "S&P 500 close" },
+  nasdaq: { symbol: "^IXIC", source: "Nasdaq Composite close" },
+  dow: { symbol: "^DJI", source: "Dow Jones close" },
+  bitcoin: { symbol: "BTC-USD", source: "Bitcoin price" },
+};
+
+async function fredDailyTail(def: SeriesDef, after: string): Promise<{ d: string; v: number }[]> {
+  if (!def.fred?.agg || def.fred.freq !== "w" || def.transform !== "level") return [];
+  const start = new Date(Date.parse(after) - 14 * 864e5).toISOString().slice(0, 10);
+  const daily = await fred({ ...def, fred: { id: def.fred.id } }, { start }).catch(() => []);
+  return daily.filter(p => p.d > after).map(p => ({ d: p.d, v: def.scale ? p.v * def.scale : p.v }));
+}
+
+async function marketTail(id: string, after: string): Promise<{ pts: { d: string; v: number }[]; source: string; url: string } | null> {
+  const m = MARKET[id];
+  if (!m) return null;
+  try {
+    const r = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(m.symbol)}?range=1mo&interval=1d`, {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; VoteUnbiased/1.0)" }, signal: AbortSignal.timeout(8000),
+    });
+    if (!r.ok) return null;
+    const res = (await r.json())?.chart?.result?.[0];
+    const ts: number[] = res?.timestamp || [];
+    const cl: (number | null)[] = res?.indicators?.quote?.[0]?.close || [];
+    // Bars are stamped at local midnight/open, so read the date in the exchange's time zone (not UTC).
+    const day = new Intl.DateTimeFormat("en-CA", { timeZone: res?.meta?.exchangeTimezoneName || "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" });
+    const dOf = (sec: number) => day.format(new Date(sec * 1000));
+    const byDay = new Map<string, number>();
+    ts.forEach((t, i) => { const c = cl[i]; if (typeof c === "number" && Number.isFinite(c)) byDay.set(dOf(t), Math.round(c * 100) / 100); });
+    // Today's bar while the market is open: use the live price.
+    const live = res?.meta?.regularMarketPrice, liveT = res?.meta?.regularMarketTime;
+    if (typeof live === "number" && liveT) byDay.set(dOf(liveT), Math.round(live * 100) / 100);
+    const pts = [...byDay].filter(([d]) => d > after).sort((a, b) => a[0].localeCompare(b[0])).map(([d, v]) => ({ d, v }));
+    return pts.length ? { pts, source: m.source, url: `https://finance.yahoo.com/quote/${encodeURIComponent(m.symbol)}` } : null;
+  } catch { return null; }
+}
+
 /** The value as it was PUBLISHED on a given day (before later revisions),
  *  for the latest observation available then. FRED series only. */
 export async function getSeriesAsOf(id: string, asOf: string): Promise<{ d: string; v: number } | null> {
@@ -310,17 +360,25 @@ export async function getSeries(id: string, countries: string[] = []): Promise<S
   const def = CATALOG_BY_ID.get(id);
   if (!def) return null;
   const cc = def.wb ? countries.map(c => c.toUpperCase()).filter(c => /^[A-Z]{3}$/.test(c)).slice(0, 6).sort() : [];
-  const ck = `series:v4:${id}${cc.length ? ":" + cc.join(",") : ""}`;
+  const ck = `series:v6:${id}${cc.length ? ":" + cc.join(",") : ""}`;
   try {
     const [hit] = await kvGet([ck]);
-    if (hit) { const s = JSON.parse(hit) as SeriesData; if (Date.now() - Date.parse(s.fetchedAt) < 6 * 3600_000) return s; }
+    if (hit) { const s = JSON.parse(hit) as SeriesData; if (Date.now() - Date.parse(s.fetchedAt) < (MARKET[id] ? 3600_000 : 6 * 3600_000)) return s; }
   } catch { /* refetch */ }
 
   const freq = (def.fred?.freq || (def.wb ? "a" : def.bp ? "w" : "m")) as SeriesData["freq"];
   let lines: SeriesLine[] = [];
+  let market: SeriesData["market"] = null;
   if (def.source === "FRED") {
     const per = freq === "w" ? 52 : freq === "q" ? 4 : freq === "a" ? 1 : 12;
-    lines = [{ key: id, name: def.label, points: transform(await fred(def), def.transform, freq, def.scale) }];
+    const pts = transform(await fred(def), def.transform, freq, def.scale);
+    if (pts.length) {
+      pts.push(...await fredDailyTail(def, pts[pts.length - 1].d));
+      const officialTo = pts[pts.length - 1].d;
+      const mk = await marketTail(id, officialTo);
+      if (mk) { pts.push(...mk.pts); market = { from: mk.pts[0].d, to: mk.pts[mk.pts.length - 1].d, source: mk.source, url: mk.url, officialTo }; }
+    }
+    lines = [{ key: id, name: def.label, points: pts }];
   } else if (def.source === "CBP") {
     lines = [{ key: id, name: def.label, points: await cbp(def) }];
   } else if (def.source === "Ballotpedia") {
@@ -344,6 +402,7 @@ export async function getSeries(id: string, countries: string[] = []): Promise<S
     prepandemic: pre,
     related: rel ? { id: rel.id, label: rel.label } : null,
     transform: def.transform,
+    market,
   };
   await kvSetMany([[ck, JSON.stringify(out), 7 * 86400]]).catch(() => {});
   return out;

@@ -292,6 +292,7 @@ export default function ProChart(props: ProChartProps) {
           <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
             {compact && <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: C.mute }}>{dateLabel(hoverMs ?? (atClaim?.ms ?? latest?.ms ?? 0), data.freq)}</span>}
             {headMain?.p && <span style={{ fontFamily: MONO, fontSize: compact ? 17 : phone ? 24 : 28, fontWeight: 500, color: C.ink, letterSpacing: "-0.02em" }}>{fv(headMain.p.v)}</span>}
+            {base.market && headMain?.p && headMain.p.ms >= t(base.market.from) && <span title={`${base.market.source}. Latest official reading: ${base.market.officialTo}`} style={{ fontSize: 11, color: C.mute }}>market price</span>}
             {multi && headVals.filter(h => h !== headMain && h.p).map(h => (
               <span key={h.l.key} style={{ fontFamily: MONO, fontSize: 14, color: h.l.color }}>{h.l.name.split(",")[0]} {fv(h.p!.v)}</span>
             ))}
@@ -528,6 +529,7 @@ export default function ProChart(props: ProChartProps) {
         )}
         <span style={{ marginLeft: multi ? "auto" : 0 }}>
           {data.label} · <a href={data.url} target="_blank" rel="noopener noreferrer" style={{ color: "#0E7477", textDecoration: "none" }}>{data.source} ↗</a>
+          {base.market && <> · after {dateLabel(t(base.market.officialTo), "w")}: <a href={base.market.url} target="_blank" rel="noopener noreferrer" style={{ color: "#0E7477", textDecoration: "none" }}>{base.market.source} ↗</a></>}
           {!phone && " · drag or use ← → to read"}
         </span>
       </div>}
