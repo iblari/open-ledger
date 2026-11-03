@@ -34,12 +34,12 @@ export interface PollingResult {
 
 
 /** Address → coordinates with the Census Bureau geocoder (free, official, US-only). */
-export async function geocode(address: string): Promise<{ lat: number; lng: number; st: string | null } | null> {
+export async function geocode(address: string): Promise<{ lat: number; lng: number; st: string | null; matched?: string } | null> {
   const q = new URLSearchParams({ address, benchmark: "Public_AR_Current", format: "json" });
   const r = await fetch(`https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?${q}`, { signal: AbortSignal.timeout(8000), cache: "no-store" }).catch(() => null);
-  const j = r?.ok ? await r.json().catch(() => null) as { result?: { addressMatches?: { coordinates: { x: number; y: number }; addressComponents?: { state?: string } }[] } } | null : null;
+  const j = r?.ok ? await r.json().catch(() => null) as { result?: { addressMatches?: { matchedAddress?: string; coordinates: { x: number; y: number }; addressComponents?: { state?: string } }[] } } | null : null;
   const m = j?.result?.addressMatches?.[0];
-  return m ? { lat: m.coordinates.y, lng: m.coordinates.x, st: m.addressComponents?.state || null } : null;
+  return m ? { lat: m.coordinates.y, lng: m.coordinates.x, st: m.addressComponents?.state || null, matched: m.matchedAddress } : null;
 }
 const stateFromText = (a: string) => { const m = a.toUpperCase().match(/\b([A-Z]{2})\b[\s,]*(\d{5})?\s*$/) || a.toUpperCase().match(/,\s*([A-Z]{2})\b/); return m && STATE_LOOKUP[m[1]] ? m[1] : null; };
 const dist = (a: { lat: number; lng: number }, b: Place) => b.lat == null ? 1e9 : (a.lat - b.lat) ** 2 + ((a.lng - b.lng!) * Math.cos((a.lat * Math.PI) / 180)) ** 2;
@@ -127,6 +127,27 @@ export async function lookupPolling(address: string, known?: { lat: number; lng:
 
   const [geo, first] = await Promise.all([known ? Promise.resolve({ ...known, st: null }) : geocode(address), key ? civic(key, address, quotaUser) : Promise.resolve(null)]);
   let j = first, matchedNearby: string | null = null, neighbourBusy = false;
+  // Same address, written differently. Map apps often give the municipality ("Franklin
+  // Township") or a neighbouring ZIP where the voter file uses the postal city/ZIP, and one
+  // wrong part makes Google miss. Try without the ZIP, then without the city, then the
+  // Census Bureau's standardized form.
+  if (key && !hasPoll(j) && !busy(j)) {
+    const parts = address.split(",").map(x => x.trim()).filter(Boolean);
+    const last = parts[parts.length - 1] || "";
+    const stZip = last.match(/^([A-Za-z]{2})\s*(\d{5})?(?:-\d{4})?$/);
+    const variants: string[] = [];
+    if (stZip && parts.length >= 3) {
+      if (stZip[2]) variants.push([...parts.slice(0, -1), stZip[1]].join(", "));
+      if (stZip[2]) variants.push([parts[0], `${stZip[1]} ${stZip[2]}`].join(", "));
+    } else if (/\b\d{5}\b/.test(address)) variants.push(address.replace(/\s*\b\d{5}(-\d{4})?\b/, ""));
+    const census = geo && "matched" in geo ? (geo as { matched?: string }).matched : null;
+    if (census) variants.push(census);
+    for (const v of [...new Set(variants)].filter(v => v.toLowerCase() !== address.toLowerCase())) {
+      const r = await civic(key, v, quotaUser);
+      if (hasPoll(r)) { j = r; break; }
+      if (busy(r)) break;
+    }
+  }
   if (key && !hasPoll(j) && !busy(j) && (await used()) < PER_MIN - 20) {
     const m = address.match(/^\s*(\d+)([A-Za-z])?\s+(.+)$/);
     if (m) {
