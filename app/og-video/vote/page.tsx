@@ -29,7 +29,7 @@ export default function VoteVideo() {
   return (
     <OgFrame css={CSS}>
       {/* Ballot + slot */}
-      <div className="A" style={{ position: "absolute", left: 360, top: 312, width: 480, height: 18, borderRadius: 9, background: "#EDE7DE", transformOrigin: "center", animationName: "bump" }}>
+      <div className="A" style={{ position: "absolute", left: 360, top: 312, width: 480, height: 18, animationName: "bump" }}>
         <div className="A" style={{ position: "absolute", inset: 0, borderRadius: 9, background: "#EDE7DE", animationName: "slot" }} />
       </div>
       <div style={{ position: "absolute", left: 0, right: 0, top: 0, height: 318, overflow: "hidden" }}>
