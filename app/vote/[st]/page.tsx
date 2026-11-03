@@ -1,4 +1,6 @@
 import PollingFinder from "@/components/vote/PollingFinder";
+import LiveRaceCards from "@/components/vote/LiveRaceCards";
+import { pollsCloseAt } from "@/lib/results";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -78,6 +80,8 @@ export default async function StateBallot({ params }: { params: Promise<{ st: st
           {s.races.map(r => <a key={r.id} href={`#${r.id}`} style={{ padding: "9px 0", color: C.ink, textDecoration: "none", fontSize: 14, fontWeight: 700, borderBottom: "2px solid transparent" }}>{raceTitle(r)} ↓</a>)}
           <a href={`https://x.com/intent/post?text=${encodeURIComponent(`Compare the candidates on the ${s.name} ballot, side by side. Facts only.`)}&url=${encodeURIComponent(url)}`} style={{ marginLeft: "auto", fontSize: 13, color: C.sub, textDecoration: "none", whiteSpace: "nowrap" }}>Share ↗</a>
         </div>
+        <div style={{ maxWidth: 640 }}><LiveRaceCards st={s.st} stateName={s.name} initialClosesAt={pollsCloseAt(s.st)}
+          races={s.races.map(r => ({ id: r.id, title: raceTitle(r), cands: r.candidates.filter(c => c.main).map(c => ({ name: c.name, p: c.p })) }))} /></div>
         <div style={{ maxWidth: 360, marginTop: 6 }}><PollingFinder st={s.st} /></div>
         <div style={{ marginTop: 14 }}><Metrics through={through} pollsAt={pollsAt} /></div>
         {s.races.map(r => <RaceCompare key={r.id} race={r} fc={fc} polls={r.office === "senate" ? polls[r.st] : null} trends={trends} />)}
