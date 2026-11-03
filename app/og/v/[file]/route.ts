@@ -18,8 +18,10 @@ async function load(name: string): Promise<ArrayBuffer | null> {
 export async function GET(req: Request, { params }: { params: Promise<{ file: string }> }) {
   const { file } = await params;
   if (!/^[a-z0-9_-]{1,40}\.mp4$/i.test(file)) return new Response("not found", { status: 404 });
-  const buf = (await load(file)) ?? (file !== "brand.mp4" ? await load("brand.mp4") : null);
-  const short = file.startsWith("m-");
+  const own = await load(file);
+  const buf = own ?? (file !== "brand.mp4" ? await load("brand.mp4") : null);
+  // A fallback (clip not rendered yet) must not be cached long, or the real clip stays hidden behind it.
+  const short = file.startsWith("m-") || !own;
   if (!buf) return new Response("not found", { status: 404 });
   const size = buf.byteLength;
   const base = {

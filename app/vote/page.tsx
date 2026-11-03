@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   description: "Senate and governor candidates side by side: nonpartisan polls, money, voting record and positions in their own words. Facts only, every number sourced.",
   alternates: { canonical: "https://voteunbiased.org/vote" },
   openGraph: { title: "Compare the candidates on your 2026 ballot", description: "Polls, money, voting record and positions in their own words, side by side. Facts only.", url: "https://voteunbiased.org/vote", siteName: "Vote Unbiased", type: "website",
-    videos: [{ url: "https://voteunbiased.org/og/v/vote.mp4", secureUrl: "https://voteunbiased.org/og/v/vote.mp4", type: "video/mp4", width: 1200, height: 628 }] },
+    videos: [{ url: "https://voteunbiased.org/og/v/vote.mp4?v=1", secureUrl: "https://voteunbiased.org/og/v/vote.mp4?v=1", type: "video/mp4", width: 1200, height: 628 }] },
   twitter: { card: "summary_large_image", title: "Check the data first.", description: "Compare the candidates on your 2026 ballot, side by side. Facts only." },
 };
 
