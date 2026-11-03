@@ -62,10 +62,13 @@ export default function LiveRaceCards({ st, stateName, races, initialClosesAt }:
     return () => { alive = false; clearInterval(t); clearInterval(t2); };
   }, [st, closesAt]);
 
+  // Only show once official counts exist for at least one race (no countdown, no empty card).
+  const shown = races.filter(r => { const x = res[r.id]; return x && x.cands.some(c => c.votes > 0); });
+  if (!shown.length) return null;
   const closeLabel = new Date(closesAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/New_York" });
   return (
     <div style={{ display: "grid", gap: 12, marginTop: 16 }}>
-      {races.map(race => {
+      {shown.map(race => {
         const r = res[race.id];
         const main = race.cands.slice(0, 2);
         const total = r ? r.cands.reduce((s, c) => s + c.votes, 0) : 0;
