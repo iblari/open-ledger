@@ -178,7 +178,12 @@ export default function PollingFinder({ variant = "button", st, prompt: canPromp
                 <div style={{ position: "relative" }}>
                   <input value={addr} onChange={e => { setAddr(e.target.value); setErr(null); setSugOpen(true); }} onFocus={() => setSugOpen(true)} onBlur={() => setTimeout(() => setSugOpen(false), 150)}
                     autoComplete="off" placeholder="Start typing your home address" aria-label="Home address" aria-autocomplete="list" role="combobox" aria-expanded={sugOpen && sugs.length > 0}
-                    style={{ width: "100%", boxSizing: "border-box", padding: "12px 13px", fontSize: 16, border: `1px solid #D9D2C7`, borderRadius: sugOpen && sugs.length ? "8px 8px 0 0" : 8, background: "#fff", fontFamily: SANS }} />
+                    style={{ width: "100%", boxSizing: "border-box", padding: "12px 44px 12px 13px", fontSize: 16, border: `1px solid #D9D2C7`, borderRadius: sugOpen && sugs.length ? "8px 8px 0 0" : 8, background: "#fff", fontFamily: SANS }} />
+                  {addr && (
+                    <button type="button" aria-label="Clear address" onMouseDown={e => e.preventDefault()}
+                      onClick={() => { setAddr(""); setSugs([]); setErr(null); setFallback(null); setFbDrops([]); setSugOpen(true); (document.querySelector('input[aria-label="Home address"]') as HTMLInputElement | null)?.focus(); }}
+                      style={{ position: "absolute", right: 8, top: 23, transform: "translateY(-50%)", width: 30, height: 30, borderRadius: "50%", border: "none", background: "#ECE7DF", color: SUB, fontSize: 17, lineHeight: 1, cursor: "pointer", display: "grid", placeItems: "center", padding: 0 }}>×</button>
+                  )}
                   {sugOpen && sugs.length > 0 && (
                     <div role="listbox" style={{ position: "absolute", left: 0, right: 0, top: "100%", zIndex: 5, background: "#fff", border: `1px solid #D9D2C7`, borderTop: "none", borderRadius: "0 0 8px 8px", boxShadow: "0 8px 18px rgba(20,17,14,.10)", overflow: "hidden" }}>
                       {sugs.map(sg => {
