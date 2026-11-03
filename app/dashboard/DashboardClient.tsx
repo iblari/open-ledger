@@ -1977,7 +1977,7 @@ function App(){
                 <div style={{fontFamily:ESANS,fontSize:mob?9:10,color:EC.mute,display:"flex",justifyContent:"space-between"}}>
                   <span>avg {fmt(s.avg,m.u)}</span>
                   {id==="trump2"&&benchKeyFor(am)
-                    ? <a href={`/dashboard?view=month&metric=${benchKeyFor(am)}`} onClick={e=>{e.preventDefault();setDetail(null);setView("month");setMonthDetail(benchKeyFor(am));window.scrollTo({top:0});}} style={{color:a.color,fontWeight:700,textDecoration:"none"}}>Monthly →</a>
+                    ? <a data-no-loader href={`/dashboard?view=month&metric=${benchKeyFor(am)}`} onClick={e=>{e.preventDefault();setDetail(null);setView("month");setMonthDetail(benchKeyFor(am));window.scrollTo({top:0});}} style={{color:a.color,fontWeight:700,textDecoration:"none"}}>Monthly →</a>
                     : <span style={{color:a.color,fontWeight:600}}>{a.years}</span>}
                 </div>
               </div>;
