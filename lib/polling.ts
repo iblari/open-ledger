@@ -20,6 +20,8 @@ export interface PollingResult {
   unofficial?: boolean;
   /** No match for the exact address, so this came from a neighbouring house number on the same street. */
   matchedNearby?: string | null;
+  /** The match came from a nearby address in the area (not the same street): likely, not certain. */
+  matchedArea?: boolean;
   home?: { lat: number; lng: number } | null;
   stateLookup?: { name: string; url: string } | null;
   input: string;              // normalized address Google matched
@@ -137,6 +139,31 @@ export async function lookupPolling(address: string, known?: { lat: number; lng:
       }
     }
   }
+  // Still nothing: look around the home itself. Google accepts "lat,lng" and resolves it to
+  // the nearest address it knows, so we probe a small ring (~120 m, then ~260 m) and take
+  // the closest polling place found. Flagged as "near you", not "yours".
+  let matchedArea = false;
+  if (key && geo && !hasPoll(j) && !neighbourBusy && !busy(j)) {
+    const ring = (r: number) => [0, 90, 180, 270, 45, 135, 225, 315].map(deg => {
+      const t = (deg * Math.PI) / 180, dLat = (r * Math.cos(t)) / 111_320, dLng = (r * Math.sin(t)) / (111_320 * Math.cos((geo.lat * Math.PI) / 180));
+      return `${(geo.lat + dLat).toFixed(6)},${(geo.lng + dLng).toFixed(6)}`;
+    });
+    const tries = [[`${geo.lat.toFixed(6)},${geo.lng.toFixed(6)}`, ...ring(120).slice(0, 3)], ring(120).slice(3, 7), ring(260).slice(0, 4), ring(260).slice(4, 8)];
+    for (const wave of tries) {
+      if ((await used()) >= PER_MIN - 30) { neighbourBusy = true; break; }
+      const got = await Promise.all(wave.map(a => civic(key, a, quotaUser, 0).then(r => ({ a, r }))));
+      const hits = got.filter(g => hasPoll(g.r));
+      if (hits.length) {
+        const best = hits.map(h => ({ h, d: dist(geo, place(h.r!.pollingLocations![0])) })).sort((a, b) => a.d - b.d)[0].h;
+        const keepDrops = j && !j.error ? j.dropOffLocations : undefined;
+        j = best.r; matchedArea = true;
+        const na = j!.normalizedInput; matchedNearby = na ? [na.line1, na.city].filter(Boolean).join(", ") : "an address near you";
+        if (!(j!.dropOffLocations || []).length && keepDrops) j!.dropOffLocations = keepDrops;
+        break;
+      }
+      if (got.some(g => busy(g.r))) { neighbourBusy = true; break; }
+    }
+  }
   const st = j?.normalizedInput?.state || geo?.st || stateFromText(address);
   const stateLookup = st ? STATE_LOOKUP[st] ?? null : null;
   if (!key) return { error: "not-configured", stateLookup };
@@ -152,6 +179,7 @@ export async function lookupPolling(address: string, known?: { lat: number; lng:
     found: polling.length > 0,
     unofficial: !!matchedNearby || (rawPoll.length > 0 && !rawPoll.some(l => l.sources?.some(x => x.official))),
     matchedNearby,
+    matchedArea,
     home,
     stateLookup,
     input: [n.line1, n.city, n.state, n.zip].filter(Boolean).join(", "),
