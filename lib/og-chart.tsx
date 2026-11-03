@@ -85,7 +85,7 @@ export function buildOgChart(sd: SeriesData, opts: { lineKey?: string | null; an
     said: said != null ? fmtVal(said, sd.unit, sd.decimals) : null,
     saidNum: said, valueNum: at.v, saidRaw: opts.said ?? null, unit: sd.unit,
     value: fmtVal(at.v, sd.unit, sd.decimals), valueDate: dlabel(at.ms, sd.freq),
-    label: sd.label, source: sd.source, from: yr(x0), to: yr(x1), change,
+    label: sd.label, source: sd.market ? `${sd.source}, then market` : sd.source, from: yr(x0), to: yr(x1), change,
   };
 }
 
