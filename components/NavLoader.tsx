@@ -10,12 +10,16 @@ import { BODY, FAR_LEGS, HEAD, markBars } from "@/lib/cheetah-mark";
  * stripe in the middle of the screen until the new page arrives.
  */
 const SHOW_AFTER_MS = 150;
-const GIVE_UP_MS = 15_000;
+const GIVE_UP_MS = 12_000;
 
 function target(e: MouseEvent): HTMLAnchorElement | null {
-  if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return null;
+  // Note: no defaultPrevented check. Next's <Link> always prevents the default
+  // and navigates itself. Clicks a component swallows with stopPropagation never
+  // reach this document-level listener; in-page links that preventDefault and
+  // only change state opt out with data-no-loader.
+  if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return null;
   const a = (e.target as Element | null)?.closest?.("a[href]") as HTMLAnchorElement | null;
-  if (!a || (a.target && a.target !== "_self") || a.hasAttribute("download")) return null;
+  if (!a || a.closest("[data-no-loader]") || (a.target && a.target !== "_self") || a.hasAttribute("download")) return null;
   let u: URL;
   try { u = new URL(a.href, location.href); } catch { return null; }
   if (u.origin !== location.origin) return null;
