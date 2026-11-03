@@ -1,8 +1,9 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { PollingResult, Place } from "@/lib/polling";
 import { STATE_LOOKUP, ANY_STATE_LOOKUP } from "@/lib/state-voting";
 import PollMap from "./PollMap";
+import { suggestAddresses } from "@/lib/address-suggest";
 
 /**
  * "Find your polling place" → sheet with address / my location → map of the
@@ -51,6 +52,7 @@ export default function PollingFinder({ variant = "button", st, prompt: canPromp
   const [others, setOthers] = useState<Place[]>([]);
   const [sugs, setSugs] = useState<string[]>([]);
   const [sugOpen, setSugOpen] = useState(false);
+  const bias = useRef<{ lat: number; lon: number } | null | undefined>(undefined);
   const [othersBusy, setOthersBusy] = useState(false);
 
   // Election day: someone who looked up their polling place earlier gets asked once.
@@ -63,11 +65,15 @@ export default function PollingFinder({ variant = "button", st, prompt: canPromp
   useEffect(() => {
     const q = addr.trim();
     if (q.length < 3 || !sugOpen) { setSugs([]); return; }
-    const ctl = new AbortController();
-    const t = setTimeout(() => {
-      fetch(`/api/address-suggest?q=${encodeURIComponent(q)}`, { signal: ctl.signal }).then(r => r.json()).then(j => setSugs(j.suggestions || [])).catch(() => {});
+    let live = true;
+    const t = setTimeout(async () => {
+      let b = bias.current;
+      if (b === undefined) { try { b = (await (await fetch("/api/address-suggest?bias=1")).json()).bias ?? null; } catch { b = null; } bias.current = b; }
+      let out = await suggestAddresses(q, b ?? null).catch(() => [] as string[]);
+      if (!out.length) out = await fetch(`/api/address-suggest?q=${encodeURIComponent(q)}`).then(r => r.json()).then(j => j.suggestions || []).catch(() => []);
+      if (live) setSugs(out);
     }, 220);
-    return () => { clearTimeout(t); ctl.abort(); };
+    return () => { live = false; clearTimeout(t); };
   }, [addr, sugOpen]);
   useEffect(() => { document.body.style.overflow = open ? "hidden" : ""; return () => { document.body.style.overflow = ""; }; }, [open]);
 
