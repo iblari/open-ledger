@@ -49,6 +49,8 @@ export default function PollingFinder({ variant = "button", st, prompt: canPromp
   const [count, setCount] = useState<number | null>(null);
   const [sharing, setSharing] = useState(false);
   const [others, setOthers] = useState<Place[]>([]);
+  const [sugs, setSugs] = useState<string[]>([]);
+  const [sugOpen, setSugOpen] = useState(false);
   const [othersBusy, setOthersBusy] = useState(false);
 
   // Election day: someone who looked up their polling place earlier gets asked once.
@@ -57,6 +59,16 @@ export default function PollingFinder({ variant = "button", st, prompt: canPromp
     const seen = Number(ls.get(LS.seen) || 0);
     if (seen && Date.now() - seen > 20 * 60_000) { const t = setTimeout(() => setPrompt(true), 1500); return () => clearTimeout(t); }
   }, [canPrompt]);
+  // Address suggestions as you type (like a maps app), debounced.
+  useEffect(() => {
+    const q = addr.trim();
+    if (q.length < 3 || !sugOpen) { setSugs([]); return; }
+    const ctl = new AbortController();
+    const t = setTimeout(() => {
+      fetch(`/api/address-suggest?q=${encodeURIComponent(q)}`, { signal: ctl.signal }).then(r => r.json()).then(j => setSugs(j.suggestions || [])).catch(() => {});
+    }, 220);
+    return () => { clearTimeout(t); ctl.abort(); };
+  }, [addr, sugOpen]);
   useEffect(() => { document.body.style.overflow = open ? "hidden" : ""; return () => { document.body.style.overflow = ""; }; }, [open]);
 
   const show = (r: Res) => {
@@ -157,8 +169,26 @@ export default function PollingFinder({ variant = "button", st, prompt: canPromp
               <form onSubmit={e => { e.preventDefault(); if (addr.trim().length >= 5) find(`address=${encodeURIComponent(addr.trim())}`); }}>
                 <div style={{ fontFamily: SERIF, fontSize: 24 }}>Where do you vote?</div>
                 <div style={{ fontSize: 13.5, color: SUB, margin: "4px 0 12px" }}>Your polling place is set by your registered address.</div>
-                <input value={addr} onChange={e => { setAddr(e.target.value); setErr(null); }} autoComplete="street-address" placeholder="Home address with ZIP" aria-label="Home address"
-                  style={{ width: "100%", boxSizing: "border-box", padding: "12px 13px", fontSize: 16, border: `1px solid #D9D2C7`, borderRadius: 8, background: "#fff", fontFamily: SANS }} />
+                <div style={{ position: "relative" }}>
+                  <input value={addr} onChange={e => { setAddr(e.target.value); setErr(null); setSugOpen(true); }} onFocus={() => setSugOpen(true)} onBlur={() => setTimeout(() => setSugOpen(false), 150)}
+                    autoComplete="off" placeholder="Start typing your home address" aria-label="Home address" aria-autocomplete="list" role="combobox" aria-expanded={sugOpen && sugs.length > 0}
+                    style={{ width: "100%", boxSizing: "border-box", padding: "12px 13px", fontSize: 16, border: `1px solid #D9D2C7`, borderRadius: sugOpen && sugs.length ? "8px 8px 0 0" : 8, background: "#fff", fontFamily: SANS }} />
+                  {sugOpen && sugs.length > 0 && (
+                    <div role="listbox" style={{ position: "absolute", left: 0, right: 0, top: "100%", zIndex: 5, background: "#fff", border: `1px solid #D9D2C7`, borderTop: "none", borderRadius: "0 0 8px 8px", boxShadow: "0 8px 18px rgba(20,17,14,.10)", overflow: "hidden" }}>
+                      {sugs.map(sg => {
+                        const [street, ...rest] = sg.split(", ");
+                        return (
+                          <button key={sg} type="button" role="option" aria-selected={false} onMouseDown={e => e.preventDefault()}
+                            onClick={() => { setAddr(sg); setSugs([]); setSugOpen(false); find(`address=${encodeURIComponent(sg)}`); }}
+                            style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 12px", border: "none", borderTop: `1px solid ${RULE}`, background: "#fff", textAlign: "left", cursor: "pointer", fontFamily: SANS }}>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={MUTE} strokeWidth="2.2" aria-hidden><path d="M12 21s-7-6.2-7-12a7 7 0 0 1 14 0c0 5.8-7 12-7 12z" /><circle cx="12" cy="9" r="2.5" /></svg>
+                            <span style={{ minWidth: 0 }}><span style={{ display: "block", fontSize: 14.5, color: INK }}>{street}</span><span style={{ display: "block", fontSize: 12, color: SUB }}>{rest.join(", ")}</span></span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
                 <button type="submit" disabled={!!busy} style={{ ...btn(true), width: "100%", marginTop: 10, opacity: busy ? 0.7 : 1 }}>{busy === "addr" ? "Looking up…" : "Find my polling place"}</button>
                 <button type="button" onClick={locate} disabled={!!busy} style={{ ...btn(false), width: "100%", marginTop: 8, color: "#2F6FB0" }}>{busy === "loc" ? "Finding you…" : "Use my location"}</button>
                 {err && <div role="alert" style={{ fontSize: 13.5, color: fallback ? INK : RED, marginTop: 12, lineHeight: 1.45 }}>{err}</div>}
