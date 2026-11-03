@@ -109,7 +109,7 @@ export async function lookupPolling(address: string, known?: { lat: number; lng:
     found: polling.length > 0,
     unofficial,
     home,
-    stateLookup: stateLookup ? { ...stateLookup, url: body.votingLocationFinderUrl && !/how-to-guide|ncsbe\.gov\/voting$/.test(body.votingLocationFinderUrl) ? body.votingLocationFinderUrl : stateLookup.url } : null,
+    stateLookup,
     input: [n.line1, n.city, n.state, n.zip].filter(Boolean).join(", "),
     st: st || null,
     polling: polling.slice(0, 5),
