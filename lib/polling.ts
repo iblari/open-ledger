@@ -205,3 +205,34 @@ export async function reverseGeocode(lat: number, lng: number): Promise<string |
   const city = a.city || a.town || a.village || a.hamlet || a.suburb || "";
   return [street, city, a.state, a.postcode].filter(Boolean).join(", ") || null;
 }
+
+/**
+ * Other polling places around a point, for the map: probes rings (~0.5 and ~1.2 km)
+ * with Google's lat,lng lookups and keeps every distinct polling place found.
+ * Cached per ~1 km grid cell for 12 h, so a busy neighbourhood costs one search.
+ * Only runs when the per-minute budget has room; primary lookups always come first.
+ */
+export async function nearbyPolling(lat: number, lng: number, quotaUser?: string): Promise<Place[]> {
+  const key = process.env.GOOGLE_CIVIC_API_KEY;
+  if (!key) return [];
+  const cell = `polling:near:v1:${lat.toFixed(2)},${lng.toFixed(2)}`;
+  try { const [hit] = await kvGet([cell]); if (hit) return JSON.parse(hit); } catch { /* search */ }
+  const pts: string[] = [];
+  for (const [r, n] of [[500, 6], [1200, 8]] as const) for (let i = 0; i < n; i++) {
+    const t = (2 * Math.PI * i) / n + (r === 1200 ? Math.PI / 8 : 0);
+    pts.push(`${(lat + (r * Math.cos(t)) / 111_320).toFixed(6)},${(lng + (r * Math.sin(t)) / (111_320 * Math.cos((lat * Math.PI) / 180))).toFixed(6)}`);
+  }
+  const seen = new Map<string, Place>();
+  for (let i = 0; i < pts.length; i += 4) {
+    if ((await used()) >= PER_MIN - 40) break;
+    const got = await Promise.all(pts.slice(i, i + 4).map(p => civic(key, p, quotaUser, 0)));
+    for (const g of got) for (const l of (g && !g.error ? g.pollingLocations || [] : [])) {
+      const p = place(l); if (p.lat == null) continue;
+      seen.set(`${p.name}|${p.address}`, p);
+    }
+    if (got.some(busy)) break;
+  }
+  const out = [...seen.values()];
+  if (out.length) await kvSetMany([[cell, JSON.stringify(out), 12 * 3600]]).catch(() => {});
+  return out;
+}
