@@ -111,7 +111,9 @@ export default function PollingFinder({ variant = "button", st, prompt: canPromp
   const find = async (q: string) => {
     setErr(null); setFallback(null); setFbDrops([]); setBusy(q.startsWith("lat=") ? "loc" : "addr");
     try {
-      const j = await (await fetch(`/api/polling?${q}`)).json();
+      let j = await (await fetch(`/api/polling?${q}`)).json();
+      // Busy minute at Google: wait a moment and try once more before showing the fallback.
+      if (j.error === "unavailable") { await new Promise(r => setTimeout(r, 4000)); j = await (await fetch(`/api/polling?${q}`)).json(); }
       if (j.error) fail(j.error, j.stateLookup); else if (!j.found) { setRes(j); fail("no-data", j.stateLookup, j.dropoff || []); } else show(j);
     } catch { fail("unavailable"); } finally { setBusy(false); }
   };
@@ -224,6 +226,7 @@ export default function PollingFinder({ variant = "button", st, prompt: canPromp
                 {pins.length > 0 && <MiniMap pins={pins} onPick={i => { const p = pins[i]; if (p.kind === "drop") { const d = drops.find(x => x.d.lat === p.lat && x.d.lng === p.lng)?.d; if (d) setSel(d); } }} />}
                 <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".1em", color: RED, marginTop: 14 }}>{sel === res.polling[0] ? (res.polling.length > 1 ? "CLOSEST POLLING PLACE · TUE, NOV 3" : "YOUR POLLING PLACE · TUE, NOV 3") : res.polling.includes(sel) ? "POLLING PLACE · TUE, NOV 3" : "BALLOT DROP BOX"}</div>
                 <div style={{ fontFamily: SERIF, fontSize: 23, lineHeight: 1.15, marginTop: 4 }}>{sel.name}</div>
+                {res.matchedNearby && sel === res.polling[0] && <div style={{ fontSize: 12.5, color: "#8A5A00", background: "#FFF6E0", border: "1px solid #F0DFB0", borderRadius: 6, padding: "6px 9px", marginTop: 6 }}>Matched from a neighbouring address on your street. <a href={res.stateLookup?.url || "https://www.vote.org/polling-place-locator/"} target="_blank" rel="noopener noreferrer" style={{ color: "#8A5A00", fontWeight: 600 }}>Confirm with {res.stateLookup?.name ?? "your state"} ↗</a></div>}
                 <div style={{ fontSize: 14, color: SUB, marginTop: 2 }}>{fullAddr(sel)}{dist && res.polling.includes(sel) ? ` · ${dist}` : ""}</div>
                 {sel.hours && <div style={{ fontSize: 14, marginTop: 6 }}><b style={{ fontWeight: 600 }}>{res.polling.includes(sel) ? "Open" : "Open on Nov 3"}</b> {sel.hours.replace(/^Tue, Nov 3:\s*/, "")}</div>}
                 {sel.notes && <div style={{ fontSize: 13, color: SUB, marginTop: 4 }}>{sel.notes}</div>}
@@ -255,7 +258,8 @@ export default function PollingFinder({ variant = "button", st, prompt: canPromp
                 )}
                 <div style={{ fontSize: 12, color: MUTE, marginTop: 14, lineHeight: 1.5 }}>
                   For {res.input}. Bring ID if your state requires it. Source: {res.official.name ? `${res.official.name}, ` : ""}Voting Information Project.{" "}
-                  {res.unofficial && <b style={{ fontWeight: 600, color: INK }}>This one comes from Google's wider data, so please confirm it. </b>}
+                  {res.matchedNearby ? <b style={{ fontWeight: 600, color: INK }}>Your exact address isn't in the data yet, so this is the polling place for {res.matchedNearby.split(",")[0]}, on your street. Please confirm it. </b>
+                    : res.unofficial && <b style={{ fontWeight: 600, color: INK }}>This one comes from Google's wider data, so please confirm it. </b>}
                   {(res.stateLookup?.url || res.official.locator) && <a href={res.stateLookup?.url || res.official.locator!} target="_blank" rel="noopener noreferrer" style={{ color: SUB }}>Confirm with {res.stateLookup ? `${res.stateLookup.name}'s` : "your state's"} official lookup ↗</a>}{" "}
                   <button type="button" onClick={() => { setMode("ask"); setErr(null); }} style={{ background: "none", border: "none", padding: 0, color: SUB, textDecoration: "underline", cursor: "pointer", fontSize: 12 }}>Different address</button>
                 </div>

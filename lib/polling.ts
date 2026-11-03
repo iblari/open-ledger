@@ -5,6 +5,7 @@
  * address (or by a reverse-geocoded location). Addresses are never stored or logged.
  */
 import { STATE_LOOKUP } from "./state-voting";
+import { kvGet, kvSetMany } from "./live-kv";
 
 export const ELECTION_ID = "12000"; // 2026 General Midterm Election (Google electionQuery)
 export const ELECTION_DAY = "2026-11-03";
@@ -17,6 +18,8 @@ export interface PollingResult {
   found: boolean;
   /** Some of the data came from Google's unofficial sources (only used when the official feed had nothing). */
   unofficial?: boolean;
+  /** No match for the exact address, so this came from a neighbouring house number on the same street. */
+  matchedNearby?: string | null;
   home?: { lat: number; lng: number } | null;
   stateLookup?: { name: string; url: string } | null;
   input: string;              // normalized address Google matched
@@ -63,60 +66,85 @@ const place = (l: Loc): Place => ({
 });
 
 type Raw = {
-  error?: { message?: string }; normalizedInput?: Addr;
-  pollingLocations?: Loc[]; earlyVoteSites?: Loc[]; dropOffLocations?: Loc[];
+  error?: { code?: number; message?: string }; normalizedInput?: Addr;
+  pollingLocations?: (Loc & { sources?: { official?: boolean }[] })[]; earlyVoteSites?: Loc[]; dropOffLocations?: Loc[];
   state?: { electionAdministrationBody?: { name?: string; electionInfoUrl?: string; votingLocationFinderUrl?: string } }[];
 };
-async function civic(key: string, address: string, officialOnly: boolean): Promise<Raw | null> {
-  const q = new URLSearchParams({ key, electionId: ELECTION_ID, address, officialOnly: String(officialOnly) });
-  const r = await fetch(`https://www.googleapis.com/civicinfo/v2/voterinfo?${q}`, { signal: AbortSignal.timeout(12_000), cache: "no-store" }).catch(() => null);
-  return r ? await r.json().catch(() => null) as Raw | null : null;
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+const busy = (j: Raw | null) => !j || j.error?.code === 429 || (j.error?.code ?? 0) >= 500;
+/** One Civic call (wider data, which includes the official feed), retried on rate limits and timeouts. */
+async function civic(key: string, address: string): Promise<Raw | null> {
+  const q = new URLSearchParams({ key, electionId: ELECTION_ID, address, officialOnly: "false" });
+  let j: Raw | null = null;
+  for (const wait of [0, 700, 1800]) {
+    if (wait) await sleep(wait);
+    const r = await fetch(`https://www.googleapis.com/civicinfo/v2/voterinfo?${q}`, { signal: AbortSignal.timeout(12_000), cache: "no-store" }).catch(() => null);
+    j = r ? await r.json().catch(() => null) as Raw | null : null;
+    if (!busy(j)) return j;
+  }
+  return j;
+}
+const hasPoll = (j: Raw | null) => !!j && !j.error && (j.pollingLocations || []).length > 0;
+
+/* Results cached by a hash of the address (never the address itself), so repeat
+   lookups and refreshes don't spend the per-minute Google quota. */
+async function cacheKey(address: string) {
+  const norm = address.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const h = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(norm));
+  return "polling:v2:" + Buffer.from(h).toString("hex").slice(0, 32);
 }
 
 /**
- * Never a dead end: 1) official VIP data; 2) if that has no polling place,
- * Google's wider data (flagged unofficial); 3) always the state's official
- * lookup link. Results are sorted by distance from the address.
+ * Never a dead end: 1) Google Civic / Voting Information Project for the
+ * address; 2) if the exact address isn't in the data, a neighbour on the same
+ * side of the same street (almost always the same precinct), flagged; 3) the
+ * state's official lookup link, always. Sorted by distance from the address.
  */
 export async function lookupPolling(address: string, known?: { lat: number; lng: number } | null): Promise<PollingResult | { error: string; stateLookup?: { name: string; url: string } | null }> {
   const key = process.env.GOOGLE_CIVIC_API_KEY;
-  const [geo, off] = await Promise.all([known ? Promise.resolve({ ...known, st: null }) : geocode(address), key ? civic(key, address, true) : Promise.resolve(null)]);
-  let j = off, unofficial = false;
-  // A failed request (timeout, rate limit) is retried once before we treat it as "no data".
-  if (key && (!j || (j.error && !/address|parse|election unknown/i.test(j.error.message || "")))) j = await civic(key, address, true);
-  const officialOk = !!j && !j.error;
-  if (key && (!officialOk || !(j!.pollingLocations || []).length)) {
-    const all = await civic(key, address, false);
-    if (all && !all.error && ((all.pollingLocations || []).length || (all.dropOffLocations || []).length || (all.earlyVoteSites || []).length)) {
-      unofficial = (all.pollingLocations || []).length > 0;
-      // Keep official drop boxes if the wider data has none.
-      if (officialOk && !(all.dropOffLocations || []).length) all.dropOffLocations = j!.dropOffLocations;
-      j = all;
+  const ck = await cacheKey(address);
+  try { const [hit] = await kvGet([ck]); if (hit) { const c = JSON.parse(hit); if (known && c.found) c.home = known; return c; } } catch { /* fetch fresh */ }
+
+  const [geo, first] = await Promise.all([known ? Promise.resolve({ ...known, st: null }) : geocode(address), key ? civic(key, address) : Promise.resolve(null)]);
+  let j = first, matchedNearby: string | null = null;
+  if (key && !hasPoll(j) && !busy(j)) {
+    const m = address.match(/^\s*(\d+)(\s*[A-Za-z]?\b)?\s+(.+)$/);
+    if (m) {
+      const n = Number(m[1]), rest = m[3];
+      for (const pair of [[2, -2], [4, -4], [10, -10]]) {
+        const got = await Promise.all(pair.map(d => n + d).filter(x => x > 0).map(x => `${x} ${rest}`).map(a => civic(key, a).then(r => ({ a, r }))));
+        const hit = got.find(g => hasPoll(g.r));
+        if (hit) { matchedNearby = hit.a; if (!(hit.r!.dropOffLocations || []).length && j && !j.error) hit.r!.dropOffLocations = j.dropOffLocations; j = hit.r; break; }
+        if (got.some(g => busy(g.r))) break;
+      }
     }
   }
   const st = j?.normalizedInput?.state || geo?.st || stateFromText(address);
   const stateLookup = st ? STATE_LOOKUP[st] ?? null : null;
-  if (!j || j.error) {
-    if (!key || !j) return { error: key ? "unavailable" : "not-configured", stateLookup };
-    return { error: /address|parse/i.test(j.error?.message || "") && !st ? "bad-address" : "no-data", stateLookup };
-  }
-  const n = j.normalizedInput || {};
-  const body = j.state?.[0]?.electionAdministrationBody || {};
+  if (!key) return { error: "not-configured", stateLookup };
+  if (busy(j)) return { error: "unavailable", stateLookup };
+  if (j!.error) return { error: /address|parse/i.test(j!.error.message || "") && !st ? "bad-address" : "no-data", stateLookup };
+  const n = j!.normalizedInput || {};
+  const body = j!.state?.[0]?.electionAdministrationBody || {};
   const home = geo ? { lat: geo.lat, lng: geo.lng } : null;
   const near = (xs: Place[]) => home ? [...xs].sort((a, b) => dist(home, a) - dist(home, b)) : xs;
-  const polling = near((j.pollingLocations || []).map(place));
-  return {
+  const rawPoll = j!.pollingLocations || [];
+  const polling = near(rawPoll.map(place));
+  const out: PollingResult = {
     found: polling.length > 0,
-    unofficial,
+    unofficial: !!matchedNearby || (rawPoll.length > 0 && !rawPoll.some(l => l.sources?.some(x => x.official))),
+    matchedNearby,
     home,
     stateLookup,
     input: [n.line1, n.city, n.state, n.zip].filter(Boolean).join(", "),
     st: st || null,
     polling: polling.slice(0, 5),
-    early: near((j.earlyVoteSites || []).map(place)).slice(0, 5),
-    dropoff: near((j.dropOffLocations || []).map(place).filter(p => p.hours)).slice(0, 40),
+    early: near((j!.earlyVoteSites || []).map(place)).slice(0, 5),
+    dropoff: near((j!.dropOffLocations || []).map(place).filter(p => p.hours)).slice(0, 40),
     official: { name: body.name || null, url: body.electionInfoUrl || null, locator: body.votingLocationFinderUrl || null },
   };
+  await kvSetMany([[ck, JSON.stringify(out), out.found ? 6 * 3600 : 20 * 60]]).catch(() => {});
+  return out;
 }
 
 /** Lat/lng → street address (OpenStreetMap Nominatim), for "use my location". */
