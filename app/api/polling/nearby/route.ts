@@ -3,6 +3,7 @@ import { nearbyPolling } from "@/lib/polling";
 
 /** GET /api/polling/nearby?lat=&lng= → other polling places around a point (for the map). */
 export const dynamic = "force-dynamic";
+export const maxDuration = 30;
 
 export async function GET(req: Request) {
   const u = new URL(req.url);
