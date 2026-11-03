@@ -8,6 +8,7 @@ import { NewsChrome } from "@/components/news/NewsChrome";
 import RacesTable, { type RaceRow } from "./RacesTable";
 import StatePicker from "./StatePicker";
 import Metrics from "./Metrics";
+import PollingFinder from "@/components/vote/PollingFinder";
 import ChangeState from "./ChangeState";
 import { voterState } from "@/lib/vote-geo";
 
@@ -65,6 +66,7 @@ export default async function VoteIndex() {
                   </div>
                 ))}
                 <Link href={`/vote/${guess.st.toLowerCase()}`} style={{ display: "block", textAlign: "center", marginTop: 8, padding: "11px 14px", borderRadius: 6, background: C.ink, color: "#fff", textDecoration: "none", fontWeight: 600, fontSize: 14.5 }}>See your ballot →</Link>
+                <PollingFinder st={guess.st} />
               </div>
             ) : (
               <div style={{ border: `1px solid ${C.rule}`, borderRadius: 14, padding: "14px 16px", background: "#fff" }}>
@@ -75,7 +77,7 @@ export default async function VoteIndex() {
             <div>
                             <StatePicker states={states} />
             </div>
-            <a href="https://vote.gov" style={{ fontSize: 13, color: C.sub }}>Find your polling place ↗</a>
+            {guess ? null : <PollingFinder />}
           </aside>
           <RacesTable rows={rows} />
         </div>
