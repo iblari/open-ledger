@@ -55,6 +55,11 @@ const note = (name, extra = {}) => { manifest[name] = { ...extra, renderedAt: ne
 
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined, args: ["--no-sandbox"] });
 let ok = 0, failed = 0;
+// The /vote loop (static design): rendered when missing or when the design version changes.
+const VOTE_V = "1";
+if (manifest.vote?.v !== VOTE_V || !fs.existsSync(path.join(OUT, "v", "vote.mp4"))) {
+  try { await render(browser, `${SITE}/og-video/vote`, path.join(OUT, "v", "vote.mp4"), 6); note("vote", { v: VOTE_V }); ok++; } catch (e) { failed++; console.error("vote:", e.message); }
+}
 // The brand loop: re-rendered every run (its numbers are live).
 try { await render(browser, `${SITE}/og-video/brand`, path.join(OUT, "v", "brand.mp4"), 14); note("brand"); ok++; } catch (e) { failed++; console.error("brand:", e.message); }
 
