@@ -1079,6 +1079,10 @@ function App(){
     if (a && ADMINS[a as keyof typeof ADMINS]) setSelectedPres(a);
   }, [searchParams]);
 
+  // Phones have no president picker: cards show the most recent full term,
+  // unless a link chose a president (?admin=).
+  useEffect(() => { if (mob && !searchParams.get("admin")) setSelectedPres("biden"); }, [mob, searchParams]);
+
   // Scroll to top when entering or leaving detail view
   useEffect(() => { window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior }); }, [detail]);
 
@@ -1513,33 +1517,6 @@ function App(){
             )}
 
             {view==="terms" && (<>
-
-            {/* Administration picker.
-                Once the Cards/Table toggle went, this was left right-aligned
-                against a wide empty gap — a control with nothing to balance
-                against reads as misplaced rather than deliberate. It now owns
-                the row: a labelled, full-width select, which is also the
-                standard mobile filter shape and a much bigger tap target. */}
-            {mob && (
-              <div style={{marginBottom:16}}>
-                {mobileView==="cards" && (<>
-                  <label htmlFor="vu-admin-pick" style={{
-                    display:"block",fontFamily:"'DM Sans',sans-serif",fontSize:10,
-                    fontWeight:700,letterSpacing:"0.12em",textTransform:"uppercase",
-                    color:T.mute,marginBottom:6,
-                  }}>Showing</label>
-                  <select
-                    id="vu-admin-pick"
-                    value={selectedPres}
-                    onChange={e=>setSelectedPres(e.target.value)}
-                    style={{width:"100%",padding:"11px 12px",border:`1px solid ${T.rule}`,borderRadius:6,background:T.card,fontFamily:"'DM Sans',sans-serif",fontSize:15,fontWeight:600,color:ADMINS[selectedPres]?.color||T.ink}}
-                  >
-                    {SHOW.map(id=><option key={id} value={id}>{ADMINS[id].name} ({ADMINS[id].years})</option>)}
-                    {heatLive!==HEAT_DATA && <option value="trump2">Trump II (2025–, so far)</option>}
-                  </select>
-                </>)}
-              </div>
-            )}
 
             {/* Mobile Card View */}
             {mob && mobileView==="cards" && (
