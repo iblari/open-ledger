@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import type { PollingResult, Place } from "@/lib/polling";
+import { STATE_LOOKUP, ANY_STATE_LOOKUP } from "@/lib/state-voting";
 
 /**
  * "Find your polling place" → sheet with address / my location → map of the
@@ -76,6 +77,9 @@ export default function PollingFinder({ variant = "button", st, prompt: canPromp
   const [addr, setAddr] = useState("");
   const [busy, setBusy] = useState<false | "addr" | "loc">(false);
   const [err, setErr] = useState<string | null>(null);
+  // Guaranteed next step when the lookup comes up empty: the state's official finder.
+  const [fallback, setFallback] = useState<{ name: string; url: string } | null>(null);
+  const [fbDrops, setFbDrops] = useState<Place[]>([]);
   const [res, setRes] = useState<Res | null>(null);
   const [sel, setSel] = useState<Place | null>(null);
   const [prompt, setPrompt] = useState(false);
@@ -95,16 +99,20 @@ export default function PollingFinder({ variant = "button", st, prompt: canPromp
     if (r.st) ls.set(LS.st, r.st);
     ls.set(LS.seen, String(Date.now()));
   };
-  const fail = (e: string) => setErr(
-    e === "bad-address" ? "We couldn't match that address. Try your full street address with ZIP." :
-    e === "no-address" ? "We couldn't turn your location into an address. Type your address instead." :
-    e === "not-configured" || e === "unavailable" ? "Lookup isn't available right now. Use vote.gov below." :
-    "No polling place data for this address. Check with your state below.");
+  const fail = (e: string, sl?: { name: string; url: string } | null, drops: Place[] = []) => {
+    const lookup = sl || (st ? STATE_LOOKUP[st] : null) || null;
+    setFallback(lookup); setFbDrops(drops.slice(0, 3));
+    setErr(
+      e === "bad-address" ? "We couldn't match that address. Try your full street address with ZIP, or use your state's lookup below." :
+      e === "no-address" ? "We couldn't turn your location into an address. Type your address, or use your state's lookup below." :
+      e === "not-configured" || e === "unavailable" ? "Our lookup is busy right now. Your state's official lookup has your polling place:" :
+      "We couldn't pinpoint your polling place from this address. Your state's official lookup has it:");
+  };
   const find = async (q: string) => {
-    setErr(null); setBusy(q.startsWith("lat=") ? "loc" : "addr");
+    setErr(null); setFallback(null); setFbDrops([]); setBusy(q.startsWith("lat=") ? "loc" : "addr");
     try {
       const j = await (await fetch(`/api/polling?${q}`)).json();
-      if (j.error) fail(j.error); else if (!j.found) { setRes(j); fail("no-data"); } else show(j);
+      if (j.error) fail(j.error, j.stateLookup); else if (!j.found) { setRes(j); fail("no-data", j.stateLookup, j.dropoff || []); } else show(j);
     } catch { fail("unavailable"); } finally { setBusy(false); }
   };
   const locate = () => {
@@ -187,7 +195,26 @@ export default function PollingFinder({ variant = "button", st, prompt: canPromp
                   style={{ width: "100%", boxSizing: "border-box", padding: "12px 13px", fontSize: 16, border: `1px solid #D9D2C7`, borderRadius: 8, background: "#fff", fontFamily: SANS }} />
                 <button type="submit" disabled={!!busy} style={{ ...btn(true), width: "100%", marginTop: 10, opacity: busy ? 0.7 : 1 }}>{busy === "addr" ? "Looking up…" : "Find my polling place"}</button>
                 <button type="button" onClick={locate} disabled={!!busy} style={{ ...btn(false), width: "100%", marginTop: 8, color: "#2F6FB0" }}>{busy === "loc" ? "Finding you…" : "Use my location"}</button>
-                {err && <div role="alert" style={{ fontSize: 13, color: RED, marginTop: 10 }}>{err}</div>}
+                {err && <div role="alert" style={{ fontSize: 13.5, color: fallback ? INK : RED, marginTop: 12, lineHeight: 1.45 }}>{err}</div>}
+                {err && (
+                  <div style={{ marginTop: 8 }}>
+                    <a href={fallback?.url || ANY_STATE_LOOKUP} target="_blank" rel="noopener noreferrer" style={{ ...btn(true), background: RED }}>
+                      {fallback ? `Open ${fallback.name}'s official polling place lookup ↗` : "Find your polling place on vote.org ↗"}
+                    </a>
+                    {fallback && <a href={ANY_STATE_LOOKUP} target="_blank" rel="noopener noreferrer" style={{ display: "block", textAlign: "center", fontSize: 12.5, color: SUB, marginTop: 8 }}>Or use vote.org's locator ↗</a>}
+                    {fbDrops.length > 0 && (
+                      <div style={{ marginTop: 12 }}>
+                        <div style={{ fontSize: 12, color: SUB, marginBottom: 4 }}>Ballot drop boxes near you</div>
+                        {fbDrops.map(d => (
+                          <div key={`${d.lat},${d.lng},${d.name}`} style={{ background: "#fff", border: `1px solid ${RULE}`, borderRadius: 8, padding: "9px 11px", marginTop: 6, fontSize: 13.5 }}>
+                            {d.name}<span style={{ display: "block", fontSize: 12, color: SUB }}>{fullAddr(d)}{d.hours ? ` · ${d.hours}` : ""}</span>
+                            <span style={{ display: "flex", gap: 12, marginTop: 4, fontSize: 12.5 }}><a href={apple(d)} target="_blank" rel="noopener noreferrer" style={{ color: INK }}>Apple Maps ↗</a><a href={google(d)} target="_blank" rel="noopener noreferrer" style={{ color: INK }}>Google Maps ↗</a></span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div style={{ fontSize: 11.5, color: MUTE, marginTop: 12, lineHeight: 1.5 }}>We use your address only for this lookup and don't save it. Official data from your state via the Voting Information Project. Not finding it? <a href="https://vote.gov" target="_blank" rel="noopener noreferrer" style={{ color: SUB }}>vote.gov ↗</a></div>
               </form>
             )}
@@ -195,7 +222,7 @@ export default function PollingFinder({ variant = "button", st, prompt: canPromp
             {mode === "result" && res && sel && (
               <div>
                 {pins.length > 0 && <MiniMap pins={pins} onPick={i => { const p = pins[i]; if (p.kind === "drop") { const d = drops.find(x => x.d.lat === p.lat && x.d.lng === p.lng)?.d; if (d) setSel(d); } }} />}
-                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".1em", color: RED, marginTop: 14 }}>{res.polling.includes(sel) ? "YOUR POLLING PLACE · TUE, NOV 3" : "BALLOT DROP BOX"}</div>
+                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".1em", color: RED, marginTop: 14 }}>{sel === res.polling[0] ? (res.polling.length > 1 ? "CLOSEST POLLING PLACE · TUE, NOV 3" : "YOUR POLLING PLACE · TUE, NOV 3") : res.polling.includes(sel) ? "POLLING PLACE · TUE, NOV 3" : "BALLOT DROP BOX"}</div>
                 <div style={{ fontFamily: SERIF, fontSize: 23, lineHeight: 1.15, marginTop: 4 }}>{sel.name}</div>
                 <div style={{ fontSize: 14, color: SUB, marginTop: 2 }}>{fullAddr(sel)}{dist && res.polling.includes(sel) ? ` · ${dist}` : ""}</div>
                 {sel.hours && <div style={{ fontSize: 14, marginTop: 6 }}><b style={{ fontWeight: 600 }}>{res.polling.includes(sel) ? "Open" : "Open on Nov 3"}</b> {sel.hours.replace(/^Tue, Nov 3:\s*/, "")}</div>}
@@ -205,6 +232,16 @@ export default function PollingFinder({ variant = "button", st, prompt: canPromp
                   <a href={google(sel)} target="_blank" rel="noopener noreferrer" style={btn(false)}>Google Maps</a>
                 </div>
                 {!res.polling.includes(sel) && <button type="button" onClick={() => setSel(res.polling[0])} style={{ background: "none", border: "none", color: SUB, fontSize: 13, marginTop: 10, cursor: "pointer", textDecoration: "underline", padding: 0 }}>← Back to your polling place</button>}
+                {res.polling.length > 1 && res.polling.includes(sel) && (
+                  <div style={{ marginTop: 16 }}>
+                    <div style={{ fontSize: 12, color: SUB, marginBottom: 4 }}>Other polling places for your address</div>
+                    {res.polling.filter(p => p !== sel).slice(0, 3).map(p => (
+                      <button key={`${p.lat},${p.lng},${p.name}`} type="button" onClick={() => setSel(p)} style={{ display: "block", width: "100%", background: "#fff", border: `1px solid ${RULE}`, borderRadius: 8, padding: "9px 11px", marginTop: 6, textAlign: "left", cursor: "pointer", fontFamily: SANS, fontSize: 13.5, color: INK }}>
+                        {p.name}<span style={{ display: "block", fontSize: 12, color: SUB }}>{p.address}{p.hours ? ` · ${p.hours}` : ""}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
                 {drops.length > 0 && res.polling.includes(sel) && (
                   <div style={{ marginTop: 16 }}>
                     <div style={{ fontSize: 12, color: SUB, marginBottom: 4 }}>{res.home ? "Ballot drop boxes near you (grey pins)" : "Ballot drop boxes nearby (grey pins), distance from your polling place"}</div>
@@ -218,7 +255,8 @@ export default function PollingFinder({ variant = "button", st, prompt: canPromp
                 )}
                 <div style={{ fontSize: 12, color: MUTE, marginTop: 14, lineHeight: 1.5 }}>
                   For {res.input}. Bring ID if your state requires it. Source: {res.official.name ? `${res.official.name}, ` : ""}Voting Information Project.{" "}
-                  {res.official.locator && <a href={res.official.locator} target="_blank" rel="noopener noreferrer" style={{ color: SUB }}>Confirm with your state ↗</a>}{" "}
+                  {res.unofficial && <b style={{ fontWeight: 600, color: INK }}>This one comes from Google's wider data, so please confirm it. </b>}
+                  {(res.stateLookup?.url || res.official.locator) && <a href={res.stateLookup?.url || res.official.locator!} target="_blank" rel="noopener noreferrer" style={{ color: SUB }}>Confirm with {res.stateLookup ? `${res.stateLookup.name}'s` : "your state's"} official lookup ↗</a>}{" "}
                   <button type="button" onClick={() => { setMode("ask"); setErr(null); }} style={{ background: "none", border: "none", padding: 0, color: SUB, textDecoration: "underline", cursor: "pointer", fontSize: 12 }}>Different address</button>
                 </div>
                 {isElectionDay() && ls.get(LS.answered) !== "yes" && <button type="button" onClick={voted} style={{ ...btn(false), width: "100%", marginTop: 14 }}>I voted ✓</button>}
