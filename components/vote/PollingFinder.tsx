@@ -271,13 +271,7 @@ export default function PollingFinder({ variant = "button", st, prompt: canPromp
                     ))}
                   </div>
                 )}
-                <div style={{ fontSize: 12, color: MUTE, marginTop: 14, lineHeight: 1.5 }}>
-                  For {res.input}. Bring ID if your state requires it. Source: {res.official.name ? `${res.official.name}, ` : ""}Voting Information Project.{" "}
-                  {res.matchedNearby ? <b style={{ fontWeight: 600, color: INK }}>Please confirm it with your state before you go. </b>
-                    : res.unofficial && <b style={{ fontWeight: 600, color: INK }}>This one comes from Google's wider data, so please confirm it. </b>}
-                  {(res.stateLookup?.url || res.official.locator) && <a href={res.stateLookup?.url || res.official.locator!} target="_blank" rel="noopener noreferrer" style={{ color: SUB }}>Confirm with {res.stateLookup ? `${res.stateLookup.name}'s` : "your state's"} official lookup ↗</a>}{" "}
-                  <button type="button" onClick={() => { setMode("ask"); setErr(null); }} style={{ background: "none", border: "none", padding: 0, color: SUB, textDecoration: "underline", cursor: "pointer", fontSize: 12 }}>Different address</button>
-                </div>
+                <button type="button" onClick={() => { setMode("ask"); setErr(null); }} style={{ ...btn(false), width: "100%", marginTop: 16 }}>Try a different address</button>
                 {isElectionDay() && ls.get(LS.answered) !== "yes" && <button type="button" onClick={voted} style={{ ...btn(false), width: "100%", marginTop: 14 }}>I voted ✓</button>}
               </div>
             )}
