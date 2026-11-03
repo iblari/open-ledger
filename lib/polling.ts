@@ -5,7 +5,7 @@
  * address (or by a reverse-geocoded location). Addresses are never stored or logged.
  */
 import { STATE_LOOKUP } from "./state-voting";
-import { kvGet, kvSetMany } from "./live-kv";
+import { kvGet, kvSetMany, kvHincrMany, kvHgetall } from "./live-kv";
 
 export const ELECTION_ID = "12000"; // 2026 General Midterm Election (Google electionQuery)
 export const ELECTION_DAY = "2026-11-03";
@@ -72,8 +72,26 @@ type Raw = {
 };
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 const busy = (j: Raw | null) => !j || j.error?.code === 429 || (j.error?.code ?? 0) >= 500;
+/* Google allows this project 151 calls a minute (raising it takes weeks), shared by
+   every visitor. A site-wide counter keeps us under it: when the minute is nearly
+   full, a lookup waits for the next minute (up to ~10 s), and the optional
+   "same street" retries are skipped so primary lookups always get through. */
+const PER_MIN = 140;
+const minuteKey = () => `polling:rate:${Math.floor(Date.now() / 60_000)}`;
+async function used(): Promise<number> { return (await kvHgetall(minuteKey()).catch(() => ({} as Record<string, number>))).n || 0; }
+async function takeSlot(maxWaitMs: number): Promise<boolean> {
+  const until = Date.now() + maxWaitMs;
+  for (;;) {
+    if ((await used()) < PER_MIN) { await kvHincrMany(minuteKey(), ["n"], 120).catch(() => {}); return true; }
+    const toNext = 60_000 - (Date.now() % 60_000) + 50;
+    if (Date.now() + Math.min(toNext, 1500) > until) return false;
+    await sleep(Math.min(toNext, 1500));
+  }
+}
+
 /** One Civic call (wider data, which includes the official feed), retried on rate limits and timeouts. */
-async function civic(key: string, address: string, quotaUser?: string): Promise<Raw | null> {
+async function civic(key: string, address: string, quotaUser?: string, maxWaitMs = 10_000): Promise<Raw | null> {
+  if (!(await takeSlot(maxWaitMs))) return { error: { code: 429, message: "site budget" } };
   const q = new URLSearchParams({ key, electionId: ELECTION_ID, address, officialOnly: "false", ...(quotaUser ? { quotaUser } : {}) });
   let j: Raw | null = null;
   for (const wait of [0, 700, 1800]) {
@@ -107,12 +125,12 @@ export async function lookupPolling(address: string, known?: { lat: number; lng:
 
   const [geo, first] = await Promise.all([known ? Promise.resolve({ ...known, st: null }) : geocode(address), key ? civic(key, address, quotaUser) : Promise.resolve(null)]);
   let j = first, matchedNearby: string | null = null, neighbourBusy = false;
-  if (key && !hasPoll(j) && !busy(j)) {
+  if (key && !hasPoll(j) && !busy(j) && (await used()) < PER_MIN - 20) {
     const m = address.match(/^\s*(\d+)([A-Za-z])?\s+(.+)$/);
     if (m) {
       const n = Number(m[1]), rest = m[3];
       for (const pair of [[2, -2], [4, -4], [10, -10]]) {
-        const got = await Promise.all(pair.map(d => n + d).filter(x => x > 0).map(x => `${x} ${rest}`).map(a => civic(key, a, quotaUser).then(r => ({ a, r }))));
+        const got = await Promise.all(pair.map(d => n + d).filter(x => x > 0).map(x => `${x} ${rest}`).map(a => civic(key, a, quotaUser, 0).then(r => ({ a, r }))));
         const hit = got.find(g => hasPoll(g.r));
         if (hit) { matchedNearby = hit.a; if (!(hit.r!.dropOffLocations || []).length && j && !j.error) hit.r!.dropOffLocations = j.dropOffLocations; j = hit.r; break; }
         if (got.some(g => busy(g.r))) { neighbourBusy = true; break; }
