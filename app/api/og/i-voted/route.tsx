@@ -15,7 +15,7 @@ export async function GET(req: Request) {
   const fonts = await ogFonts({ bold: true });
   return new ImageResponse((
     <div style={{ width: 1080, height: 1920, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "#F7F4EF", color: "#14110E", fontFamily: "Sans", position: "relative" }}>
-      <div style={{ position: "absolute", inset: 48, border: "3px solid #14110E", borderRadius: 48, display: "flex" }} />
+      <div style={{ position: "absolute", top: 48, left: 48, right: 48, bottom: 48, border: "3px solid #14110E", borderRadius: 48, display: "flex" }} />
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={MARK} width={360} height={120} alt="" />
       <div style={{ fontFamily: "Serif", fontSize: 200, lineHeight: 1, marginTop: 90, letterSpacing: "-0.03em" }}>I voted.</div>
