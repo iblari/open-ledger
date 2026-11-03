@@ -19,6 +19,6 @@ export async function GET(req: Request) {
     home = { lat, lng };
   }
   if (address.length < 5) return NextResponse.json({ error: "bad-address" }, { status: 400, headers: { "Cache-Control": "no-store" } });
-  const r = await lookupPolling(address);
-  return NextResponse.json("error" in r ? r : { ...r, home }, { headers: { "Cache-Control": "no-store" } });
+  const r = await lookupPolling(address, home);
+  return NextResponse.json(r, { headers: { "Cache-Control": "no-store" } });
 }
