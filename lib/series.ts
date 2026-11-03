@@ -326,11 +326,14 @@ async function marketTail(id: string, after: string): Promise<{ pts: { d: string
     const res = (await r.json())?.chart?.result?.[0];
     const ts: number[] = res?.timestamp || [];
     const cl: (number | null)[] = res?.indicators?.quote?.[0]?.close || [];
+    // Bars are stamped at local midnight/open, so read the date in the exchange's time zone (not UTC).
+    const day = new Intl.DateTimeFormat("en-CA", { timeZone: res?.meta?.exchangeTimezoneName || "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" });
+    const dOf = (sec: number) => day.format(new Date(sec * 1000));
     const byDay = new Map<string, number>();
-    ts.forEach((t, i) => { const c = cl[i]; if (typeof c === "number" && Number.isFinite(c)) byDay.set(new Date(t * 1000).toISOString().slice(0, 10), Math.round(c * 100) / 100); });
+    ts.forEach((t, i) => { const c = cl[i]; if (typeof c === "number" && Number.isFinite(c)) byDay.set(dOf(t), Math.round(c * 100) / 100); });
     // Today's bar while the market is open: use the live price.
     const live = res?.meta?.regularMarketPrice, liveT = res?.meta?.regularMarketTime;
-    if (typeof live === "number" && liveT) byDay.set(new Date(liveT * 1000).toISOString().slice(0, 10), Math.round(live * 100) / 100);
+    if (typeof live === "number" && liveT) byDay.set(dOf(liveT), Math.round(live * 100) / 100);
     const pts = [...byDay].filter(([d]) => d > after).sort((a, b) => a[0].localeCompare(b[0])).map(([d, v]) => ({ d, v }));
     return pts.length ? { pts, source: m.source, url: `https://finance.yahoo.com/quote/${encodeURIComponent(m.symbol)}` } : null;
   } catch { return null; }
@@ -357,7 +360,7 @@ export async function getSeries(id: string, countries: string[] = []): Promise<S
   const def = CATALOG_BY_ID.get(id);
   if (!def) return null;
   const cc = def.wb ? countries.map(c => c.toUpperCase()).filter(c => /^[A-Z]{3}$/.test(c)).slice(0, 6).sort() : [];
-  const ck = `series:v5:${id}${cc.length ? ":" + cc.join(",") : ""}`;
+  const ck = `series:v6:${id}${cc.length ? ":" + cc.join(",") : ""}`;
   try {
     const [hit] = await kvGet([ck]);
     if (hit) { const s = JSON.parse(hit) as SeriesData; if (Date.now() - Date.parse(s.fetchedAt) < (MARKET[id] ? 3600_000 : 6 * 3600_000)) return s; }
