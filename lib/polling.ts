@@ -106,23 +106,23 @@ export async function lookupPolling(address: string, known?: { lat: number; lng:
   try { const [hit] = await kvGet([ck]); if (hit) { const c = JSON.parse(hit); if (known && c.found) c.home = known; return c; } } catch { /* fetch fresh */ }
 
   const [geo, first] = await Promise.all([known ? Promise.resolve({ ...known, st: null }) : geocode(address), key ? civic(key, address, quotaUser) : Promise.resolve(null)]);
-  let j = first, matchedNearby: string | null = null;
+  let j = first, matchedNearby: string | null = null, neighbourBusy = false;
   if (key && !hasPoll(j) && !busy(j)) {
-    const m = address.match(/^\s*(\d+)(\s*[A-Za-z]?\b)?\s+(.+)$/);
+    const m = address.match(/^\s*(\d+)([A-Za-z])?\s+(.+)$/);
     if (m) {
       const n = Number(m[1]), rest = m[3];
       for (const pair of [[2, -2], [4, -4], [10, -10]]) {
         const got = await Promise.all(pair.map(d => n + d).filter(x => x > 0).map(x => `${x} ${rest}`).map(a => civic(key, a, quotaUser).then(r => ({ a, r }))));
         const hit = got.find(g => hasPoll(g.r));
         if (hit) { matchedNearby = hit.a; if (!(hit.r!.dropOffLocations || []).length && j && !j.error) hit.r!.dropOffLocations = j.dropOffLocations; j = hit.r; break; }
-        if (got.some(g => busy(g.r))) break;
+        if (got.some(g => busy(g.r))) { neighbourBusy = true; break; }
       }
     }
   }
   const st = j?.normalizedInput?.state || geo?.st || stateFromText(address);
   const stateLookup = st ? STATE_LOOKUP[st] ?? null : null;
   if (!key) return { error: "not-configured", stateLookup };
-  if (busy(j)) return { error: "unavailable", stateLookup };
+  if (busy(j) || (neighbourBusy && !hasPoll(j))) return { error: "unavailable", stateLookup };
   if (j!.error) return { error: /address|parse/i.test(j!.error.message || "") && !st ? "bad-address" : "no-data", stateLookup };
   const n = j!.normalizedInput || {};
   const body = j!.state?.[0]?.electionAdministrationBody || {};
@@ -143,7 +143,7 @@ export async function lookupPolling(address: string, known?: { lat: number; lng:
     dropoff: near((j!.dropOffLocations || []).map(place).filter(p => p.hours)).slice(0, 40),
     official: { name: body.name || null, url: body.electionInfoUrl || null, locator: body.votingLocationFinderUrl || null },
   };
-  await kvSetMany([[ck, JSON.stringify(out), out.found ? 6 * 3600 : 20 * 60]]).catch(() => {});
+  await kvSetMany([[ck, JSON.stringify(out), out.found ? 6 * 3600 : 120]]).catch(() => {});
   return out;
 }
 
