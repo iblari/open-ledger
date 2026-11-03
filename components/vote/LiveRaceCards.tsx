@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { RaceResult } from "@/lib/results";
 
 /**
@@ -20,11 +20,14 @@ const ago = (iso: string) => { const s = Math.max(0, Math.round((Date.now() - Da
 
 function Face({ c, dim }: { c: Cand; dim?: boolean }) {
   const [bad, setBad] = useState(false);
+  const img = useRef<HTMLImageElement>(null);
+  // A missing photo can fail before React hydrates (onError never fires), so check on mount too.
+  useEffect(() => { const el = img.current; if (el && el.complete && el.naturalWidth === 0) setBad(true); }, []);
   return (
     <span style={{ position: "relative", width: 64, height: 64, flexShrink: 0, opacity: dim ? 0.5 : 1 }}>
       {!bad
         ? /* eslint-disable-next-line @next/next/no-img-element */
-          <img src={`/candidates/${slug(c.name)}.jpg`} alt={c.name} onError={() => setBad(true)} style={{ width: 64, height: 64, borderRadius: "50%", objectFit: "cover", display: "block", background: "#ECE7DF" }} />
+          <img ref={img} src={`/candidates/${slug(c.name)}.jpg`} alt={c.name} onError={() => setBad(true)} style={{ width: 64, height: 64, borderRadius: "50%", objectFit: "cover", display: "block", background: "#ECE7DF" }} />
         : <span style={{ width: 64, height: 64, borderRadius: "50%", background: col(c.p), color: "#fff", display: "grid", placeItems: "center", fontFamily: "'Source Serif 4',Georgia,serif", fontSize: 23 }}>{initials(c.name)}</span>}
       <span style={{ position: "absolute", right: -3, bottom: -3, width: 21, height: 21, borderRadius: 5, background: col(c.p), color: "#fff", fontSize: 11, fontWeight: 600, display: "grid", placeItems: "center", border: "2px solid #fff" }}>{c.p === "D" || c.p === "R" ? c.p : "I"}</span>
     </span>
