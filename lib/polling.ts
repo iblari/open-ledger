@@ -194,13 +194,14 @@ export async function lookupPolling(address: string, known?: { lat: number; lng:
 }
 
 /** Lat/lng → street address (OpenStreetMap Nominatim), for "use my location". */
-export async function reverseGeocode(lat: number, lng: number): Promise<string | null> {
+export async function reverseGeocode(lat: number, lng: number, needNumber = false): Promise<string | null> {
   const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&lat=${lat}&lon=${lng}`, {
     headers: { "User-Agent": "VoteUnbiased/1.0 (+https://voteunbiased.org)", "Accept-Language": "en-US" }, signal: AbortSignal.timeout(8000), cache: "no-store",
   }).catch(() => null);
   if (!r?.ok) return null;
   const j = await r.json().catch(() => null) as { address?: Record<string, string> } | null;
   const a = j?.address; if (!a || a.country_code !== "us") return null;
+  if (needNumber && !a.house_number) return null;
   const street = [a.house_number, a.road].filter(Boolean).join(" ");
   const city = a.city || a.town || a.village || a.hamlet || a.suburb || "";
   return [street, city, a.state, a.postcode].filter(Boolean).join(", ") || null;
@@ -215,23 +216,28 @@ export async function reverseGeocode(lat: number, lng: number): Promise<string |
 export async function nearbyPolling(lat: number, lng: number, quotaUser?: string): Promise<Place[]> {
   const key = process.env.GOOGLE_CIVIC_API_KEY;
   if (!key) return [];
-  const cell = `polling:near:v1:${lat.toFixed(2)},${lng.toFixed(2)}`;
+  const cell = `polling:near:v2:${lat.toFixed(2)},${lng.toFixed(2)}`;
   try { const [hit] = await kvGet([cell]); if (hit) return JSON.parse(hit); } catch { /* search */ }
-  const pts: string[] = [];
-  for (const [r, n] of [[500, 6], [1200, 8]] as const) for (let i = 0; i < n; i++) {
-    const t = (2 * Math.PI * i) / n + (r === 1200 ? Math.PI / 8 : 0);
-    pts.push(`${(lat + (r * Math.cos(t)) / 111_320).toFixed(6)},${(lng + (r * Math.sin(t)) / (111_320 * Math.cos((lat * Math.PI) / 180))).toFixed(6)}`);
+  // Ring points → real street addresses (OpenStreetMap, ~1 per second as its policy asks) → Google.
+  const pts: [number, number][] = [];
+  for (const [r, n, off] of [[450, 5, 0], [1100, 7, Math.PI / 7]] as const) for (let i = 0; i < n; i++) {
+    const t = (2 * Math.PI * i) / n + off;
+    pts.push([lat + (r * Math.cos(t)) / 111_320, lng + (r * Math.sin(t)) / (111_320 * Math.cos((lat * Math.PI) / 180))]);
   }
-  const seen = new Map<string, Place>();
-  for (let i = 0; i < pts.length; i += 4) {
-    if ((await used()) >= PER_MIN - 40) break;
-    const got = await Promise.all(pts.slice(i, i + 4).map(p => civic(key, p, quotaUser, 0)));
-    for (const g of got) for (const l of (g && !g.error ? g.pollingLocations || [] : [])) {
-      const p = place(l); if (p.lat == null) continue;
-      seen.set(`${p.name}|${p.address}`, p);
+  const seen = new Map<string, Place>(), asked = new Set<string>(), calls: Promise<void>[] = [];
+  const t0 = Date.now();
+  for (const [a, b] of pts) {
+    if (Date.now() - t0 > 18_000 || (await used()) >= PER_MIN - 40) break;
+    const addr = await reverseGeocode(a, b, true);
+    if (addr && !asked.has(addr)) {
+      asked.add(addr);
+      calls.push(civic(key, addr, quotaUser, 0).then(g => {
+        for (const l of (g && !g.error ? g.pollingLocations || [] : [])) { const p = place(l); if (p.lat != null) seen.set(`${p.name}|${p.address}`, p); }
+      }));
     }
-    if (got.some(busy)) break;
+    await sleep(1050);
   }
+  await Promise.all(calls);
   const out = [...seen.values()];
   if (out.length) await kvSetMany([[cell, JSON.stringify(out), 12 * 3600]]).catch(() => {});
   return out;
