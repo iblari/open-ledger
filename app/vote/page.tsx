@@ -11,14 +11,15 @@ import Metrics from "./Metrics";
 import PollingFinder from "@/components/vote/PollingFinder";
 import LiveRaceCards from "@/components/vote/LiveRaceCards";
 import ResultsBoard from "@/components/vote/ResultsBoard";
+import { getResults } from "@/lib/results";
 import { pollsCloseAt } from "@/lib/results";
 import ChangeState from "./ChangeState";
 import { voterState } from "@/lib/vote-geo";
 
-export const revalidate = 600;
+export const revalidate = 120;
 export const metadata: Metadata = {
-  title: "Compare the candidates on your 2026 ballot · Vote Unbiased",
-  description: "Senate and governor candidates side by side: nonpartisan polls, money, voting record and positions in their own words. Facts only, every number sourced.",
+  title: "2026 Election Results Live: Senate & Governor Races by State · Vote Unbiased",
+  description: "Live 2026 election results for every Senate and governor race, from official state and county counts. No projections. Plus candidates side by side: polls, money, voting records.",
   alternates: { canonical: "https://voteunbiased.org/vote" },
   openGraph: { title: "Compare the candidates on your 2026 ballot", description: "Polls, money, voting record and positions in their own words, side by side. Facts only.", url: "https://voteunbiased.org/vote", siteName: "Vote Unbiased", type: "website",
     videos: [{ url: "https://voteunbiased.org/og/v/vote.mp4?v=1", secureUrl: "https://voteunbiased.org/og/v/vote.mp4?v=1", type: "video/mp4", width: 1200, height: 628 }] },
@@ -34,6 +35,7 @@ export default async function VoteIndex() {
   const v = await voterState();
   const guess = v?.ballot ?? null;
   const polls = await senatePolls();
+  const allRes = await getResults(MID.races.map(r => r.id)).catch(() => ({} as Awaited<ReturnType<typeof getResults>>));
   const pollsAt = Object.values(polls)[0]?.fetchedAt ?? null;
   const through = MID.races.flatMap(r => r.candidates.map(c => c.fec?.through)).filter(Boolean).sort().pop() ?? null;
 
@@ -56,7 +58,7 @@ export default async function VoteIndex() {
         <h1 style={{ ...H, fontSize: "clamp(30px,4.4vw,46px)", lineHeight: 1.08, margin: "6px 0 0" }}>Compare the candidates on your ballot</h1>
         {guess && <div style={{ maxWidth: 640 }}><LiveRaceCards st={guess.st} stateName={guess.name} initialClosesAt={pollsCloseAt(guess.st)}
           races={guess.races.map(r => ({ id: r.id, title: raceShort(raceTitle(r)), cands: r.candidates.filter(c => c.main).map(c => ({ name: c.name, p: c.p })) }))} /></div>}
-        <ResultsBoard myState={guess?.st ?? null} />
+        <ResultsBoard myState={guess?.st ?? null} initial={MID.races.map(r => ({ id: r.id, st: r.st, state: r.state, office: r.office, title: raceTitle(r), cands: r.candidates.filter(c => c.main).map(c => ({ name: c.name, p: c.p })), result: allRes[r.id] ?? null }))} />
 
         <div className="vi-top" style={{ display: "grid", gridTemplateColumns: "minmax(0,340px) minmax(0,1fr)", gap: 28, marginTop: 22, alignItems: "start" }}>
           <aside style={{ display: "flex", flexDirection: "column", gap: 14 }}>

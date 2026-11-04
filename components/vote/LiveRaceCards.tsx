@@ -42,9 +42,10 @@ function Countdown({ to }: { to: string }) {
   return <span suppressHydrationWarning>{d > 0 ? `${d}d ${h}h ${m}m` : h > 0 ? `${h}h ${m}m` : `${m}m ${String(s).padStart(2, "0")}s`}</span>;
 }
 
-export default function LiveRaceCards({ st, stateName, races, initialClosesAt }: { st: string; stateName: string; races: RaceIn[]; initialClosesAt: string }) {
+export default function LiveRaceCards({ st, stateName, races, initialClosesAt, initial }: { st: string; stateName: string; races: RaceIn[]; initialClosesAt: string; initial?: Record<string, RaceResult | null> }) {
   const [closesAt, setClosesAt] = useState(initialClosesAt);
-  const [res, setRes] = useState<Record<string, RaceResult | null>>({});
+  // Server-rendered counts first (so search engines and first paint see the numbers), then live refresh.
+  const [res, setRes] = useState<Record<string, RaceResult | null>>(initial ?? {});
   const [now, setNow] = useState(() => Date.now());
   const closed = now >= Date.parse(closesAt);
 
