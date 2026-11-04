@@ -10,6 +10,7 @@ import StatePicker from "./StatePicker";
 import Metrics from "./Metrics";
 import PollingFinder from "@/components/vote/PollingFinder";
 import LiveRaceCards from "@/components/vote/LiveRaceCards";
+import ResultsBoard from "@/components/vote/ResultsBoard";
 import { pollsCloseAt } from "@/lib/results";
 import ChangeState from "./ChangeState";
 import { voterState } from "@/lib/vote-geo";
@@ -55,6 +56,7 @@ export default async function VoteIndex() {
         <h1 style={{ ...H, fontSize: "clamp(30px,4.4vw,46px)", lineHeight: 1.08, margin: "6px 0 0" }}>Compare the candidates on your ballot</h1>
         {guess && <div style={{ maxWidth: 640 }}><LiveRaceCards st={guess.st} stateName={guess.name} initialClosesAt={pollsCloseAt(guess.st)}
           races={guess.races.map(r => ({ id: r.id, title: raceShort(raceTitle(r)), cands: r.candidates.filter(c => c.main).map(c => ({ name: c.name, p: c.p })) }))} /></div>}
+        <ResultsBoard myState={guess?.st ?? null} />
 
         <div className="vi-top" style={{ display: "grid", gridTemplateColumns: "minmax(0,340px) minmax(0,1fr)", gap: 28, marginTop: 22, alignItems: "start" }}>
           <aside style={{ display: "flex", flexDirection: "column", gap: 14 }}>
