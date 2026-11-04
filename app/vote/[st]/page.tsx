@@ -1,6 +1,6 @@
 import PollingFinder from "@/components/vote/PollingFinder";
 import LiveRaceCards from "@/components/vote/LiveRaceCards";
-import { pollsCloseAt } from "@/lib/results";
+import { pollsCloseAt, getResults, type RaceResult } from "@/lib/results";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -13,7 +13,7 @@ import Metrics from "../Metrics";
 import { stateTrends } from "@/lib/state-trends";
 import RaceCompare from "../RaceCompare";
 
-export const revalidate = 600;
+export const revalidate = 120;
 export function generateStaticParams() { return STATES.map(s => ({ st: s.st.toLowerCase() })); }
 
 const matchup = (st: string) => {
@@ -21,12 +21,25 @@ const matchup = (st: string) => {
   return s.races.map(r => `${raceTitle(r).replace(" (special election)", " special")}: ${r.candidates.filter(c => c.main).map(c => c.name).join(" vs ")}`).join(" · ");
 };
 
+/** "Ossoff 59.1%, Collins 40.9%" from the latest official counts, for titles and snippets. */
+const lead = (r: RaceResult | null | undefined) => {
+  if (!r) return null;
+  const tot = r.cands.reduce((a, c) => a + c.votes, 0); if (!tot) return null;
+  return [...r.cands].sort((a, b) => b.votes - a.votes).slice(0, 2).map(c => `${c.name.split(" ").slice(-1)[0]} ${((c.votes / tot) * 100).toFixed(1)}%`).join(", ");
+};
+
 export async function generateMetadata({ params }: { params: Promise<{ st: string }> }): Promise<Metadata> {
   const { st } = await params;
   const s = stateByCode(st);
   if (!s) return { title: "2026 ballot · Vote Unbiased" };
-  const title = `${s.name} 2026 ballot: compare the candidates`;
-  const description = `${matchup(st)}. Money, voting record and positions in their own words, side by side. Facts only.`;
+  const res = await getResults(s.races.map(r => r.id)).catch(() => ({} as Record<string, RaceResult | null>));
+  const offices = s.races.map(r => r.office === "senate" ? "Senate" : "Governor");
+  const live = s.races.map(r => ({ r, l: lead(res[r.id]) })).filter(x => x.l);
+  // Election-night wording ("<State> election results 2026") is what people search.
+  const title = `${s.name} Election Results 2026: ${[...new Set(offices)].join(" & ")} Race${s.races.length > 1 ? "s" : ""}${live.length ? " (Live)" : ""}`;
+  const description = live.length
+    ? `Live unofficial vote count: ${live.map(x => `${raceTitle(x.r).replace(" (special election)", " special")}: ${x.l}`).join(" · ")}. Official state and county counts, no projections. ${matchup(st)}.`
+    : `${matchup(st)}. Polls, money, voting record and positions side by side, plus live official results. Facts only.`;
   const url = `https://voteunbiased.org/vote/${s.st.toLowerCase()}`;
   return { title: `${title} · Vote Unbiased`, description, alternates: { canonical: url },
     openGraph: { title, description, url, siteName: "Vote Unbiased", type: "website" },
@@ -38,6 +51,7 @@ export default async function StateBallot({ params }: { params: Promise<{ st: st
   const { st } = await params;
   const s = stateByCode(st);
   if (!s) notFound();
+  const initialRes = await getResults(s.races.map(r => r.id)).catch(() => ({} as Record<string, RaceResult | null>));
   const [polls, trends] = await Promise.all([senatePolls(), stateTrends(s.st)]);
   const pollsAt = Object.values(polls)[0]?.fetchedAt ?? null;
   const through = s.races.flatMap(r => r.candidates.map(c => c.fec?.through)).filter(Boolean).sort().pop() ?? null;
@@ -80,7 +94,7 @@ export default async function StateBallot({ params }: { params: Promise<{ st: st
           {s.races.map(r => <a key={r.id} href={`#${r.id}`} style={{ padding: "9px 0", color: C.ink, textDecoration: "none", fontSize: 14, fontWeight: 700, borderBottom: "2px solid transparent" }}>{raceTitle(r)} ↓</a>)}
           <a href={`https://x.com/intent/post?text=${encodeURIComponent(`Compare the candidates on the ${s.name} ballot, side by side. Facts only.`)}&url=${encodeURIComponent(url)}`} style={{ marginLeft: "auto", fontSize: 13, color: C.sub, textDecoration: "none", whiteSpace: "nowrap" }}>Share ↗</a>
         </div>
-        <div style={{ maxWidth: 640 }}><LiveRaceCards st={s.st} stateName={s.name} initialClosesAt={pollsCloseAt(s.st)}
+        <div style={{ maxWidth: 640 }}><LiveRaceCards st={s.st} stateName={s.name} initialClosesAt={pollsCloseAt(s.st)} initial={initialRes}
           races={s.races.map(r => ({ id: r.id, title: raceTitle(r), cands: r.candidates.filter(c => c.main).map(c => ({ name: c.name, p: c.p })) }))} /></div>
         <div style={{ maxWidth: 360, marginTop: 6 }}><PollingFinder st={s.st} /></div>
         <div style={{ marginTop: 14 }}><Metrics through={through} pollsAt={pollsAt} /></div>

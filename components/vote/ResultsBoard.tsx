@@ -7,14 +7,14 @@ import type { RaceResult } from "@/lib/results";
  * refreshing every 30 s. Your state first, then the closest races. Official counts
  * as reported, no projections; a race only appears once it has counts.
  */
-type Row = { id: string; st: string; state: string; office: string; title: string; cands: { name: string; p: string }[]; result: RaceResult | null };
+export type Row = { id: string; st: string; state: string; office: string; title: string; cands: { name: string; p: string }[]; result: RaceResult | null };
 const PARTY: Record<string, string> = { D: "#4361a6", R: "#b8372d" };
 const col = (p: string) => PARTY[p] || "#7a7368";
 const INK = "#14110E", SUB = "#6B655C", MUTE = "#8A8378", RULE = "#E6E0D6";
 const ago = (iso: string) => { const m = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 60000)); return m < 1 ? "just now" : m < 60 ? `${m}m ago` : `${Math.round(m / 60)}h ago`; };
 
-export default function ResultsBoard({ myState }: { myState?: string | null }) {
-  const [rows, setRows] = useState<Row[] | null>(null);
+export default function ResultsBoard({ myState, initial }: { myState?: string | null; initial?: Row[] }) {
+  const [rows, setRows] = useState<Row[] | null>(initial ?? null);
   const [filter, setFilter] = useState<"all" | "senate" | "governor">("all");
   useEffect(() => {
     let alive = true;
