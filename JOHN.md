@@ -43,7 +43,12 @@ platform's request limit). Send it as raw bytes (`Content-Type: image/png`),
 a multipart `file` field, or JSON `{"image_base64": "..."}`.
 
 Returns `{"url": "https://voteunbiased.org/ig/<id>.png", ...}`. Use that URL as
-the slide's `image_url`. The id is random and unguessable; slides are not listed,
+the slide's `image_url`.
+
+Video: the same endpoint also takes one H.264/AAC MP4 clip (raw bytes with
+`Content-Type: video/mp4`, or the multipart `file` field; the type is detected
+from the file). It returns `https://voteunbiased.org/ig/<id>.mp4`, served as
+`video/mp4`, public, no login. The 4.5 MB request limit applies to clips too. The id is random and unguessable; slides are not listed,
 not in the sitemap, and served with `noindex`. They are kept for 90 days.
 Errors: 401 bad key, 400 not a 1080×1350 PNG, 413 too large.
 
