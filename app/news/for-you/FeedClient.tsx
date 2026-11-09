@@ -254,7 +254,7 @@ function Stage({ c, active, sound, paused, onMuted }: { c: ViewCard; active: boo
         {src ? (
           <>
             <img src={src} alt="" aria-hidden referrerPolicy="no-referrer" style={{ position: "absolute", inset: -40, width: "calc(100% + 80px)", height: "calc(100% + 80px)", objectFit: "cover", filter: "blur(28px) brightness(.45)" }} />
-            <img src={src} alt="" referrerPolicy="no-referrer" onError={() => setPi(n => n + 1)} style={{ position: "absolute", left: 0, top: "6%", width: "100%", height: "auto", maxHeight: "50%", objectFit: "contain" }} />
+            <img src={src} alt="" referrerPolicy="no-referrer" onError={() => setPi(n => n + 1)} style={{ position: "absolute", left: 0, top: "9%", width: "100%", height: "auto", maxHeight: "48%", objectFit: "contain" }} />
           </>
         ) : <div style={{ position: "absolute", inset: 0, background: "linear-gradient(160deg,#2a2622,#0b0b0b)" }} />}
         {src && c.credit && pi === 0 && <span style={{ position: "absolute", right: 8, top: 8, zIndex: 3, fontSize: 10, color: "rgba(255,255,255,.75)", background: "rgba(0,0,0,.4)", padding: "2px 6px", borderRadius: 4 }}>Photo: {c.credit}</span>}
@@ -329,8 +329,7 @@ function Caption({ c }: { c: ViewCard }) {
     return (
       <>
         <div className="fy-k">Official data · {c.label}</div>
-        <div style={{ fontSize: 15, marginTop: 4 }}>{c.name}</div>
-        <div style={{ fontFamily: SERIF, fontSize: "clamp(48px,14vw,64px)", lineHeight: 1, fontWeight: 500, letterSpacing: "-.03em", margin: "4px 0" }}>{c.value}</div>
+        <div style={{ fontFamily: SERIF, fontSize: 24, lineHeight: 1.2, marginTop: 4 }}>{c.name}: {c.value}</div>
         {c.change && <div style={{ fontSize: 14, fontWeight: 700, color: up ? "#7FD6CF" : down ? "#F6A57E" : "#fff" }}>{up ? "▲ " : down ? "▼ " : ""}{c.change.replace(/^(up|down) /, "")}</div>}
         <div className="fy-k" style={{ marginTop: 6, fontSize: 11.5 }}>Source: {c.source}{c.nextRelease && Date.parse(c.nextRelease) > Date.now() ? ` · next release ${new Date(c.nextRelease).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "America/New_York" })}` : ""}</div>
       </>
