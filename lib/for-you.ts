@@ -19,7 +19,7 @@ import { getResults } from "./results";
 export type Why = string;
 interface Base { id: string; href: string; why: Why; at: string; topic: string }
 export interface StoryCard extends Base { kind: "story"; title: string; outlets: number; coverage: { left: number; center: number; right: number; unrated: number }; blindspot: string | null; sides: { lean: "left" | "center" | "right"; title: string; outlet: string }[]; photo: string | null; alts: { url: string; name: string }[]; credit: string | null; official: string | null }
-export interface ClaimCard extends Base { kind: "claim"; quote: string; speaker: string | null; event: string; rating: string; ratingLabel: string; hook: string; dataLine: string; source: string; video: string | null; image: string; watch: string }
+export interface ClaimCard extends Base { kind: "claim"; quote: string; speaker: string | null; event: string; rating: string; ratingLabel: string; hook: string; dataLine: string; source: string; video: string | null; image: string; portrait: string; watch: string; yt: { id: string; start: number; end: number } | null }
 export interface MetricCard extends Base { kind: "metric"; name: string; value: string; label: string; change: string | null; source: string; video: string | null; image: string; nextRelease: string | null; dash: string | null }
 export interface ResultCard extends Base { kind: "result"; title: string; state: string; st: string; pctCounted: number | null; cands: { name: string; p: string; votes: number; pct: number }[]; total: number; source: string; local: boolean; live: boolean; called: string | null }
 export type FyCard = StoryCard | ClaimCard | MetricCard | ResultCard;
@@ -37,6 +37,16 @@ async function recentViews(): Promise<Record<string, number>> {
   const out: Record<string, number> = {};
   for (const h of [a, b]) for (const [k, v] of Object.entries(h)) if (k.startsWith("p:")) out[k.slice(2)] = (out[k.slice(2)] || 0) + v;
   return out;
+}
+
+/** The broadcast moment: a few seconds before the claim to ~15s after. */
+function ytOf(watch: string): ClaimCard["yt"] {
+  try {
+    const u = new URL(watch); const id = u.searchParams.get("v"); const t = Number(u.searchParams.get("t"));
+    if (!id || !/^[\w-]{11}$/.test(id) || !Number.isFinite(t)) return null;
+    const start = Math.max(0, Math.floor(t) - 3);
+    return { id, start, end: start + 18 };
+  } catch { return null; }
 }
 
 type Scored<T> = T & { score: number };
@@ -75,7 +85,8 @@ const pool = unstable_cache(async () => {
     return {
       kind: "claim" as const, id: c.id, href, at: c.saidAt, topic: c.topic, quote: c.claimText, speaker: c.speaker, event: c.event,
       rating: c.rating, ratingLabel: c.ratingLabel, hook: c.hook, dataLine: c.dataLine, source: c.source,
-      video: c.video, image: c.image.replace(SITE, ""), watch: c.watch.replace(SITE, ""),
+      video: c.video, image: c.image.replace(SITE, ""), portrait: c.imagePortrait.replace(SITE, ""), watch: c.watch.replace(SITE, ""),
+      yt: ytOf(c.watch),
       why: p >= Math.log1p(25) ? "Popular on the site today" : ageH(c.saidAt) < 24 ? "Said in the last 24 hours" : "Recently checked",
       score: (1.5 + p + (c.video ? 0.5 : 0)) * fresh(c.saidAt, 36),
     };
@@ -96,7 +107,7 @@ const pool = unstable_cache(async () => {
   });
 
   return { stories, claims, metrics, at: kit.generatedAt };
-}, ["for-you-pool-v1"], { revalidate: 300 });
+}, ["for-you-pool-v2"], { revalidate: 300 });
 
 /** Results cards: official counts only, from the same store as /vote. */
 async function resultCards(myState: string | null): Promise<Scored<ResultCard>[]> {
