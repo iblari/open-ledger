@@ -81,7 +81,7 @@ function getSeries(id: string, countries: string[] = []): Promise<SeriesData | n
   if (!seriesCache.has(k)) seriesCache.set(k, fetch(`/api/series?id=${encodeURIComponent(id)}${countries.length ? `&c=${countries.join(",")}` : ""}`).then(r => r.ok ? r.json() : null).then(d => d && !d.error ? d as SeriesData : null).catch(() => null));
   return seriesCache.get(k)!;
 }
-function DataChart({ id, countries, said, saidLine, since, terms, date, compact, tone, fallback }: { id: string; countries?: string[]; said?: number | null; saidLine?: string | null; since?: string | null; terms?: boolean; date?: string; compact?: boolean; tone?: string; fallback: React.ReactNode }) {
+function DataChart({ id, countries, said, saidLine, since, terms, date, tone, fallback }: { id: string; countries?: string[]; said?: number | null; saidLine?: string | null; since?: string | null; terms?: boolean; date?: string; compact?: boolean; tone?: string; fallback: React.ReactNode }) {
   const [data, setData] = useState<SeriesData | null | undefined>(undefined);
   const ck = (countries || []).join(",");
   useEffect(() => { let on = true; getSeries(id, ck ? ck.split(",") : []).then(d => { if (on) setData(d); }); return () => { on = false; }; }, [id, ck]);
@@ -89,8 +89,8 @@ function DataChart({ id, countries, said, saidLine, since, terms, date, compact,
   return (
     <div className="fy-chart" onClick={e => e.stopPropagation()} onDoubleClick={e => e.stopPropagation()}>
       {data === undefined
-        ? <div style={{ height: compact ? 150 : 300, borderRadius: 10, background: "#F3EFE8" }} />
-        : <ProChart compact={compact} data={data} said={said ?? null} saidLine={saidLine ?? null} claimDate={date || new Date().toISOString()} since={since ?? null} terms={!!terms} tone={tone || "#0E7477"} noClaim={said == null && !date} />}
+        ? <div style={{ height: 190, borderRadius: 10, background: "#F3EFE8" }} />
+        : <ProChart compact controls data={data} said={said ?? null} saidLine={saidLine ?? null} claimDate={date || new Date().toISOString()} since={since ?? null} terms={!!terms} tone={tone || "#0E7477"} noClaim={said == null && !date} />}
       <div className="fy-hint">Drag across the chart to read any date</div>
     </div>
   );

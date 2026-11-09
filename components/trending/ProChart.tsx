@@ -62,6 +62,7 @@ export interface ProChartProps {
   watchHref?: string;            // the moment it was said
   fullRange?: boolean;           // start on "Max" (short series from cited sources)
   compact?: boolean;             // phone list view: reading + chart only
+  controls?: boolean;            // keep the view/range toggles in compact mode (For You cards)
   noClaim?: boolean;             // a plain series page: no claim marker, "Latest" reading
 }
 
@@ -331,7 +332,7 @@ export default function ProChart(props: ProChartProps) {
             </div>
           )}
         </div>
-        {!compact && <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        {(!compact || props.controls) && <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: compact ? 6 : 0 }}>
         {canYoy && (
           <div role="tablist" aria-label="View" style={{ display: "flex", background: "#F1ECE4", borderRadius: 99, padding: 2 }}>
             {([["level", "Level"], ["yoy", "Yearly change"]] as const).map(([k, l]) => (
