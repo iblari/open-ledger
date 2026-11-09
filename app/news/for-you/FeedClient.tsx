@@ -44,7 +44,7 @@ function Moment({ yt, active, sound, paused, quote, onMuted }: { yt: { id: strin
       const el = document.createElement("div"); host.current.appendChild(el);
       p.current = new YT.Player(el, {
         host: "https://www.youtube-nocookie.com", videoId: yt.id, width: "100%", height: "100%",
-        playerVars: { start: yt.start, end: yt.end, autoplay: 1, mute: 1, controls: 0, playsinline: 1, rel: 0, modestbranding: 1, iv_load_policy: 3, disablekb: 1, fs: 0 },
+        playerVars: { start: yt.start, end: yt.end, autoplay: 1, mute: 1, controls: 0, playsinline: 1, rel: 0, modestbranding: 1, iv_load_policy: 3, disablekb: 1, fs: 0, cc_load_policy: 0 },
         events: {
           onReady: (e: { target: YTPlayer }) => { e.target.mute(); e.target.playVideo(); },
           onStateChange: (e: { data: number; target: YTPlayer }) => {
@@ -251,11 +251,14 @@ function Stage({ c, active, sound, paused, onMuted }: { c: ViewCard; active: boo
     const src = list[pi];
     return (
       <>
-        {src
-          ? <img src={src} alt="" referrerPolicy="no-referrer" onError={() => setPi(n => n + 1)} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
-          : <div style={{ position: "absolute", inset: 0, background: "linear-gradient(160deg,#2a2622,#0b0b0b)" }} />}
+        {src ? (
+          <>
+            <img src={src} alt="" aria-hidden referrerPolicy="no-referrer" style={{ position: "absolute", inset: -40, width: "calc(100% + 80px)", height: "calc(100% + 80px)", objectFit: "cover", filter: "blur(28px) brightness(.45)" }} />
+            <img src={src} alt="" referrerPolicy="no-referrer" onError={() => setPi(n => n + 1)} style={{ position: "absolute", left: 0, top: "6%", width: "100%", height: "auto", maxHeight: "50%", objectFit: "contain" }} />
+          </>
+        ) : <div style={{ position: "absolute", inset: 0, background: "linear-gradient(160deg,#2a2622,#0b0b0b)" }} />}
         {src && c.credit && pi === 0 && <span style={{ position: "absolute", right: 8, top: 8, zIndex: 3, fontSize: 10, color: "rgba(255,255,255,.75)", background: "rgba(0,0,0,.4)", padding: "2px 6px", borderRadius: 4 }}>Photo: {c.credit}</span>}
-        <div className="fy-grad" style={{ height: "72%" }} />
+        <div className="fy-grad" style={{ height: "58%" }} />
       </>
     );
   }
