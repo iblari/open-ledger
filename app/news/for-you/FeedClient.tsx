@@ -255,10 +255,10 @@ export default function FeedClient({ cards }: { cards: ViewCard[] }) {
                 {c.kind === "metric" && <MetricBody c={c} active={i === active} />}
                 {c.kind === "result" && <ResultBody c={c} />}
               </div>
-              {i === 0 && !moved && (
-                <button onClick={() => go(1)} style={{ position: "absolute", left: "50%", bottom: 104, translate: "-50% 0", padding: "4px 10px", borderRadius: 999, background: "rgba(255,255,255,.92)", border: `1px solid ${RULE}`, color: SUB, fontSize: 12, cursor: "pointer", animation: "fy-bob 1.6s ease-in-out infinite", fontFamily: "inherit" }}>↑ Swipe up for more</button>
-              )}
-              <div className="fy-why"><span aria-hidden style={{ color: RED, marginRight: 6 }}>{ICON[c.kind]}</span>{c.why}</div>
+              <div className="fy-why" style={{ display: "flex", gap: 8 }}>
+                <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}><span aria-hidden style={{ color: RED, marginRight: 6 }}>{ICON[c.kind]}</span>{c.why}</span>
+                {i === 0 && !moved && <button onClick={() => go(1)} style={{ background: "none", border: 0, padding: 0, color: INK, fontWeight: 600, fontSize: 12, cursor: "pointer", fontFamily: "inherit", animation: "fy-bob 1.6s ease-in-out infinite" }}>↑ Swipe up</button>}
+              </div>
               <div className="fy-foot">
                 <button className="fy-btn" onClick={() => share(c)} aria-label="Share">Share</button>
                 <Link href={c.href} className="fy-btn dark" onClick={() => beacon({ open: c.id })}>{OPEN[c.kind]} →</Link>
