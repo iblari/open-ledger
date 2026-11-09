@@ -88,7 +88,7 @@ export default async function StateBallot({ params }: { params: Promise<{ st: st
       <div style={{ maxWidth: 1240, margin: "0 auto", padding: "18px 20px 70px" }}>
         <div style={{ fontSize: 13, color: C.sub }}><Link href="/vote" style={{ color: C.sub }}>Vote</Link> › {s.name}</div>
         <h1 style={{ fontFamily: SERIF, fontWeight: 500, letterSpacing: "-0.015em", fontSize: "clamp(30px, 4.4vw, 46px)", lineHeight: 1.08, margin: "8px 0 0" }}>{s.name} election results 2026</h1>
-        <div className="vs-tabs" style={{ display: "flex", gap: 18, alignItems: "center", borderBottom: `1px solid ${C.rule}`, marginTop: 16 }}>
+        <div className="vs-tabs" style={{ display: "flex", gap: 18, alignItems: "center", borderBottom: `1px solid ${C.rule}`, marginTop: 16, overflowX: "auto", whiteSpace: "nowrap", scrollbarWidth: "none" }}>
           {s.races.map(r => <a key={r.id} href={`#${r.id}`} style={{ padding: "9px 0", color: C.ink, textDecoration: "none", fontSize: 14, fontWeight: 700, borderBottom: "2px solid transparent" }}>{raceTitle(r)} ↓</a>)}
           <a href="#before" style={{ padding: "9px 0", color: C.sub, textDecoration: "none", fontSize: 14, fontWeight: 600 }}>The candidates ↓</a>
           <a href={`https://x.com/intent/post?text=${encodeURIComponent(`${s.name} 2026 election results, with sources. Facts only.`)}&url=${encodeURIComponent(url)}`} style={{ marginLeft: "auto", fontSize: 13, color: C.sub, textDecoration: "none", whiteSpace: "nowrap" }}>Share ↗</a>
