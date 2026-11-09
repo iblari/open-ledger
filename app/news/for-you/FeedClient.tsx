@@ -4,9 +4,11 @@ import Link from "next/link";
 import type { FyCard } from "@/lib/for-you";
 
 export type ViewCard = FyCard & { ago: string; color: string | null };
+type Comment = { id: string; card: string; by: string; text: string; at: string; mine?: boolean };
 
+const INK = "#1a1a1a", SUB = "#5c5856", MUTE = "#9a9490", RULE = "#e2ded6", BG = "#f8f5f0", RED = "#b8372d";
 const SERIF = "'Source Serif 4', Georgia, serif";
-const LEAN = { left: "#5B7BD0", center: "#D9D5CE", right: "#D2493D" } as const;
+const LEAN = { left: "#4361a6", center: "#CFC9BF", right: "#b8372d" } as const;
 const SITE = "https://voteunbiased.org";
 
 function beacon(body: object) {
@@ -14,10 +16,20 @@ function beacon(body: object) {
   try { if (navigator.sendBeacon?.("/api/for-you", new Blob([s], { type: "application/json" }))) return; } catch {}
   fetch("/api/for-you", { method: "POST", body: s, headers: { "Content-Type": "application/json" }, keepalive: true }).catch(() => {});
 }
+function anonId(): string {
+  try {
+    let a = localStorage.getItem("vu-anon");
+    if (!a || !/^[a-f0-9]{32}$/.test(a)) { a = [...crypto.getRandomValues(new Uint8Array(16))].map(b => b.toString(16).padStart(2, "0")).join(""); localStorage.setItem("vu-anon", a); }
+    return a;
+  } catch { return "0".repeat(32); }
+}
+const social = (body: object) => fetch("/api/for-you/social", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+const since = (iso: string) => { const m = Math.max(1, Math.round((Date.now() - Date.parse(iso)) / 60000)); return m < 60 ? `${m}m` : m < 1440 ? `${Math.round(m / 60)}h` : `${Math.round(m / 1440)}d`; };
+const short = (n: number) => n >= 1e4 ? `${Math.round(n / 1e3)}K` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}K` : String(n);
 
 /* ── YouTube: the moment the claim was said ───────────────────── */
 
-type YTPlayer = { playVideo(): void; pauseVideo(): void; seekTo(s: number, a: boolean): void; mute(): void; unMute(): void; isMuted(): boolean; setVolume(v: number): void; destroy(): void; getPlayerState(): number };
+type YTPlayer = { playVideo(): void; pauseVideo(): void; seekTo(s: number, a: boolean): void; mute(): void; unMute(): void; isMuted(): boolean; setVolume(v: number): void; destroy(): void };
 type W = { YT?: { Player: new (el: HTMLElement, o: object) => unknown }; onYouTubeIframeAPIReady?: () => void };
 const win = () => window as unknown as W;
 let apiReady: Promise<void> | null = null;
@@ -31,7 +43,7 @@ function loadApi(): Promise<void> {
   return apiReady;
 }
 
-function Moment({ yt, active, sound, paused, quote, onMuted }: { yt: { id: string; start: number; end: number }; active: boolean; sound: boolean; paused: boolean; quote: string; onMuted: (m: boolean) => void }) {
+function Moment({ yt, active, sound, paused, quote, onSound }: { yt: { id: string; start: number; end: number }; active: boolean; sound: boolean; paused: boolean; quote: string; onSound: () => void }) {
   const host = useRef<HTMLDivElement>(null);
   const p = useRef<YTPlayer | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -57,71 +69,137 @@ function Moment({ yt, active, sound, paused, quote, onMuted }: { yt: { id: strin
     const h = host.current;
     return () => { dead = true; setPlaying(false); try { p.current?.destroy(); } catch {} p.current = null; if (h) h.innerHTML = ""; };
   }, [active, yt.id, yt.start, yt.end]);
-  useEffect(() => {
-    const x = p.current; if (!x || !playing) return;
-    try {
-      if (sound) { x.unMute(); x.setVolume(100); setTimeout(() => { try { onMuted(x.isMuted()); } catch {} }, 500); } else x.mute();
-    } catch {}
-  }, [sound, playing, onMuted]);
+  useEffect(() => { const x = p.current; if (!x || !playing) return; try { if (sound) { x.unMute(); x.setVolume(100); } else x.mute(); } catch {} }, [sound, playing]);
   useEffect(() => { const x = p.current; if (!x || !playing) return; try { if (paused) x.pauseVideo(); else x.playVideo(); } catch {} }, [paused, playing]);
   return (
     <div className="fy-panel">
       <img src={`https://i.ytimg.com/vi/${yt.id}/hqdefault.jpg`} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: playing ? 0 : 1, transition: "opacity .3s" }} />
       <div ref={host} className="fy-yt" />
       <div className="fy-sub"><span>“{quote}”</span></div>
+      <button className="fy-mute" onClick={e => { e.stopPropagation(); onSound(); }} aria-label={sound ? "Mute" : "Turn sound on"}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M11 5 6 9H2v6h4l5 4V5z" />{sound ? <path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14" /> : <path d="M23 9l-6 6M17 9l6 6" />}</svg>
+        {sound ? "" : "Sound"}
+      </button>
     </div>
   );
 }
 
-function Clip({ src, poster, active, paused, fit = "cover" }: { src: string | null; poster: string; active: boolean; paused: boolean; fit?: "cover" | "contain" }) {
+function Clip({ src, poster, active, paused }: { src: string | null; poster: string; active: boolean; paused: boolean }) {
   const ref = useRef<HTMLVideoElement>(null);
   useEffect(() => { const v = ref.current; if (!v) return; if (active && !paused) { v.preload = "auto"; v.play().catch(() => {}); } else v.pause(); }, [active, paused]);
-  const st: React.CSSProperties = { position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: fit };
+  const st: React.CSSProperties = { position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" };
   return src ? <video ref={ref} src={src} poster={poster} muted loop playsInline preload="none" style={st} /> : <img src={poster} alt="" loading="lazy" style={st} />;
 }
 
 /* ── Icons ─────────────────────────────────────────────────────── */
 const I = {
+  heart: <path d="M12 21s-7.5-4.6-9.6-9.3C.9 8.2 3 4.5 6.6 4.5c2.1 0 3.6 1.2 4.4 2.6.8-1.4 2.3-2.6 4.4-2.6 3.6 0 5.7 3.7 4.2 7.2C19.5 16.4 12 21 12 21z" />,
+  chat: <path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.6A8 8 0 1 1 21 12z" />,
   share: <path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M16 6l-4-4-4 4M12 2v13" />,
-  on: <><path d="M11 5 6 9H2v6h4l5 4V5z" /><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14" /></>,
-  off: <><path d="M11 5 6 9H2v6h4l5 4V5z" /><path d="M23 9l-6 6M17 9l6 6" /></>,
   chart: <path d="M3 3v18h18M7 15l4-4 3 3 6-7" />,
   story: <><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M7 8h10M7 12h10M7 16h6" /></>,
   bars: <path d="M6 20V10M12 20V4M18 20v-7" />,
 };
-const Svg = ({ d }: { d: React.ReactNode }) => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>{d}</svg>;
+const Svg = ({ d, fill }: { d: React.ReactNode; fill?: string }) => <svg width="23" height="23" viewBox="0 0 24 24" fill={fill || "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>{d}</svg>;
+const OPEN: Record<ViewCard["kind"], [string, React.ReactNode]> = { story: ["Story", I.story], claim: ["Chart", I.chart], metric: ["Data", I.chart], result: ["Results", I.bars] };
 
-/* ── Overlays per kind ─────────────────────────────────────────── */
+/* ── Comments sheet ───────────────────────────────────────────── */
 
-function Coverage({ c }: { c: { left: number; center: number; right: number } }) {
-  const t = c.left + c.center + c.right || 1;
+function Sheet({ card, anon, onClose, onCount }: { card: ViewCard; anon: string; onClose: () => void; onCount: (n: number) => void }) {
+  const [list, setList] = useState<Comment[] | null>(null);
+  const [text, setText] = useState("");
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [menu, setMenu] = useState<string | null>(null);
+  const handle = useRef<string>("");
+  useEffect(() => {
+    let dead = false;
+    fetch(`/api/for-you/social?card=${encodeURIComponent(card.id)}&anon=${anon}`).then(r => r.json()).then(j => { if (!dead) setList(j.comments || []); }).catch(() => !dead && setList([]));
+    return () => { dead = true; };
+  }, [card.id, anon]);
+  const send = async () => {
+    if (busy) return;
+    if (text.trim().length < 2) { setErr("Write a comment first."); return; }
+    setBusy(true); setErr(null);
+    const r = await social({ action: "comment", card: card.id, anon, text }).catch(() => null);
+    const j = await r?.json().catch(() => null);
+    setBusy(false);
+    if (!r?.ok || !j?.ok) { setErr(j?.error || "Couldn't post right now. Try again in a minute."); return; }
+    handle.current = j.comment.by;
+    setList(l => { const n = [j.comment, ...(l || [])]; onCount(n.length); return n; });
+    setText("");
+  };
+  const act = async (c: Comment, action: "report" | "delete") => {
+    setMenu(null);
+    await social({ action, card: card.id, id: c.id, anon }).catch(() => null);
+    if (action === "delete") setList(l => { const n = (l || []).filter(x => x.id !== c.id); onCount(n.length); return n; });
+    else setList(l => (l || []).filter(x => x.id !== c.id));
+  };
   return (
-    <div style={{ marginTop: 8 }}>
-      <div style={{ display: "flex", height: 6, borderRadius: 3, overflow: "hidden", gap: 2 }}>
-        {(["left", "center", "right"] as const).filter(k => c[k] > 0).map(k => <span key={k} style={{ flex: c[k], background: LEAN[k] }} />)}
+    <div className="fy-sheet" role="dialog" aria-label="Comments" onClick={e => e.stopPropagation()}>
+      <div style={{ display: "flex", alignItems: "center", padding: "12px 14px 8px", borderBottom: `1px solid ${RULE}` }}>
+        <b style={{ flex: 1, fontSize: 14 }}>{list ? `${list.length} comment${list.length === 1 ? "" : "s"}` : "Comments"}</b>
+        <button onClick={onClose} aria-label="Close comments" style={{ background: "none", border: 0, fontSize: 22, lineHeight: 1, cursor: "pointer", color: SUB }}>×</button>
       </div>
-      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, marginTop: 4, color: "rgba(255,255,255,.8)" }}>
-        <span>{Math.round(c.left / t * 100)}% left ({c.left})</span><span>{Math.round(c.center / t * 100)}% center ({c.center})</span><span>{Math.round(c.right / t * 100)}% right ({c.right})</span>
+      <div className="fy-sheet-list">
+        {list === null && <p style={{ color: MUTE, fontSize: 13, padding: "18px 14px" }}>Loading…</p>}
+        {list?.length === 0 && <p style={{ color: SUB, fontSize: 13.5, padding: "22px 14px", textAlign: "center" }}>No comments yet. Start the conversation.</p>}
+        {list?.map(c => (
+          <div key={c.id} style={{ padding: "10px 14px", borderBottom: `1px solid #efebe4`, position: "relative" }}>
+            <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
+              <span style={{ fontSize: 12.5, fontWeight: 700, color: c.mine ? RED : INK }}>{c.by}{c.mine ? " (you)" : ""}</span>
+              <span style={{ fontSize: 11.5, color: MUTE, flex: 1 }}>{since(c.at)}</span>
+              <button onClick={() => setMenu(m => m === c.id ? null : c.id)} aria-label="Comment options" style={{ background: "none", border: 0, color: MUTE, cursor: "pointer", fontSize: 16, lineHeight: 1, padding: "0 2px" }}>⋯</button>
+            </div>
+            <div style={{ fontSize: 14, lineHeight: 1.45, color: INK, marginTop: 2, overflowWrap: "anywhere" }}>{c.text}</div>
+            {menu === c.id && (
+              <div style={{ position: "absolute", right: 14, top: 30, background: "#fff", border: `1px solid ${RULE}`, borderRadius: 8, boxShadow: "0 8px 20px -10px rgba(0,0,0,.3)", zIndex: 2, overflow: "hidden" }}>
+                {c.mine
+                  ? <button className="fy-menu" onClick={() => act(c, "delete")}>Delete</button>
+                  : <button className="fy-menu" onClick={() => act(c, "report")}>Report</button>}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+      <div style={{ borderTop: `1px solid ${RULE}`, padding: "8px 10px 10px", background: "#fff" }}>
+        <div style={{ display: "flex", gap: 8 }}>
+          <input value={text} maxLength={280} onChange={e => { setText(e.target.value); setErr(null); }} onKeyDown={e => { if (e.key === "Enter") send(); }}
+            placeholder="Add a comment" aria-label="Add a comment"
+            style={{ flex: 1, minWidth: 0, height: 40, borderRadius: 999, border: `1px solid ${RULE}`, padding: "0 14px", fontSize: 16, fontFamily: "inherit", background: BG, color: INK }} />
+          <button onClick={send} disabled={busy} style={{ height: 40, padding: "0 16px", borderRadius: 999, border: 0, background: INK, color: "#fff", fontWeight: 700, fontSize: 13.5, cursor: "pointer", fontFamily: "inherit", opacity: busy ? .6 : 1 }}>{busy ? "Checking…" : "Post"}</button>
+        </div>
+        {err ? <div role="alert" style={{ fontSize: 12.5, color: RED, marginTop: 6, lineHeight: 1.4 }}>{err}</div>
+          : <div style={{ fontSize: 11.5, color: MUTE, marginTop: 6 }}>Anonymous{handle.current ? ` as ${handle.current}` : ""}. Disagree freely; no attacks, links or personal details.</div>}
       </div>
     </div>
   );
 }
 
-const OPEN: Record<ViewCard["kind"], [string, React.ReactNode]> = { story: ["Story", I.story], claim: ["Chart", I.chart], metric: ["Data", I.chart], result: ["Results", I.bars] };
+/* ── Feed ─────────────────────────────────────────────────────── */
 
 export default function FeedClient({ cards }: { cards: ViewCard[] }) {
   const box = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(0);
   const [moved, setMoved] = useState(false);
   const [sound, setSound] = useState(false);
-  const [blocked, setBlocked] = useState(false);
   const [paused, setPaused] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [anon, setAnon] = useState("");
+  const [liked, setLiked] = useState<Set<string>>(new Set());
+  const [cnt, setCnt] = useState<Record<string, { likes: number; comments: number }>>({});
+  const [sheet, setSheet] = useState<string | null>(null);
+  const [burst, setBurst] = useState<{ id: string; k: number } | null>(null);
   const seen = useRef(new Set<string>());
   const pending = useRef<string[]>([]);
   const maxIdx = useRef(0);
-  const onMuted = useCallback((m: boolean) => setBlocked(m), []);
+  const tapT = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  useEffect(() => {
+    setAnon(anonId());
+    try { setLiked(new Set(JSON.parse(localStorage.getItem("vu-liked") || "[]"))); } catch {}
+    fetch(`/api/for-you/social?ids=${cards.map(c => encodeURIComponent(c.id)).join(",")}`).then(r => r.json()).then(j => setCnt(j.counts || {})).catch(() => {});
+  }, [cards]);
   useEffect(() => {
     beacon({ session: true });
     const flush = () => { if (pending.current.length) beacon({ views: pending.current.splice(0) }); };
@@ -131,7 +209,7 @@ export default function FeedClient({ cards }: { cards: ViewCard[] }) {
     return () => { clearInterval(t); document.removeEventListener("visibilitychange", vis); flush(); };
   }, []);
   useEffect(() => {
-    setPaused(false);
+    setPaused(false); setSheet(null);
     const id = cards[active]?.id; if (!id) return;
     const t = setTimeout(() => { if (!seen.current.has(id)) { seen.current.add(id); pending.current.push(id); maxIdx.current = Math.max(maxIdx.current, active); } }, 1000);
     return () => clearTimeout(t);
@@ -149,16 +227,32 @@ export default function FeedClient({ cards }: { cards: ViewCard[] }) {
   }, [active, cards.length]);
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement)?.closest("input,textarea,select")) return;
+      if ((e.target as HTMLElement)?.closest("input,textarea,select,[role=dialog]")) return;
       if (["ArrowDown", "j", "PageDown"].includes(e.key)) { e.preventDefault(); go(1); }
       if (["ArrowUp", "k", "PageUp"].includes(e.key)) { e.preventDefault(); go(-1); }
       if (e.key === " ") { e.preventDefault(); setPaused(p => !p); }
       if (e.key === "m") setSound(s => !s);
+      if (e.key === "Escape") setSheet(null);
     };
     window.addEventListener("keydown", k);
     return () => window.removeEventListener("keydown", k);
   }, [go]);
 
+  const toggleLike = (c: ViewCard, force?: boolean) => {
+    if (!anon) return;
+    const on = force ?? !liked.has(c.id);
+    if (on === liked.has(c.id)) return;
+    const next = new Set(liked); if (on) next.add(c.id); else next.delete(c.id);
+    setLiked(next);
+    try { localStorage.setItem("vu-liked", JSON.stringify([...next].slice(-500))); } catch {}
+    setCnt(m => ({ ...m, [c.id]: { likes: Math.max(0, (m[c.id]?.likes || 0) + (on ? 1 : -1)), comments: m[c.id]?.comments || 0 } }));
+    social({ action: "like", card: c.id, anon, on }).then(r => r.json()).then(j => { if (typeof j.likes === "number") setCnt(m => ({ ...m, [c.id]: { likes: j.likes, comments: m[c.id]?.comments || 0 } })); }).catch(() => {});
+  };
+  // One tap pauses; a quick second tap likes (and doesn't pause).
+  const tap = (c: ViewCard) => {
+    if (tapT.current) { clearTimeout(tapT.current); tapT.current = null; toggleLike(c, true); setBurst({ id: c.id, k: Date.now() }); return; }
+    tapT.current = setTimeout(() => { tapT.current = null; setPaused(p => !p); }, 260);
+  };
   const share = async (c: ViewCard) => {
     const url = `${SITE}${c.href}${c.href.includes("?") ? "&" : "?"}utm_source=foryou&utm_medium=share&utm_content=${encodeURIComponent(c.id)}`;
     const title = c.kind === "story" ? c.title : c.kind === "claim" ? `“${c.quote}”: ${c.ratingLabel}` : c.kind === "metric" ? `${c.name}: ${c.value}` : `${c.title}: vote count`;
@@ -168,66 +262,82 @@ export default function FeedClient({ cards }: { cards: ViewCard[] }) {
     } catch { /* dismissed */ }
   };
 
-  if (!cards.length) return <p style={{ padding: 40, textAlign: "center" }}>Nothing in the feed right now. Check back in a few minutes.</p>;
+  if (!cards.length) return <p style={{ padding: 40, textAlign: "center", color: SUB }}>Nothing in the feed right now. Check back in a few minutes.</p>;
 
   return (
-    <div style={{ position: "relative", background: "#000" }}>
+    <div style={{ position: "relative", background: BG }}>
       <style>{`
-        .fy-box{height:calc(100dvh - var(--vu-chrome-h) - 42px);overflow-y:auto;scroll-snap-type:y mandatory;overscroll-behavior-y:contain;scrollbar-width:none;background:#000}
+        .fy-box{height:calc(100dvh - var(--vu-chrome-h) - 42px);overflow-y:auto;scroll-snap-type:y mandatory;overscroll-behavior-y:contain;scrollbar-width:none;background:${BG}}
         .fy-box::-webkit-scrollbar{display:none}
-        .fy-slot{height:100%;scroll-snap-align:start;scroll-snap-stop:always;position:relative;overflow:hidden;display:flex;justify-content:center}
-        .fy-stage{position:relative;height:100%;aspect-ratio:9/16;max-width:100%;overflow:hidden;background:#0b0b0b;color:#fff}
-        .fy-bg{position:absolute;inset:-40px;background-size:cover;background-position:center;filter:blur(28px) brightness(.45);transform:scale(1.1)}
-        .fy-tap{position:absolute;inset:0;z-index:2}
-        .fy-panel{position:relative;width:100%;aspect-ratio:16/9;background:#000;overflow:hidden}
+        .fy-slot{height:100%;scroll-snap-align:start;scroll-snap-stop:always;position:relative;display:flex;justify-content:center}
+        .fy-stage{position:relative;height:100%;aspect-ratio:9/16;max-width:100%;overflow:hidden;display:grid;grid-template-columns:minmax(0,1fr) 52px;gap:8px;padding:12px 10px 12px 12px;box-sizing:border-box;color:${INK}}
+        .fy-main{display:flex;flex-direction:column;min-height:0;min-width:0;position:relative}
+        .fy-media{display:flex;flex-direction:column;gap:6px;min-height:0;cursor:pointer;position:relative}
+        .fy-panel{position:relative;width:100%;aspect-ratio:16/9;background:#14110e;border-radius:14px;overflow:hidden;flex-shrink:0}
         .fy-yt{position:absolute;inset:0}.fy-yt iframe{position:absolute;inset:0;width:100%;height:100%;border:0;pointer-events:none}
-        .fy-sub{position:absolute;left:8px;right:8px;bottom:8px;text-align:center;pointer-events:none}
-        .fy-sub span{background:rgba(0,0,0,.72);font-size:13px;line-height:1.45;padding:3px 7px;border-radius:4px;box-decoration-break:clone;-webkit-box-decoration-break:clone;display:-webkit-inline-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
-        .fy-lbl{font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.65);padding:10px 12px 6px}
-        .fy-grad{position:absolute;left:0;right:0;bottom:0;height:62%;background:linear-gradient(180deg,transparent,rgba(0,0,0,.55) 35%,rgba(0,0,0,.92));z-index:3;pointer-events:none}
-        .fy-cap{position:absolute;left:14px;right:68px;bottom:14px;z-index:4;text-shadow:0 1px 2px rgba(0,0,0,.4)}
-        .fy-k{font-size:12px;color:rgba(255,255,255,.75)}
-        .fy-h{font-family:${SERIF};font-weight:500;font-size:clamp(20px,5.4vw,24px);line-height:1.18;letter-spacing:-.01em;margin:6px 0 4px;color:#fff;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
-        .fy-why{font-size:12px;color:rgba(255,255,255,.8);margin-top:8px;display:flex;gap:10px;align-items:center}
+        .fy-sub{position:absolute;left:8px;right:8px;bottom:8px;text-align:center;pointer-events:none;color:#fff}
+        .fy-sub span{background:rgba(0,0,0,.72);font-size:12.5px;line-height:1.45;padding:2px 6px;border-radius:4px;-webkit-box-decoration-break:clone;box-decoration-break:clone;display:-webkit-inline-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+        .fy-mute{position:absolute;top:8px;right:8px;display:inline-flex;align-items:center;gap:5px;height:30px;padding:0 10px;border-radius:999px;border:0;background:rgba(0,0,0,.6);color:#fff;font:700 12px 'DM Sans',sans-serif;cursor:pointer;z-index:2}
+        .fy-lbl{font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:${MUTE}}
+        .fy-cap{margin-top:auto;padding-top:10px}
+        .fy-grow{flex:1;justify-content:center}
+        .fy-grow>.fy-photo{flex:1;aspect-ratio:auto!important;min-height:140px;max-height:62vh}
+        .fy-k{font-size:12px;color:${SUB}}
+        .fy-h{font-family:${SERIF};font-weight:500;font-size:clamp(20px,5.4vw,24px);line-height:1.17;letter-spacing:-.01em;margin:5px 0 4px;color:${INK};display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+        .fy-why{font-size:12px;color:${SUB};margin-top:8px;display:flex;gap:10px;align-items:center}
         .fy-1{display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
         .fy-2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
         .fy-3{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
-        .fy-rail{position:absolute;right:8px;bottom:96px;z-index:5;display:flex;flex-direction:column;gap:16px;align-items:center}
-        .fy-rb{display:flex;flex-direction:column;align-items:center;gap:3px;color:#fff;background:none;border:0;cursor:pointer;font:600 11px/1 'DM Sans',sans-serif;text-decoration:none;padding:0}
-        .fy-rb span{width:46px;height:46px;border-radius:50%;background:rgba(255,255,255,.14);display:grid;place-items:center;backdrop-filter:blur(6px)}
+        .fy-rail{display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:14px;padding-bottom:4px}
+        .fy-rb{display:flex;flex-direction:column;align-items:center;gap:4px;color:${INK};background:none;border:0;cursor:pointer;font:700 11.5px/1 'DM Sans',sans-serif;text-decoration:none;padding:0}
+        .fy-rb>span{width:46px;height:46px;border-radius:50%;background:#fff;border:1px solid ${RULE};display:grid;place-items:center;transition:transform .12s}
+        .fy-rb:active>span{transform:scale(.9)}
+        .fy-rb.on{color:${RED}}
         .fy-tag{font-size:11.5px;font-weight:700;padding:3px 8px;border-radius:4px;display:inline-block}
+        .fy-sheet{position:absolute;left:0;right:0;bottom:0;height:72%;background:#fff;border-radius:18px 18px 0 0;box-shadow:0 -12px 30px -12px rgba(20,17,14,.35);z-index:20;display:flex;flex-direction:column;animation:fy-up .2s ease-out}
+        .fy-sheet-list{flex:1;overflow-y:auto;overscroll-behavior:contain}
+        .fy-menu{display:block;width:100%;padding:8px 16px;background:none;border:0;text-align:left;font:600 13px 'DM Sans',sans-serif;color:${INK};cursor:pointer}
+        .fy-menu:hover{background:${BG}}
         .fy-nav{position:absolute;right:24px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:10px;z-index:6}
-        .fy-nav button{width:44px;height:44px;border-radius:50%;border:0;background:rgba(255,255,255,.14);color:#fff;font-size:18px;cursor:pointer}
-        .fy-nav button:disabled{opacity:.3;cursor:default}
+        .fy-nav button{width:44px;height:44px;border-radius:50%;border:1px solid ${RULE};background:#fff;color:${INK};font-size:18px;cursor:pointer}
+        .fy-nav button:disabled{opacity:.35;cursor:default}
+        @media (min-width:761px){.fy-stage{background:#fff;border-left:1px solid ${RULE};border-right:1px solid ${RULE}}}
         @media (max-width:760px){.fy-nav{display:none}.fy-stage{aspect-ratio:auto;width:100%}}
-        @media (max-height:700px){.fy-hide-short{display:none}}
+        @media (max-height:700px){.fy-hide-short{display:none!important}}
         @keyframes fy-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
-        @keyframes fy-pop{from{opacity:0;transform:scale(.8)}to{opacity:1;transform:scale(1)}}
+        @keyframes fy-up{from{transform:translateY(100%)}to{transform:none}}
+        @keyframes fy-heart{0%{opacity:0;transform:translate(-50%,-50%) scale(.4)}25%{opacity:1;transform:translate(-50%,-50%) scale(1.15)}70%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-80%) scale(1)}}
       `}</style>
       <div ref={box} className="fy-box" aria-label="For you feed">
         {cards.map((c, i) => {
           const on = i === active;
           const near = Math.abs(i - active) <= 2;
+          const n = cnt[c.id] || { likes: 0, comments: 0 };
+          const isLiked = liked.has(c.id);
           return (
             <section key={c.id} data-i={i} className="fy-slot" aria-label={`${i + 1} of ${cards.length}`}>
               <div className="fy-stage">
-                {near && <Stage c={c} active={on} sound={sound} paused={on && paused} onMuted={onMuted} />}
-                <div className="fy-tap" onClick={() => on && setPaused(p => !p)} />
-                {on && paused && <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", zIndex: 4, pointerEvents: "none" }}><span style={{ width: 70, height: 70, borderRadius: "50%", background: "rgba(0,0,0,.45)", display: "grid", placeItems: "center", animation: "fy-pop .15s" }}><svg width="30" height="30" viewBox="0 0 24 24" fill="#fff" aria-hidden><path d="M8 5v14l11-7z" /></svg></span></div>}
-                <div className="fy-rail">
-                  {c.kind === "claim" && c.yt && (
-                    <button className="fy-rb" onClick={() => { setSound(s => !s); setBlocked(false); }} aria-label={sound ? "Mute" : "Sound on"}><span><Svg d={sound && !blocked ? I.on : I.off} /></span>{sound && !blocked ? "Sound" : "Muted"}</button>
-                  )}
-                  <Link href={c.href} className="fy-rb" onClick={() => beacon({ open: c.id })}><span><Svg d={OPEN[c.kind][1]} /></span>{OPEN[c.kind][0]}</Link>
-                  <button className="fy-rb" onClick={() => share(c)} aria-label="Share"><span><Svg d={I.share} /></span>Share</button>
-                </div>
-                <div className="fy-cap">
-                  <Caption c={c} />
-                  <div className="fy-why">
-                    <span className="fy-1" style={{ flex: 1 }}>{c.why}</span>
-                    {i === 0 && !moved && <button onClick={() => go(1)} style={{ background: "none", border: 0, color: "#fff", fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "inherit", animation: "fy-bob 1.6s ease-in-out infinite", padding: 0 }}>↑ Swipe up</button>}
+                <div className="fy-main">
+                  <div className={`fy-media${c.kind === "story" || c.kind === "metric" ? " fy-grow" : ""}`} onClick={() => on && tap(c)}>
+                    {near && <Media c={c} active={on} sound={sound} paused={on && paused} onSound={() => setSound(s => !s)} />}
+                    {on && paused && <div style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%,-50%)", width: 64, height: 64, borderRadius: "50%", background: "rgba(0,0,0,.45)", display: "grid", placeItems: "center", pointerEvents: "none", zIndex: 3 }}><svg width="28" height="28" viewBox="0 0 24 24" fill="#fff" aria-hidden><path d="M8 5v14l11-7z" /></svg></div>}
+                    {burst?.id === c.id && <svg key={burst.k} width="96" height="96" viewBox="0 0 24 24" fill={RED} stroke="#fff" strokeWidth="1" aria-hidden style={{ position: "absolute", left: "50%", top: "45%", zIndex: 4, pointerEvents: "none", animation: "fy-heart .9s ease-out forwards" }}>{I.heart}</svg>}
+                  </div>
+                  <div className="fy-cap">
+                    <Caption c={c} />
+                    <div className="fy-why">
+                      <span className="fy-1" style={{ flex: 1 }}>{c.why}</span>
+                      {i === 0 && !moved && <button onClick={() => go(1)} style={{ background: "none", border: 0, color: INK, fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "inherit", animation: "fy-bob 1.6s ease-in-out infinite", padding: 0 }}>↑ Swipe up</button>}
+                    </div>
                   </div>
                 </div>
+                <div className="fy-rail">
+                  <button className={`fy-rb${isLiked ? " on" : ""}`} onClick={() => toggleLike(c)} aria-pressed={isLiked} aria-label={isLiked ? "Unlike" : "Like"}><span><Svg d={I.heart} fill={isLiked ? RED : undefined} /></span>{short(n.likes)}</button>
+                  <button className="fy-rb" onClick={() => setSheet(c.id)} aria-label="Comments"><span><Svg d={I.chat} /></span>{short(n.comments)}</button>
+                  <button className="fy-rb" onClick={() => share(c)} aria-label="Share"><span><Svg d={I.share} /></span>Share</button>
+                  <Link href={c.href} className="fy-rb" onClick={() => beacon({ open: c.id })}><span><Svg d={OPEN[c.kind][1]} /></span>{OPEN[c.kind][0]}</Link>
+                </div>
+                {sheet === c.id && anon && <Sheet card={c} anon={anon} onClose={() => setSheet(null)} onCount={k => setCnt(m => ({ ...m, [c.id]: { likes: m[c.id]?.likes || 0, comments: k } }))} />}
               </div>
             </section>
           );
@@ -235,65 +345,56 @@ export default function FeedClient({ cards }: { cards: ViewCard[] }) {
       </div>
       <div className="fy-nav">
         <button onClick={() => go(-1)} disabled={active === 0} aria-label="Previous">↑</button>
-        <div style={{ fontSize: 11, color: "rgba(255,255,255,.6)", textAlign: "center" }}>{active + 1}/{cards.length}</div>
+        <div style={{ fontSize: 11, color: MUTE, textAlign: "center" }}>{active + 1}/{cards.length}</div>
         <button onClick={() => go(1)} disabled={active === cards.length - 1} aria-label="Next">↓</button>
       </div>
-      {toast && <div role="status" style={{ position: "absolute", left: "50%", bottom: 28, transform: "translateX(-50%)", background: "#fff", color: "#111", fontSize: 13, padding: "8px 14px", borderRadius: 999, zIndex: 7 }}>{toast}</div>}
+      {toast && <div role="status" style={{ position: "absolute", left: "50%", bottom: 28, transform: "translateX(-50%)", background: INK, color: "#fff", fontSize: 13, padding: "8px 14px", borderRadius: 999, zIndex: 30 }}>{toast}</div>}
     </div>
   );
 }
 
-/** The picture/video layer. */
-function Stage({ c, active, sound, paused, onMuted }: { c: ViewCard; active: boolean; sound: boolean; paused: boolean; onMuted: (m: boolean) => void }) {
+/** Photo / video panels. */
+function Media({ c, active, sound, paused, onSound }: { c: ViewCard; active: boolean; sound: boolean; paused: boolean; onSound: () => void }) {
   const [pi, setPi] = useState(0);
   if (c.kind === "story") {
     const list = [...(c.photo ? [c.photo] : []), ...c.alts.map(a => a.url)];
     const src = list[pi];
     return (
-      <>
-        {src ? (
-          <>
-            <img src={src} alt="" aria-hidden referrerPolicy="no-referrer" style={{ position: "absolute", inset: -40, width: "calc(100% + 80px)", height: "calc(100% + 80px)", objectFit: "cover", filter: "blur(28px) brightness(.45)" }} />
-            <img src={src} alt="" referrerPolicy="no-referrer" onError={() => setPi(n => n + 1)} style={{ position: "absolute", left: 0, top: "9%", width: "100%", height: "auto", maxHeight: "48%", objectFit: "contain" }} />
-          </>
-        ) : <div style={{ position: "absolute", inset: 0, background: "linear-gradient(160deg,#2a2622,#0b0b0b)" }} />}
-        {src && c.credit && pi === 0 && <span style={{ position: "absolute", right: 8, top: 8, zIndex: 3, fontSize: 10, color: "rgba(255,255,255,.75)", background: "rgba(0,0,0,.4)", padding: "2px 6px", borderRadius: 4 }}>Photo: {c.credit}</span>}
-        <div className="fy-grad" style={{ height: "58%" }} />
-      </>
+      <div className="fy-panel fy-photo" style={{ aspectRatio: "4 / 3", background: "#2a2622" }}>
+        {src
+          ? <img src={src} alt="" referrerPolicy="no-referrer" onError={() => setPi(k => k + 1)} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+          : <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "flex-end", padding: 16, color: "#d8d2c8", fontSize: 13, letterSpacing: ".12em", textTransform: "uppercase", fontWeight: 700 }}>{c.topic}</span>}
+        {src && c.credit && pi === 0 && <span style={{ position: "absolute", right: 0, bottom: 0, fontSize: 10, color: "#eee", background: "rgba(0,0,0,.5)", padding: "2px 6px", borderTopLeftRadius: 4 }}>Photo: {c.credit}</span>}
+      </div>
     );
   }
   if (c.kind === "claim") {
+    if (!c.yt) return <div className="fy-panel"><Clip src={c.video} poster={c.image} active={active} paused={paused} /></div>;
     return (
       <>
-        <div className="fy-bg" style={{ backgroundImage: `url(${c.yt ? `https://i.ytimg.com/vi/${c.yt.id}/hqdefault.jpg` : c.image})` }} />
-        <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column" }}>
-          {c.yt ? (
-            <>
-              <div className="fy-lbl">What was said · {c.speaker || "Speaker"}</div>
-              <Moment yt={c.yt} active={active} sound={sound} paused={paused} quote={c.quote} onMuted={onMuted} />
-              <div className="fy-lbl fy-hide-short">What the data shows</div>
-              <div className="fy-panel fy-hide-short"><Clip src={c.video} poster={c.image} active={active} paused={paused} /></div>
-            </>
-          ) : (
-            <div className="fy-panel" style={{ marginTop: 40 }}><Clip src={c.video} poster={c.image} active={active} paused={paused} /></div>
-          )}
-        </div>
-        <div className="fy-grad" style={{ height: "42%" }} />
+        <div className="fy-lbl fy-1">What was said{c.speaker ? ` · ${c.speaker}` : ""}</div>
+        <Moment yt={c.yt} active={active} sound={sound} paused={paused} quote={c.quote} onSound={onSound} />
+        <div className="fy-lbl fy-hide-short" style={{ marginTop: 4 }}>What the data shows</div>
+        <div className="fy-panel fy-hide-short"><Clip src={c.video} poster={c.image} active={active} paused={paused} /></div>
       </>
     );
   }
-  if (c.kind === "metric") {
-    return (
-      <>
-        <div className="fy-bg" style={{ backgroundImage: `url(${c.image})` }} />
-        <div style={{ position: "relative", zIndex: 1, paddingTop: "18%" }}>
-          <div className="fy-panel"><Clip src={c.video} poster={c.image} active={active} paused={paused} /></div>
-        </div>
-        <div className="fy-grad" style={{ height: "48%" }} />
-      </>
-    );
-  }
-  return <div style={{ position: "absolute", inset: 0, background: "radial-gradient(120% 80% at 50% 0%,#2b2724,#0b0b0b)" }} />;
+  if (c.kind === "metric") return <div className="fy-panel"><Clip src={c.video} poster={c.image} active={active} paused={paused} /></div>;
+  return null;
+}
+
+function Coverage({ c }: { c: { left: number; center: number; right: number } }) {
+  const t = c.left + c.center + c.right || 1;
+  return (
+    <div style={{ marginTop: 6 }}>
+      <div style={{ display: "flex", height: 7, borderRadius: 4, overflow: "hidden", gap: 2 }}>
+        {(["left", "center", "right"] as const).filter(k => c[k] > 0).map(k => <span key={k} style={{ flex: c[k], background: LEAN[k] }} />)}
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, marginTop: 4, color: SUB }}>
+        <span><b style={{ color: LEAN.left }}>{Math.round(c.left / t * 100)}%</b> left ({c.left})</span><span>{Math.round(c.center / t * 100)}% center ({c.center})</span><span><b style={{ color: LEAN.right }}>{Math.round(c.right / t * 100)}%</b> right ({c.right})</span>
+      </div>
+    </div>
+  );
 }
 
 function Caption({ c }: { c: ViewCard }) {
@@ -303,10 +404,10 @@ function Caption({ c }: { c: ViewCard }) {
       <h2 className="fy-h">{c.title}</h2>
       <Coverage c={c.coverage} />
       {c.sides.length > 0 && (
-        <div className="fy-hide-short" style={{ marginTop: 8 }}>
+        <div className="fy-hide-short" style={{ marginTop: 8, borderTop: `1px solid ${RULE}`, paddingTop: 6 }}>
           {c.sides.map(x => (
-            <div key={x.lean} className="fy-1" style={{ fontSize: 12.5, lineHeight: 1.5, color: "rgba(255,255,255,.88)" }}>
-              <b style={{ color: LEAN[x.lean], fontWeight: 700, textTransform: "uppercase", fontSize: 10.5, letterSpacing: ".06em", marginRight: 6 }}>{x.lean}</b>“{x.title}”
+            <div key={x.lean} className="fy-1" style={{ fontSize: 12.5, lineHeight: 1.55 }}>
+              <b style={{ color: x.lean === "center" ? "#6b655c" : LEAN[x.lean], fontWeight: 700, textTransform: "uppercase", fontSize: 10.5, letterSpacing: ".06em", marginRight: 6 }}>{x.lean}</b>“{x.title}”
             </div>
           ))}
         </div>
@@ -317,11 +418,12 @@ function Caption({ c }: { c: ViewCard }) {
   if (c.kind === "claim") return (
     <>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <span className="fy-tag" style={{ background: c.color || "#fff", color: "#fff", textTransform: "uppercase", letterSpacing: ".06em" }}>{c.ratingLabel}</span>
+        <span className="fy-tag" style={{ background: c.color || INK, color: "#fff", textTransform: "uppercase", letterSpacing: ".06em" }}>{c.ratingLabel}</span>
         <span className="fy-k fy-1">{c.speaker ? `${c.speaker} · ` : ""}{c.ago}</span>
       </div>
-      <div className="fy-3" style={{ fontSize: 14.5, lineHeight: 1.42, marginTop: 8 }}><b style={{ fontWeight: 700 }}>The data: </b>{c.dataLine}</div>
-      {c.source && !/\bper\b/i.test(c.dataLine) && <div className="fy-k" style={{ marginTop: 3, fontSize: 11.5 }}>Source: {c.source}</div>}
+      {!c.yt && <div className="fy-h" style={{ fontSize: 19 }}>“{c.quote}”</div>}
+      <div className="fy-3" style={{ fontSize: 14.5, lineHeight: 1.42, marginTop: 7 }}><b>The data: </b>{c.dataLine}</div>
+      {c.source && !/\bper\b/i.test(c.dataLine) && <div className="fy-k" style={{ marginTop: 3, fontSize: 11.5, color: MUTE }}>Source: {c.source}</div>}
     </>
   );
   if (c.kind === "metric") {
@@ -330,8 +432,8 @@ function Caption({ c }: { c: ViewCard }) {
       <>
         <div className="fy-k">Official data · {c.label}</div>
         <div style={{ fontFamily: SERIF, fontSize: 24, lineHeight: 1.2, marginTop: 4 }}>{c.name}: {c.value}</div>
-        {c.change && <div style={{ fontSize: 14, fontWeight: 700, color: up ? "#7FD6CF" : down ? "#F6A57E" : "#fff" }}>{up ? "▲ " : down ? "▼ " : ""}{c.change.replace(/^(up|down) /, "")}</div>}
-        <div className="fy-k" style={{ marginTop: 6, fontSize: 11.5 }}>Source: {c.source}{c.nextRelease && Date.parse(c.nextRelease) > Date.now() ? ` · next release ${new Date(c.nextRelease).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "America/New_York" })}` : ""}</div>
+        {c.change && <div style={{ fontSize: 14, fontWeight: 700, marginTop: 2, color: up ? "#0E5C5E" : down ? "#9A3412" : SUB }}>{up ? "▲ " : down ? "▼ " : ""}{c.change.replace(/^(up|down) /, "")}</div>}
+        <div className="fy-k" style={{ marginTop: 6, fontSize: 11.5, color: MUTE }}>Source: {c.source}{c.nextRelease && Date.parse(c.nextRelease) > Date.now() ? ` · next release ${new Date(c.nextRelease).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "America/New_York" })}` : ""}</div>
       </>
     );
   }
@@ -344,15 +446,15 @@ function Caption({ c }: { c: ViewCard }) {
         {c.cands.map(x => (
           <div key={x.name}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-              <span style={{ fontSize: 15, fontWeight: 700 }}>{x.name} <span style={{ fontSize: 11.5, opacity: .7, fontWeight: 500 }}>{x.p}</span></span>
+              <span style={{ fontSize: 15, fontWeight: 700 }}>{x.name} <span style={{ fontSize: 11.5, color: MUTE, fontWeight: 500 }}>{x.p}</span></span>
               <span style={{ fontFamily: SERIF, fontSize: 22 }}>{(x.pct * 100).toFixed(1)}%</span>
             </div>
-            <div style={{ height: 8, borderRadius: 4, background: "rgba(255,255,255,.15)", marginTop: 4, overflow: "hidden" }}><div style={{ width: `${x.pct * 100}%`, height: "100%", background: x.votes === lead ? "#fff" : "rgba(255,255,255,.45)" }} /></div>
-            <div style={{ fontSize: 11.5, opacity: .7, marginTop: 2 }}>{x.votes.toLocaleString("en-US")} votes</div>
+            <div style={{ height: 9, borderRadius: 5, background: "#EFEBE4", marginTop: 4, overflow: "hidden" }}><div style={{ width: `${x.pct * 100}%`, height: "100%", background: x.votes === lead ? INK : "#B4AEA5" }} /></div>
+            <div style={{ fontSize: 11.5, color: MUTE, marginTop: 2 }}>{x.votes.toLocaleString("en-US")} votes</div>
           </div>
         ))}
       </div>
-      <div className="fy-2" style={{ fontSize: 11.5, opacity: .75, marginTop: 10, lineHeight: 1.45 }}>{c.pctCounted != null ? `About ${Math.round(c.pctCounted)}% counted. ` : ""}{c.called ? `Called: ${c.called}. ` : "Not called. "}Unofficial count from {c.source}. No projections.</div>
+      <div className="fy-2" style={{ fontSize: 11.5, color: SUB, marginTop: 10, lineHeight: 1.45 }}>{c.pctCounted != null ? `About ${Math.round(c.pctCounted)}% counted. ` : ""}{c.called ? `Called: ${c.called}. ` : "Not called. "}Unofficial count from {c.source}. No projections.</div>
     </>
   );
 }

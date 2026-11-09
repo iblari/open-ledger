@@ -1460,3 +1460,17 @@ export async function kvHgetall(key: string): Promise<Record<string, number>> {
   }
   return JSON.parse(mem.get(key) || "{}");
 }
+
+/** Raw commands for small features (For You likes/comments). Pipeline = one request. */
+export async function kvPipeline(cmds: (string | number)[][]): Promise<unknown[]> {
+  if (!cmds.length) return [];
+  if (!hasUpstash()) return cmds.map(() => null);
+  const resp = await fetch(`${UPSTASH_URL}/pipeline`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${UPSTASH_TOKEN}`, "Content-Type": "application/json" },
+    body: JSON.stringify(cmds),
+  });
+  const data = await resp.json().catch(() => null) as { result?: unknown; error?: unknown }[] | null;
+  if (!resp.ok || !Array.isArray(data)) throw new KvError(`[upstash] pipeline failed: HTTP ${resp.status}`);
+  return data.map(d => d?.result ?? null);
+}
