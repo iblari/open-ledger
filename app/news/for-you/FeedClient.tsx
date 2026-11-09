@@ -2,6 +2,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { FyCard } from "@/lib/for-you";
+import type { SeriesData } from "@/lib/series";
+import ProChart from "@/components/trending/ProChart";
 
 export type ViewCard = FyCard & { ago: string; color: string | null };
 type Comment = { id: string; card: string; by: string; text: string; at: string; mine?: boolean };
@@ -70,6 +72,28 @@ function Clip({ src, poster, active, paused }: { src: string | null; poster: str
   useEffect(() => { const v = ref.current; if (!v) return; if (active && !paused) { v.preload = "auto"; v.play().catch(() => {}); } else v.pause(); }, [active, paused]);
   const st: React.CSSProperties = { position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" };
   return src ? <video ref={ref} src={src} poster={poster} muted loop playsInline preload="none" style={st} /> : <img src={poster} alt="" loading="lazy" style={st} />;
+}
+
+/* ── Interactive data: the official series, drag to read any point ── */
+const seriesCache = new Map<string, Promise<SeriesData | null>>();
+function getSeries(id: string, countries: string[] = []): Promise<SeriesData | null> {
+  const k = `${id}|${countries.join(",")}`;
+  if (!seriesCache.has(k)) seriesCache.set(k, fetch(`/api/series?id=${encodeURIComponent(id)}${countries.length ? `&c=${countries.join(",")}` : ""}`).then(r => r.ok ? r.json() : null).then(d => d && !d.error ? d as SeriesData : null).catch(() => null));
+  return seriesCache.get(k)!;
+}
+function DataChart({ id, countries, said, saidLine, since, terms, date, compact, tone, fallback }: { id: string; countries?: string[]; said?: number | null; saidLine?: string | null; since?: string | null; terms?: boolean; date?: string; compact?: boolean; tone?: string; fallback: React.ReactNode }) {
+  const [data, setData] = useState<SeriesData | null | undefined>(undefined);
+  const ck = (countries || []).join(",");
+  useEffect(() => { let on = true; getSeries(id, ck ? ck.split(",") : []).then(d => { if (on) setData(d); }); return () => { on = false; }; }, [id, ck]);
+  if (data === null) return <>{fallback}</>;
+  return (
+    <div className="fy-chart" onClick={e => e.stopPropagation()} onDoubleClick={e => e.stopPropagation()}>
+      {data === undefined
+        ? <div style={{ height: compact ? 150 : 300, borderRadius: 10, background: "#F3EFE8" }} />
+        : <ProChart compact={compact} data={data} said={said ?? null} saidLine={saidLine ?? null} claimDate={date || new Date().toISOString()} since={since ?? null} terms={!!terms} tone={tone || "#0E7477"} noClaim={said == null && !date} />}
+      <div className="fy-hint">Drag across the chart to read any date</div>
+    </div>
+  );
 }
 
 /* ── Icons ─────────────────────────────────────────────────────── */
@@ -329,6 +353,8 @@ export default function FeedClient({ cards }: { cards: ViewCard[] }) {
         .fy-mute{position:absolute;top:8px;right:8px;display:inline-flex;align-items:center;gap:5px;height:30px;padding:0 10px;border-radius:999px;border:0;background:rgba(0,0,0,.6);color:#fff;font:700 12px 'DM Sans',sans-serif;cursor:pointer;z-index:2}
         .fy-lbl{font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:${MUTE}}
         .fy-cap{margin-top:auto;padding-top:10px}
+        .fy-chart{background:#fff;border:1px solid ${RULE};border-radius:14px;padding:10px 10px 6px;cursor:auto}
+        .fy-hint{font-size:10.5px;color:${MUTE};text-align:center;margin-top:2px}
         .fy-grow{flex:1;justify-content:center}
         .fy-grow>.fy-photo{flex:1;aspect-ratio:auto!important;min-height:140px;max-height:62vh}
         .fy-k{font-size:12px;color:${SUB}}
@@ -425,11 +451,16 @@ function Media({ c, active, sound, paused, onSound, yst }: { c: ViewCard; active
         <div className="fy-lbl fy-1">What was said{c.speaker ? ` · ${c.speaker}` : ""}</div>
         <Moment yt={c.yt} active={active} yst={yst} sound={sound} quote={c.quote} onSound={onSound} />
         <div className="fy-lbl fy-hide-short" style={{ marginTop: 4 }}>What the data shows</div>
-        <div className="fy-panel fy-hide-short"><Clip src={c.video} poster={c.image} active={active} paused={paused} /></div>
+        <div className="fy-hide-short">
+          {c.chart
+            ? <DataChart id={c.chart.series} countries={c.chart.countries} said={c.chart.said} saidLine={c.chart.saidLine} since={c.chart.since} terms={c.chart.terms} date={c.chart.date} compact tone={c.color || undefined}
+                fallback={<div className="fy-panel"><Clip src={c.video} poster={c.image} active={active} paused={paused} /></div>} />
+            : <div className="fy-panel"><Clip src={c.video} poster={c.image} active={active} paused={paused} /></div>}
+        </div>
       </>
     );
   }
-  if (c.kind === "metric") return <div className="fy-panel"><Clip src={c.video} poster={c.image} active={active} paused={paused} /></div>;
+  if (c.kind === "metric") return <DataChart id={c.series} fallback={<div className="fy-panel"><Clip src={c.video} poster={c.image} active={active} paused={paused} /></div>} />;
   return null;
 }
 
@@ -481,7 +512,7 @@ function Caption({ c }: { c: ViewCard }) {
     return (
       <>
         <div className="fy-k">Official data · {c.label}</div>
-        <div style={{ fontFamily: SERIF, fontSize: 24, lineHeight: 1.2, marginTop: 4 }}>{c.name}: {c.value}</div>
+        <div className="fy-1" style={{ fontFamily: SERIF, fontSize: 20, lineHeight: 1.25, marginTop: 3 }}>{c.name}: {c.value}</div>
         {c.change && <div style={{ fontSize: 14, fontWeight: 700, marginTop: 2, color: up ? "#0E5C5E" : down ? "#9A3412" : SUB }}>{up ? "▲ " : down ? "▼ " : ""}{c.change.replace(/^(up|down) /, "")}</div>}
         <div className="fy-k" style={{ marginTop: 6, fontSize: 11.5, color: MUTE }}>Source: {c.source}{c.nextRelease && Date.parse(c.nextRelease) > Date.now() ? ` · next release ${new Date(c.nextRelease).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "America/New_York" })}` : ""}</div>
       </>
