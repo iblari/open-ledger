@@ -62,7 +62,7 @@ function StoryBody({ c }: { c: Extract<ViewCard, { kind: "story" }> }) {
         {cur?.name && <span style={{ position: "absolute", right: 0, bottom: 0, background: "rgba(0,0,0,.55)", color: "#eee", fontSize: 10, padding: "2px 6px", borderTopLeftRadius: 4 }}>Photo: {cur.name}</span>}
       </div>
       <div className="fy-k">News · {c.topic} · {c.outlets} outlets · {c.ago}</div>
-      <h2 className="fy-h">{c.title}</h2>
+      <h2 className="fy-h fy-clamp3">{c.title}</h2>
       <div style={{ fontSize: 12, color: MUTE, margin: "2px 0 6px" }}>Who covered it</div>
       <Coverage c={c.coverage} />
       {c.sides.length > 0 && (
@@ -71,7 +71,7 @@ function StoryBody({ c }: { c: Extract<ViewCard, { kind: "story" }> }) {
           {c.sides.map(x => (
             <div key={x.lean} style={{ display: "flex", gap: 8, padding: "5px 0", fontSize: 13, lineHeight: 1.35 }}>
               <span style={{ flex: "0 0 50px", fontSize: 10.5, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: x.lean === "center" ? "#6b655c" : LEAN[x.lean], paddingTop: 2 }}>{x.lean}</span>
-              <span className="fy-clamp2" style={{ color: INK }}>“{x.title}” <span style={{ color: MUTE, fontSize: 11.5 }}>{x.outlet}</span></span>
+              <span className="fy-clamp2 fy-side" style={{ color: INK }}>“{x.title}” <span style={{ color: MUTE, fontSize: 11.5 }}>{x.outlet}</span></span>
             </div>
           ))}
         </div>
@@ -223,7 +223,7 @@ export default function FeedClient({ cards }: { cards: ViewCard[] }) {
         .fy-slot{height:100%;scroll-snap-align:start;scroll-snap-stop:always;display:flex;justify-content:center;padding:12px 12px 14px;box-sizing:border-box}
         .fy-card{width:100%;max-width:460px;height:100%;background:#fff;border:1px solid ${RULE};border-radius:18px;padding:14px 14px 12px;display:flex;flex-direction:column;box-sizing:border-box;overflow:hidden}
         .fy-scroll{flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column}
-        .fy-photo{aspect-ratio:4/3;max-height:42%}
+        .fy-photo{aspect-ratio:16/9;max-height:38%}
         .fy-k{font-size:12px;color:${SUB};margin:12px 0 4px}
         .fy-h{font-family:${SERIF};font-weight:500;font-size:clamp(21px,5.6vw,26px);line-height:1.15;letter-spacing:-0.015em;margin:0 0 10px;color:${INK}}
         .fy-clamp{display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden}
@@ -233,7 +233,9 @@ export default function FeedClient({ cards }: { cards: ViewCard[] }) {
         .fy-foot .dark{flex:1}
         .fy-why{font-size:12px;color:${SUB};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-top:1px solid ${RULE};padding:9px 0 8px;margin-top:8px}
         .fy-clamp2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-        @media (max-height:740px){.fy-sides{display:none}}
+        @media (max-height:880px){.fy-side{-webkit-line-clamp:1}}
+        @media (max-height:700px){.fy-sides{display:none}}
+        .fy-card{position:relative}
         .fy-btn{display:inline-flex;align-items:center;justify-content:center;height:38px;padding:0 14px;border-radius:999px;font-size:13.5px;font-weight:600;text-decoration:none;border:1px solid ${RULE};background:#fff;color:${INK};cursor:pointer;font-family:inherit}
         .fy-btn.dark{background:${INK};border-color:${INK};color:#fff}
         .fy-nav{position:absolute;right:max(16px,calc(50% - 330px));top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:10px}
@@ -254,7 +256,7 @@ export default function FeedClient({ cards }: { cards: ViewCard[] }) {
                 {c.kind === "result" && <ResultBody c={c} />}
               </div>
               {i === 0 && !moved && (
-                <button onClick={() => go(1)} style={{ alignSelf: "center", marginTop: 6, background: "none", border: 0, color: MUTE, fontSize: 12, cursor: "pointer", animation: "fy-bob 1.6s ease-in-out infinite", fontFamily: "inherit" }}>↑ Swipe up for more</button>
+                <button onClick={() => go(1)} style={{ position: "absolute", left: "50%", bottom: 104, translate: "-50% 0", padding: "4px 10px", borderRadius: 999, background: "rgba(255,255,255,.92)", border: `1px solid ${RULE}`, color: SUB, fontSize: 12, cursor: "pointer", animation: "fy-bob 1.6s ease-in-out infinite", fontFamily: "inherit" }}>↑ Swipe up for more</button>
               )}
               <div className="fy-why"><span aria-hidden style={{ color: RED, marginRight: 6 }}>{ICON[c.kind]}</span>{c.why}</div>
               <div className="fy-foot">
