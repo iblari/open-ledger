@@ -280,6 +280,8 @@ export default function FeedClient({ cards }: { cards: ViewCard[] }) {
         .fy-mute{position:absolute;top:8px;right:8px;display:inline-flex;align-items:center;gap:5px;height:30px;padding:0 10px;border-radius:999px;border:0;background:rgba(0,0,0,.6);color:#fff;font:700 12px 'DM Sans',sans-serif;cursor:pointer;z-index:2}
         .fy-lbl{font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:${MUTE}}
         .fy-cap{margin-top:auto;padding-top:10px}
+        .fy-grow{flex:1;justify-content:center}
+        .fy-grow>.fy-photo{flex:1;aspect-ratio:auto!important;min-height:140px;max-height:62vh}
         .fy-k{font-size:12px;color:${SUB}}
         .fy-h{font-family:${SERIF};font-weight:500;font-size:clamp(20px,5.4vw,24px);line-height:1.17;letter-spacing:-.01em;margin:5px 0 4px;color:${INK};display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
         .fy-why{font-size:12px;color:${SUB};margin-top:8px;display:flex;gap:10px;align-items:center}
@@ -316,7 +318,7 @@ export default function FeedClient({ cards }: { cards: ViewCard[] }) {
             <section key={c.id} data-i={i} className="fy-slot" aria-label={`${i + 1} of ${cards.length}`}>
               <div className="fy-stage">
                 <div className="fy-main">
-                  <div className="fy-media" onClick={() => on && tap(c)}>
+                  <div className={`fy-media${c.kind === "story" || c.kind === "metric" ? " fy-grow" : ""}`} onClick={() => on && tap(c)}>
                     {near && <Media c={c} active={on} sound={sound} paused={on && paused} onSound={() => setSound(s => !s)} />}
                     {on && paused && <div style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%,-50%)", width: 64, height: 64, borderRadius: "50%", background: "rgba(0,0,0,.45)", display: "grid", placeItems: "center", pointerEvents: "none", zIndex: 3 }}><svg width="28" height="28" viewBox="0 0 24 24" fill="#fff" aria-hidden><path d="M8 5v14l11-7z" /></svg></div>}
                     {burst?.id === c.id && <svg key={burst.k} width="96" height="96" viewBox="0 0 24 24" fill={RED} stroke="#fff" strokeWidth="1" aria-hidden style={{ position: "absolute", left: "50%", top: "45%", zIndex: 4, pointerEvents: "none", animation: "fy-heart .9s ease-out forwards" }}>{I.heart}</svg>}
@@ -358,7 +360,7 @@ function Media({ c, active, sound, paused, onSound }: { c: ViewCard; active: boo
     const list = [...(c.photo ? [c.photo] : []), ...c.alts.map(a => a.url)];
     const src = list[pi];
     return (
-      <div className="fy-panel" style={{ aspectRatio: "4 / 3", background: "#2a2622" }}>
+      <div className="fy-panel fy-photo" style={{ aspectRatio: "4 / 3", background: "#2a2622" }}>
         {src
           ? <img src={src} alt="" referrerPolicy="no-referrer" onError={() => setPi(k => k + 1)} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
           : <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "flex-end", padding: 16, color: "#d8d2c8", fontSize: 13, letterSpacing: ".12em", textTransform: "uppercase", fontWeight: 700 }}>{c.topic}</span>}
@@ -377,7 +379,7 @@ function Media({ c, active, sound, paused, onSound }: { c: ViewCard; active: boo
       </>
     );
   }
-  if (c.kind === "metric") return <div className="fy-panel" style={{ marginTop: 18 }}><Clip src={c.video} poster={c.image} active={active} paused={paused} /></div>;
+  if (c.kind === "metric") return <div className="fy-panel"><Clip src={c.video} poster={c.image} active={active} paused={paused} /></div>;
   return null;
 }
 
