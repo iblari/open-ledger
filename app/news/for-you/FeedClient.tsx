@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { FyCard } from "@/lib/for-you";
 import type { SeriesData } from "@/lib/series";
@@ -81,17 +81,36 @@ function getSeries(id: string, countries: string[] = []): Promise<SeriesData | n
   if (!seriesCache.has(k)) seriesCache.set(k, fetch(`/api/series?id=${encodeURIComponent(id)}${countries.length ? `&c=${countries.join(",")}` : ""}`).then(r => r.ok ? r.json() : null).then(d => d && !d.error ? d as SeriesData : null).catch(() => null));
   return seriesCache.get(k)!;
 }
-function DataChart({ id, countries, said, saidLine, since, terms, date, tone, fallback, tall }: { tall?: boolean; id: string; countries?: string[]; said?: number | null; saidLine?: string | null; since?: string | null; terms?: boolean; date?: string; compact?: boolean; tone?: string; fallback: React.ReactNode }) {
+function useHeight<T extends HTMLElement>(): [React.RefObject<T | null>, number] {
+  const ref = useRef<T>(null);
+  const [h, setH] = useState(0);
+  useEffect(() => {
+    const el = ref.current; if (!el) return;
+    const ro = new ResizeObserver(() => setH(Math.round(el.clientHeight)));
+    ro.observe(el); setH(Math.round(el.clientHeight));
+    return () => ro.disconnect();
+  }, []);
+  return [ref, h];
+}
+/** The chart sizes itself to the space it's given (a real phone screen, not a guess). */
+function DataChart({ id, countries, said, saidLine, since, terms, date, tone, fallback, tall, avail }: { tall?: boolean; avail?: number; id: string; countries?: string[]; said?: number | null; saidLine?: string | null; since?: string | null; terms?: boolean; date?: string; tone?: string; fallback: React.ReactNode }) {
   const [data, setData] = useState<SeriesData | null | undefined>(undefined);
   const ck = (countries || []).join(",");
   useEffect(() => { let on = true; getSeries(id, ck ? ck.split(",") : []).then(d => { if (on) setData(d); }); return () => { on = false; }; }, [id, ck]);
+  const wrap = useRef<HTMLDivElement>(null);
+  const [hh, setHh] = useState(tall ? 180 : 110);
+  useLayoutEffect(() => {
+    if (!avail || !wrap.current || !data) return;
+    const over = wrap.current.offsetHeight - avail;
+    if (Math.abs(over) > 3) setHh(h => Math.max(56, Math.min(420, h - over)));
+  }, [avail, data, hh]);
   if (data === null) return <>{fallback}</>;
   return (
-    <div className="fy-chart" onClick={e => e.stopPropagation()} onDoubleClick={e => e.stopPropagation()}>
+    <div ref={wrap} className="fy-chart" onClick={e => e.stopPropagation()} onDoubleClick={e => e.stopPropagation()}>
       {data === undefined
-        ? <div style={{ height: tall ? 290 : 140, borderRadius: 10, background: "#F3EFE8" }} />
-        : <ProChart compact controls={!!tall} chartH={tall ? 190 : 104} data={data} said={said ?? null} saidLine={saidLine ?? null} claimDate={date || new Date().toISOString()} since={since ?? null} terms={!!terms} tone={tone || "#0E7477"} noClaim={said == null && !date} />}
-      <div className="fy-hint">Drag across the chart to read any date</div>
+        ? <div style={{ height: Math.max(80, (avail || 200) - 24), borderRadius: 10, background: "#F3EFE8" }} />
+        : <ProChart compact controls={!!tall} chartH={hh} data={data} said={said ?? null} saidLine={saidLine ?? null} claimDate={date || new Date().toISOString()} since={since ?? null} terms={!!terms} tone={tone || "#0E7477"} noClaim={said == null && !date} />}
+      {hh >= 90 && <div className="fy-hint">Drag across the chart to read any date</div>}
     </div>
   );
 }
@@ -183,7 +202,19 @@ function Sheet({ card, anon, onClose, onCount }: { card: ViewCard; anon: string;
 
 /* ── Feed ─────────────────────────────────────────────────────── */
 
-export default function FeedClient({ cards }: { cards: ViewCard[] }) {
+const SEEN_KEY = "vu-fy-seen";
+function loadSeen(): Record<string, number> { try { return JSON.parse(localStorage.getItem(SEEN_KEY) || "{}"); } catch { return {}; } }
+
+export default function FeedClient({ cards: initial }: { cards: ViewCard[] }) {
+  // Cards this browser has already seen go to the back (oldest-seen first).
+  const [cards, setCards] = useState(initial);
+  useLayoutEffect(() => {
+    const seen = loadSeen();
+    if (!Object.keys(seen).length) return;
+    const fresh = initial.filter(c => !seen[c.id]);
+    const old = initial.filter(c => seen[c.id]).sort((a, b) => seen[a.id] - seen[b.id]);
+    if (old.length) setCards([...fresh, ...old]);
+  }, [initial]);
   const box = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(0);
   const [moved, setMoved] = useState(false);
@@ -204,6 +235,9 @@ export default function FeedClient({ cards }: { cards: ViewCard[] }) {
   const ytCur = useRef<{ id: string; start: number; end: number } | null>(null);
   const [yst, setYst] = useState({ playing: false, needTap: false });
   const soundRef = useRef(sound); soundRef.current = sound;
+  const [cview, setCview] = useState<"clip" | "data">("clip");
+  const autoDone = useRef(false);
+  const hasChart = useRef(false);
 
   // Lay the shared player over the active claim's panel (it scrolls with the content).
   const place = useCallback(() => {
@@ -218,6 +252,7 @@ export default function FeedClient({ cards }: { cards: ViewCard[] }) {
     const c = cards[active];
     const yt = c?.kind === "claim" ? c.yt : null;
     setYst({ playing: false, needTap: false });
+    setCview("clip"); autoDone.current = false; hasChart.current = c?.kind === "claim" && !!c.chart;
     const raf = requestAnimationFrame(() => requestAnimationFrame(place));
     if (!yt) { try { yp.current?.pauseVideo(); } catch {} return () => cancelAnimationFrame(raf); }
     ytCur.current = yt;
@@ -239,7 +274,11 @@ export default function FeedClient({ cards }: { cards: ViewCard[] }) {
             onReady: (e: { target: YTPlayer }) => { if (soundRef.current) { e.target.unMute(); e.target.setVolume(100); } else e.target.mute(); e.target.playVideo(); },
             onStateChange: (e: { data: number; target: YTPlayer }) => {
               if (e.data === 1) setYst({ playing: true, needTap: false });
-              if (e.data === 0) { const y = ytCur.current; if (y) { e.target.seekTo(y.start, true); e.target.playVideo(); } }
+              if (e.data === 0) {
+                // After the clip plays once, show the data; after that it loops.
+                if (hasChart.current && !autoDone.current) { autoDone.current = true; setCview("data"); return; }
+                const y = ytCur.current; if (y) { e.target.seekTo(y.start, true); e.target.playVideo(); }
+              }
             },
           },
         }) as YTPlayer;
@@ -251,6 +290,17 @@ export default function FeedClient({ cards }: { cards: ViewCard[] }) {
     return () => { dead = true; clearTimeout(t); cancelAnimationFrame(raf); };
   }, [active, cards, place]);
   useEffect(() => { requestAnimationFrame(place); }, [yst.needTap, place]);
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => requestAnimationFrame(place));
+    const x = yp.current;
+    if (x && cards[active]?.kind === "claim") {
+      try {
+        if (cview === "data") x.pauseVideo();
+        else { const y = ytCur.current; if (y && autoDone.current) x.seekTo(y.start, true); x.playVideo(); }
+      } catch {}
+    }
+    return () => cancelAnimationFrame(raf);
+  }, [cview, active, cards, place]);
   useEffect(() => {
     const x = yp.current; if (!x || cards[active]?.kind !== "claim") return;
     try { if (paused) x.pauseVideo(); else if (yst.playing) x.playVideo(); } catch {}
@@ -278,7 +328,10 @@ export default function FeedClient({ cards }: { cards: ViewCard[] }) {
   useEffect(() => {
     setPaused(false); setSheet(null);
     const id = cards[active]?.id; if (!id) return;
-    const t = setTimeout(() => { if (!seen.current.has(id)) { seen.current.add(id); pending.current.push(id); maxIdx.current = Math.max(maxIdx.current, active); } }, 1000);
+    const t = setTimeout(() => {
+      if (!seen.current.has(id)) { seen.current.add(id); pending.current.push(id); maxIdx.current = Math.max(maxIdx.current, active); }
+      try { const m = loadSeen(); m[id] = Date.now(); const ks = Object.keys(m); if (ks.length > 600) ks.sort((a, b) => m[a] - m[b]).slice(0, ks.length - 600).forEach(k => delete m[k]); localStorage.setItem(SEEN_KEY, JSON.stringify(m)); } catch {}
+    }, 1500);
     return () => clearTimeout(t);
   }, [active, cards]);
   useEffect(() => {
@@ -357,7 +410,14 @@ export default function FeedClient({ cards }: { cards: ViewCard[] }) {
         .fy-sub span{background:rgba(0,0,0,.72);font-size:12.5px;line-height:1.45;padding:2px 6px;border-radius:4px;-webkit-box-decoration-break:clone;box-decoration-break:clone;display:-webkit-inline-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
         .fy-mute{position:absolute;top:8px;right:8px;display:inline-flex;align-items:center;gap:5px;height:30px;padding:0 10px;border-radius:999px;border:0;background:rgba(0,0,0,.6);color:#fff;font:700 12px 'DM Sans',sans-serif;cursor:pointer;z-index:2}
         .fy-lbl{font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:${MUTE}}
-        .fy-cap{margin-top:auto;padding-top:12px}
+        .fy-cap{margin-top:auto;padding-top:12px;flex-shrink:0}
+        .fy-media.fy-fillmode{flex:1;min-height:0}
+        .fy-fill{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center}
+        .fy-fill>.fy-panel{width:min(100%,calc(var(--fh) * 16 / 9));margin:0 auto}
+        .fy-fill>.fy-chart{flex-shrink:0}
+        .fy-seg{display:flex;gap:6px;margin-bottom:8px;flex-shrink:0}
+        .fy-seg button{flex:1;height:32px;border-radius:999px;border:1px solid ${RULE};background:#fff;color:${SUB};font:700 12.5px 'DM Sans',sans-serif;cursor:pointer}
+        .fy-seg button.on{background:${INK};border-color:${INK};color:#fff}
         .fy-chart{background:#fff;border:1px solid ${RULE};border-radius:14px;padding:10px 10px 6px;cursor:auto}
         .fy-hint{font-size:10.5px;color:${MUTE};text-align:center;margin-top:2px}
         .fy-grow{flex:1;justify-content:center}
@@ -396,8 +456,8 @@ export default function FeedClient({ cards }: { cards: ViewCard[] }) {
             <section key={c.id} data-i={i} className="fy-slot" aria-label={`${i + 1} of ${cards.length}`}>
               <div className="fy-stage">
                 <div className="fy-main">
-                  <div className={`fy-media${c.kind === "story" || c.kind === "metric" ? " fy-grow" : ""}`} onClick={() => on && tap(c)}>
-                    {near && <Media c={c} active={on} sound={sound} paused={on && paused} onSound={toggleSound} yst={yst} />}
+                  <div className={`fy-media${c.kind === "story" ? " fy-grow" : c.kind === "claim" || c.kind === "metric" ? " fy-fillmode" : ""}`} onClick={() => on && tap(c)}>
+                    {near && <Media c={c} active={on} sound={sound} paused={on && paused} onSound={toggleSound} yst={yst} cview={on ? cview : "clip"} onView={v => { setCview(v); autoDone.current = true; }} />}
                     {on && paused && <div style={{ position: "absolute", left: "50%", top: 10, transform: "translateX(-50%)", zIndex: 5, pointerEvents: "none", background: "rgba(20,17,14,.8)", color: "#fff", fontSize: 12, fontWeight: 700, padding: "4px 10px", borderRadius: 999 }}>Paused · tap to play</div>}
                     {burst?.id === c.id && <svg key={burst.k} width="96" height="96" viewBox="0 0 24 24" fill={RED} stroke="#fff" strokeWidth="1.2" strokeLinejoin="round" aria-hidden style={{ position: "absolute", left: "50%", top: "45%", zIndex: 4, pointerEvents: "none", animation: "fy-heart .9s ease-out forwards" }}>{I.like}</svg>}
                   </div>
@@ -432,8 +492,9 @@ export default function FeedClient({ cards }: { cards: ViewCard[] }) {
 }
 
 /** Photo / video panels. */
-function Media({ c, active, sound, paused, onSound, yst }: { c: ViewCard; active: boolean; sound: boolean; paused: boolean; onSound: () => void; yst: { playing: boolean; needTap: boolean } }) {
+function Media({ c, active, sound, paused, onSound, yst, cview, onView }: { c: ViewCard; active: boolean; sound: boolean; paused: boolean; onSound: () => void; yst: { playing: boolean; needTap: boolean }; cview: "clip" | "data"; onView: (v: "clip" | "data") => void }) {
   const [pi, setPi] = useState(0);
+  const [fill, fh] = useHeight<HTMLDivElement>();
   if (c.kind === "story") {
     const list = [...(c.photo ? [c.photo] : []), ...c.alts.map(a => a.url)];
     const src = list[pi];
@@ -447,22 +508,29 @@ function Media({ c, active, sound, paused, onSound, yst }: { c: ViewCard; active
     );
   }
   if (c.kind === "claim") {
-    if (!c.yt) return <div className="fy-panel"><Clip src={c.video} poster={c.image} active={active} paused={paused} /></div>;
+    const clip = !c.chart || cview === "clip";
     return (
       <>
-        <div className="fy-lbl fy-1">What was said{c.speaker ? ` · ${c.speaker}` : ""}</div>
-        <Moment yt={c.yt} active={active} yst={yst} sound={sound} quote={c.quote} onSound={onSound} />
-        <div className="fy-lbl fy-hide-short" style={{ marginTop: 4 }}>What the data shows</div>
-        <div className="fy-hide-short">
-          {c.chart
-            ? <DataChart id={c.chart.series} countries={c.chart.countries} said={c.chart.said} saidLine={c.chart.saidLine} since={c.chart.since} terms={c.chart.terms} date={c.chart.date} compact tone={c.color || undefined}
+        {c.yt && c.chart && (
+          <div className="fy-seg" onClick={e => e.stopPropagation()}>
+            <button className={clip ? "on" : ""} onClick={() => onView("clip")}>▶ What was said</button>
+            <button className={!clip ? "on" : ""} onClick={() => onView("data")}>📈 The data</button>
+          </div>
+        )}
+        <div ref={fill} className="fy-fill" style={{ ["--fh" as string]: `${fh}px` }}>
+          {c.yt && clip ? <Moment yt={c.yt} active={active} yst={yst} sound={sound} quote={c.quote} onSound={onSound} />
+            : c.chart ? <DataChart avail={fh} id={c.chart.series} countries={c.chart.countries} said={c.chart.said} saidLine={c.chart.saidLine} since={c.chart.since} terms={c.chart.terms} date={c.chart.date} tone={c.color || undefined}
                 fallback={<div className="fy-panel"><Clip src={c.video} poster={c.image} active={active} paused={paused} /></div>} />
             : <div className="fy-panel"><Clip src={c.video} poster={c.image} active={active} paused={paused} /></div>}
         </div>
       </>
     );
   }
-  if (c.kind === "metric") return <DataChart tall id={c.series} fallback={<div className="fy-panel"><Clip src={c.video} poster={c.image} active={active} paused={paused} /></div>} />;
+  if (c.kind === "metric") return (
+    <div ref={fill} className="fy-fill" style={{ ["--fh" as string]: `${fh}px` }}>
+      <DataChart tall avail={fh} id={c.series} fallback={<div className="fy-panel"><Clip src={c.video} poster={c.image} active={active} paused={paused} /></div>} />
+    </div>
+  );
   return null;
 }
 

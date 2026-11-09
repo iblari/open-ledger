@@ -154,7 +154,7 @@ export async function forYouFeed(myState: string | null, limit = 60): Promise<{ 
   const [p, results] = await Promise.all([pool(), resultCards(myState)]);
   const lanes: Record<FyCard["kind"], Scored<FyCard>[]> = {
     story: [...p.stories].sort((a, b) => b.score - a.score),
-    claim: [...p.claims].sort((a, b) => b.score - a.score),
+    claim: distinctClaims([...p.claims].sort((a, b) => b.score - a.score)),
     metric: [...p.metrics].sort((a, b) => b.score - a.score),
     result: results.filter(r => r.score < 100).slice(0, 8),
   };
@@ -162,17 +162,48 @@ export async function forYouFeed(myState: string | null, limit = 60): Promise<{ 
   const out: FyCard[] = lead.map(({ score: _s, ...c }) => { void _s; return c as FyCard; });
   const ROT: FyCard["kind"][] = ["story", "claim", "story", "metric", "claim", "story", "result"];
   let last = out[out.length - 1]?.topic;
+  const recentVids: string[] = [];
   for (let i = 0; out.length < limit && Object.values(lanes).some(l => l.length); i++) {
     const lane = lanes[ROT[i % ROT.length]];
     if (!lane.length) continue;
-    let j = lane.slice(0, 3).findIndex(c => c.topic !== last);
+    // Never the same broadcast twice in a row, and not the same topic back to back.
+    const vid = (c: FyCard) => c.kind === "claim" ? c.yt?.id ?? null : null;
+    let j = lane.slice(0, 6).findIndex(c => c.topic !== last && !(vid(c) && recentVids.includes(vid(c)!)));
+    if (j < 0) j = lane.slice(0, 6).findIndex(c => !(vid(c) && recentVids.includes(vid(c)!)));
     if (j < 0) j = 0;
     const [c] = lane.splice(j, 1);
     const { score: _s, ...card } = c; void _s;
     out.push(card as FyCard);
     last = c.topic;
+    const v = c.kind === "claim" ? c.yt?.id : null;
+    if (v) { recentVids.push(v); if (recentVids.length > 2) recentVids.shift(); }
   }
   return { cards: out, at: p.at };
+}
+
+/**
+ * One card per point. Drops a claim when a better-ranked one already covers it:
+ * the same speaker on the same data series ("markets lost $3T", "the market
+ * dropped" are one point), or near-identical wording. At most 2 per broadcast.
+ */
+const words = (q: string) => new Set(q.toLowerCase().replace(/[^a-z0-9 ]/g, " ").split(/\s+/).filter(w => w.length > 3));
+function distinctClaims<T extends FyCard>(list: T[]): T[] {
+  const kept: { key: string | null; w: Set<string> }[] = [];
+  const perVid: Record<string, number> = {};
+  const out: T[] = [];
+  for (const c of list) {
+    if (c.kind !== "claim") { out.push(c); continue; }
+    const key = c.chart ? `${c.chart.series}|${(c.speaker || "").toLowerCase()}` : null;
+    const w = words(c.quote);
+    const jac = (a: Set<string>) => { let i = 0; a.forEach(x => { if (w.has(x)) i++; }); return i / ((a.size + w.size - i) || 1); };
+    if (key && kept.some(k => k.key === key)) continue;
+    if (kept.some(k => jac(k.w) > 0.45)) continue;
+    const v = c.yt?.id;
+    if (v && (perVid[v] || 0) >= 2) continue;
+    if (v) perVid[v] = (perVid[v] || 0) + 1;
+    kept.push({ key, w }); out.push(c);
+  }
+  return out;
 }
 
 /* ── Measurement: card views and opens per day (fy:v1:<day>) ──────────── */
