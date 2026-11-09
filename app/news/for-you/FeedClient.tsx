@@ -98,7 +98,7 @@ function DataChart({ id, countries, said, saidLine, since, terms, date, tone, fa
 
 /* ── Icons ─────────────────────────────────────────────────────── */
 const I = {
-  heart: <path d="M12 21s-7.5-4.6-9.6-9.3C.9 8.2 3 4.5 6.6 4.5c2.1 0 3.6 1.2 4.4 2.6.8-1.4 2.3-2.6 4.4-2.6 3.6 0 5.7 3.7 4.2 7.2C19.5 16.4 12 21 12 21z" />,
+  like: <><path d="M7 10v11H3V10z" /><path d="M7 10l4.5-7.5c1.4 0 2.5 1.1 2.5 2.5V9h5.2a2 2 0 0 1 2 2.3l-1.3 8A2 2 0 0 1 17.9 21H7" /></>,
   chat: <path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.6A8 8 0 1 1 21 12z" />,
   share: <path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M16 6l-4-4-4 4M12 2v13" />,
   chart: <path d="M3 3v18h18M7 15l4-4 3 3 6-7" />,
@@ -399,7 +399,7 @@ export default function FeedClient({ cards }: { cards: ViewCard[] }) {
                   <div className={`fy-media${c.kind === "story" || c.kind === "metric" ? " fy-grow" : ""}`} onClick={() => on && tap(c)}>
                     {near && <Media c={c} active={on} sound={sound} paused={on && paused} onSound={toggleSound} yst={yst} />}
                     {on && paused && <div style={{ position: "absolute", left: "50%", top: 10, transform: "translateX(-50%)", zIndex: 5, pointerEvents: "none", background: "rgba(20,17,14,.8)", color: "#fff", fontSize: 12, fontWeight: 700, padding: "4px 10px", borderRadius: 999 }}>Paused · tap to play</div>}
-                    {burst?.id === c.id && <svg key={burst.k} width="96" height="96" viewBox="0 0 24 24" fill={RED} stroke="#fff" strokeWidth="1" aria-hidden style={{ position: "absolute", left: "50%", top: "45%", zIndex: 4, pointerEvents: "none", animation: "fy-heart .9s ease-out forwards" }}>{I.heart}</svg>}
+                    {burst?.id === c.id && <svg key={burst.k} width="96" height="96" viewBox="0 0 24 24" fill={RED} stroke="#fff" strokeWidth="1.2" strokeLinejoin="round" aria-hidden style={{ position: "absolute", left: "50%", top: "45%", zIndex: 4, pointerEvents: "none", animation: "fy-heart .9s ease-out forwards" }}>{I.like}</svg>}
                   </div>
                   <div className="fy-cap">
                     <Caption c={c} />
@@ -410,7 +410,7 @@ export default function FeedClient({ cards }: { cards: ViewCard[] }) {
                   </div>
                 </div>
                 <div className="fy-actions">
-                  <button className={`fy-ab${isLiked ? " on" : ""}`} onClick={() => toggleLike(c)} aria-pressed={isLiked} aria-label={isLiked ? "Unlike" : "Like"}><Svg d={I.heart} fill={isLiked ? RED : undefined} /><span>{short(n.likes)}</span></button>
+                  <button className={`fy-ab${isLiked ? " on" : ""}`} onClick={() => toggleLike(c)} aria-pressed={isLiked} aria-label={isLiked ? "Unlike" : "Like"}><Svg d={I.like} fill={isLiked ? RED : undefined} /><span>{short(n.likes)}</span></button>
                   <button className="fy-ab" onClick={() => setSheet(c.id)} aria-label="Comments"><Svg d={I.chat} /><span>{short(n.comments)}</span></button>
                   <button className="fy-ab" onClick={() => share(c)} aria-label="Share"><Svg d={I.share} /></button>
                   <Link href={c.href} className="fy-open" onClick={() => beacon({ open: c.id })}>{OPEN_LABEL[c.kind]} →</Link>
