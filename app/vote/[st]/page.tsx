@@ -1,10 +1,9 @@
-import PollingFinder from "@/components/vote/PollingFinder";
-import LiveRaceCards from "@/components/vote/LiveRaceCards";
-import { pollsCloseAt, getResults, type RaceResult } from "@/lib/results";
+import { getResults, type RaceResult } from "@/lib/results";
+import { outcomeOf, ResultCard } from "@/components/vote/FinalResults";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { STATES, stateByCode, raceTitle, daysToElection, factChecksFor, MID } from "@/lib/midterms";
+import { STATES, stateByCode, raceTitle, factChecksFor } from "@/lib/midterms";
 import { C, SANS, SERIF } from "@/lib/design-tokens";
 import FeedbackBanner from "@/app/dashboard/FeedbackBanner";
 import { NewsChrome } from "@/components/news/NewsChrome";
@@ -34,12 +33,12 @@ export async function generateMetadata({ params }: { params: Promise<{ st: strin
   if (!s) return { title: "2026 ballot · Vote Unbiased" };
   const res = await getResults(s.races.map(r => r.id)).catch(() => ({} as Record<string, RaceResult | null>));
   const offices = s.races.map(r => r.office === "senate" ? "Senate" : "Governor");
-  const live = s.races.map(r => ({ r, l: lead(res[r.id]) })).filter(x => x.l);
-  // Election-night wording ("<State> election results 2026") is what people search.
-  const title = `${s.name} Election Results 2026: ${[...new Set(offices)].join(" & ")} Race${s.races.length > 1 ? "s" : ""}${live.length ? " (Live)" : ""}`;
+  const live = s.races.map(r => ({ r, l: lead(res[r.id]), w: res[r.id]?.called?.name ?? null })).filter(x => x.l || x.w);
+  // "<State> election results 2026" is what people search.
+  const title = `${s.name} Election Results 2026: ${[...new Set(offices)].join(" & ")} Race${s.races.length > 1 ? "s" : ""}`;
   const description = live.length
-    ? `Live unofficial vote count: ${live.map(x => `${raceTitle(x.r).replace(" (special election)", " special")}: ${x.l}`).join(" · ")}. Official state and county counts, no projections. ${matchup(st)}.`
-    : `${matchup(st)}. Polls, money, voting record and positions side by side, plus live official results. Facts only.`;
+    ? `${live.map(x => `${raceTitle(x.r).replace(" (special election)", " special")}: ${x.w ? `${x.w} won (AP call)` : "not called"}${x.l ? `, ${x.l}` : ""}`).join(" · ")}. Unofficial counts from the state, with sources. ${matchup(st)}.`
+    : `${matchup(st)}. Results, plus each candidate's record and positions side by side. Facts only.`;
   const url = `https://voteunbiased.org/vote/${s.st.toLowerCase()}`;
   return { title: `${title} · Vote Unbiased`, description, alternates: { canonical: url },
     openGraph: { title, description, url, siteName: "Vote Unbiased", type: "website" },
@@ -56,7 +55,6 @@ export default async function StateBallot({ params }: { params: Promise<{ st: st
   const pollsAt = Object.values(polls)[0]?.fetchedAt ?? null;
   const through = s.races.flatMap(r => r.candidates.map(c => c.fec?.through)).filter(Boolean).sort().pop() ?? null;
   const fc = await factChecksFor(s.races.flatMap(r => r.candidates.filter(c => c.main).map(c => c.name)));
-  const days = daysToElection();
   const url = `https://voteunbiased.org/vote/${s.st.toLowerCase()}`;
   return (
     <div style={{ minHeight: "100vh", background: C.bg, color: C.ink, fontFamily: SANS }}>
@@ -89,18 +87,21 @@ export default async function StateBallot({ params }: { params: Promise<{ st: st
       <NewsChrome active="vote" />
       <div style={{ maxWidth: 1240, margin: "0 auto", padding: "18px 20px 70px" }}>
         <div style={{ fontSize: 13, color: C.sub }}><Link href="/vote" style={{ color: C.sub }}>Vote</Link> › {s.name}</div>
-        <h1 style={{ fontFamily: SERIF, fontWeight: 500, letterSpacing: "-0.015em", fontSize: "clamp(30px, 4.4vw, 46px)", lineHeight: 1.08, margin: "8px 0 0" }}>Your {s.name} ballot</h1>
+        <h1 style={{ fontFamily: SERIF, fontWeight: 500, letterSpacing: "-0.015em", fontSize: "clamp(30px, 4.4vw, 46px)", lineHeight: 1.08, margin: "8px 0 0" }}>{s.name} election results 2026</h1>
         <div className="vs-tabs" style={{ display: "flex", gap: 18, alignItems: "center", borderBottom: `1px solid ${C.rule}`, marginTop: 16 }}>
           {s.races.map(r => <a key={r.id} href={`#${r.id}`} style={{ padding: "9px 0", color: C.ink, textDecoration: "none", fontSize: 14, fontWeight: 700, borderBottom: "2px solid transparent" }}>{raceTitle(r)} ↓</a>)}
-          <a href={`https://x.com/intent/post?text=${encodeURIComponent(`Compare the candidates on the ${s.name} ballot, side by side. Facts only.`)}&url=${encodeURIComponent(url)}`} style={{ marginLeft: "auto", fontSize: 13, color: C.sub, textDecoration: "none", whiteSpace: "nowrap" }}>Share ↗</a>
+          <a href="#before" style={{ padding: "9px 0", color: C.sub, textDecoration: "none", fontSize: 14, fontWeight: 600 }}>The candidates ↓</a>
+          <a href={`https://x.com/intent/post?text=${encodeURIComponent(`${s.name} 2026 election results, with sources. Facts only.`)}&url=${encodeURIComponent(url)}`} style={{ marginLeft: "auto", fontSize: 13, color: C.sub, textDecoration: "none", whiteSpace: "nowrap" }}>Share ↗</a>
         </div>
-        <div style={{ maxWidth: 640 }}><LiveRaceCards st={s.st} stateName={s.name} initialClosesAt={pollsCloseAt(s.st)} initial={initialRes}
-          races={s.races.map(r => ({ id: r.id, title: raceTitle(r), cands: r.candidates.filter(c => c.main).map(c => ({ name: c.name, p: c.p })) }))} /></div>
-        <div style={{ maxWidth: 360, marginTop: 6 }}><PollingFinder st={s.st} /></div>
+        <div className="vs-res" style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(2, s.races.length)},minmax(0,1fr))`, gap: 14, marginTop: 16, maxWidth: s.races.length > 1 ? "none" : 620 }}>
+          {s.races.map(r => <div key={r.id} id={r.id}><ResultCard o={outcomeOf(r, initialRes[r.id] ?? null)} /></div>)}
+        </div>
+        <style>{`@media(max-width:760px){.vs-res{grid-template-columns:minmax(0,1fr)!important}}`}</style>
+        <h2 id="before" style={{ fontFamily: SERIF, fontWeight: 500, fontSize: 26, letterSpacing: "-0.015em", margin: "34px 0 4px" }}>The candidates, before the election</h2>
+        <p style={{ fontSize: 14, color: C.sub, margin: "0 0 4px", maxWidth: 720 }}>What we published before Nov 3: polls, money, voting records and positions in their own words. Kept as the record.</p>
         <div style={{ marginTop: 14 }}><Metrics through={through} pollsAt={pollsAt} /></div>
         {s.races.map(r => <RaceCompare key={r.id} race={r} fc={fc} polls={r.office === "senate" ? polls[r.st] : null} trends={trends} />)}
         <div style={{ marginTop: 26, fontSize: 13, display: "flex", gap: 16 }}>
-          <PollingFinder variant="link" st={s.st} />
           <Link href="/methodology" style={{ color: C.sub }}>Methodology</Link>
         </div>
       </div>
