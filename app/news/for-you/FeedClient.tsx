@@ -361,7 +361,7 @@ export default function FeedClient({ cards }: { cards: ViewCard[] }) {
         .fy-chart{background:#fff;border:1px solid ${RULE};border-radius:14px;padding:10px 10px 6px;cursor:auto}
         .fy-hint{font-size:10.5px;color:${MUTE};text-align:center;margin-top:2px}
         .fy-grow{flex:1;justify-content:center}
-        .fy-grow>.fy-photo{flex:1;aspect-ratio:auto!important;min-height:120px;max-height:46cqh}
+        .fy-grow>.fy-photo{flex:1;aspect-ratio:auto!important;min-height:120px}
         .fy-k{font-size:12px;color:${SUB}}
         .fy-h{font-family:${SERIF};font-weight:500;font-size:clamp(20px,5.4vw,24px);line-height:1.17;letter-spacing:-.01em;margin:5px 0 4px;color:${INK};display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
         .fy-why{font-size:12px;color:${SUB};margin-top:8px;display:flex;gap:10px;align-items:center}
