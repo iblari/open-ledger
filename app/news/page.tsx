@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { C, SERIF, SANS } from "@/lib/design-tokens";
 import { getNewsFeed, refreshNews } from "@/lib/news/store";
 import { listTrendingClaims } from "@/lib/trending-claims";
@@ -18,7 +19,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "https://voteunbiased.org/news" },
 };
 
-const VIEWS = [["top", "Top"], ["blindspots", "Blindspots"], ["claims", "Claims"]] as const;
+const VIEWS = [["foryou", "For you"], ["top", "Top"], ["blindspots", "Blindspots"], ["claims", "Claims"]] as const;
 const TOPICS = ["Economy", "Elections", "Immigration", "Crime", "World", "Politics"];
 const K: React.CSSProperties = { fontSize: 10.5, letterSpacing: "0.09em", textTransform: "uppercase", color: C.mute, fontWeight: 600 };
 const pct = (x: number) => `${Math.round(x * 100)}%`;
@@ -159,7 +160,8 @@ function BlindspotRail({ stories }: { stories: Story[] }) {
 
 export default async function NewsPage({ searchParams }: { searchParams: Promise<{ view?: string; topic?: string }> }) {
   const sp = await searchParams;
-  const view = (VIEWS.find(([k]) => k === sp.view)?.[0]) || "top";
+  if (sp.view === "foryou") redirect("/news/for-you");
+  const view = (VIEWS.find(([k]) => k === sp.view && k !== "foryou")?.[0]) || "top";
   const topic = TOPICS.find(t => t.toLowerCase() === (sp.topic || "").toLowerCase()) || null;
   let feed = view === "claims" ? null : await getNewsFeed().catch(() => null);
   if (view !== "claims" && !feed) feed = await refreshNews().catch(() => null);
@@ -223,7 +225,7 @@ export default async function NewsPage({ searchParams }: { searchParams: Promise
       <NewsChrome active="news" />
       <main style={{ maxWidth: 1240, margin: "0 auto", padding: view === "claims" ? "14px 20px 0" : "14px 20px 60px" }}>
         <div data-nosnippet style={{ display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap", borderBottom: `1px solid ${C.rule}`, paddingBottom: 8, marginBottom: 18 }}>
-          {VIEWS.map(([k, l]) => <Link key={k} href={k === "top" ? "/news" : `/news?view=${k}`} style={tabLink(view === k && !topic)}>{l}</Link>)}
+          {VIEWS.map(([k, l]) => <Link key={k} href={k === "top" ? "/news" : k === "foryou" ? "/news/for-you" : `/news?view=${k}`} style={tabLink(view === k && !topic)}>{l}</Link>)}
           <details style={{ position: "relative" }}>
             <summary style={{ ...tabLink(!!topic), listStyle: "none", cursor: "pointer" }}>{topic || "Topics"} ▾</summary>
             <div style={{ position: "absolute", zIndex: 20, top: "calc(100% + 6px)", left: 0, background: "#fff", border: `1px solid ${C.rule}`, borderRadius: 10, padding: 6, boxShadow: "0 10px 28px -12px rgba(20,17,14,.3)", minWidth: 150 }}>
