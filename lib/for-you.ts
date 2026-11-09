@@ -18,10 +18,10 @@ import { getResults } from "./results";
 
 export type Why = string;
 interface Base { id: string; href: string; why: Why; at: string; topic: string }
-export interface StoryCard extends Base { kind: "story"; title: string; outlets: number; coverage: { left: number; center: number; right: number; unrated: number }; blindspot: string | null; photo: string | null; alts: { url: string; name: string }[]; credit: string | null; official: string | null }
+export interface StoryCard extends Base { kind: "story"; title: string; outlets: number; coverage: { left: number; center: number; right: number; unrated: number }; blindspot: string | null; sides: { lean: "left" | "center" | "right"; title: string; outlet: string }[]; photo: string | null; alts: { url: string; name: string }[]; credit: string | null; official: string | null }
 export interface ClaimCard extends Base { kind: "claim"; quote: string; speaker: string | null; event: string; rating: string; ratingLabel: string; hook: string; dataLine: string; source: string; video: string | null; image: string; watch: string }
 export interface MetricCard extends Base { kind: "metric"; name: string; value: string; label: string; change: string | null; source: string; video: string | null; image: string; nextRelease: string | null; dash: string | null }
-export interface ResultCard extends Base { kind: "result"; title: string; state: string; st: string; pctCounted: number | null; cands: { name: string; p: string; votes: number; pct: number }[]; total: number; source: string; local: boolean; called: string | null }
+export interface ResultCard extends Base { kind: "result"; title: string; state: string; st: string; pctCounted: number | null; cands: { name: string; p: string; votes: number; pct: number }[]; total: number; source: string; local: boolean; live: boolean; called: string | null }
 export type FyCard = StoryCard | ClaimCard | MetricCard | ResultCard;
 
 const SITE = "https://voteunbiased.org";
@@ -51,10 +51,18 @@ const pool = unstable_cache(async () => {
     const s = byId.get(k.id);
     const href = `/news/${pathOf(k.link).split("/").pop()}`;
     const at = s?.lastSeen || k.updatedAt;
+    const sides: StoryCard["sides"] = [];
+    if (s) {
+      const plain = (t: string) => !/\b(live|watch|opinion|analysis|podcast|newsletter)\b|^[^:]{0,25}:/i.test(t);
+      for (const l of ["left", "center", "right"] as const) {
+        const a = s.sides?.[l] ?? s.articles.find(x => x.lean === l && plain(x.title));
+        if (a) sides.push({ lean: l, title: a.title, outlet: a.name });
+      }
+    }
     const blind = s?.blindspot ? `Mostly skipped by ${s.blindspot}-leaning outlets` : null;
     return {
       kind: "story" as const, id: k.id, href, at, topic: k.topic, title: k.title, outlets: k.outlets, coverage: k.coverage,
-      blindspot: blind, photo: s?.photo?.url ?? null, alts: s?.photo?.alts ?? [], credit: s?.photo?.name ?? null,
+      blindspot: blind, sides: sides.length >= 2 ? sides : [], photo: s?.photo?.url ?? null, alts: s?.photo?.alts ?? [], credit: s?.photo?.name ?? null,
       official: s?.numbers ? `Official figure ${s.numbers.official}${s.numbers.metric === "payrolls" ? "K" : "%"}` : null,
       why: blind ? "Blindspot: one side barely covered this" : k.outlets >= 40 ? `Covered by ${k.outlets} outlets` : "In the news now",
       score: (1 + Math.log1p(k.outlets) + 0.5 * pop(href)) * fresh(at, 18),
@@ -101,13 +109,17 @@ async function resultCards(myState: string | null): Promise<Scored<ResultCard>[]
     if (!total) continue;
     const cands = [...x.cands].sort((a, b) => b.votes - a.votes).slice(0, 3).map(c => ({ ...c, pct: c.votes / total }));
     const margin = cands.length > 1 ? cands[0].pct - cands[1].pct : 1;
+    const hrs = ageH(x.updatedAt);
     const local = r.st === myState;
+    const live = hrs < 12;
     out.push({
       kind: "result", id: `result:${r.id}`, href: `/vote/${r.st.toLowerCase()}`, at: x.updatedAt, topic: "Elections",
       title: raceTitle(r), state: r.state, st: r.st, pctCounted: x.pctCounted, cands, total, source: x.source, local,
       called: x.called ? `${x.called.name} (called by ${x.called.by})` : null,
-      why: local ? "Your state" : margin < 0.03 ? "One of the closest races" : "Live count",
-      score: (local ? 100 : 0) + (1 - Math.min(margin, 1)) * 2 * fresh(x.updatedAt, 48),
+      live,
+      why: local ? "Your state" : margin < 0.03 ? "One of the closest races" : live ? "Live count" : "Election result",
+      // Your state leads only while counting is recent (3 days); after that it joins the rotation.
+      score: (local && hrs < 72 ? 100 : 0) + (local ? 1 : 0) + (1 - Math.min(margin, 1)) * 2 * fresh(x.updatedAt, 48),
     });
   }
   return out.sort((a, b) => b.score - a.score);
@@ -125,9 +137,10 @@ export async function forYouFeed(myState: string | null, limit = 60): Promise<{ 
     story: [...p.stories].sort((a, b) => b.score - a.score),
     claim: [...p.claims].sort((a, b) => b.score - a.score),
     metric: [...p.metrics].sort((a, b) => b.score - a.score),
-    result: results.filter(r => !r.local).slice(0, 8),
+    result: results.filter(r => r.score < 100).slice(0, 8),
   };
-  const out: FyCard[] = results.filter(r => r.local).slice(0, 2);
+  const lead = results.filter(r => r.score >= 100).slice(0, 2);
+  const out: FyCard[] = lead.map(({ score: _s, ...c }) => { void _s; return c as FyCard; });
   const ROT: FyCard["kind"][] = ["story", "claim", "story", "metric", "claim", "story", "result"];
   let last = out[out.length - 1]?.topic;
   for (let i = 0; out.length < limit && Object.values(lanes).some(l => l.length); i++) {

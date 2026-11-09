@@ -28,8 +28,7 @@ function Media({ video, image, active, alt }: { video: string | null; image: str
     <div style={{ position: "relative", width: "100%", aspectRatio: "1200 / 630", background: "#14110e", borderRadius: 12, overflow: "hidden", flexShrink: 0 }}>
       {video
         ? <video ref={ref} src={video} poster={image} muted loop playsInline preload="none" aria-label={alt} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
-        // eslint-disable-next-line @next/next/no-img-element
-        : <img src={image} alt={alt} loading="lazy" decoding="async" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />}
+                : <img src={image} alt={alt} loading="lazy" decoding="async" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />}
     </div>
   );
 }
@@ -58,8 +57,7 @@ function StoryBody({ c }: { c: Extract<ViewCard, { kind: "story" }> }) {
     <>
       <div className="fy-photo" style={{ position: "relative", borderRadius: 12, overflow: "hidden", background: "#1d1a17", flexShrink: 0 }}>
         {cur
-          // eslint-disable-next-line @next/next/no-img-element
-          ? <img key={cur.url} src={cur.url} alt="" referrerPolicy="no-referrer" loading="lazy" onError={() => setI(n => n + 1)} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+                    ? <img key={cur.url} src={cur.url} alt="" referrerPolicy="no-referrer" loading="lazy" onError={() => setI(n => n + 1)} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
           : <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "flex-end", padding: 18, color: "#d8d2c8", fontSize: 13, letterSpacing: "0.12em", textTransform: "uppercase", fontWeight: 600 }}>{c.topic}</span>}
         {cur?.name && <span style={{ position: "absolute", right: 0, bottom: 0, background: "rgba(0,0,0,.55)", color: "#eee", fontSize: 10, padding: "2px 6px", borderTopLeftRadius: 4 }}>Photo: {cur.name}</span>}
       </div>
@@ -67,6 +65,17 @@ function StoryBody({ c }: { c: Extract<ViewCard, { kind: "story" }> }) {
       <h2 className="fy-h">{c.title}</h2>
       <div style={{ fontSize: 12, color: MUTE, margin: "2px 0 6px" }}>Who covered it</div>
       <Coverage c={c.coverage} />
+      {c.sides.length > 0 && (
+        <div className="fy-sides" style={{ marginTop: 12, borderTop: `1px solid ${RULE}`, paddingTop: 8 }}>
+          <div style={{ fontSize: 12, color: MUTE, marginBottom: 2 }}>How each side headlined it</div>
+          {c.sides.map(x => (
+            <div key={x.lean} style={{ display: "flex", gap: 8, padding: "5px 0", fontSize: 13, lineHeight: 1.35 }}>
+              <span style={{ flex: "0 0 50px", fontSize: 10.5, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: x.lean === "center" ? "#6b655c" : LEAN[x.lean], paddingTop: 2 }}>{x.lean}</span>
+              <span className="fy-clamp2" style={{ color: INK }}>“{x.title}” <span style={{ color: MUTE, fontSize: 11.5 }}>{x.outlet}</span></span>
+            </div>
+          ))}
+        </div>
+      )}
       {(c.blindspot || c.official) && (
         <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
           {c.blindspot && <span className="fy-tag" style={{ background: "#EEEAF8", color: "#4D3E8F" }}>{c.blindspot}</span>}
@@ -90,7 +99,7 @@ function ClaimBody({ c, active }: { c: Extract<ViewCard, { kind: "claim" }>; act
       <div style={{ borderTop: `1px solid ${RULE}`, marginTop: 10, paddingTop: 10 }}>
         <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: MUTE }}>The data</div>
         <div className="fy-clamp3" style={{ fontSize: 14.5, lineHeight: 1.45, color: INK, marginTop: 3 }}>{c.dataLine}</div>
-        {c.source && <div style={{ fontSize: 12, color: MUTE, marginTop: 4 }}>Source: {c.source}</div>}
+        {c.source && !/\bper\b/i.test(c.dataLine) && <div style={{ fontSize: 12, color: MUTE, marginTop: 4 }}>Source: {c.source}</div>}
       </div>
     </>
   );
@@ -114,7 +123,7 @@ function ResultBody({ c }: { c: Extract<ViewCard, { kind: "result" }> }) {
   const lead = c.cands[0]?.votes;
   return (
     <>
-      <div className="fy-k" style={{ marginTop: 0 }}>Live result · {c.state} · updated {c.ago}</div>
+      <div className="fy-k" style={{ marginTop: 0 }}>{c.live ? "Live result" : "Election result"} · {c.state} · updated {c.ago}</div>
       <h2 className="fy-h">{c.title}</h2>
       <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 12 }}>
         {c.cands.map(x => (
@@ -220,8 +229,11 @@ export default function FeedClient({ cards }: { cards: ViewCard[] }) {
         .fy-clamp{display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden}
         .fy-clamp3{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
         .fy-tag{font-size:11.5px;font-weight:600;padding:3px 8px;border-radius:5px}
-        .fy-foot{display:flex;align-items:center;gap:8px;border-top:1px solid ${RULE};padding-top:10px;margin-top:10px}
-        .fy-why{flex:1;min-width:0;font-size:12px;color:${SUB};white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .fy-foot{display:flex;align-items:center;gap:8px}
+        .fy-foot .dark{flex:1}
+        .fy-why{font-size:12px;color:${SUB};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-top:1px solid ${RULE};padding:9px 0 8px;margin-top:8px}
+        .fy-clamp2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+        @media (max-height:740px){.fy-sides{display:none}}
         .fy-btn{display:inline-flex;align-items:center;justify-content:center;height:38px;padding:0 14px;border-radius:999px;font-size:13.5px;font-weight:600;text-decoration:none;border:1px solid ${RULE};background:#fff;color:${INK};cursor:pointer;font-family:inherit}
         .fy-btn.dark{background:${INK};border-color:${INK};color:#fff}
         .fy-nav{position:absolute;right:max(16px,calc(50% - 330px));top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:10px}
@@ -235,7 +247,7 @@ export default function FeedClient({ cards }: { cards: ViewCard[] }) {
         {cards.map((c, i) => (
           <section key={c.id} data-i={i} className="fy-slot" aria-label={`${i + 1} of ${cards.length}`}>
             <article className="fy-card">
-              <div className="fy-scroll">
+              <div className="fy-scroll" style={c.kind === "metric" || c.kind === "result" ? { justifyContent: "center" } : undefined}>
                 {c.kind === "story" && <StoryBody c={c} />}
                 {c.kind === "claim" && <ClaimBody c={c} active={i === active} />}
                 {c.kind === "metric" && <MetricBody c={c} active={i === active} />}
@@ -244,8 +256,8 @@ export default function FeedClient({ cards }: { cards: ViewCard[] }) {
               {i === 0 && !moved && (
                 <button onClick={() => go(1)} style={{ alignSelf: "center", marginTop: 6, background: "none", border: 0, color: MUTE, fontSize: 12, cursor: "pointer", animation: "fy-bob 1.6s ease-in-out infinite", fontFamily: "inherit" }}>↑ Swipe up for more</button>
               )}
+              <div className="fy-why"><span aria-hidden style={{ color: RED, marginRight: 6 }}>{ICON[c.kind]}</span>{c.why}</div>
               <div className="fy-foot">
-                <span className="fy-why" title={c.why}><span aria-hidden style={{ color: RED, marginRight: 6 }}>{ICON[c.kind]}</span>{c.why}</span>
                 <button className="fy-btn" onClick={() => share(c)} aria-label="Share">Share</button>
                 <Link href={c.href} className="fy-btn dark" onClick={() => beacon({ open: c.id })}>{OPEN[c.kind]} →</Link>
               </div>
