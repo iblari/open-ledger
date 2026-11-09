@@ -62,6 +62,8 @@ export interface ProChartProps {
   watchHref?: string;            // the moment it was said
   fullRange?: boolean;           // start on "Max" (short series from cited sources)
   compact?: boolean;             // phone list view: reading + chart only
+  controls?: boolean;
+  chartH?: number;               // plot height override            // keep the view/range toggles in compact mode (For You cards)
   noClaim?: boolean;             // a plain series page: no claim marker, "Latest" reading
 }
 
@@ -138,7 +140,7 @@ export default function ProChart(props: ProChartProps) {
   }, []);
   const phone = W < 520;
   const compact = !!props.compact;
-  const H = compact ? 118 : phone ? 230 : 280;
+  const H = props.chartH ?? (compact ? 118 : phone ? 230 : 280);
   const M = { l: phone ? 36 : 52, r: phone ? 10 : 16, t: compact ? 22 : 28, b: compact ? 20 : 26 };
 
   // Default range: enough to see the claim in context.
@@ -331,7 +333,7 @@ export default function ProChart(props: ProChartProps) {
             </div>
           )}
         </div>
-        {!compact && <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        {(!compact || props.controls) && <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: compact ? 6 : 0 }}>
         {canYoy && (
           <div role="tablist" aria-label="View" style={{ display: "flex", background: "#F1ECE4", borderRadius: 99, padding: 2 }}>
             {([["level", "Level"], ["yoy", "Yearly change"]] as const).map(([k, l]) => (

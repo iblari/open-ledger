@@ -5,6 +5,7 @@ import { kvHgetall, kvHincrMany } from "./live-kv";
 import { dayET } from "./traffic";
 import { MID, raceTitle } from "./midterms";
 import { getResults } from "./results";
+import { getTrendingClaims } from "./trending-claims";
 
 /**
  * For You feed, v1. One vertical stream of everything the site makes:
@@ -19,8 +20,10 @@ import { getResults } from "./results";
 export type Why = string;
 interface Base { id: string; href: string; why: Why; at: string; topic: string }
 export interface StoryCard extends Base { kind: "story"; title: string; outlets: number; coverage: { left: number; center: number; right: number; unrated: number }; blindspot: string | null; sides: { lean: "left" | "center" | "right"; title: string; outlet: string }[]; photo: string | null; alts: { url: string; name: string }[]; credit: string | null; official: string | null }
-export interface ClaimCard extends Base { kind: "claim"; quote: string; speaker: string | null; event: string; rating: string; ratingLabel: string; hook: string; dataLine: string; source: string; video: string | null; image: string; portrait: string; watch: string; yt: { id: string; start: number; end: number } | null }
-export interface MetricCard extends Base { kind: "metric"; name: string; value: string; label: string; change: string | null; source: string; video: string | null; image: string; nextRelease: string | null; dash: string | null }
+export interface ClaimCard extends Base { kind: "claim"; quote: string; speaker: string | null; event: string; rating: string; ratingLabel: string; hook: string; dataLine: string; source: string; video: string | null; image: string; portrait: string; watch: string; yt: { id: string; start: number; end: number } | null;
+  /** The official series behind the verdict, for the interactive chart. */
+  chart: { series: string; countries: string[]; said: number | null; saidLine: string | null; since: string | null; terms: boolean; date: string } | null }
+export interface MetricCard extends Base { kind: "metric"; series: string; name: string; value: string; label: string; change: string | null; source: string; video: string | null; image: string; nextRelease: string | null; dash: string | null }
 export interface ResultCard extends Base { kind: "result"; title: string; state: string; st: string; pctCounted: number | null; cands: { name: string; p: string; votes: number; pct: number }[]; total: number; source: string; local: boolean; live: boolean; called: string | null }
 export type FyCard = StoryCard | ClaimCard | MetricCard | ResultCard;
 
@@ -53,7 +56,8 @@ type Scored<T> = T & { score: number };
 
 /** Everything except results, scored. Cached 5 minutes for all visitors. */
 const pool = unstable_cache(async () => {
-  const [kit, feed, views] = await Promise.all([buildShareKit(), getNewsFeed().catch(() => null), recentViews()]);
+  const [kit, feed, views, tc] = await Promise.all([buildShareKit(), getNewsFeed().catch(() => null), recentViews(), getTrendingClaims().catch(() => [])]);
+  const tcBy = new Map(tc.map(c => [c.key, c]));
   const byId = new Map((feed?.stories || []).map(s => [`story:${s.id}`, s]));
   const pop = (href: string) => Math.log1p(views[pathOf(href)] || 0);
 
@@ -87,6 +91,10 @@ const pool = unstable_cache(async () => {
       rating: c.rating, ratingLabel: c.ratingLabel, hook: c.hook, dataLine: c.dataLine, source: c.source,
       video: c.video, image: c.image.replace(SITE, ""), portrait: c.imagePortrait.replace(SITE, ""), watch: c.watch.replace(SITE, ""),
       yt: ytOf(c.watch),
+      chart: (() => {
+        const t = tcBy.get(c.key); const m = t?.series;
+        return m?.series ? { series: m.series, countries: m.countries || [], said: m.said ?? t?.claimedValue ?? null, saidLine: m.saidCountry, since: m.since, terms: !!m.terms, date: t!.date } : null;
+      })(),
       why: p >= Math.log1p(25) ? "Popular on the site today" : ageH(c.saidAt) < 24 ? "Said in the last 24 hours" : "Recently checked",
       score: (1.5 + p + (c.video ? 0.5 : 0)) * fresh(c.saidAt, 36),
     };
@@ -97,7 +105,7 @@ const pool = unstable_cache(async () => {
     const recent = m.releasedLast24h;
     const soon = m.nextRelease && Date.parse(m.nextRelease) - Date.now() < 3 * 864e5 && Date.parse(m.nextRelease) > Date.now();
     return {
-      kind: "metric" as const, id: m.id, href, at: m.dataUpdatedAt, topic: m.hashtag?.replace("#", "") || "Economy",
+      kind: "metric" as const, id: m.id, series: m.metric, href, at: m.dataUpdatedAt, topic: m.hashtag?.replace("#", "") || "Economy",
       name: m.name, value: m.value, label: m.observationLabel, change: m.change, source: m.source,
       video: m.video, image: m.image.replace(SITE, ""), nextRelease: m.nextRelease,
       dash: m.dashboardLink ? pathOf(m.dashboardLink) + "?" + (m.dashboardLink.split("?")[1] || "").replace(/&?utm_[^&]*/g, "") : null,
@@ -107,7 +115,7 @@ const pool = unstable_cache(async () => {
   });
 
   return { stories, claims, metrics, at: kit.generatedAt };
-}, ["for-you-pool-v2"], { revalidate: 300 });
+}, ["for-you-pool-v3"], { revalidate: 300 });
 
 /** Results cards: official counts only, from the same store as /vote. */
 async function resultCards(myState: string | null): Promise<Scored<ResultCard>[]> {
