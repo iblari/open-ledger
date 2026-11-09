@@ -56,7 +56,7 @@ function Moment({ yt, quote, active, yst, sound, onSound }: { yt: { id: string; 
       <img src={`https://i.ytimg.com/vi/${yt.id}/hqdefault.jpg`} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
       {!live && !(active && yst.needTap) && active && <span className="fy-spin" aria-hidden />}
       <div className="fy-sub" style={{ zIndex: 3 }}><span>“{quote}”</span></div>
-      {active && yst.needTap && <div style={{ position: "absolute", left: "50%", top: 12, transform: "translateX(-50%)", zIndex: 3, pointerEvents: "none", background: "rgba(0,0,0,.65)", color: "#fff", fontSize: 12, fontWeight: 700, padding: "4px 10px", borderRadius: 999, whiteSpace: "nowrap" }}>Tap the video to play</div>}
+      {active && yst.needTap && <div style={{ position: "absolute", left: "50%", top: "42%", transform: "translate(-50%,-50%)", zIndex: 3, pointerEvents: "none", width: 58, height: 58, borderRadius: "50%", background: "rgba(255,255,255,.95)", display: "grid", placeItems: "center", boxShadow: "0 4px 16px rgba(0,0,0,.3)" }}><svg width="24" height="24" viewBox="0 0 24 24" fill="#1a1a1a" aria-hidden><path d="M8 5v14l11-7z" /></svg></div>}
       {live && (
         <button className={`fy-mute${sound ? "" : " big"}`} style={{ zIndex: 4 }} onClick={e => { e.stopPropagation(); onSound(); }} aria-label={sound ? "Mute" : "Turn sound on"}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M11 5 6 9H2v6h4l5 4V5z" />{sound ? <path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14" /> : <path d="M23 9l-6 6M17 9l6 6" />}</svg>
@@ -89,8 +89,8 @@ function DataChart({ id, countries, said, saidLine, since, terms, date, tone, fa
   return (
     <div className="fy-chart" onClick={e => e.stopPropagation()} onDoubleClick={e => e.stopPropagation()}>
       {data === undefined
-        ? <div style={{ height: 190, borderRadius: 10, background: "#F3EFE8" }} />
-        : <ProChart compact controls chartH={tall ? 230 : undefined} data={data} said={said ?? null} saidLine={saidLine ?? null} claimDate={date || new Date().toISOString()} since={since ?? null} terms={!!terms} tone={tone || "#0E7477"} noClaim={said == null && !date} />}
+        ? <div style={{ height: tall ? 290 : 140, borderRadius: 10, background: "#F3EFE8" }} />
+        : <ProChart compact controls={!!tall} chartH={tall ? 190 : 104} data={data} said={said ?? null} saidLine={saidLine ?? null} claimDate={date || new Date().toISOString()} since={since ?? null} terms={!!terms} tone={tone || "#0E7477"} noClaim={said == null && !date} />}
       <div className="fy-hint">Drag across the chart to read any date</div>
     </div>
   );
@@ -106,7 +106,7 @@ const I = {
   bars: <path d="M6 20V10M12 20V4M18 20v-7" />,
 };
 const Svg = ({ d, fill }: { d: React.ReactNode; fill?: string }) => <svg width="23" height="23" viewBox="0 0 24 24" fill={fill || "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>{d}</svg>;
-const OPEN: Record<ViewCard["kind"], [string, React.ReactNode]> = { story: ["Story", I.story], claim: ["Chart", I.chart], metric: ["Data", I.chart], result: ["Results", I.bars] };
+const OPEN_LABEL: Record<ViewCard["kind"], string> = { story: "Read the story", claim: "Full chart", metric: "Open the data", result: "All results" };
 
 /* ── Comments sheet ───────────────────────────────────────────── */
 
@@ -343,8 +343,13 @@ export default function FeedClient({ cards }: { cards: ViewCard[] }) {
         .fy-spin{position:absolute;left:50%;top:42%;width:28px;height:28px;margin:-14px 0 0 -14px;border-radius:50%;border:3px solid rgba(255,255,255,.35);border-top-color:#fff;animation:fy-rot .8s linear infinite;z-index:3}
         @keyframes fy-rot{to{transform:rotate(360deg)}}
         .fy-slot{height:100%;scroll-snap-align:start;scroll-snap-stop:always;position:relative;display:flex;justify-content:center}
-        .fy-stage{position:relative;height:100%;aspect-ratio:9/16;max-width:100%;overflow:hidden;display:grid;grid-template-columns:minmax(0,1fr) 52px;gap:8px;padding:12px 10px 12px 12px;box-sizing:border-box;color:${INK}}
-        .fy-main{display:flex;flex-direction:column;min-height:0;min-width:0;position:relative}
+        .fy-stage{position:relative;height:100%;aspect-ratio:9/16;max-width:100%;overflow:hidden;display:flex;flex-direction:column;padding:12px 14px 8px;box-sizing:border-box;color:${INK};container-type:size}
+        .fy-main{display:flex;flex-direction:column;min-height:0;min-width:0;position:relative;flex:1;overflow:hidden}
+        .fy-actions{display:flex;align-items:center;gap:4px;border-top:1px solid ${RULE};padding-top:8px;margin-top:10px;flex-shrink:0}
+        .fy-ab{display:inline-flex;align-items:center;gap:5px;height:40px;padding:0 10px 0 6px;border:0;background:none;color:${INK};font:700 13px 'DM Sans',sans-serif;cursor:pointer;border-radius:999px}
+        .fy-ab:active{background:#efebe4}
+        .fy-ab.on{color:${RED}}
+        .fy-open{margin-left:auto;display:inline-flex;align-items:center;height:38px;padding:0 16px;border-radius:999px;background:${INK};color:#fff;font:700 13.5px 'DM Sans',sans-serif;text-decoration:none;white-space:nowrap}
         .fy-media{display:flex;flex-direction:column;gap:6px;min-height:0;cursor:pointer;position:relative}
         .fy-panel{position:relative;width:100%;aspect-ratio:16/9;background:#14110e;border-radius:14px;overflow:hidden;flex-shrink:0}
         .fy-yt{position:absolute;inset:0}.fy-yt iframe{position:absolute;inset:0;width:100%;height:100%;border:0;pointer-events:none}
@@ -352,22 +357,17 @@ export default function FeedClient({ cards }: { cards: ViewCard[] }) {
         .fy-sub span{background:rgba(0,0,0,.72);font-size:12.5px;line-height:1.45;padding:2px 6px;border-radius:4px;-webkit-box-decoration-break:clone;box-decoration-break:clone;display:-webkit-inline-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
         .fy-mute{position:absolute;top:8px;right:8px;display:inline-flex;align-items:center;gap:5px;height:30px;padding:0 10px;border-radius:999px;border:0;background:rgba(0,0,0,.6);color:#fff;font:700 12px 'DM Sans',sans-serif;cursor:pointer;z-index:2}
         .fy-lbl{font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:${MUTE}}
-        .fy-cap{margin-top:auto;padding-top:10px}
+        .fy-cap{margin-top:auto;padding-top:12px}
         .fy-chart{background:#fff;border:1px solid ${RULE};border-radius:14px;padding:10px 10px 6px;cursor:auto}
         .fy-hint{font-size:10.5px;color:${MUTE};text-align:center;margin-top:2px}
         .fy-grow{flex:1;justify-content:center}
-        .fy-grow>.fy-photo{flex:1;aspect-ratio:auto!important;min-height:140px;max-height:62vh}
+        .fy-grow>.fy-photo{flex:1;aspect-ratio:auto!important;min-height:120px}
         .fy-k{font-size:12px;color:${SUB}}
         .fy-h{font-family:${SERIF};font-weight:500;font-size:clamp(20px,5.4vw,24px);line-height:1.17;letter-spacing:-.01em;margin:5px 0 4px;color:${INK};display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
         .fy-why{font-size:12px;color:${SUB};margin-top:8px;display:flex;gap:10px;align-items:center}
         .fy-1{display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
         .fy-2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
         .fy-3{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
-        .fy-rail{display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:14px;padding-bottom:4px}
-        .fy-rb{display:flex;flex-direction:column;align-items:center;gap:4px;color:${INK};background:none;border:0;cursor:pointer;font:700 11.5px/1 'DM Sans',sans-serif;text-decoration:none;padding:0}
-        .fy-rb>span{width:46px;height:46px;border-radius:50%;background:#fff;border:1px solid ${RULE};display:grid;place-items:center;transition:transform .12s}
-        .fy-rb:active>span{transform:scale(.9)}
-        .fy-rb.on{color:${RED}}
         .fy-tag{font-size:11.5px;font-weight:700;padding:3px 8px;border-radius:4px;display:inline-block}
         .fy-sheet{position:absolute;left:0;right:0;bottom:0;height:72%;background:#fff;border-radius:18px 18px 0 0;box-shadow:0 -12px 30px -12px rgba(20,17,14,.35);z-index:20;display:flex;flex-direction:column;animation:fy-up .2s ease-out}
         .fy-sheet-list{flex:1;overflow-y:auto;overscroll-behavior:contain}
@@ -378,13 +378,15 @@ export default function FeedClient({ cards }: { cards: ViewCard[] }) {
         .fy-nav button:disabled{opacity:.35;cursor:default}
         @media (min-width:761px){.fy-stage{background:#fff;border-left:1px solid ${RULE};border-right:1px solid ${RULE}}}
         @media (max-width:760px){.fy-nav{display:none}.fy-stage{aspect-ratio:auto;width:100%}}
-        @media (max-height:700px){.fy-hide-short{display:none!important}}
+        @container (max-height:640px){.fy-hint{display:none}.fy-lbl{font-size:10px}}
+        @container (max-height:560px){.fy-lbl,.fy-sides-x{display:none!important}.fy-h{font-size:19px;-webkit-line-clamp:2}.fy-cap{padding-top:8px}.fy-3{-webkit-line-clamp:2}}
+        @container (max-height:470px){.fy-hide-short{display:none!important}}
         @keyframes fy-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
         @keyframes fy-up{from{transform:translateY(100%)}to{transform:none}}
         @keyframes fy-heart{0%{opacity:0;transform:translate(-50%,-50%) scale(.4)}25%{opacity:1;transform:translate(-50%,-50%) scale(1.15)}70%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-80%) scale(1)}}
       `}</style>
       <div ref={box} className="fy-box" aria-label="For you feed">
-        <div ref={ytBox} className="fy-ytfloat" style={{ visibility: yst.playing || yst.needTap ? "visible" : "hidden", pointerEvents: yst.needTap ? "auto" : "none" }} />
+        <div ref={ytBox} className="fy-ytfloat" style={{ visibility: yst.playing || yst.needTap ? "visible" : "hidden", opacity: yst.playing ? 1 : 0.011, pointerEvents: yst.needTap ? "auto" : "none" }} />
         {cards.map((c, i) => {
           const on = i === active;
           const near = Math.abs(i - active) <= 2;
@@ -396,7 +398,7 @@ export default function FeedClient({ cards }: { cards: ViewCard[] }) {
                 <div className="fy-main">
                   <div className={`fy-media${c.kind === "story" || c.kind === "metric" ? " fy-grow" : ""}`} onClick={() => on && tap(c)}>
                     {near && <Media c={c} active={on} sound={sound} paused={on && paused} onSound={toggleSound} yst={yst} />}
-                    {on && paused && <div style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%,-50%)", width: 64, height: 64, borderRadius: "50%", background: "rgba(0,0,0,.45)", display: "grid", placeItems: "center", pointerEvents: "none", zIndex: 3 }}><svg width="28" height="28" viewBox="0 0 24 24" fill="#fff" aria-hidden><path d="M8 5v14l11-7z" /></svg></div>}
+                    {on && paused && <div style={{ position: "absolute", left: "50%", top: 10, transform: "translateX(-50%)", zIndex: 5, pointerEvents: "none", background: "rgba(20,17,14,.8)", color: "#fff", fontSize: 12, fontWeight: 700, padding: "4px 10px", borderRadius: 999 }}>Paused · tap to play</div>}
                     {burst?.id === c.id && <svg key={burst.k} width="96" height="96" viewBox="0 0 24 24" fill={RED} stroke="#fff" strokeWidth="1" aria-hidden style={{ position: "absolute", left: "50%", top: "45%", zIndex: 4, pointerEvents: "none", animation: "fy-heart .9s ease-out forwards" }}>{I.heart}</svg>}
                   </div>
                   <div className="fy-cap">
@@ -407,11 +409,11 @@ export default function FeedClient({ cards }: { cards: ViewCard[] }) {
                     </div>
                   </div>
                 </div>
-                <div className="fy-rail">
-                  <button className={`fy-rb${isLiked ? " on" : ""}`} onClick={() => toggleLike(c)} aria-pressed={isLiked} aria-label={isLiked ? "Unlike" : "Like"}><span><Svg d={I.heart} fill={isLiked ? RED : undefined} /></span>{short(n.likes)}</button>
-                  <button className="fy-rb" onClick={() => setSheet(c.id)} aria-label="Comments"><span><Svg d={I.chat} /></span>{short(n.comments)}</button>
-                  <button className="fy-rb" onClick={() => share(c)} aria-label="Share"><span><Svg d={I.share} /></span>Share</button>
-                  <Link href={c.href} className="fy-rb" onClick={() => beacon({ open: c.id })}><span><Svg d={OPEN[c.kind][1]} /></span>{OPEN[c.kind][0]}</Link>
+                <div className="fy-actions">
+                  <button className={`fy-ab${isLiked ? " on" : ""}`} onClick={() => toggleLike(c)} aria-pressed={isLiked} aria-label={isLiked ? "Unlike" : "Like"}><Svg d={I.heart} fill={isLiked ? RED : undefined} /><span>{short(n.likes)}</span></button>
+                  <button className="fy-ab" onClick={() => setSheet(c.id)} aria-label="Comments"><Svg d={I.chat} /><span>{short(n.comments)}</span></button>
+                  <button className="fy-ab" onClick={() => share(c)} aria-label="Share"><Svg d={I.share} /></button>
+                  <Link href={c.href} className="fy-open" onClick={() => beacon({ open: c.id })}>{OPEN_LABEL[c.kind]} →</Link>
                 </div>
                 {sheet === c.id && anon && <Sheet card={c} anon={anon} onClose={() => setSheet(null)} onCount={k => setCnt(m => ({ ...m, [c.id]: { likes: m[c.id]?.likes || 0, comments: k } }))} />}
               </div>
@@ -485,7 +487,7 @@ function Caption({ c }: { c: ViewCard }) {
       <h2 className="fy-h">{c.title}</h2>
       <Coverage c={c.coverage} />
       {c.sides.length > 0 && (
-        <div className="fy-hide-short" style={{ marginTop: 8, borderTop: `1px solid ${RULE}`, paddingTop: 6 }}>
+        <div className="fy-sides-x" style={{ marginTop: 8, borderTop: `1px solid ${RULE}`, paddingTop: 6 }}>
           {c.sides.map(x => (
             <div key={x.lean} className="fy-1" style={{ fontSize: 12.5, lineHeight: 1.55 }}>
               <b style={{ color: x.lean === "center" ? "#6b655c" : LEAN[x.lean], fontWeight: 700, textTransform: "uppercase", fontSize: 10.5, letterSpacing: ".06em", marginRight: 6 }}>{x.lean}</b>“{x.title}”
