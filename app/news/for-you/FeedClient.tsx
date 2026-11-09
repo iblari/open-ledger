@@ -315,7 +315,7 @@ export default function FeedClient({ cards }: { cards: ViewCard[] }) {
         .fy-box{position:relative}
         .fy-ytfloat{position:absolute;display:none;z-index:2;border-radius:14px;overflow:hidden;background:#000}
         .fy-ytfloat iframe{position:absolute;inset:0;width:100%;height:100%;border:0;pointer-events:inherit}
-        .fy-mute.big{top:auto;bottom:8px;left:8px;right:auto;height:34px;padding:0 12px;background:#fff;color:#1a1a1a;box-shadow:0 2px 10px rgba(0,0,0,.25)}
+        .fy-mute.big{top:8px;bottom:auto;left:8px;right:auto;height:34px;padding:0 12px;background:#fff;color:#1a1a1a;box-shadow:0 2px 10px rgba(0,0,0,.25)}
         .fy-spin{position:absolute;left:50%;top:42%;width:28px;height:28px;margin:-14px 0 0 -14px;border-radius:50%;border:3px solid rgba(255,255,255,.35);border-top-color:#fff;animation:fy-rot .8s linear infinite;z-index:3}
         @keyframes fy-rot{to{transform:rotate(360deg)}}
         .fy-slot{height:100%;scroll-snap-align:start;scroll-snap-stop:always;position:relative;display:flex;justify-content:center}
