@@ -29,7 +29,7 @@ const short = (n: number) => n >= 1e4 ? `${Math.round(n / 1e3)}K` : n >= 1e3 ? `
 
 /* ── YouTube: the moment the claim was said ───────────────────── */
 
-type YTPlayer = { playVideo(): void; pauseVideo(): void; seekTo(s: number, a: boolean): void; mute(): void; unMute(): void; isMuted(): boolean; setVolume(v: number): void; destroy(): void };
+type YTPlayer = { loadVideoById(o: { videoId: string; startSeconds: number; endSeconds: number }): void; playVideo(): void; pauseVideo(): void; seekTo(s: number, a: boolean): void; mute(): void; unMute(): void; isMuted(): boolean; setVolume(v: number): void; destroy(): void };
 type W = { YT?: { Player: new (el: HTMLElement, o: object) => unknown }; onYouTubeIframeAPIReady?: () => void };
 const win = () => window as unknown as W;
 let apiReady: Promise<void> | null = null;
@@ -43,43 +43,24 @@ function loadApi(): Promise<void> {
   return apiReady;
 }
 
-function Moment({ yt, active, sound, paused, quote, onSound }: { yt: { id: string; start: number; end: number }; active: boolean; sound: boolean; paused: boolean; quote: string; onSound: () => void }) {
-  const host = useRef<HTMLDivElement>(null);
-  const p = useRef<YTPlayer | null>(null);
-  const [playing, setPlaying] = useState(false);
-  useEffect(() => {
-    if (!active) return;
-    let dead = false;
-    loadApi().then(() => {
-      const YT = win().YT;
-      if (dead || !host.current || !YT) return;
-      const el = document.createElement("div"); host.current.appendChild(el);
-      p.current = new YT.Player(el, {
-        host: "https://www.youtube-nocookie.com", videoId: yt.id, width: "100%", height: "100%",
-        playerVars: { start: yt.start, end: yt.end, autoplay: 1, mute: 1, controls: 0, playsinline: 1, rel: 0, modestbranding: 1, iv_load_policy: 3, disablekb: 1, fs: 0, cc_load_policy: 0 },
-        events: {
-          onReady: (e: { target: YTPlayer }) => { e.target.mute(); e.target.playVideo(); },
-          onStateChange: (e: { data: number; target: YTPlayer }) => {
-            if (e.data === 1) setPlaying(true);
-            if (e.data === 0) { e.target.seekTo(yt.start, true); e.target.playVideo(); }
-          },
-        },
-      }) as YTPlayer;
-    });
-    const h = host.current;
-    return () => { dead = true; setPlaying(false); try { p.current?.destroy(); } catch {} p.current = null; if (h) h.innerHTML = ""; };
-  }, [active, yt.id, yt.start, yt.end]);
-  useEffect(() => { const x = p.current; if (!x || !playing) return; try { if (sound) { x.unMute(); x.setVolume(100); } else x.mute(); } catch {} }, [sound, playing]);
-  useEffect(() => { const x = p.current; if (!x || !playing) return; try { if (paused) x.pauseVideo(); else x.playVideo(); } catch {} }, [paused, playing]);
+/** The panel for a claim's broadcast moment. The actual YouTube player is ONE
+ *  shared player that the feed lays over the active panel and re-uses for every
+ *  clip, so once someone turns sound on (one tap), every next clip plays with
+ *  sound as they swipe. Browsers never allow sound before that first tap. */
+function Moment({ yt, quote, active, yst, sound, onSound }: { yt: { id: string; start: number; end: number }; quote: string; active: boolean; yst: { playing: boolean; needTap: boolean }; sound: boolean; onSound: () => void }) {
+  const live = active && yst.playing;
   return (
-    <div className="fy-panel">
-      <img src={`https://i.ytimg.com/vi/${yt.id}/hqdefault.jpg`} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: playing ? 0 : 1, transition: "opacity .3s" }} />
-      <div ref={host} className="fy-yt" />
-      <div className="fy-sub"><span>“{quote}”</span></div>
-      <button className="fy-mute" onClick={e => { e.stopPropagation(); onSound(); }} aria-label={sound ? "Mute" : "Turn sound on"}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M11 5 6 9H2v6h4l5 4V5z" />{sound ? <path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14" /> : <path d="M23 9l-6 6M17 9l6 6" />}</svg>
-        {sound ? "" : "Sound"}
-      </button>
+    <div className="fy-panel" data-yt-slot={active ? "1" : undefined}>
+      <img src={`https://i.ytimg.com/vi/${yt.id}/hqdefault.jpg`} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+      {!live && !(active && yst.needTap) && active && <span className="fy-spin" aria-hidden />}
+      <div className="fy-sub" style={{ zIndex: 3 }}><span>“{quote}”</span></div>
+      {active && yst.needTap && <div style={{ position: "absolute", left: "50%", top: 12, transform: "translateX(-50%)", zIndex: 3, pointerEvents: "none", background: "rgba(0,0,0,.65)", color: "#fff", fontSize: 12, fontWeight: 700, padding: "4px 10px", borderRadius: 999, whiteSpace: "nowrap" }}>Tap the video to play</div>}
+      {live && (
+        <button className={`fy-mute${sound ? "" : " big"}`} style={{ zIndex: 4 }} onClick={e => { e.stopPropagation(); onSound(); }} aria-label={sound ? "Mute" : "Turn sound on"}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M11 5 6 9H2v6h4l5 4V5z" />{sound ? <path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14" /> : <path d="M23 9l-6 6M17 9l6 6" />}</svg>
+          {sound ? "" : "Tap for sound"}
+        </button>
+      )}
     </div>
   );
 }
@@ -194,6 +175,68 @@ export default function FeedClient({ cards }: { cards: ViewCard[] }) {
   const pending = useRef<string[]>([]);
   const maxIdx = useRef(0);
   const tapT = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const ytBox = useRef<HTMLDivElement>(null);
+  const yp = useRef<YTPlayer | null>(null);
+  const ytCur = useRef<{ id: string; start: number; end: number } | null>(null);
+  const [yst, setYst] = useState({ playing: false, needTap: false });
+  const soundRef = useRef(sound); soundRef.current = sound;
+
+  // Lay the shared player over the active claim's panel (it scrolls with the content).
+  const place = useCallback(() => {
+    const f = ytBox.current, root = box.current; if (!f || !root) return;
+    const slot = root.querySelector<HTMLElement>('[data-yt-slot="1"]');
+    if (!slot) { f.style.display = "none"; return; }
+    const r = slot.getBoundingClientRect(), b = root.getBoundingClientRect();
+    Object.assign(f.style, { display: "block", top: `${r.top - b.top + root.scrollTop}px`, left: `${r.left - b.left}px`, width: `${r.width}px`, height: `${r.height}px` });
+  }, []);
+  useEffect(() => { window.addEventListener("resize", place); return () => window.removeEventListener("resize", place); }, [place]);
+  useEffect(() => {
+    const c = cards[active];
+    const yt = c?.kind === "claim" ? c.yt : null;
+    setYst({ playing: false, needTap: false });
+    const raf = requestAnimationFrame(() => requestAnimationFrame(place));
+    if (!yt) { try { yp.current?.pauseVideo(); } catch {} return () => cancelAnimationFrame(raf); }
+    ytCur.current = yt;
+    let dead = false;
+    if (yp.current) {
+      try {
+        yp.current.loadVideoById({ videoId: yt.id, startSeconds: yt.start, endSeconds: yt.end });
+        if (soundRef.current) { yp.current.unMute(); yp.current.setVolume(100); } else yp.current.mute();
+      } catch {}
+    } else {
+      loadApi().then(() => {
+        const YT = win().YT;
+        if (dead || !ytBox.current || !YT || yp.current) return;
+        const el = document.createElement("div"); ytBox.current.appendChild(el);
+        yp.current = new YT.Player(el, {
+          host: "https://www.youtube-nocookie.com", videoId: yt.id, width: "100%", height: "100%",
+          playerVars: { start: yt.start, end: yt.end, autoplay: 1, mute: 1, controls: 0, playsinline: 1, rel: 0, modestbranding: 1, iv_load_policy: 3, disablekb: 1, fs: 0, cc_load_policy: 0 },
+          events: {
+            onReady: (e: { target: YTPlayer }) => { if (soundRef.current) { e.target.unMute(); e.target.setVolume(100); } else e.target.mute(); e.target.playVideo(); },
+            onStateChange: (e: { data: number; target: YTPlayer }) => {
+              if (e.data === 1) setYst({ playing: true, needTap: false });
+              if (e.data === 0) { const y = ytCur.current; if (y) { e.target.seekTo(y.start, true); e.target.playVideo(); } }
+            },
+          },
+        }) as YTPlayer;
+      });
+    }
+    // Autoplay can be refused (iPhone Low Power Mode, data saver). Then the
+    // player itself takes the tap, which browsers always allow.
+    const t = setTimeout(() => { if (!dead) setYst(s => s.playing ? s : { playing: false, needTap: true }); }, 3000);
+    return () => { dead = true; clearTimeout(t); cancelAnimationFrame(raf); };
+  }, [active, cards, place]);
+  useEffect(() => { requestAnimationFrame(place); }, [yst.needTap, place]);
+  useEffect(() => {
+    const x = yp.current; if (!x || cards[active]?.kind !== "claim") return;
+    try { if (paused) x.pauseVideo(); else if (yst.playing) x.playVideo(); } catch {}
+  }, [paused, active, cards, yst.playing]);
+  const toggleSound = useCallback(() => {
+    const next = !soundRef.current;
+    setSound(next);
+    const x = yp.current; if (!x) return;
+    try { if (next) { x.unMute(); x.setVolume(100); x.playVideo(); } else x.mute(); } catch {}
+  }, []);
 
   useEffect(() => {
     setAnon(anonId());
@@ -231,12 +274,12 @@ export default function FeedClient({ cards }: { cards: ViewCard[] }) {
       if (["ArrowDown", "j", "PageDown"].includes(e.key)) { e.preventDefault(); go(1); }
       if (["ArrowUp", "k", "PageUp"].includes(e.key)) { e.preventDefault(); go(-1); }
       if (e.key === " ") { e.preventDefault(); setPaused(p => !p); }
-      if (e.key === "m") setSound(s => !s);
+      if (e.key === "m") toggleSound();
       if (e.key === "Escape") setSheet(null);
     };
     window.addEventListener("keydown", k);
     return () => window.removeEventListener("keydown", k);
-  }, [go]);
+  }, [go, toggleSound]);
 
   const toggleLike = (c: ViewCard, force?: boolean) => {
     if (!anon) return;
@@ -269,6 +312,12 @@ export default function FeedClient({ cards }: { cards: ViewCard[] }) {
       <style>{`
         .fy-box{height:calc(100dvh - var(--vu-chrome-h) - 42px);overflow-y:auto;scroll-snap-type:y mandatory;overscroll-behavior-y:contain;scrollbar-width:none;background:${BG}}
         .fy-box::-webkit-scrollbar{display:none}
+        .fy-box{position:relative}
+        .fy-ytfloat{position:absolute;display:none;z-index:2;border-radius:14px;overflow:hidden;background:#000}
+        .fy-ytfloat iframe{position:absolute;inset:0;width:100%;height:100%;border:0;pointer-events:inherit}
+        .fy-mute.big{top:auto;bottom:8px;left:8px;right:auto;height:34px;padding:0 12px;background:#fff;color:#1a1a1a;box-shadow:0 2px 10px rgba(0,0,0,.25)}
+        .fy-spin{position:absolute;left:50%;top:42%;width:28px;height:28px;margin:-14px 0 0 -14px;border-radius:50%;border:3px solid rgba(255,255,255,.35);border-top-color:#fff;animation:fy-rot .8s linear infinite;z-index:3}
+        @keyframes fy-rot{to{transform:rotate(360deg)}}
         .fy-slot{height:100%;scroll-snap-align:start;scroll-snap-stop:always;position:relative;display:flex;justify-content:center}
         .fy-stage{position:relative;height:100%;aspect-ratio:9/16;max-width:100%;overflow:hidden;display:grid;grid-template-columns:minmax(0,1fr) 52px;gap:8px;padding:12px 10px 12px 12px;box-sizing:border-box;color:${INK}}
         .fy-main{display:flex;flex-direction:column;min-height:0;min-width:0;position:relative}
@@ -309,6 +358,7 @@ export default function FeedClient({ cards }: { cards: ViewCard[] }) {
         @keyframes fy-heart{0%{opacity:0;transform:translate(-50%,-50%) scale(.4)}25%{opacity:1;transform:translate(-50%,-50%) scale(1.15)}70%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-80%) scale(1)}}
       `}</style>
       <div ref={box} className="fy-box" aria-label="For you feed">
+        <div ref={ytBox} className="fy-ytfloat" style={{ visibility: yst.playing || yst.needTap ? "visible" : "hidden", pointerEvents: yst.needTap ? "auto" : "none" }} />
         {cards.map((c, i) => {
           const on = i === active;
           const near = Math.abs(i - active) <= 2;
@@ -319,7 +369,7 @@ export default function FeedClient({ cards }: { cards: ViewCard[] }) {
               <div className="fy-stage">
                 <div className="fy-main">
                   <div className={`fy-media${c.kind === "story" || c.kind === "metric" ? " fy-grow" : ""}`} onClick={() => on && tap(c)}>
-                    {near && <Media c={c} active={on} sound={sound} paused={on && paused} onSound={() => setSound(s => !s)} />}
+                    {near && <Media c={c} active={on} sound={sound} paused={on && paused} onSound={toggleSound} yst={yst} />}
                     {on && paused && <div style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%,-50%)", width: 64, height: 64, borderRadius: "50%", background: "rgba(0,0,0,.45)", display: "grid", placeItems: "center", pointerEvents: "none", zIndex: 3 }}><svg width="28" height="28" viewBox="0 0 24 24" fill="#fff" aria-hidden><path d="M8 5v14l11-7z" /></svg></div>}
                     {burst?.id === c.id && <svg key={burst.k} width="96" height="96" viewBox="0 0 24 24" fill={RED} stroke="#fff" strokeWidth="1" aria-hidden style={{ position: "absolute", left: "50%", top: "45%", zIndex: 4, pointerEvents: "none", animation: "fy-heart .9s ease-out forwards" }}>{I.heart}</svg>}
                   </div>
@@ -354,7 +404,7 @@ export default function FeedClient({ cards }: { cards: ViewCard[] }) {
 }
 
 /** Photo / video panels. */
-function Media({ c, active, sound, paused, onSound }: { c: ViewCard; active: boolean; sound: boolean; paused: boolean; onSound: () => void }) {
+function Media({ c, active, sound, paused, onSound, yst }: { c: ViewCard; active: boolean; sound: boolean; paused: boolean; onSound: () => void; yst: { playing: boolean; needTap: boolean } }) {
   const [pi, setPi] = useState(0);
   if (c.kind === "story") {
     const list = [...(c.photo ? [c.photo] : []), ...c.alts.map(a => a.url)];
@@ -373,7 +423,7 @@ function Media({ c, active, sound, paused, onSound }: { c: ViewCard; active: boo
     return (
       <>
         <div className="fy-lbl fy-1">What was said{c.speaker ? ` · ${c.speaker}` : ""}</div>
-        <Moment yt={c.yt} active={active} sound={sound} paused={paused} quote={c.quote} onSound={onSound} />
+        <Moment yt={c.yt} active={active} yst={yst} sound={sound} quote={c.quote} onSound={onSound} />
         <div className="fy-lbl fy-hide-short" style={{ marginTop: 4 }}>What the data shows</div>
         <div className="fy-panel fy-hide-short"><Clip src={c.video} poster={c.image} active={active} paused={paused} /></div>
       </>
