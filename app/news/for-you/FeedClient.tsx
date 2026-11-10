@@ -257,6 +257,9 @@ export default function FeedClient({ cards: initial }: { cards: ViewCard[] }) {
   const cur = useRef(0);
   const [shown, setShown] = useState(0);
   const [looping, setLooping] = useState(false);
+  // Clips YouTube refuses to play (removed, private, not embeddable): fall back to the data.
+  const [bad, setBad] = useState<Set<string>>(new Set());
+  const clipKey = (y: { id: string; start: number }) => `${y.id}:${y.start}`;
   const ytCur = useRef<Yt | null>(null);
   const [yst, setYst] = useState({ playing: false, needTap: false });
   const soundRef = useRef(sound); soundRef.current = sound;
@@ -328,6 +331,11 @@ export default function FeedClient({ cards: initial }: { cards: ViewCard[] }) {
               else if (!preloading.current[i]) e.target.pauseVideo();
               else { const l = loaded.current[i]; if (l && l.id !== first.id) { try { e.target.loadVideoById({ videoId: l.id, startSeconds: l.start }); } catch {} } }
             },
+            onError: () => {
+              const l = loaded.current[i]; if (!l) return;
+              setBad(b => new Set(b).add(clipKey(l)));
+              if (cur.current === i) setYst({ playing: false, needTap: false });
+            },
             onStateChange: (e: { data: number; target: YTPlayer }) => {
               if (e.data === 1) {
                 // A buffering standby: hold it at the start, ready for the swipe.
@@ -350,7 +358,8 @@ export default function FeedClient({ cards: initial }: { cards: ViewCard[] }) {
 
   useEffect(() => {
     const c = cards[active];
-    const yt = c?.kind === "claim" ? c.yt : null;
+    const yt0 = c?.kind === "claim" ? c.yt : null;
+    const yt = yt0 && !bad.has(clipKey(yt0)) ? yt0 : null;
     setYst({ playing: false, needTap: false });
     setCview("clip"); autoDone.current = false; hasChart.current = c?.kind === "claim" && !!c.chart;
     const raf = requestAnimationFrame(() => requestAnimationFrame(place));
@@ -369,7 +378,7 @@ export default function FeedClient({ cards: initial }: { cards: ViewCard[] }) {
     // player itself takes the tap, which browsers always allow.
     const t = setTimeout(() => setYst(s => s.playing ? s : { playing: false, needTap: true }), 3000);
     return () => { clearTimeout(t); if (pre) clearTimeout(pre); cancelAnimationFrame(raf); };
-  }, [active, cards, place, startOn, preloadOn]);
+  }, [active, cards, place, startOn, preloadOn, bad]);
   useEffect(() => { requestAnimationFrame(place); }, [yst.needTap, place]);
   // Loop the clip ourselves just before its end, so YouTube never shows its
   // end screen ("More videos"). First time round, a claim with data switches to the chart.
@@ -562,7 +571,7 @@ export default function FeedClient({ cards: initial }: { cards: ViewCard[] }) {
               <div className="fy-stage">
                 <div className="fy-main">
                   <div className="fy-media fy-fillmode" onClick={() => on && tap(c)}>
-                    {(near || c.kind === "story" || c.kind === "result") && <Media c={c} active={on} sound={sound} paused={on && paused} onSound={toggleSound} yst={yst} cview={on ? cview : "clip"} onView={v => { setCview(v); autoDone.current = true; }} />}
+                    {(near || c.kind === "story" || c.kind === "result") && <Media c={c} active={on} sound={sound} paused={on && paused} onSound={toggleSound} yst={yst} cview={on ? cview : "clip"} onView={v => { setCview(v); autoDone.current = true; }} bad={c.kind === "claim" && !!c.yt && bad.has(clipKey(c.yt))} />}
                     {on && paused && <div style={{ position: "absolute", left: "50%", top: c.kind === "claim" ? 56 : 10, transform: "translateX(-50%)", zIndex: 5, pointerEvents: "none", background: "rgba(20,17,14,.8)", color: "#fff", fontSize: 12, fontWeight: 700, padding: "4px 10px", borderRadius: 999 }}>Paused · tap to play</div>}
                     {burst?.id === c.id && <svg key={burst.k} width="96" height="96" viewBox="0 0 24 24" fill={RED} stroke="#fff" strokeWidth="1.2" strokeLinejoin="round" aria-hidden style={{ position: "absolute", left: "50%", top: "45%", zIndex: 4, pointerEvents: "none", animation: "fy-heart .9s ease-out forwards" }}>{I.like}</svg>}
                   </div>
@@ -602,7 +611,8 @@ export default function FeedClient({ cards: initial }: { cards: ViewCard[] }) {
 }
 
 /** Photo / video panels. */
-function Media({ c, active, sound, paused, onSound, yst, cview, onView }: { c: ViewCard; active: boolean; sound: boolean; paused: boolean; onSound: () => void; yst: { playing: boolean; needTap: boolean }; cview: "clip" | "data"; onView: (v: "clip" | "data") => void }) {
+function Media({ c: c0, active, sound, paused, onSound, yst, cview, onView, bad }: { c: ViewCard; active: boolean; sound: boolean; paused: boolean; onSound: () => void; yst: { playing: boolean; needTap: boolean }; cview: "clip" | "data"; onView: (v: "clip" | "data") => void; bad?: boolean }) {
+  const c: ViewCard = bad && c0.kind === "claim" ? { ...c0, yt: null } : c0;
   const [pi, setPi] = useState(0);
   const [fill, fh] = useHeight<HTMLDivElement>();
   if (c.kind === "story") {
