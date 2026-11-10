@@ -52,7 +52,7 @@ function loadApi(): Promise<void> {
 function Moment({ yt, quote, active, yst, sound, onSound }: { yt: { id: string; start: number; end: number }; quote: string; active: boolean; yst: { playing: boolean; needTap: boolean }; sound: boolean; onSound: () => void }) {
   const live = active && yst.playing;
   return (
-    <div className="fy-panel" data-yt-slot={active ? "1" : undefined}>
+    <div className="fy-panel fy-moment" data-yt-slot={active ? "1" : undefined}>
       <img src={`https://i.ytimg.com/vi/${yt.id}/hqdefault.jpg`} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
       {!live && !(active && yst.needTap) && active && <span className="fy-spin" aria-hidden />}
       <div className="fy-sub" style={{ zIndex: 3 }}><span>“{quote}”</span></div>
@@ -246,6 +246,13 @@ export default function FeedClient({ cards: initial }: { cards: ViewCard[] }) {
     if (!slot) { f.style.display = "none"; return; }
     const r = slot.getBoundingClientRect(), b = root.getBoundingClientRect();
     Object.assign(f.style, { display: "block", top: `${r.top - b.top + root.scrollTop}px`, left: `${r.left - b.left}px`, width: `${r.width}px`, height: `${r.height}px` });
+    // Fill the panel like a vertical video: scale the 16:9 player to cover it and crop the sides.
+    const fr = f.querySelector("iframe") as HTMLIFrameElement | null;
+    if (fr) {
+      const cover = r.width / r.height < 16 / 9;
+      const w = cover ? r.height * 16 / 9 : r.width, h = cover ? r.height : r.width * 9 / 16;
+      Object.assign(fr.style, { width: `${w}px`, height: `${h}px`, left: `${(r.width - w) / 2}px`, top: `${(r.height - h) / 2}px`, inset: "auto" });
+    }
   }, []);
   useEffect(() => { window.addEventListener("resize", place); return () => window.removeEventListener("resize", place); }, [place]);
   useEffect(() => {
@@ -271,9 +278,9 @@ export default function FeedClient({ cards: initial }: { cards: ViewCard[] }) {
           host: "https://www.youtube-nocookie.com", videoId: yt.id, width: "100%", height: "100%",
           playerVars: { start: yt.start, end: yt.end, autoplay: 1, mute: 1, controls: 0, playsinline: 1, rel: 0, modestbranding: 1, iv_load_policy: 3, disablekb: 1, fs: 0, cc_load_policy: 0 },
           events: {
-            onReady: (e: { target: YTPlayer }) => { if (soundRef.current) { e.target.unMute(); e.target.setVolume(100); } else e.target.mute(); e.target.playVideo(); },
+            onReady: (e: { target: YTPlayer }) => { place(); if (soundRef.current) { e.target.unMute(); e.target.setVolume(100); } else e.target.mute(); e.target.playVideo(); },
             onStateChange: (e: { data: number; target: YTPlayer }) => {
-              if (e.data === 1) setYst({ playing: true, needTap: false });
+              if (e.data === 1) { setYst({ playing: true, needTap: false }); place(); }
               if (e.data === 0) {
                 // After the clip plays once, show the data; after that it loops.
                 if (hasChart.current && !autoDone.current) { autoDone.current = true; setCview("data"); return; }
@@ -412,7 +419,8 @@ export default function FeedClient({ cards: initial }: { cards: ViewCard[] }) {
         .fy-lbl{font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:${MUTE}}
         .fy-cap{margin-top:auto;padding-top:12px;flex-shrink:0}
         .fy-media.fy-fillmode{flex:1;min-height:0}
-        .fy-fill{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center}
+        .fy-fill{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center;overflow:hidden}
+        .fy-fill>.fy-panel.fy-moment{width:100%!important;height:var(--fh);aspect-ratio:auto;min-height:200px}
         .fy-fill>.fy-panel{width:min(100%,calc(var(--fh) * 16 / 9));margin:0 auto}
         .fy-fill>.fy-chart{flex-shrink:0}
         .fy-seg{display:flex;gap:6px;margin-bottom:8px;flex-shrink:0}
