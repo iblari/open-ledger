@@ -256,6 +256,7 @@ export default function FeedClient({ cards: initial }: { cards: ViewCard[] }) {
   const wantPlay = useRef<(Yt | null)[]>([null, null]);
   const cur = useRef(0);
   const [shown, setShown] = useState(0);
+  const [looping, setLooping] = useState(false);
   const ytCur = useRef<Yt | null>(null);
   const [yst, setYst] = useState({ playing: false, needTap: false });
   const soundRef = useRef(sound); soundRef.current = sound;
@@ -379,6 +380,8 @@ export default function FeedClient({ cards: initial }: { cards: ViewCard[] }) {
       let t = 0; try { t = x.getCurrentTime(); } catch { return; }
       if (t >= y.end - 0.3 || t < y.start - 1.5) {
         if (t >= y.end - 0.3 && hasChart.current && !autoDone.current) { autoDone.current = true; setCview("data"); return; }
+        // Hide YouTube's seek overlay (title bar, "More videos") behind the thumbnail for a beat.
+        setLooping(true); setTimeout(() => setLooping(false), 1300);
         try { x.seekTo(y.start, true); } catch {}
       }
     }, 250);
@@ -548,7 +551,7 @@ export default function FeedClient({ cards: initial }: { cards: ViewCard[] }) {
         @keyframes fy-heart{0%{opacity:0;transform:translate(-50%,-50%) scale(.4)}25%{opacity:1;transform:translate(-50%,-50%) scale(1.15)}70%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-80%) scale(1)}}
       `}</style>
       <div ref={box} className="fy-box" aria-label="For you feed" onPointerDown={armIdle}>
-        {[0, 1].map(k => <div key={k} ref={boxes[k]} className="fy-ytfloat" style={{ visibility: shown === k && (yst.playing || yst.needTap) ? "visible" : "hidden", opacity: shown === k && yst.playing ? 1 : 0.011, pointerEvents: shown === k && yst.needTap ? "auto" : "none", zIndex: shown === k ? 2 : 1 }} />)}
+        {[0, 1].map(k => <div key={k} ref={boxes[k]} className="fy-ytfloat" style={{ visibility: shown === k && (yst.playing || yst.needTap) ? "visible" : "hidden", opacity: shown === k && yst.playing && !looping ? 1 : 0.011, transition: "opacity .25s", pointerEvents: shown === k && yst.needTap ? "auto" : "none", zIndex: shown === k ? 2 : 1 }} />)}
         {cards.map((c, i) => {
           const on = i === active;
           const near = Math.abs(i - active) <= 2;
