@@ -6,6 +6,7 @@ import { dayET } from "./traffic";
 import { MID, raceTitle } from "./midterms";
 import { getResults } from "./results";
 import { getTrendingClaims } from "./trending-claims";
+import SHAPES from "./data/state-shapes.json";
 
 /**
  * For You feed, v1. One vertical stream of everything the site makes:
@@ -24,7 +25,7 @@ export interface ClaimCard extends Base { kind: "claim"; quote: string; speaker:
   /** The official series behind the verdict, for the interactive chart. */
   chart: { series: string; countries: string[]; said: number | null; saidLine: string | null; since: string | null; terms: boolean; date: string } | null }
 export interface MetricCard extends Base { kind: "metric"; series: string; official: boolean; name: string; value: string; label: string; change: string | null; source: string; video: string | null; image: string; nextRelease: string | null; dash: string | null }
-export interface ResultCard extends Base { kind: "result"; title: string; state: string; st: string; pctCounted: number | null; cands: { name: string; p: string; votes: number; pct: number }[]; total: number; source: string; local: boolean; live: boolean; called: string | null }
+export interface ResultCard extends Base { kind: "result"; title: string; state: string; st: string; pctCounted: number | null; cands: { name: string; p: string; votes: number; pct: number }[]; total: number; source: string; local: boolean; live: boolean; shape: string | null; winnerP: string | null; called: string | null }
 export type FyCard = StoryCard | ClaimCard | MetricCard | ResultCard;
 
 const SITE = "https://voteunbiased.org";
@@ -135,6 +136,8 @@ async function resultCards(myState: string | null): Promise<Scored<ResultCard>[]
     out.push({
       kind: "result", id: `result:${r.id}`, href: `/vote/${r.st.toLowerCase()}`, at: x.updatedAt, topic: "Elections",
       title: raceTitle(r), state: r.state, st: r.st, pctCounted: x.pctCounted, cands, total, source: x.source, local,
+      shape: (SHAPES as Record<string, string>)[r.st] ?? null,
+      winnerP: x.called ? (x.cands.find(c => c.name === x.called!.name)?.p || null) : null,
       called: x.called ? `${x.called.name} (called by ${x.called.by})` : null,
       live,
       why: local ? "Your state" : margin < 0.03 ? "One of the closest races" : live ? "Live count" : "Election result",
