@@ -32,7 +32,7 @@ const short = (n: number) => n >= 1e4 ? `${Math.round(n / 1e3)}K` : n >= 1e3 ? `
 
 /* ── YouTube: the moment the claim was said ───────────────────── */
 
-type YTPlayer = { loadVideoById(o: { videoId: string; startSeconds: number; endSeconds: number }): void; playVideo(): void; pauseVideo(): void; seekTo(s: number, a: boolean): void; mute(): void; unMute(): void; isMuted(): boolean; setVolume(v: number): void; destroy(): void };
+type YTPlayer = { getCurrentTime(): number; loadVideoById(o: { videoId: string; startSeconds: number; endSeconds?: number }): void; playVideo(): void; pauseVideo(): void; seekTo(s: number, a: boolean): void; mute(): void; unMute(): void; isMuted(): boolean; setVolume(v: number): void; destroy(): void };
 type W = { YT?: { Player: new (el: HTMLElement, o: object) => unknown }; onYouTubeIframeAPIReady?: () => void };
 const win = () => window as unknown as W;
 let apiReady: Promise<void> | null = null;
@@ -289,7 +289,7 @@ export default function FeedClient({ cards: initial }: { cards: ViewCard[] }) {
     preloading.current[i] = false;
     if (!x || !ready.current[i]) { wantPlay.current[i] = yt; return; }
     try {
-      if (!sameClip(loaded.current[i], yt)) { x.loadVideoById({ videoId: yt.id, startSeconds: yt.start, endSeconds: yt.end }); loaded.current[i] = yt; }
+      if (!sameClip(loaded.current[i], yt)) { x.loadVideoById({ videoId: yt.id, startSeconds: yt.start }); loaded.current[i] = yt; }
       else x.seekTo(yt.start, true);
       if (soundRef.current) { x.unMute(); x.setVolume(100); } else x.mute();
       x.playVideo();
@@ -300,7 +300,7 @@ export default function FeedClient({ cards: initial }: { cards: ViewCard[] }) {
     if (sameClip(loaded.current[i], yt)) return;
     loaded.current[i] = yt; preloading.current[i] = true;
     if (!x || !ready.current[i]) return;          // picked up in onReady
-    try { x.mute(); x.loadVideoById({ videoId: yt.id, startSeconds: yt.start, endSeconds: yt.end }); } catch {}
+    try { x.mute(); x.loadVideoById({ videoId: yt.id, startSeconds: yt.start }); } catch {}
   }, []);
 
   // Create both players as soon as the page opens (not on the first video card).
@@ -317,7 +317,7 @@ export default function FeedClient({ cards: initial }: { cards: ViewCard[] }) {
         const el = document.createElement("div"); host.appendChild(el);
         yps.current[i] = new YT.Player(el, {
           host: "https://www.youtube-nocookie.com", videoId: first.id, width: "100%", height: "100%",
-          playerVars: { start: first.start, end: first.end, autoplay: 1, mute: 1, controls: 0, playsinline: 1, rel: 0, modestbranding: 1, iv_load_policy: 3, disablekb: 1, fs: 0, cc_load_policy: 0 },
+          playerVars: { start: first.start, autoplay: 1, mute: 1, controls: 0, playsinline: 1, rel: 0, modestbranding: 1, iv_load_policy: 3, disablekb: 1, fs: 0, cc_load_policy: 0 },
           events: {
             onReady: (e: { target: YTPlayer }) => {
               ready.current[i] = true; place();
@@ -325,7 +325,7 @@ export default function FeedClient({ cards: initial }: { cards: ViewCard[] }) {
               const w = wantPlay.current[i]; wantPlay.current[i] = null;
               if (w && cur.current === i) startOn(i, w);
               else if (!preloading.current[i]) e.target.pauseVideo();
-              else { const l = loaded.current[i]; if (l && l.id !== first.id) { try { e.target.loadVideoById({ videoId: l.id, startSeconds: l.start, endSeconds: l.end }); } catch {} } }
+              else { const l = loaded.current[i]; if (l && l.id !== first.id) { try { e.target.loadVideoById({ videoId: l.id, startSeconds: l.start }); } catch {} } }
             },
             onStateChange: (e: { data: number; target: YTPlayer }) => {
               if (e.data === 1) {
@@ -370,6 +370,20 @@ export default function FeedClient({ cards: initial }: { cards: ViewCard[] }) {
     return () => { clearTimeout(t); if (pre) clearTimeout(pre); cancelAnimationFrame(raf); };
   }, [active, cards, place, startOn, preloadOn]);
   useEffect(() => { requestAnimationFrame(place); }, [yst.needTap, place]);
+  // Loop the clip ourselves just before its end, so YouTube never shows its
+  // end screen ("More videos"). First time round, a claim with data switches to the chart.
+  useEffect(() => {
+    if (!yst.playing) return;
+    const id = setInterval(() => {
+      const x = yps.current[cur.current], y = ytCur.current; if (!x || !y) return;
+      let t = 0; try { t = x.getCurrentTime(); } catch { return; }
+      if (t >= y.end - 0.3 || t < y.start - 1.5) {
+        if (t >= y.end - 0.3 && hasChart.current && !autoDone.current) { autoDone.current = true; setCview("data"); return; }
+        try { x.seekTo(y.start, true); } catch {}
+      }
+    }, 250);
+    return () => clearInterval(id);
+  }, [yst.playing, active]);
   useEffect(() => {
     const raf = requestAnimationFrame(() => requestAnimationFrame(place));
     const x = yps.current[cur.current];
