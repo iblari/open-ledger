@@ -42,6 +42,89 @@ export function checkSlide(buf: Buffer): string | null {
   return null;
 }
 
+/** Chunked video upload: each request carries up to 4 MB; the finished clip may be up to 50 MB. */
+export const UPLOAD_CHUNK_MAX_BYTES = 4 * 1024 * 1024;
+export const VIDEO_MAX_BYTES = 50 * 1024 * 1024;
+const SUB = 300_000; // binary bytes per KV value (400,000 base64 chars)
+export const UPLOAD_ID_RE = /^[a-f0-9]{32}$/;
+const partMetaKey = (id: string, i: number) => `igslide:${id}:p${i}:meta`;
+const partKey = (id: string, i: number, j: number) => `igslide:${id}:p${i}:${j}`;
+
+/** Normalises an upload_id (32 hex chars or a UUID) to the 32-hex id the public URL will use; null if invalid. */
+export function parseUploadId(v: unknown): string | null {
+  if (typeof v !== "string") return null;
+  const id = v.trim().toLowerCase().replace(/-/g, "");
+  return UPLOAD_ID_RE.test(id) ? id : null;
+}
+
+/** Stages one chunk of a video upload. Re-sending the same index replaces it. */
+export async function savePart(id: string, index: number, data: Buffer): Promise<{ width?: number; height?: number }> {
+  const items: [string, string, number][] = [];
+  const n = Math.max(1, Math.ceil(data.length / SUB));
+  for (let j = 0; j < n; j++) items.push([partKey(id, index, j), data.subarray(j * SUB, (j + 1) * SUB).toString("base64"), TTL_SEC]);
+  const at = data.indexOf("avc1", 0, "ascii");
+  const dims = at >= 4 && data.length >= at + 32 ? { width: data.readUInt16BE(at + 28), height: data.readUInt16BE(at + 30) } : {};
+  items.push([partMetaKey(id, index), JSON.stringify({ n, bytes: data.length, ...dims }), TTL_SEC]);
+  await kvSetMany(items);
+  return dims;
+}
+
+/** Reads the staged chunk 0..last and, if complete and valid, turns them into the final clip. */
+export async function commitParts(id: string, last: number): Promise<{ bytes: number; width: number; height: number } | { error: string; status: number }> {
+  const [done] = await kvGet([metaKey(id)]);
+  if (done) return { error: "this upload_id is already committed", status: 409 };
+  const raw = await kvGet(Array.from({ length: last + 1 }, (_, i) => partMetaKey(id, i)));
+  const missing = raw.map((r, i) => (r ? -1 : i)).filter(i => i >= 0);
+  if (missing.length) return { error: `missing chunk_index ${missing.slice(0, 10).join(", ")}; upload them, then commit again`, status: 400 };
+  const parts = raw.map(r => JSON.parse(r as string) as { n: number; bytes: number; width?: number; height?: number });
+  const bytes = parts.reduce((a, p) => a + p.bytes, 0);
+  if (bytes > VIDEO_MAX_BYTES) return { error: `MP4 is ${(bytes / 1048576).toFixed(1)} MB; max is 50 MB`, status: 413 };
+  const [first] = await kvGet([partKey(id, 0, 0)]);
+  if (!first || sniffKind(Buffer.from(first, "base64")) !== "mp4") return { error: "not an MP4 file (chunk 0 must be the start of the file)", status: 400 };
+  const dim = parts.find(p => p.width && p.height);
+  if (!dim) return { error: "not an H.264 (avc1) MP4 file", status: 400 };
+  await kvSetMany([[metaKey(id), JSON.stringify({ parts: parts.map(p => ({ n: p.n, bytes: p.bytes })), bytes, kind: "mp4", at: new Date().toISOString() }), TTL_SEC]]);
+  return { bytes, width: dim.width!, height: dim.height! };
+}
+
+/** Size and type of a stored slide/clip, without reading its bytes. */
+export async function slideInfo(id: string): Promise<{ bytes: number; kind: SlideKind } | null> {
+  const [rawMeta] = await kvGet([metaKey(id)]);
+  if (!rawMeta) return null;
+  const { bytes, kind } = JSON.parse(rawMeta) as { bytes: number; kind?: SlideKind };
+  return { bytes, kind: kind || "png" };
+}
+
+/** Streams bytes [start, end] of a chunk-uploaded clip, reading only the KV values it needs. Null if it isn't one. */
+export async function openParts(id: string, start: number, end: number): Promise<ReadableStream<Uint8Array> | null> {
+  const [rawMeta] = await kvGet([metaKey(id)]);
+  const meta = rawMeta ? (JSON.parse(rawMeta) as { parts?: { n: number; bytes: number }[] }) : null;
+  if (!meta?.parts) return null;
+  const pieces: { key: string; from: number; to: number }[] = [];
+  let off = 0;
+  meta.parts.forEach((p, i) => {
+    for (let j = 0; j < p.n; j++) {
+      const lo = off + j * SUB, hi = Math.min(off + (j + 1) * SUB, off + p.bytes) - 1;
+      if (hi >= start && lo <= end) pieces.push({ key: partKey(id, i, j), from: Math.max(start, lo) - lo, to: Math.min(end, hi) - lo });
+    }
+    off += p.bytes;
+  });
+  const BATCH = 8;
+  let at = 0;
+  return new ReadableStream<Uint8Array>({
+    async pull(ctrl) {
+      if (at >= pieces.length) return ctrl.close();
+      const batch = pieces.slice(at, at + BATCH);
+      const vals = await kvGet(batch.map(b => b.key));
+      for (let k = 0; k < batch.length; k++) {
+        if (vals[k] == null) return ctrl.error(new Error("clip storage is incomplete"));
+        ctrl.enqueue(new Uint8Array(Buffer.from(vals[k]!, "base64").subarray(batch[k].from, batch[k].to + 1)));
+      }
+      at += BATCH;
+    },
+  });
+}
+
 const metaKey = (id: string) => `igslide:${id}:meta`;
 const chunkKey = (id: string, i: number) => `igslide:${id}:${i}`;
 
@@ -61,7 +144,8 @@ export async function saveSlide(png: Buffer, kind: SlideKind = "png"): Promise<s
 export async function loadSlide(id: string): Promise<{ buf: Buffer; kind: SlideKind } | null> {
   const [rawMeta] = await kvGet([metaKey(id)]);
   if (!rawMeta) return null;
-  const { n, bytes, kind } = JSON.parse(rawMeta) as { n: number; bytes: number; kind?: SlideKind };
+  const { n, bytes, kind } = JSON.parse(rawMeta) as { n?: number; bytes: number; kind?: SlideKind };
+  if (n == null) return null;
   const parts = await kvGet(Array.from({ length: n }, (_, i) => chunkKey(id, i)));
   if (parts.some(p => p == null)) return null;
   const buf = Buffer.from(parts.join(""), "base64");
