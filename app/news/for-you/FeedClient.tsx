@@ -458,7 +458,7 @@ export default function FeedClient({ cards: initial }: { cards: ViewCard[] }) {
                 <div className="fy-main">
                   <div className={`fy-media${c.kind === "claim" || c.kind === "metric" || c.kind === "story" ? " fy-fillmode" : ""}`} onClick={() => on && tap(c)}>
                     {(near || c.kind === "story") && <Media c={c} active={on} sound={sound} paused={on && paused} onSound={toggleSound} yst={yst} cview={on ? cview : "clip"} onView={v => { setCview(v); autoDone.current = true; }} />}
-                    {on && paused && <div style={{ position: "absolute", left: "50%", top: 10, transform: "translateX(-50%)", zIndex: 5, pointerEvents: "none", background: "rgba(20,17,14,.8)", color: "#fff", fontSize: 12, fontWeight: 700, padding: "4px 10px", borderRadius: 999 }}>Paused · tap to play</div>}
+                    {on && paused && <div style={{ position: "absolute", left: "50%", top: c.kind === "claim" ? 56 : 10, transform: "translateX(-50%)", zIndex: 5, pointerEvents: "none", background: "rgba(20,17,14,.8)", color: "#fff", fontSize: 12, fontWeight: 700, padding: "4px 10px", borderRadius: 999 }}>Paused · tap to play</div>}
                     {burst?.id === c.id && <svg key={burst.k} width="96" height="96" viewBox="0 0 24 24" fill={RED} stroke="#fff" strokeWidth="1.2" strokeLinejoin="round" aria-hidden style={{ position: "absolute", left: "50%", top: "45%", zIndex: 4, pointerEvents: "none", animation: "fy-heart .9s ease-out forwards" }}>{I.like}</svg>}
                   </div>
                   <div className="fy-cap">
