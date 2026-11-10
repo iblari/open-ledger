@@ -180,7 +180,9 @@ export default function ProChart(props: ProChartProps) {
   const x = scaleTime().domain([x0, x1]).range([M.l, W - M.r]);
   const yTicks = y.ticks(compact ? 3 : phone ? 4 : 5);
   const xTicks = x.ticks(phone ? 4 : 6);
-  const xFmt = (d: Date) => (range <= 1 && data.freq !== "a" ? `${MON[d.getUTCMonth()]}${d.getUTCMonth() === 0 ? " " + d.getUTCFullYear() : ""}` : String(d.getUTCFullYear()));
+  // Short windows (1Y, or "Max" on a series under ~3 years) label months, so ticks don't repeat a year.
+  const shortX = data.freq !== "a" && (range <= 1 || (range === 99 && spanYrs < 3));
+  const xFmt = (d: Date) => (shortX ? `${MON[d.getUTCMonth()]}${d.getUTCMonth() === 0 || range > 1 ? " '" + String(d.getUTCFullYear()).slice(2) : ""}` : String(d.getUTCFullYear()));
   const dec = data.decimals;
   const fv = (v: number) => fmtVal(v, data.unit, dec);
   const yFmt = (v: number) => {
