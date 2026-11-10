@@ -1442,15 +1442,15 @@ function App(){
               the colour carries information instead of asking for attention.
               Off air it is a muted hollow dot: still findable, not shouting. */}
           {/* News: stories by coverage, blindspots, checked claims (app/news). */}
-          <a href="/news" className="ol-nav-btn" style={{
+          <Link href="/news" className="ol-nav-btn" style={{
             padding:"13px 20px",fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:600,whiteSpace:"nowrap",
             background:"transparent",color:T.mute,textDecoration:"none",borderBottom:"2px solid transparent",transition:"all 0.2s",
-          }}>News</a>
-          <a href="/vote" className="ol-nav-btn" style={{
+          }}>News</Link>
+          <Link href="/vote" className="ol-nav-btn" style={{
             padding:"13px 20px",fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:600,whiteSpace:"nowrap",
             background:"transparent",color:T.mute,textDecoration:"none",borderBottom:"2px solid transparent",transition:"all 0.2s",display:"flex",alignItems:"center",gap:6,
-          }}>Vote<VoteBadge /></a>
-          <a href="/live" className="ol-nav-btn" aria-label={onAir?"Live Broadcast — on air now":"Live Broadcast"} style={{
+          }}>Vote<VoteBadge /></Link>
+          <Link href="/live" className="ol-nav-btn" aria-label={onAir?"Live Broadcast — on air now":"Live Broadcast"} style={{
             padding:"13px 20px",fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:600,whiteSpace:"nowrap",
             background:"transparent",color:onAir?T.accent:T.mute,textDecoration:"none",display:"flex",alignItems:"center",gap:6,
             borderBottom:"2px solid transparent",transition:"all 0.2s"
@@ -1470,7 +1470,7 @@ function App(){
               background:"#a67c0014", color:"#a67c00",
               border:"1px solid #a67c0040", lineHeight:1,
             }}>Beta</span>
-          </a>
+          </Link>
         </div>
       </div>
 
