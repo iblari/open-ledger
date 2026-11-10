@@ -32,7 +32,7 @@ const short = (n: number) => n >= 1e4 ? `${Math.round(n / 1e3)}K` : n >= 1e3 ? `
 
 /* ── YouTube: the moment the claim was said ───────────────────── */
 
-type YTPlayer = { getCurrentTime(): number; loadVideoById(o: { videoId: string; startSeconds: number; endSeconds?: number }): void; playVideo(): void; pauseVideo(): void; seekTo(s: number, a: boolean): void; mute(): void; unMute(): void; isMuted(): boolean; setVolume(v: number): void; destroy(): void };
+type YTPlayer = { getCurrentTime(): number; getDuration(): number; loadVideoById(o: { videoId: string; startSeconds: number; endSeconds?: number }): void; playVideo(): void; pauseVideo(): void; seekTo(s: number, a: boolean): void; mute(): void; unMute(): void; isMuted(): boolean; setVolume(v: number): void; destroy(): void };
 type W = { YT?: { Player: new (el: HTMLElement, o: object) => unknown }; onYouTubeIframeAPIReady?: () => void };
 const win = () => window as unknown as W;
 let apiReady: Promise<void> | null = null;
@@ -337,6 +337,15 @@ export default function FeedClient({ cards: initial }: { cards: ViewCard[] }) {
               if (cur.current === i) setYst({ playing: false, needTap: false });
             },
             onStateChange: (e: { data: number; target: YTPlayer }) => {
+              // The moment is past the end of this video (bad timestamp): don't play the wrong part.
+              const l0 = loaded.current[i];
+              let dur = 0; try { dur = e.target.getDuration(); } catch {}
+              if (l0 && dur > 0 && l0.start >= dur - 2) {
+                setBad(b => b.has(clipKey(l0)) ? b : new Set(b).add(clipKey(l0)));
+                try { e.target.pauseVideo(); } catch {}
+                if (cur.current === i) setYst({ playing: false, needTap: false });
+                return;
+              }
               if (e.data === 1) {
                 // A buffering standby: hold it at the start, ready for the swipe.
                 if (preloading.current[i] || cur.current !== i) { try { e.target.pauseVideo(); const l = loaded.current[i]; if (l) e.target.seekTo(l.start, true); } catch {} return; }
