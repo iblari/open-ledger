@@ -41,12 +41,11 @@ export function NewsChrome({ active = "news" }: { active?: "news" | "data" | "li
       <nav data-nosnippet style={{ borderBottom: `1px solid ${C.rule}`, background: C.card }}>
         <div className="vuc-nav" style={{ maxWidth: 1400, margin: "0 auto", padding: "0 24px", display: "flex", overflowX: "auto" }}>
           <Link href="/dashboard" className="vuc-tab" style={tab(active === "data")}>Data</Link>
-          <Link href="/news" className="vuc-tab" aria-current={active === "news" ? "page" : undefined} style={tab(active === "news")}>News</Link>
-          <Link href="/vote" className="vuc-tab" aria-current={active === "vote" ? "page" : undefined} style={tab(active === "vote")}>Vote<VoteBadge /></Link>
+          <Link href="/news/for-you" className="vuc-tab" aria-current={active === "news" ? "page" : undefined} style={tab(active === "news")}>News</Link>
+          {active === "vote" && <Link href="/vote" className="vuc-tab" aria-current="page" style={tab(true)}>Vote</Link>}
           <Link href="/live" className="vuc-tab" style={tab(active === "live")}>
             <span style={{ width: 6, height: 6, borderRadius: "50%", border: `1.5px solid ${C.mute}`, flexShrink: 0 }} />
             Live Broadcast
-            <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", padding: "2px 5px", borderRadius: 3, marginLeft: 2, background: "#a67c0014", color: "#a67c00", border: "1px solid #a67c0040", lineHeight: 1 }}>Beta</span>
           </Link>
         </div>
       </nav>

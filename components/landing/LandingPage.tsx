@@ -1345,7 +1345,7 @@ function Footer({ mob, med }: { mob: boolean; med: boolean }) {
           {/* Link cols */}
           {[
             { h: "Data", links: [{ l: "Dashboard", href: "/dashboard" }, { l: "Benchmarks", href: "/benchmark" }, { l: "By president", href: "/economy" }] },
-            { h: "Fact-checks", links: [{ l: "Live", href: "/live" }, { l: "Broadcasts", href: "/broadcasts" }, { l: "2026 ballot", href: "/vote" }] },
+            { h: "Fact-checks", links: [{ l: "Live", href: "/live" }, { l: "Broadcasts", href: "/broadcasts" }, { l: "2026 election results", href: "/vote" }] },
             { h: "About", links: [{ l: "Methodology", href: "/methodology" }, { l: "Sources", href: "#sources" }] },
           ].map(col => (
             <div key={col.h}>
