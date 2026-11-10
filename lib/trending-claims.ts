@@ -16,6 +16,8 @@ export interface TrendingClaim extends ClaimForChart {
   path: string; videoId: string; videoTime?: number;
   /** Second in the RECORDING where the claim is said (alignment applied) — for the inline player. */
   embedStart?: number;
+  /** True when embedStart is where the quote was found in the recording (not an estimate). */
+  embedExact?: boolean;
   title: string; speaker: string | null; date: string; live: boolean;
   metricKey?: string | null; groundValue?: number | null;
   chart?: ClaimChart | null;
@@ -25,7 +27,7 @@ export interface TrendingClaim extends ClaimForChart {
 }
 
 export const TRENDING_RATINGS = new Set(["TRUE", "MOSTLY TRUE", "FALSE"]);
-const FEED_KEY = "trending-claims:v3";
+const FEED_KEY = "trending-claims:v4";
 const FEED_TTL_MS = 3 * 60_000;
 const MAX = 160;
 
@@ -79,6 +81,7 @@ export async function listTrendingClaims(): Promise<TrendingClaim[]> {
     const a = byVid.get(it.videoId);
     const exact = a?.times?.[normalizeQuote(it.quote)];
     it.embedStart = exact != null ? exact : it.videoTime != null ? Math.max(0, it.videoTime - (a?.offset ?? 0)) : undefined;
+    it.embedExact = exact != null;
   }
   // Repeat trail: the same claim in other broadcasts (same rule as /c pages).
   for (const it of items) {

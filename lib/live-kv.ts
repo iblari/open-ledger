@@ -649,6 +649,11 @@ export interface Alignment {
   total: number;
   /** Recording-timed transcript, "[m:ss] text" lines. */
   transcript: string;
+  /** Length (s) of the recording that was transcribed. If YouTube later trims
+   *  or re-processes the video, its length changes and the times go stale. */
+  duration?: number;
+  /** Last time the worker confirmed the YouTube video still has that length. */
+  verifiedAt?: string;
 }
 
 const ALIGN_KEY = (id: string) => `align:${id}`;
@@ -682,6 +687,32 @@ export async function setAlignment(videoId: string, a: Alignment): Promise<void>
   const json = JSON.stringify(a);
   if (hasUpstash()) await upstashCmd("SET", ALIGN_KEY(videoId), json);
   else mem.set(ALIGN_KEY(videoId), json);
+}
+
+/** Drop a stale alignment so the worker re-times the broadcast against the
+ *  recording as it is now (resets the retry counter too). */
+export async function clearAlignment(videoId: string): Promise<void> {
+  if (hasUpstash()) { await upstashCmd("DEL", ALIGN_KEY(videoId)); await upstashCmd("DEL", ALIGN_TRIES_KEY(videoId)); await upstashCmd("DEL", ALIGN_TRY_KEY(videoId)); }
+  else { mem.delete(ALIGN_KEY(videoId)); mem.delete(ALIGN_TRIES_KEY(videoId)); mem.delete(ALIGN_TRY_KEY(videoId)); }
+}
+
+/** Recording length an alignment was made from: stored, else its transcript's last line. */
+export function alignedDuration(a: Alignment): number | null {
+  if (a.duration && a.duration > 0) return a.duration;
+  const m = [...(a.transcript || "").matchAll(/\[(\d+):(\d{2})(?::(\d{2}))?\]/g)].pop();
+  if (!m) return null;
+  return m[3] != null ? Number(m[1]) * 3600 + Number(m[2]) * 60 + Number(m[3]) : Number(m[1]) * 60 + Number(m[2]);
+}
+
+/** Aligned broadcasts from the last `days`, for the worker to re-check against YouTube. */
+export async function alignmentsToVerify(days = 30, max = 40): Promise<{ videoId: string; duration: number | null; transcriptEnd: number | null; verifiedAt: string | null }[]> {
+  const now = Date.now();
+  const list = (await getReplayableRaw()).filter(b => b.videoId && b.endedAt && now - Date.parse(b.endedAt) < days * 864e5);
+  const aligns = await getAlignments(list.map(b => b.videoId));
+  const out = list.map((b, k) => ({ b, a: aligns[k] })).filter(x => x.a)
+    .map(({ b, a }) => ({ videoId: b.videoId, duration: a!.duration ?? null, transcriptEnd: alignedDuration(a!), verifiedAt: a!.verifiedAt ?? null }));
+  // Least recently verified first.
+  return out.sort((x, y) => (x.verifiedAt || "").localeCompare(y.verifiedAt || "")).slice(0, max);
 }
 
 /**

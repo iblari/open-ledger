@@ -288,7 +288,8 @@ async function fetchAudioTranscript(videoId) {
     const words = (data?.results?.channels?.[0]?.alternatives?.[0]?.words || [])
       .map(w => [w.punctuated_word || w.word, Math.round(w.start * 100) / 100]);
     const utterances = utts.map(u => [Math.round(u.start * 10) / 10, String(u.transcript || "").trim()]);
-    return segments.length ? { title: dl.title || "YouTube video", startedAt: dl.startedAt, segments, words, utterances } : null;
+    const duration = Number(data?.metadata?.duration) || (words.length ? Math.ceil(words[words.length - 1][1]) : null);
+    return segments.length ? { title: dl.title || "YouTube video", startedAt: dl.startedAt, segments, words, utterances, duration } : null;
   } catch (e) {
     fetchAudioTranscript.lastError = `transcription: ${e.message}`;
     log(`  audio transcription failed: ${e.message}`);
@@ -330,13 +331,57 @@ async function realignOne() {
     }
     const res = await fetch(`${API}/api/admin/realign`, {
       method: "POST", headers: auth, signal: AbortSignal.timeout(90_000),
-      body: JSON.stringify({ videoId: target.videoId, words: got.words, utterances: got.utterances }),
+      body: JSON.stringify({ videoId: target.videoId, words: got.words, utterances: got.utterances, duration: got.duration ?? null }),
     }).then(x => x.json()).catch(e => ({ error: e.message }));
     log(`  ✓ ${target.videoId}: ${res.matched ?? "?"}/${res.total ?? "?"} claims located, offset ${res.offset ?? "?"}s`, res.error ? `(${res.error})` : "");
   } catch (e) {
     log("realign error:", e.message);
   } finally {
     realignBusy = false;
+  }
+}
+
+/**
+ * YouTube trims and re-processes recordings after a stream ends (cutting a
+ * pre-show, splitting a stream), which shifts every moment in them. Each idle
+ * pass re-checks a few recent aligned broadcasts: if the video's length now
+ * differs from the recording that was transcribed, the server drops the old
+ * timings and the broadcast is re-timed against the video as it is now.
+ */
+let verifyBusy = false;
+async function getVideoLength(videoId) {
+  const userExtra = (process.env.YT_DLP_EXTRA_ARGS || "").split(/\s+/).filter(Boolean);
+  const egress = process.env.YT_PROXY_URL ? [["--proxy", process.env.YT_PROXY_URL], []] : [[]];
+  for (const e of egress) {
+    const n = await new Promise(resolve => {
+      const p = spawn("yt-dlp", [...e, "--skip-download", "--no-warnings", "--print", "%(duration)s", ...userExtra, `https://www.youtube.com/watch?v=${videoId}`]);
+      let out = ""; const kill = setTimeout(() => p.kill("SIGKILL"), 60_000);
+      p.stdout.on("data", d => { out += d; });
+      p.on("error", () => { clearTimeout(kill); resolve(null); });
+      p.on("close", () => { clearTimeout(kill); const v = Number(out.trim().split("\n")[0]); resolve(Number.isFinite(v) && v > 0 ? v : null); });
+    });
+    if (n) return n;
+  }
+  return null;
+}
+async function verifyAlignments(max = 4) {
+  if (!ADMIN_KEY || verifyBusy) return;
+  verifyBusy = true;
+  const auth = { Authorization: `Bearer ${ADMIN_KEY}`, "Content-Type": "application/json" };
+  try {
+    const { list = [] } = await fetch(`${API}/api/admin/realign?verify=1`, { headers: auth, signal: AbortSignal.timeout(20_000) }).then(r => r.json()).catch(() => ({}));
+    // Skip ones confirmed in the last 12 hours.
+    const due = list.filter(x => !x.verifiedAt || Date.now() - Date.parse(x.verifiedAt) > 12 * 3600_000).slice(0, max);
+    for (const x of due) {
+      const length = await getVideoLength(x.videoId);
+      if (!length) continue;
+      const r = await fetch(`${API}/api/admin/realign`, { method: "POST", headers: auth, body: JSON.stringify({ videoId: x.videoId, verify: { length } }) }).then(r => r.json()).catch(() => ({}));
+      if (r.stale) log(`⟲ ${x.videoId}: YouTube length ${length}s, aligned against ${r.was}s — queued for re-timing`);
+    }
+  } catch (e) {
+    log("verify error:", e.message);
+  } finally {
+    verifyBusy = false;
   }
 }
 
@@ -490,6 +535,8 @@ while (Date.now() < deadline - RESERVE_MIN * 60_000) {
     if (polls % 10 === 2) {
       // Deliberately not awaited — see realignOne.
       realignOne();
+      // Re-check recent timings against YouTube's current recordings.
+      verifyAlignments();
       // Any recovered broadcast with unchecked transcript (including ones
       // archived before this existed) gets its fact-check pass here.
       if (!claimsBusy) { claimsBusy = true; checkAllClaims(null).finally(() => { claimsBusy = false; }); }

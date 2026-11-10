@@ -101,7 +101,8 @@ const pool = unstable_cache(async () => {
       rating: c.rating, ratingLabel: c.ratingLabel, hook: c.hook, dataLine: c.dataLine, source: c.source,
       video: c.video, image: c.image.replace(SITE, ""), portrait: c.imagePortrait.replace(SITE, ""), watch: c.watch.replace(SITE, ""),
       // Seconds into the RECORDING (post-broadcast alignment), not the live clock.
-      yt: ytOf(c.watch, tcBy.get(c.key)?.embedStart ?? null),
+      // Only a moment we actually found in the recording; an estimate can land anywhere.
+      yt: tcBy.get(c.key)?.embedExact ? ytOf(c.watch, tcBy.get(c.key)!.embedStart ?? null) : null,
       chart: (() => {
         const t = tcBy.get(c.key); const m = t?.series;
         return m?.series ? { series: m.series, countries: m.countries || [], said: m.said ?? t?.claimedValue ?? null, saidLine: m.saidCountry, since: m.since, terms: !!m.terms, date: t!.date } : null;
@@ -135,7 +136,7 @@ const pool = unstable_cache(async () => {
   });
 
   return { stories, claims, metrics, at: kit.generatedAt };
-}, ["for-you-pool-v6"], { revalidate: 300 });
+}, ["for-you-pool-v7"], { revalidate: 300 });
 
 /** Results cards: official counts only, from the same store as /vote. */
 async function resultCards(myState: string | null): Promise<Scored<ResultCard>[]> {
