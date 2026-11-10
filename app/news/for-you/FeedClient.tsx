@@ -500,7 +500,7 @@ function Media({ c, active, sound, paused, onSound, yst, cview, onView }: { c: V
     const src = list[pi];
     return (
       <div ref={fill} className="fy-fill" style={{ justifyContent: "flex-start", overflow: "hidden" }}>
-      <div className="fy-panel fy-photo" style={{ aspectRatio: "auto", height: fh > 140 ? fh : 240, background: "#2a2622" }}>
+      <div className="fy-panel fy-photo" style={{ aspectRatio: "auto", width: "100%", height: fh > 140 ? fh : 240, background: "#2a2622" }}>
         {src
           ? <img key={src} src={src} alt="" referrerPolicy="no-referrer" decoding="async" loading={active ? "eager" : "lazy"}
               onError={() => setPi(k => k + 1)}
