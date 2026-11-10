@@ -23,7 +23,7 @@ export interface StoryCard extends Base { kind: "story"; title: string; outlets:
 export interface ClaimCard extends Base { kind: "claim"; quote: string; speaker: string | null; event: string; rating: string; ratingLabel: string; hook: string; dataLine: string; source: string; video: string | null; image: string; portrait: string; watch: string; yt: { id: string; start: number; end: number } | null;
   /** The official series behind the verdict, for the interactive chart. */
   chart: { series: string; countries: string[]; said: number | null; saidLine: string | null; since: string | null; terms: boolean; date: string } | null }
-export interface MetricCard extends Base { kind: "metric"; series: string; name: string; value: string; label: string; change: string | null; source: string; video: string | null; image: string; nextRelease: string | null; dash: string | null }
+export interface MetricCard extends Base { kind: "metric"; series: string; official: boolean; name: string; value: string; label: string; change: string | null; source: string; video: string | null; image: string; nextRelease: string | null; dash: string | null }
 export interface ResultCard extends Base { kind: "result"; title: string; state: string; st: string; pctCounted: number | null; cands: { name: string; p: string; votes: number; pct: number }[]; total: number; source: string; local: boolean; live: boolean; called: string | null }
 export type FyCard = StoryCard | ClaimCard | MetricCard | ResultCard;
 
@@ -105,17 +105,17 @@ const pool = unstable_cache(async () => {
     const recent = m.releasedLast24h;
     const soon = m.nextRelease && Date.parse(m.nextRelease) - Date.now() < 3 * 864e5 && Date.parse(m.nextRelease) > Date.now();
     return {
-      kind: "metric" as const, id: m.id, series: m.metric, href, at: m.dataUpdatedAt, topic: m.hashtag?.replace("#", "") || "Economy",
+      kind: "metric" as const, id: m.id, series: m.metric, official: !/ballotpedia|gallup|poll|realclear|538|silver|yougov|ipsos|survey/i.test(m.source), href, at: m.dataUpdatedAt, topic: m.hashtag?.replace("#", "") || "Economy",
       name: m.name, value: m.value, label: m.observationLabel, change: m.change, source: m.source,
       video: m.video, image: m.image.replace(SITE, ""), nextRelease: m.nextRelease,
       dash: m.dashboardLink ? pathOf(m.dashboardLink) + "?" + (m.dashboardLink.split("?")[1] || "").replace(/&?utm_[^&]*/g, "") : null,
-      why: recent ? "New official data today" : soon ? "New numbers out this week" : "Latest official figure",
+      why: recent ? (/ballotpedia|poll|gallup/i.test(m.source) ? "New reading today" : "New official data today") : soon ? "New numbers out this week" : "Latest reading",
       score: (1 + (recent ? 3 : 0) + (soon ? 0.6 : 0) + pop(href)) * fresh(m.dataUpdatedAt, 24 * 10),
     };
   });
 
   return { stories, claims, metrics, at: kit.generatedAt };
-}, ["for-you-pool-v3"], { revalidate: 300 });
+}, ["for-you-pool-v4"], { revalidate: 300 });
 
 /** Results cards: official counts only, from the same store as /vote. */
 async function resultCards(myState: string | null): Promise<Scored<ResultCard>[]> {

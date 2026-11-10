@@ -145,12 +145,19 @@ export default function ProChart(props: ProChartProps) {
 
   // Default range: enough to see the claim in context.
   const claimMs = t(claimDate);
+  // How many years the series actually covers: don't offer (or default to) a
+  // window longer than the data, which just draws empty years.
+  const spanYrs = useMemo(() => {
+    const pts = data.lines.flatMap(l => l.points); if (pts.length < 2) return 99;
+    const ms = pts.map(p => t(p.d)); return (Math.max(...ms) - Math.min(...ms)) / (365.25 * 864e5);
+  }, [data.lines]);
   const defaultRange = useMemo(() => {
     if (data.freq === "a" || props.fullRange) return 99;
+    if (spanYrs < 5.5) return spanYrs < 1.1 ? 99 : spanYrs < 4.5 ? 99 : 5;
     if (terms) return 10;
     if (since) { const yrs = (claimMs - t(since)) / (365.25 * 864e5); return yrs < 0.9 ? 1 : yrs < 4.5 ? 5 : 10; }
     return 5;
-  }, [data.freq, terms, since, claimMs, props.fullRange]);
+  }, [data.freq, terms, since, claimMs, props.fullRange, spanYrs]);
   const [range, setRange] = useState<number>(defaultRange);
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   const [hover, setHover] = useState<number | null>(null);   // ms
@@ -173,7 +180,9 @@ export default function ProChart(props: ProChartProps) {
   const x = scaleTime().domain([x0, x1]).range([M.l, W - M.r]);
   const yTicks = y.ticks(compact ? 3 : phone ? 4 : 5);
   const xTicks = x.ticks(phone ? 4 : 6);
-  const xFmt = (d: Date) => (range <= 1 && data.freq !== "a" ? `${MON[d.getUTCMonth()]}${d.getUTCMonth() === 0 ? " " + d.getUTCFullYear() : ""}` : String(d.getUTCFullYear()));
+  // Short windows (1Y, or "Max" on a series under ~3 years) label months, so ticks don't repeat a year.
+  const shortX = data.freq !== "a" && (range <= 1 || (range === 99 && spanYrs < 3));
+  const xFmt = (d: Date) => (shortX ? `${MON[d.getUTCMonth()]}${d.getUTCMonth() === 0 || range > 1 ? " '" + String(d.getUTCFullYear()).slice(2) : ""}` : String(d.getUTCFullYear()));
   const dec = data.decimals;
   const fv = (v: number) => fmtVal(v, data.unit, dec);
   const yFmt = (v: number) => {
@@ -345,7 +354,7 @@ export default function ProChart(props: ProChartProps) {
           </div>
         )}
         <div role="tablist" aria-label="Range" style={{ display: "flex", background: "#F1ECE4", borderRadius: 99, padding: 2 }}>
-          {RANGES.filter(([, n]) => data.freq !== "a" || n >= 5).map(([l, n]) => (
+          {RANGES.filter(([, n]) => (data.freq !== "a" || n >= 5) && (n === 99 || n < spanYrs - 0.1)).map(([l, n]) => (
             <button key={l} type="button" role="tab" aria-selected={range === n} onClick={() => setRange(n)} style={{
               border: "none", cursor: "pointer", borderRadius: 99, padding: "4px 10px", fontFamily: SANS, fontSize: 12, fontWeight: range === n ? 700 : 500,
               background: range === n ? "#fff" : "transparent", color: range === n ? C.ink : C.sub, boxShadow: range === n ? "0 1px 2px rgba(0,0,0,.08)" : "none",
