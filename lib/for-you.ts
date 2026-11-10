@@ -43,9 +43,9 @@ async function recentViews(): Promise<Record<string, number>> {
 }
 
 /** The broadcast moment: a few seconds before the claim to ~15s after. */
-function ytOf(watch: string): ClaimCard["yt"] {
+function ytOf(watch: string, at?: number | null): ClaimCard["yt"] {
   try {
-    const u = new URL(watch); const id = u.searchParams.get("v"); const t = Number(u.searchParams.get("t"));
+    const u = new URL(watch); const id = u.searchParams.get("v"); const t = at != null && Number.isFinite(at) ? at : Number(u.searchParams.get("t"));
     if (!id || !/^[\w-]{11}$/.test(id) || !Number.isFinite(t)) return null;
     const start = Math.max(0, Math.floor(t) - 3);
     return { id, start, end: start + 18 };
@@ -90,7 +90,8 @@ const pool = unstable_cache(async () => {
       kind: "claim" as const, id: c.id, href, at: c.saidAt, topic: c.topic, quote: c.claimText, speaker: c.speaker, event: c.event,
       rating: c.rating, ratingLabel: c.ratingLabel, hook: c.hook, dataLine: c.dataLine, source: c.source,
       video: c.video, image: c.image.replace(SITE, ""), portrait: c.imagePortrait.replace(SITE, ""), watch: c.watch.replace(SITE, ""),
-      yt: ytOf(c.watch),
+      // Seconds into the RECORDING (post-broadcast alignment), not the live clock.
+      yt: ytOf(c.watch, tcBy.get(c.key)?.embedStart ?? null),
       chart: (() => {
         const t = tcBy.get(c.key); const m = t?.series;
         return m?.series ? { series: m.series, countries: m.countries || [], said: m.said ?? t?.claimedValue ?? null, saidLine: m.saidCountry, since: m.since, terms: !!m.terms, date: t!.date } : null;
@@ -115,7 +116,7 @@ const pool = unstable_cache(async () => {
   });
 
   return { stories, claims, metrics, at: kit.generatedAt };
-}, ["for-you-pool-v4"], { revalidate: 300 });
+}, ["for-you-pool-v5"], { revalidate: 300 });
 
 /** Results cards: official counts only, from the same store as /vote. */
 async function resultCards(myState: string | null): Promise<Scored<ResultCard>[]> {
