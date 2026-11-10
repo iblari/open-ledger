@@ -232,6 +232,7 @@ export default async function NewsPage({ searchParams }: { searchParams: Promise
               {TOPICS.map(t => <Link key={t} href={`/news?topic=${t.toLowerCase()}`} style={{ display: "block", padding: "6px 10px", fontSize: 13, color: C.ink, textDecoration: "none", borderRadius: 6, background: topic === t ? "#F3EFE8" : "transparent" }}>{t}</Link>)}
             </div>
           </details>
+          <Link href="/vote" style={tabLink(false)}>2026 Results</Link>
           {feed && <span style={{ marginLeft: "auto", fontSize: 12, color: C.mute }}>Updated {ago(feed.at)}</span>}
         </div>
 

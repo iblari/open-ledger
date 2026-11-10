@@ -1,5 +1,4 @@
 "use client";
-import { VoteBadge } from "@/components/news/NewsChrome";
 import { useState, useMemo, useEffect, useRef, Suspense } from "react";
 import { useIsMobileViewport } from "@/lib/viewport";
 import CheetahMark from "@/components/CheetahMark";
@@ -1442,14 +1441,10 @@ function App(){
               the colour carries information instead of asking for attention.
               Off air it is a muted hollow dot: still findable, not shouting. */}
           {/* News: stories by coverage, blindspots, checked claims (app/news). */}
-          <Link href="/news" className="ol-nav-btn" style={{
+          <Link href="/news/for-you" className="ol-nav-btn" style={{
             padding:"13px 20px",fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:600,whiteSpace:"nowrap",
             background:"transparent",color:T.mute,textDecoration:"none",borderBottom:"2px solid transparent",transition:"all 0.2s",
           }}>News</Link>
-          <Link href="/vote" className="ol-nav-btn" style={{
-            padding:"13px 20px",fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:600,whiteSpace:"nowrap",
-            background:"transparent",color:T.mute,textDecoration:"none",borderBottom:"2px solid transparent",transition:"all 0.2s",display:"flex",alignItems:"center",gap:6,
-          }}>Vote<VoteBadge /></Link>
           <Link href="/live" className="ol-nav-btn" aria-label={onAir?"Live Broadcast — on air now":"Live Broadcast"} style={{
             padding:"13px 20px",fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:600,whiteSpace:"nowrap",
             background:"transparent",color:onAir?T.accent:T.mute,textDecoration:"none",display:"flex",alignItems:"center",gap:6,
@@ -1459,17 +1454,6 @@ function App(){
               ? {width:6,height:6,borderRadius:"50%",background:T.accent,flexShrink:0}
               : {width:6,height:6,borderRadius:"50%",border:`1.5px solid ${T.mute}`,flexShrink:0}}/>
             Live Broadcast
-            {/* BETA badge — gold from the editorial palette so it reads as
-                'preview / not 100% ready' without competing with the red live
-                signal. Sits inside the anchor so clicking the badge also
-                follows the link. */}
-            <span style={{
-              fontFamily:"'DM Sans',sans-serif", fontSize:9, fontWeight:700,
-              letterSpacing:0.6, textTransform:"uppercase",
-              padding:"2px 5px", borderRadius:3, marginLeft:2,
-              background:"#a67c0014", color:"#a67c00",
-              border:"1px solid #a67c0040", lineHeight:1,
-            }}>Beta</span>
           </Link>
         </div>
       </div>

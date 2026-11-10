@@ -34,6 +34,7 @@ export default async function ForYou() {
         <Link href="/news" style={tab(false)}>Top</Link>
         <Link href="/news?view=blindspots" style={tab(false)}>Blindspots</Link>
         <Link href="/news?view=claims" style={tab(false)}>Claims</Link>
+        <Link href="/vote" style={tab(false)}>2026 Results</Link>
       </div>
       <h1 className="sr-only" style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0 0 0 0)" }}>For you</h1>
       <FeedClient cards={view} />

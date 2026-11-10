@@ -15,7 +15,6 @@ export default function SeoHeader() {
         <nav data-nosnippet style={{ marginLeft: "auto", display: "flex", gap: 14, fontSize: 13, fontWeight: 600, whiteSpace: "nowrap", overflowX: "auto" }}>
           <Link href="/benchmark" style={l}>Benchmarks</Link>
           <Link href="/broadcasts" style={l}>Fact-checks</Link>
-          <Link href="/vote" style={l}>Ballot</Link>
           <Link href="/live" style={{ ...l, color: C.accent }}>Live</Link>
         </nav>
       </div>
