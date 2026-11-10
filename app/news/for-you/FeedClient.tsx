@@ -465,8 +465,8 @@ export default function FeedClient({ cards: initial }: { cards: ViewCard[] }) {
             <section key={c.id} data-i={i} className="fy-slot" aria-label={`${i + 1} of ${cards.length}`}>
               <div className="fy-stage">
                 <div className="fy-main">
-                  <div className={`fy-media${c.kind === "claim" || c.kind === "metric" || c.kind === "story" ? " fy-fillmode" : ""}`} onClick={() => on && tap(c)}>
-                    {(near || c.kind === "story") && <Media c={c} active={on} sound={sound} paused={on && paused} onSound={toggleSound} yst={yst} cview={on ? cview : "clip"} onView={v => { setCview(v); autoDone.current = true; }} />}
+                  <div className="fy-media fy-fillmode" onClick={() => on && tap(c)}>
+                    {(near || c.kind === "story" || c.kind === "result") && <Media c={c} active={on} sound={sound} paused={on && paused} onSound={toggleSound} yst={yst} cview={on ? cview : "clip"} onView={v => { setCview(v); autoDone.current = true; }} />}
                     {on && paused && <div style={{ position: "absolute", left: "50%", top: c.kind === "claim" ? 56 : 10, transform: "translateX(-50%)", zIndex: 5, pointerEvents: "none", background: "rgba(20,17,14,.8)", color: "#fff", fontSize: 12, fontWeight: 700, padding: "4px 10px", borderRadius: 999 }}>Paused · tap to play</div>}
                     {burst?.id === c.id && <svg key={burst.k} width="96" height="96" viewBox="0 0 24 24" fill={RED} stroke="#fff" strokeWidth="1.2" strokeLinejoin="round" aria-hidden style={{ position: "absolute", left: "50%", top: "45%", zIndex: 4, pointerEvents: "none", animation: "fy-heart .9s ease-out forwards" }}>{I.like}</svg>}
                   </div>
@@ -545,6 +545,35 @@ function Media({ c, active, sound, paused, onSound, yst, cview, onView }: { c: V
       <DataChart tall avail={fh} id={c.series} fallback={<div className="fy-panel"><Clip src={c.video} poster={c.image} active={active} paused={paused} /></div>} />
     </div>
   );
+  if (c.kind === "result") {
+    const col = c.winnerP === "D" ? "#4361a6" : c.winnerP === "R" ? "#b8372d" : c.winnerP ? "#8a8378" : "#B4AEA5";
+    const [a, b] = c.cands;
+    const margin = a && b ? (a.pct - b.pct) * 100 : null;
+    return (
+      <div ref={fill} className="fy-fill" style={{ justifyContent: "flex-start", overflow: "hidden" }}>
+        <div className="fy-panel" style={{ aspectRatio: "auto", width: "100%", height: fh > 140 ? fh : 240, background: "#EFE9DF" }}>
+          {c.shape && (
+            <svg viewBox="0 0 400 300" preserveAspectRatio="xMidYMid meet" aria-hidden style={{ position: "absolute", inset: "14% 6% 18% 6%", width: "88%", height: "68%" }}>
+              <path d={c.shape} fill={col} fillOpacity={0.88} stroke="#fff" strokeWidth={1.2} />
+            </svg>
+          )}
+          <div style={{ position: "absolute", left: 14, top: 12, right: 14 }}>
+            <div style={{ fontFamily: SERIF, fontSize: 26, lineHeight: 1.1, color: INK }}>{c.state}</div>
+            <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: ".08em", textTransform: "uppercase", color: SUB, marginTop: 3 }}>{c.title}</div>
+          </div>
+          <div style={{ position: "absolute", left: 14, right: 14, bottom: 12, display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 8 }}>
+            {c.called && a ? (
+              <span style={{ background: "rgba(255,255,255,.92)", borderRadius: 10, padding: "6px 10px", fontSize: 13, fontWeight: 700, color: INK }}>
+                {c.called.split(" (")[0]} won{margin != null ? <span style={{ color: col }}> · +{margin.toFixed(1)} pts</span> : null}
+              </span>
+            ) : (
+              <span style={{ background: "#FBF1DD", color: "#7A5300", borderRadius: 10, padding: "6px 10px", fontSize: 13, fontWeight: 700 }}>Not called{margin != null ? ` · ${margin.toFixed(1)} pts apart` : ""}</span>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
   return null;
 }
 
@@ -605,9 +634,8 @@ function Caption({ c }: { c: ViewCard }) {
   const lead = c.cands[0]?.votes;
   return (
     <>
-      <div className="fy-k">{c.live ? "Live result" : "Election result"} · {c.state} · updated {c.ago}</div>
-      <h2 className="fy-h">{c.title}</h2>
-      <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 10 }}>
+      <div className="fy-k">{c.live ? "Live result" : "Election result"} · updated {c.ago}</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 8 }}>
         {c.cands.map(x => (
           <div key={x.name}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
