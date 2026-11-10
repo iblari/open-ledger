@@ -420,8 +420,8 @@ export default function FeedClient({ cards: initial }: { cards: ViewCard[] }) {
         .fy-seg button.on{background:${INK};border-color:${INK};color:#fff}
         .fy-chart{background:#fff;border:1px solid ${RULE};border-radius:14px;padding:10px 10px 6px;cursor:auto}
         .fy-hint{font-size:10.5px;color:${MUTE};text-align:center;margin-top:2px}
-        .fy-grow{flex:1;justify-content:center}
-        .fy-grow>.fy-photo{flex:1;aspect-ratio:auto!important;min-height:120px}
+        .fy-grow{flex:1;justify-content:flex-start}
+        .fy-grow>.fy-photo{flex:none;aspect-ratio:auto!important;height:max(150px,min(48cqh,calc(100cqh - 330px)))}
         .fy-k{font-size:12px;color:${SUB}}
         .fy-h{font-family:${SERIF};font-weight:500;font-size:clamp(20px,5.4vw,24px);line-height:1.17;letter-spacing:-.01em;margin:5px 0 4px;color:${INK};display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
         .fy-why{font-size:12px;color:${SUB};margin-top:8px;display:flex;gap:10px;align-items:center}
@@ -457,7 +457,7 @@ export default function FeedClient({ cards: initial }: { cards: ViewCard[] }) {
               <div className="fy-stage">
                 <div className="fy-main">
                   <div className={`fy-media${c.kind === "story" ? " fy-grow" : c.kind === "claim" || c.kind === "metric" ? " fy-fillmode" : ""}`} onClick={() => on && tap(c)}>
-                    {near && <Media c={c} active={on} sound={sound} paused={on && paused} onSound={toggleSound} yst={yst} cview={on ? cview : "clip"} onView={v => { setCview(v); autoDone.current = true; }} />}
+                    {(near || c.kind === "story") && <Media c={c} active={on} sound={sound} paused={on && paused} onSound={toggleSound} yst={yst} cview={on ? cview : "clip"} onView={v => { setCview(v); autoDone.current = true; }} />}
                     {on && paused && <div style={{ position: "absolute", left: "50%", top: 10, transform: "translateX(-50%)", zIndex: 5, pointerEvents: "none", background: "rgba(20,17,14,.8)", color: "#fff", fontSize: 12, fontWeight: 700, padding: "4px 10px", borderRadius: 999 }}>Paused · tap to play</div>}
                     {burst?.id === c.id && <svg key={burst.k} width="96" height="96" viewBox="0 0 24 24" fill={RED} stroke="#fff" strokeWidth="1.2" strokeLinejoin="round" aria-hidden style={{ position: "absolute", left: "50%", top: "45%", zIndex: 4, pointerEvents: "none", animation: "fy-heart .9s ease-out forwards" }}>{I.like}</svg>}
                   </div>
@@ -501,7 +501,10 @@ function Media({ c, active, sound, paused, onSound, yst, cview, onView }: { c: V
     return (
       <div className="fy-panel fy-photo" style={{ aspectRatio: "4 / 3", background: "#2a2622" }}>
         {src
-          ? <img src={src} alt="" referrerPolicy="no-referrer" onError={() => setPi(k => k + 1)} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+          ? <img key={src} src={src} alt="" referrerPolicy="no-referrer" decoding="async" loading={active ? "eager" : "lazy"}
+              onError={() => setPi(k => k + 1)}
+              onLoad={e => { const im = e.currentTarget; if (im.naturalWidth < 120 || im.naturalHeight < 80) setPi(k => k + 1); }}
+              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
           : <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "flex-end", padding: 16, color: "#d8d2c8", fontSize: 13, letterSpacing: ".12em", textTransform: "uppercase", fontWeight: 700 }}>{c.topic}</span>}
         {src && c.credit && pi === 0 && <span style={{ position: "absolute", right: 0, bottom: 0, fontSize: 10, color: "#eee", background: "rgba(0,0,0,.5)", padding: "2px 6px", borderTopLeftRadius: 4 }}>Photo: {c.credit}</span>}
       </div>
@@ -581,7 +584,7 @@ function Caption({ c }: { c: ViewCard }) {
     const up = c.change?.startsWith("up"), down = c.change?.startsWith("down");
     return (
       <>
-        <div className="fy-k">Official data · {c.label}</div>
+        <div className="fy-k">{c.official ? "Official data" : "Polling average"} · {c.label}</div>
         <div className="fy-1" style={{ fontFamily: SERIF, fontSize: 20, lineHeight: 1.25, marginTop: 3 }}>{c.name}: {c.value}</div>
         {c.change && <div style={{ fontSize: 14, fontWeight: 700, marginTop: 2, color: up ? "#0E5C5E" : down ? "#9A3412" : SUB }}>{up ? "▲ " : down ? "▼ " : ""}{c.change.replace(/^(up|down) /, "")}</div>}
         <div className="fy-k" style={{ marginTop: 6, fontSize: 11.5, color: MUTE }}>Source: {c.source}{c.nextRelease && Date.parse(c.nextRelease) > Date.now() ? ` · next release ${new Date(c.nextRelease).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "America/New_York" })}` : ""}</div>
