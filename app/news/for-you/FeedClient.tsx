@@ -251,7 +251,8 @@ export default function FeedClient({ cards: initial }: { cards: ViewCard[] }) {
     if (fr) {
       const cover = r.width / r.height < 16 / 9;
       const w = cover ? r.height * 16 / 9 : r.width, h = cover ? r.height : r.width * 9 / 16;
-      Object.assign(fr.style, { width: `${w}px`, height: `${h}px`, left: `${(r.width - w) / 2}px`, top: `${(r.height - h) / 2}px`, inset: "auto" });
+      fr.style.inset = "auto";
+      Object.assign(fr.style, { width: `${w}px`, height: `${h}px`, left: `${(r.width - w) / 2}px`, top: `${(r.height - h) / 2}px` });
     }
   }, []);
   useEffect(() => { window.addEventListener("resize", place); return () => window.removeEventListener("resize", place); }, [place]);
