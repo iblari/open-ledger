@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { preconnect } from "react-dom";
 import type { FyCard } from "@/lib/for-you";
 import type { SeriesData } from "@/lib/series";
 import ProChart from "@/components/trending/ProChart";
@@ -205,7 +206,11 @@ function Sheet({ card, anon, onClose, onCount }: { card: ViewCard; anon: string;
 const SEEN_KEY = "vu-fy-seen";
 function loadSeen(): Record<string, number> { try { return JSON.parse(localStorage.getItem(SEEN_KEY) || "{}"); } catch { return {}; } }
 
+const sameClip = (a: { id: string; start: number } | null | undefined, b: { id: string; start: number } | null | undefined) => !!a && !!b && a.id === b.id && a.start === b.start;
+
 export default function FeedClient({ cards: initial }: { cards: ViewCard[] }) {
+  // Open connections to YouTube while the page is still loading.
+  preconnect("https://www.youtube-nocookie.com"); preconnect("https://www.youtube.com"); preconnect("https://i.ytimg.com"); preconnect("https://www.google.com");
   // Cards this browser has already seen go to the back (oldest-seen first).
   const [cards, setCards] = useState(initial);
   useLayoutEffect(() => {
@@ -230,59 +235,105 @@ export default function FeedClient({ cards: initial }: { cards: ViewCard[] }) {
   const pending = useRef<string[]>([]);
   const maxIdx = useRef(0);
   const tapT = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const ytBox = useRef<HTMLDivElement>(null);
-  const yp = useRef<YTPlayer | null>(null);
-  const ytCur = useRef<{ id: string; start: number; end: number } | null>(null);
+  // Still on the same card after 25s? Remind them they can swipe.
+  const [idleHint, setIdleHint] = useState(false);
+  const idleT = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const armIdle = useCallback(() => {
+    setIdleHint(false);
+    if (idleT.current) clearTimeout(idleT.current);
+    idleT.current = setTimeout(() => setIdleHint(true), 25_000);
+  }, []);
+  // (see sameClip below)
+  // Two YouTube players take turns: one plays the card on screen, the other
+  // quietly buffers the next clip in the feed, so a swipe starts it at once.
+  type Yt = { id: string; start: number; end: number };
+  const box0 = useRef<HTMLDivElement>(null), box1 = useRef<HTMLDivElement>(null);
+  const boxes = [box0, box1];
+  const yps = useRef<(YTPlayer | null)[]>([null, null]);
+  const ready = useRef([false, false]);
+  const loaded = useRef<(Yt | null)[]>([null, null]);
+  const preloading = useRef([false, false]);
+  const wantPlay = useRef<(Yt | null)[]>([null, null]);
+  const cur = useRef(0);
+  const [shown, setShown] = useState(0);
+  const ytCur = useRef<Yt | null>(null);
   const [yst, setYst] = useState({ playing: false, needTap: false });
   const soundRef = useRef(sound); soundRef.current = sound;
   const [cview, setCview] = useState<"clip" | "data">("clip");
   const autoDone = useRef(false);
   const hasChart = useRef(false);
 
-  // Lay the shared player over the active claim's panel (it scrolls with the content).
+  // Lay both players over the active claim's panel (they scroll with the content).
   const place = useCallback(() => {
-    const f = ytBox.current, root = box.current; if (!f || !root) return;
+    const root = box.current; if (!root) return;
     const slot = root.querySelector<HTMLElement>('[data-yt-slot="1"]');
-    if (!slot) { f.style.display = "none"; return; }
-    const r = slot.getBoundingClientRect(), b = root.getBoundingClientRect();
-    Object.assign(f.style, { display: "block", top: `${r.top - b.top + root.scrollTop}px`, left: `${r.left - b.left}px`, width: `${r.width}px`, height: `${r.height}px` });
-    // Fill the panel like a vertical video: scale the 16:9 player to cover it and crop the sides.
-    const fr = f.querySelector("iframe") as HTMLIFrameElement | null;
-    if (fr) {
-      const cover = r.width / r.height < 16 / 9;
-      const w = cover ? r.height * 16 / 9 : r.width, h = cover ? r.height : r.width * 9 / 16;
-      fr.style.inset = "auto";
-      Object.assign(fr.style, { width: `${w}px`, height: `${h}px`, left: `${(r.width - w) / 2}px`, top: `${(r.height - h) / 2}px` });
+    for (const ref of [box0, box1]) {
+      const f = ref.current; if (!f) continue;
+      if (!slot) { f.style.display = "none"; continue; }
+      const r = slot.getBoundingClientRect(), b = root.getBoundingClientRect();
+      Object.assign(f.style, { display: "block", top: `${r.top - b.top + root.scrollTop}px`, left: `${r.left - b.left}px`, width: `${r.width}px`, height: `${r.height}px` });
+      // Fill the panel like a vertical video: scale the 16:9 player to cover it and crop the sides.
+      const fr = f.querySelector("iframe") as HTMLIFrameElement | null;
+      if (fr) {
+        const cover = r.width / r.height < 16 / 9;
+        const w = cover ? r.height * 16 / 9 : r.width, h = cover ? r.height : r.width * 9 / 16;
+        fr.style.inset = "auto";
+        Object.assign(fr.style, { width: `${w}px`, height: `${h}px`, left: `${(r.width - w) / 2}px`, top: `${(r.height - h) / 2}px` });
+      }
     }
   }, []);
   useEffect(() => { window.addEventListener("resize", place); return () => window.removeEventListener("resize", place); }, [place]);
+
+  const startOn = useCallback((i: number, yt: Yt) => {
+    const x = yps.current[i];
+    preloading.current[i] = false;
+    if (!x || !ready.current[i]) { wantPlay.current[i] = yt; return; }
+    try {
+      if (!sameClip(loaded.current[i], yt)) { x.loadVideoById({ videoId: yt.id, startSeconds: yt.start, endSeconds: yt.end }); loaded.current[i] = yt; }
+      else x.seekTo(yt.start, true);
+      if (soundRef.current) { x.unMute(); x.setVolume(100); } else x.mute();
+      x.playVideo();
+    } catch {}
+  }, []);
+  const preloadOn = useCallback((i: number, yt: Yt) => {
+    const x = yps.current[i];
+    if (sameClip(loaded.current[i], yt)) return;
+    loaded.current[i] = yt; preloading.current[i] = true;
+    if (!x || !ready.current[i]) return;          // picked up in onReady
+    try { x.mute(); x.loadVideoById({ videoId: yt.id, startSeconds: yt.start, endSeconds: yt.end }); } catch {}
+  }, []);
+
+  // Create both players as soon as the page opens (not on the first video card).
   useEffect(() => {
-    const c = cards[active];
-    const yt = c?.kind === "claim" ? c.yt : null;
-    setYst({ playing: false, needTap: false });
-    setCview("clip"); autoDone.current = false; hasChart.current = c?.kind === "claim" && !!c.chart;
-    const raf = requestAnimationFrame(() => requestAnimationFrame(place));
-    if (!yt) { try { yp.current?.pauseVideo(); } catch {} return () => cancelAnimationFrame(raf); }
-    ytCur.current = yt;
     let dead = false;
-    if (yp.current) {
-      try {
-        yp.current.loadVideoById({ videoId: yt.id, startSeconds: yt.start, endSeconds: yt.end });
-        if (soundRef.current) { yp.current.unMute(); yp.current.setVolume(100); } else yp.current.mute();
-      } catch {}
-    } else {
-      loadApi().then(() => {
-        const YT = win().YT;
-        if (dead || !ytBox.current || !YT || yp.current) return;
-        const el = document.createElement("div"); ytBox.current.appendChild(el);
-        yp.current = new YT.Player(el, {
-          host: "https://www.youtube-nocookie.com", videoId: yt.id, width: "100%", height: "100%",
-          playerVars: { start: yt.start, end: yt.end, autoplay: 1, mute: 1, controls: 0, playsinline: 1, rel: 0, modestbranding: 1, iv_load_policy: 3, disablekb: 1, fs: 0, cc_load_policy: 0 },
+    const claims = cards.filter((c): c is Extract<ViewCard, { kind: "claim" }> => c.kind === "claim" && !!c.yt);
+    loadApi().then(() => {
+      const YT = win().YT;
+      if (dead || !YT) return;
+      [0, 1].forEach(i => {
+        const host = boxes[i].current; if (!host || yps.current[i]) return;
+        const first = claims[i]?.yt ?? claims[0]?.yt; if (!first) return;
+        loaded.current[i] = first; preloading.current[i] = true;
+        const el = document.createElement("div"); host.appendChild(el);
+        yps.current[i] = new YT.Player(el, {
+          host: "https://www.youtube-nocookie.com", videoId: first.id, width: "100%", height: "100%",
+          playerVars: { start: first.start, end: first.end, autoplay: 1, mute: 1, controls: 0, playsinline: 1, rel: 0, modestbranding: 1, iv_load_policy: 3, disablekb: 1, fs: 0, cc_load_policy: 0 },
           events: {
-            onReady: (e: { target: YTPlayer }) => { place(); if (soundRef.current) { e.target.unMute(); e.target.setVolume(100); } else e.target.mute(); e.target.playVideo(); },
+            onReady: (e: { target: YTPlayer }) => {
+              ready.current[i] = true; place();
+              e.target.mute();
+              const w = wantPlay.current[i]; wantPlay.current[i] = null;
+              if (w && cur.current === i) startOn(i, w);
+              else if (!preloading.current[i]) e.target.pauseVideo();
+              else { const l = loaded.current[i]; if (l && l.id !== first.id) { try { e.target.loadVideoById({ videoId: l.id, startSeconds: l.start, endSeconds: l.end }); } catch {} } }
+            },
             onStateChange: (e: { data: number; target: YTPlayer }) => {
-              if (e.data === 1) { setYst({ playing: true, needTap: false }); place(); }
-              if (e.data === 0) {
+              if (e.data === 1) {
+                // A buffering standby: hold it at the start, ready for the swipe.
+                if (preloading.current[i] || cur.current !== i) { try { e.target.pauseVideo(); const l = loaded.current[i]; if (l) e.target.seekTo(l.start, true); } catch {} return; }
+                setYst({ playing: true, needTap: false }); place();
+              }
+              if (e.data === 0 && cur.current === i) {
                 // After the clip plays once, show the data; after that it loops.
                 if (hasChart.current && !autoDone.current) { autoDone.current = true; setCview("data"); return; }
                 const y = ytCur.current; if (y) { e.target.seekTo(y.start, true); e.target.playVideo(); }
@@ -291,16 +342,37 @@ export default function FeedClient({ cards: initial }: { cards: ViewCard[] }) {
           },
         }) as YTPlayer;
       });
-    }
+    });
+    return () => { dead = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const c = cards[active];
+    const yt = c?.kind === "claim" ? c.yt : null;
+    setYst({ playing: false, needTap: false });
+    setCview("clip"); autoDone.current = false; hasChart.current = c?.kind === "claim" && !!c.chart;
+    const raf = requestAnimationFrame(() => requestAnimationFrame(place));
+    if (!yt) { yps.current.forEach(x => { try { x?.pauseVideo(); } catch {} }); return () => cancelAnimationFrame(raf); }
+    ytCur.current = yt;
+    // Use the player that already buffered this clip, else the one not on screen.
+    const i = sameClip(loaded.current[0], yt) ? 0 : sameClip(loaded.current[1], yt) ? 1 : 1 - cur.current;
+    const o = 1 - i;
+    cur.current = i; setShown(i);
+    try { yps.current[o]?.pauseVideo(); } catch {}
+    startOn(i, yt);
+    // Buffer the next clip further down the feed on the other player.
+    const next = cards.slice(active + 1, active + 7).find((x): x is Extract<ViewCard, { kind: "claim" }> => x.kind === "claim" && !!x.yt && !sameClip(x.yt, yt));
+    const pre = next?.yt ? setTimeout(() => { if (cur.current === i) preloadOn(o, next.yt!); }, 900) : null;
     // Autoplay can be refused (iPhone Low Power Mode, data saver). Then the
     // player itself takes the tap, which browsers always allow.
-    const t = setTimeout(() => { if (!dead) setYst(s => s.playing ? s : { playing: false, needTap: true }); }, 3000);
-    return () => { dead = true; clearTimeout(t); cancelAnimationFrame(raf); };
-  }, [active, cards, place]);
+    const t = setTimeout(() => setYst(s => s.playing ? s : { playing: false, needTap: true }), 3000);
+    return () => { clearTimeout(t); if (pre) clearTimeout(pre); cancelAnimationFrame(raf); };
+  }, [active, cards, place, startOn, preloadOn]);
   useEffect(() => { requestAnimationFrame(place); }, [yst.needTap, place]);
   useEffect(() => {
     const raf = requestAnimationFrame(() => requestAnimationFrame(place));
-    const x = yp.current;
+    const x = yps.current[cur.current];
     if (x && cards[active]?.kind === "claim") {
       try {
         if (cview === "data") x.pauseVideo();
@@ -310,14 +382,17 @@ export default function FeedClient({ cards: initial }: { cards: ViewCard[] }) {
     return () => cancelAnimationFrame(raf);
   }, [cview, active, cards, place]);
   useEffect(() => {
-    const x = yp.current; if (!x || cards[active]?.kind !== "claim") return;
+    const x = yps.current[cur.current]; if (!x || cards[active]?.kind !== "claim") return;
     try { if (paused) x.pauseVideo(); else if (yst.playing) x.playVideo(); } catch {}
   }, [paused, active, cards, yst.playing]);
   const toggleSound = useCallback(() => {
     const next = !soundRef.current;
     setSound(next);
-    const x = yp.current; if (!x) return;
-    try { if (next) { x.unMute(); x.setVolume(100); x.playVideo(); } else x.mute(); } catch {}
+    // Both players get the tap, so sound carries over to the next clip too.
+    yps.current.forEach((x, k) => {
+      if (!x) return;
+      try { if (next) { x.unMute(); x.setVolume(100); if (k === cur.current) x.playVideo(); } else x.mute(); } catch {}
+    });
   }, []);
 
   useEffect(() => {
@@ -333,6 +408,7 @@ export default function FeedClient({ cards: initial }: { cards: ViewCard[] }) {
     document.addEventListener("visibilitychange", vis);
     return () => { clearInterval(t); document.removeEventListener("visibilitychange", vis); flush(); };
   }, []);
+  useEffect(() => { armIdle(); return () => { if (idleT.current) clearTimeout(idleT.current); }; }, [active, sheet, armIdle]);
   useEffect(() => {
     setPaused(false); setSheet(null);
     const id = cards[active]?.id; if (!id) return;
@@ -450,12 +526,15 @@ export default function FeedClient({ cards: initial }: { cards: ViewCard[] }) {
         @container (max-height:640px){.fy-hint{display:none}.fy-lbl{font-size:10px}}
         @container (max-height:560px){.fy-lbl,.fy-sides-x{display:none!important}.fy-h{font-size:19px;-webkit-line-clamp:2}.fy-cap{padding-top:8px}.fy-3{-webkit-line-clamp:2}}
         @container (max-height:470px){.fy-hide-short{display:none!important}}
+        .fy-idle{position:absolute;left:50%;bottom:76px;transform:translateX(-50%);z-index:8;display:inline-flex;align-items:center;gap:6px;height:38px;padding:0 16px;border-radius:999px;border:0;background:rgba(26,26,26,.88);color:#fff;font:700 13.5px 'DM Sans',sans-serif;cursor:pointer;box-shadow:0 6px 20px -8px rgba(0,0,0,.5);animation:fy-idle-in .35s ease-out, fy-idle-bob 1.4s ease-in-out .35s infinite}
+        @keyframes fy-idle-in{from{opacity:0;transform:translate(-50%,10px)}to{opacity:1;transform:translate(-50%,0)}}
+        @keyframes fy-idle-bob{0%,100%{transform:translate(-50%,0)}50%{transform:translate(-50%,-6px)}}
         @keyframes fy-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
         @keyframes fy-up{from{transform:translateY(100%)}to{transform:none}}
         @keyframes fy-heart{0%{opacity:0;transform:translate(-50%,-50%) scale(.4)}25%{opacity:1;transform:translate(-50%,-50%) scale(1.15)}70%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-80%) scale(1)}}
       `}</style>
-      <div ref={box} className="fy-box" aria-label="For you feed">
-        <div ref={ytBox} className="fy-ytfloat" style={{ visibility: yst.playing || yst.needTap ? "visible" : "hidden", opacity: yst.playing ? 1 : 0.011, pointerEvents: yst.needTap ? "auto" : "none" }} />
+      <div ref={box} className="fy-box" aria-label="For you feed" onPointerDown={armIdle}>
+        {[0, 1].map(k => <div key={k} ref={boxes[k]} className="fy-ytfloat" style={{ visibility: shown === k && (yst.playing || yst.needTap) ? "visible" : "hidden", opacity: shown === k && yst.playing ? 1 : 0.011, pointerEvents: shown === k && yst.needTap ? "auto" : "none", zIndex: shown === k ? 2 : 1 }} />)}
         {cards.map((c, i) => {
           const on = i === active;
           const near = Math.abs(i - active) <= 2;
@@ -484,6 +563,11 @@ export default function FeedClient({ cards: initial }: { cards: ViewCard[] }) {
                   <button className="fy-ab" onClick={() => share(c)} aria-label="Share"><Svg d={I.share} /></button>
                   <Link href={c.href} className="fy-open" onClick={() => beacon({ open: c.id })}>{OPEN_LABEL[c.kind]} →</Link>
                 </div>
+                {on && idleHint && !sheet && i < cards.length - 1 && (
+                  <button className="fy-idle" onClick={() => { setIdleHint(false); go(1); }} aria-label="Next card">
+                    <span aria-hidden>↑</span> Swipe up for more
+                  </button>
+                )}
                 {sheet === c.id && anon && <Sheet card={c} anon={anon} onClose={() => setSheet(null)} onCount={k => setCnt(m => ({ ...m, [c.id]: { likes: m[c.id]?.likes || 0, comments: k } }))} />}
               </div>
             </section>
