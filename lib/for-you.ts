@@ -53,6 +53,15 @@ function ytOf(watch: string, at?: number | null): ClaimCard["yt"] {
   } catch { return null; }
 }
 
+/** A video's length in seconds, from its public watch page (null if unknown). */
+async function ytLength(id: string): Promise<number | null> {
+  try {
+    const r = await fetch(`https://www.youtube.com/watch?v=${id}`, { headers: { "User-Agent": "Mozilla/5.0", "Accept-Language": "en" }, signal: AbortSignal.timeout(5000) });
+    const m = (await r.text()).match(/"lengthSeconds":"(\d+)"/);
+    return m ? Number(m[1]) : null;
+  } catch { return null; }
+}
+
 type Scored<T> = T & { score: number };
 
 /** Everything except results, scored. Cached 5 minutes for all visitors. */
@@ -102,6 +111,15 @@ const pool = unstable_cache(async () => {
     };
   });
 
+  // A clip that starts past the end of its video can't play: show the data instead.
+  const vids = [...new Set(claims.map(c => c.yt?.id).filter((v): v is string => !!v))];
+  const lens = new Map(await Promise.all(vids.map(async v => [v, await ytLength(v)] as const)));
+  for (const c of claims) {
+    const len = c.yt ? lens.get(c.yt.id) : null;
+    if (c.yt && len != null && c.yt.start >= len - 2) c.yt = null;
+    else if (c.yt && len != null && c.yt.end > len) c.yt = { ...c.yt, end: len };
+  }
+
   const metrics: Scored<MetricCard>[] = kit.metrics.map(m => {
     const href = pathOf(m.link);
     const recent = m.releasedLast24h;
@@ -117,7 +135,7 @@ const pool = unstable_cache(async () => {
   });
 
   return { stories, claims, metrics, at: kit.generatedAt };
-}, ["for-you-pool-v5"], { revalidate: 300 });
+}, ["for-you-pool-v6"], { revalidate: 300 });
 
 /** Results cards: official counts only, from the same store as /vote. */
 async function resultCards(myState: string | null): Promise<Scored<ResultCard>[]> {
