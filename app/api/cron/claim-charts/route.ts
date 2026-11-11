@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { backfillClaimCharts, backfillClaimSeries } from "@/lib/trending-claims";
-import { recheckClaims, FOREIGN_SCOPE_FIX, NATIONAL_SCOPE_FIX } from "@/lib/claim-repair";
+import { recheckClaims, FOREIGN_SCOPE_FIX, NATIONAL_SCOPE_FIX, TEXT_FIX_NOV11 } from "@/lib/claim-repair";
 
 /** GET /api/cron/claim-charts — build charts for new True/False claims (4 per run). */
 export const dynamic = "force-dynamic";
@@ -14,7 +14,8 @@ export async function GET(req: Request) {
   // One-off repairs (each target runs once, guarded in KV).
   const rep = await recheckClaims("fs1", FOREIGN_SCOPE_FIX, 4).catch(e => ({ fixed: [] as string[], failed: [(e as Error).message] }));
   const rep2 = await recheckClaims("ns1", NATIONAL_SCOPE_FIX, 2).catch(e => ({ fixed: [] as string[], failed: [(e as Error).message] }));
-  rep.fixed.push(...rep2.fixed); rep.failed.push(...rep2.failed);
+  const rep3 = await recheckClaims("tx1118", TEXT_FIX_NOV11, 1).catch(e => ({ fixed: [] as string[], failed: [(e as Error).message] }));
+  rep.fixed.push(...rep2.fixed, ...rep3.fixed); rep.failed.push(...rep2.failed, ...rep3.failed);
   if (rep.fixed.length || rep.failed.length) console.log("[claim-charts] repair", JSON.stringify(rep));
   const mapped = await backfillClaimSeries(20).catch(e => { console.error("[claim-series]", (e as Error).message); return 0; });
   const n = await backfillClaimCharts(rep.fixed.length ? 3 : 6).catch(e => { console.error("[claim-charts]", (e as Error).message); return 0; });

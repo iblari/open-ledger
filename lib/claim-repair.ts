@@ -12,7 +12,12 @@ import { CHART_KEY } from "./claim-chart";
  * First use: claims the old geographic-scope gate sent to the wrong country
  * (a country named AFTER the claim was taken as its subject).
  */
-export interface RepairTarget { videoId: string; startsWith: string }
+export interface RepairTarget {
+  videoId: string;
+  startsWith: string;
+  /** Written correction applied as-is instead of a fresh web check (rating is kept unless given). */
+  patch?: Pick<Partial<LiveClaim>, "rating" | "actual" | "explanation" | "sources">;
+}
 
 const DONE = (tag: string, v: string, q: string) => `repair:${tag}:${claimHash(v, q)}`;
 
@@ -42,6 +47,7 @@ export async function recheckClaims(tag: string, targets: RepairTarget[], max = 
     const results = await Promise.all(ts.map(async t => {
       const c = full.claims.find(x => normQuote(x.quote).startsWith(normQuote(t.startsWith)));
       if (!c) return { t, c: null, v: null };
+      if (t.patch) return { t, c, v: { ...t.patch, rating: t.patch.rating ?? c.rating, confidence: c.confidence, actual: t.patch.actual ?? c.actual, explanation: t.patch.explanation ?? c.explanation, sources: t.patch.sources ?? c.sources } as NonNullable<Awaited<ReturnType<typeof verifyClaimOnWeb>>> };
       // Fresh check: no prior verdict or note, only what led up to the claim.
       const v = await verifyClaimOnWeb({ quote: c.quote }, { context: contextBefore(c.quote, transcript), timeoutMs: 45_000, maxSearches: 3 }).catch(() => null);
       return { t, c, v };
@@ -105,4 +111,20 @@ export const FOREIGN_SCOPE_FIX: RepairTarget[] = [
   { videoId: "64w2lEYtw8E", startsWith: "we have it down now to very good number" },
   { videoId: "64w2lEYtw8E", startsWith: "The Democrats caused the highest prices" },
   { videoId: "64w2lEYtw8E", startsWith: "our gasoline prices are lower than Biden" },
+];
+
+/** Nov 11: Vietnam claim read "seven months" as Vietnam's length; it was about the current war. */
+export const TEXT_FIX_NOV11: RepairTarget[] = [
+  {
+    videoId: "XA4UuMZJyqU",
+    startsWith: "They lost 65,000 in Vietnam",
+    patch: {
+      actual: "U.S. deaths in the Vietnam War: 58,220 (47,434 hostile, 10,786 non-hostile), per Department of Defense casualty records covering Nov 1955 to May 1975.",
+      explanation: "He compared two different wars. The 65,000 figure is for Vietnam; official records show 58,220 U.S. deaths, about 6,800 fewer. \"Seven months\" is how long he said the current conflict has lasted; in the next sentence he gave twenty-one years for Vietnam. The record had wrongly read \"seven months\" as the length of Vietnam. Records date U.S. involvement in Vietnam from 1955 to 1975, about twenty years.",
+      sources: [
+        { title: "National Archives: Vietnam War U.S. Military Fatal Casualty Statistics", url: "https://www.archives.gov/research/military/vietnam-war/casualty-statistics" },
+        { title: "Defense Casualty Analysis System: Vietnam conflict summary", url: "https://dcas.dmdc.osd.mil/dcas/app/conflictCasualties/vietnam/vietnamSum" },
+      ],
+    },
+  },
 ];
