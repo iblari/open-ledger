@@ -25,12 +25,19 @@ export function sniffKind(buf: Buffer): SlideKind | null {
   return null;
 }
 
+/** Width/height from the avc1 sample entry inside an stsd box (the "avc1" in the ftyp brand list is not one). Null if there is none. */
+export function findAvcDims(buf: Buffer): { width: number; height: number } | null {
+  for (let s = buf.indexOf("stsd", 0, "ascii"); s >= 4; s = buf.indexOf("stsd", s + 4, "ascii")) {
+    const at = s + 16; // stsd: type, version/flags, entry_count, then the first entry's size and format
+    if (buf.length >= at + 32 && buf.toString("ascii", at, at + 4) === "avc1") return { width: buf.readUInt16BE(at + 28), height: buf.readUInt16BE(at + 30) };
+  }
+  return null;
+}
+
 /** Returns an error message, or null if this is an H.264 MP4 within the size cap. Width/height come from the avc1 sample entry. */
 export function checkVideo(buf: Buffer): { error: string } | { width: number; height: number } {
   if (buf.length > SLIDE_MAX_BYTES) return { error: `MP4 is ${(buf.length / 1048576).toFixed(1)} MB; max is 4.5 MB (the platform's request limit)` };
-  const at = buf.indexOf("avc1", 0, "ascii");
-  if (at < 4 || buf.length < at + 32) return { error: "not an H.264 (avc1) MP4 file" };
-  return { width: buf.readUInt16BE(at + 28), height: buf.readUInt16BE(at + 30) };
+  return findAvcDims(buf) || { error: "not an H.264 (avc1) MP4 file" };
 }
 
 /** Returns an error message, or null if this is a 1080x1350 PNG within the size cap. */
@@ -62,8 +69,7 @@ export async function savePart(id: string, index: number, data: Buffer): Promise
   const items: [string, string, number][] = [];
   const n = Math.max(1, Math.ceil(data.length / SUB));
   for (let j = 0; j < n; j++) items.push([partKey(id, index, j), data.subarray(j * SUB, (j + 1) * SUB).toString("base64"), TTL_SEC]);
-  const at = data.indexOf("avc1", 0, "ascii");
-  const dims = at >= 4 && data.length >= at + 32 ? { width: data.readUInt16BE(at + 28), height: data.readUInt16BE(at + 30) } : {};
+  const dims = findAvcDims(data) || {};
   items.push([partMetaKey(id, index), JSON.stringify({ n, bytes: data.length, ...dims }), TTL_SEC]);
   await kvSetMany(items);
   return dims;
